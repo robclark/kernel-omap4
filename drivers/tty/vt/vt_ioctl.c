@@ -38,6 +38,8 @@
 #include <linux/kbd_diacr.h>
 #include <linux/selection.h>
 
+#define max_font_size 65536
+
 char vt_dont_switch;
 extern struct tty_driver *console_driver;
 
@@ -1592,6 +1594,7 @@ static void complete_change_console(struct vc_data *vc)
 {
 	unsigned char old_vc_mode;
 	int old = fg_console;
+	struct vc_data *oldvc = vc_cons[fg_console].d;
 
 	last_console = fg_console;
 
@@ -1600,9 +1603,31 @@ static void complete_change_console(struct vc_data *vc)
 	 * KD_TEXT mode or vice versa, which means we need to blank or
 	 * unblank the screen later.
 	 */
-	old_vc_mode = vc_cons[fg_console].d->vc_mode;
+	old_vc_mode = oldvc->vc_mode;
+
+#if defined(CONFIG_VGA_CONSOLE)
+	if (old_vc_mode == KD_TEXT && oldvc->vc_sw == &vga_con &&
+	    oldvc->vc_sw->con_font_get) {
+		if (!oldvc->vc_font.data)
+			oldvc->vc_font.data = kmalloc(max_font_size, 
+						      GFP_KERNEL);
+		lock_kernel();
+		oldvc->vc_sw->con_font_get(oldvc, &oldvc->vc_font);
+		unlock_kernel();
+	}
+#endif
 	switch_screen(vc);
 
+#if defined(CONFIG_VGA_CONSOLE)
+	if (vc->vc_mode == KD_TEXT && vc->vc_sw == &vga_con &&
+	    vc->vc_sw->con_font_set) {
+		if (vc->vc_font.data) {
+			lock_kernel();
+			vc->vc_sw->con_font_set(vc, &vc->vc_font, 0);
+			unlock_kernel();
+		}
+	}
+#endif
 	/*
 	 * This can't appear below a successful kill_pid().  If it did,
 	 * then the *blank_screen operation could occur while X, having
