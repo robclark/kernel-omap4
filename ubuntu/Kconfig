@@ -15,6 +15,10 @@ source "ubuntu/ndiswrapper/Kconfig"
 ##
 ##
 ##
+source "ubuntu/rfkill/Kconfig"
+##
+##
+##
 ##
 ##
 ##

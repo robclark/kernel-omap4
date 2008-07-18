@@ -1,0 +1,7 @@
+config AVERATEC_5100P
+	tristate "Software kill switch for Averatec 5100P"
+	default m
+
+config PACKARDBELL_E5
+	tristate "Software kill switch for Packard Bell EasyNote E5"
+	default m
