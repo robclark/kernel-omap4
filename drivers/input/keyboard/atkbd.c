@@ -936,6 +936,14 @@ static unsigned int atkbd_amilo_xi3650_forced_release_keys[] = {
 };
 
 /*
+ * Fujitsu Siemens system with broken key release on volume keys and mute key
+ */
+
+static unsigned int atkbd_amilo_xi_2428_forced_release_keys[] = {
+	0xa0, 0xae, 0xb0, -1U
+};
+
+/*
  * Soltech TA12 system with broken key release on volume keys and mute key
  */
 static unsigned int atkdb_soltech_ta12_forced_release_keys[] = {
@@ -1709,6 +1717,35 @@ static const struct dmi_system_id atkbd_dmi_quirk_table[] __initconst = {
 		.driver_data = atkbd_amilo_xi3650_forced_release_keys,
 	},
 	{
+		.ident = "Znote 6615WD",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Zepto"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Znote 6615WD"),
+		},
+		.callback = atkbd_setup_forced_release,
+		.driver_data = atkbd_volume_forced_release_keys,
+	},
+	{
+		.ident = "Znote 6625WD",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Zepto"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Znote"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "6625WD"),
+		},
+		.callback = atkbd_setup_forced_release,
+		.driver_data = atkbd_volume_forced_release_keys,
+	},
+	{
+		.ident = "AMILO Xi 2428",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "AMILO Xi 2428"),
+		},
+		.callback = atkbd_setup_forced_release,
+		.driver_data = atkbd_amilo_xi_2428_forced_release_keys,
+	},
+	{
+		.ident = "Soltech Corporation TA12",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Soltech Corporation"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "TA12"),
