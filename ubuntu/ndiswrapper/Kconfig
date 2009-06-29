@@ -1,0 +1,4 @@
+config NDISWRAPPER
+	tristate "Wrapper for Windows NDIS network drivers"
+	depends on NET
+	default m
