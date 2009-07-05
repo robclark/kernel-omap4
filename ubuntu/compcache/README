@@ -1,0 +1,45 @@
+ramzswap: Compressed RAM based swap device
+-------------------------------------------
+
+Project home: http://compcache.googlecode.com
+
+* Introduction
+This is a RAM based block device which acts as swap disk.
+Pages swapped to this device are compressed and stored in
+memory itself. See project home for use cases, performance
+numbers and lot more.
+
+* Compiling
+ - Run 'make': this will compile all modules against your kernel.
+
+ - Following kernel modules are created:
+   - xvmalloc.ko
+   - ramzswap.ko
+
+* Using
+ - Following scipts are included
+   - use_ramzswap.sh [<disksize(KB)|<memlimit(KB)>] [<backing_swap>]
+     This loads all required modules and sets up swap device.
+     NOTE: script contains detailed documentation on parameters.
+
+   - unuse_ramzswap.sh
+     Unloads all modules and turns off ramzswap swap device.
+
+* Common Problems
+ - If you get lots of compile errors, make sure you have package for
+   kernel source installed. For e.g., on Fedora its 'kernel-devel' package.
+
+ - If (un)use_ramzswap scripts fail to work, refer to wiki:
+   http://code.google.com/p/compcache/wiki/CompilingAndUsing
+
+* Notes
+ - Statistics are exported via /proc/ramzswap
+
+Please consider using Issue Tracker:
+http://code.google.com/p/compcache/issues/list
+for reporting any bugs/feature requests.
+
+Cheers!
+Nitin Gupta
+EMail: ngupta at vflare dot org
+
