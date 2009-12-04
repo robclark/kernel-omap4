@@ -1,0 +1,3 @@
+config SCSI_ISCSITARGET
+	tristate "iSCSI Target Driver"
+	depends on SCSI

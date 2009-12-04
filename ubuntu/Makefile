@@ -29,6 +29,10 @@ obj-$(CONFIG_OMNIBOOK)		+= omnibook/
 ##
 ##
 ##
+obj-$(CONFIG_SCSI_ISCSITARGET)	+= iscsitarget/
+##
+##
+##
 ##
 ##
 ##

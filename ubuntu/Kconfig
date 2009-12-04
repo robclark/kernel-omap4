@@ -27,6 +27,10 @@ source "ubuntu/omnibook/Kconfig"
 ##
 ##
 ##
+source "ubuntu/iscsitarget/Kconfig"
+##
+##
+##
 ##
 ##
 ##
