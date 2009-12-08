@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<definition>
+	<config model="HP OmniBook xt155">
+
+	<!--
+		Multimedia keys are disabled by default on HP OmniBook
+		laptops. For enabling them see the project at URL
+		http://sourceforge.net/projects/omke
+	-->
+
+		<Email		keycode="236"/>
+		<WebBrowser	keycode="178"/>
+		<Shell		keycode="243"/>
+		<ScreenSaver	keycode="241"/>
+		<Help		keycode="240"/>
+
+	</config>
+
+	<contributor>
+		<name>Soos, Peter</name>
+		<email>sp@osb.hu</email>
+	</contributor>
+</definition>

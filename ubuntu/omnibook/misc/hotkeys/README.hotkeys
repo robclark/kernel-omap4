@@ -1,0 +1,22 @@
+HotKeys is a program to use the special keys on internet/multimedia
+keyboards.
+
+The HotKeys daemon listens for the "special" hotkeys that you won't
+normally use on your Internet/Multimedia keyboards. The buttons
+perform their intended behaviors, such as volume up and down, mute the
+speaker, or launch applications.  It has On-screen display (OSD) to
+show the volume, program that's being started, etc.  It features an
+XML-based keycode configuration file format, which makes it possible
+to define the hotkeys to launch any programs you want.
+
+You may reach it at http://ypwong.org/hotkeys/
+
+Files in this directory provide examles for hotkeys definition files
+for certain laptop models supported by omnibook module:
+
+ob5xx.def:	HP OmniBook 5xx
+xe3gc.def:	HP OmniBook XE3 GC, GD, GE and HP Pavilion N5xxx
+xe3gf.def:	HP OmniBook XE3 GF
+xe4xxx.def:	HP OmniBook xe4xxx and ze4xxx
+xt155.def:	HP OmniBook xt155
+nx9xxx.def:	HP/Compaq nx9xxx

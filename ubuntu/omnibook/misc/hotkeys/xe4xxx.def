@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<definition>
+	<config model="HP OmniBook xe4xxx and ze4xxx">
+
+	<!--
+		Multimedia keys are disabled by default on HP OmniBook
+		laptops. For enabling them see the project at URL
+		http://sourceforge.net/projects/omke
+	-->
+
+		<Email		keycode="236"/>
+		<WebBrowser	keycode="178"/>
+		<Shell		keycode="243"/>
+		<ScreenSaver	keycode="241"/>
+		<Help		keycode="240"/>
+
+		<VolUp		keycode="176" adj="1"/>
+		<VolDown	keycode="174" adj="1"/>
+
+		<userdef keycode="160" command="aumix -vM">Sound muted</userdef>
+
+	</config>
+
+	<contributor>
+		<name>Soos, Peter</name>
+		<email>sp@osb.hu</email>
+	</contributor>
+</definition>

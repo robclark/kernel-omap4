@@ -1,0 +1,42 @@
+===============================================================
+Kernel Support for HP OmniBooks, Pavilions and Compal laptops
+===============================================================
+
+This package is intended to provide Linux kernel support for many laptops such as:
+- HP OmniBook and Pavilion
+- Toshiba Satellite and Tecra which are not supported by the toshiba_acpi module
+- Compal ACL00
+- Many laptops manufactured by Compal Electronics, Inc as ODM
+
+Supported features depends on the exact laptop model but may include:
+- Enabling hotkey buttons
+- Console (LCD display) blanking
+- Battery status monitoring.
+- Fan and fan policy support
+- Touchpad control
+- AC Adapter status monitoring
+- External display monitors status monitoring and control
+- LCD brightness (backlight) monitoring and control
+- Docking station/port replicator status
+- CPU temperature monitoring
+- Mute LED monitoring and control
+- Wifi and Bluetooth adapters monitoring and control
+- Cooling method control
+- CPU Throttling control
+
+Useful links:
+
+Full documentation (HOWTO, Installation instructions, Supported laptops list... ):
+http://omnibook.sourceforge.net/doku.php?id=start
+
+Sourceforge project page:
+http://sourceforge.net/projects/omnibook
+
+Other links not related to the project:
+
+For HP Omnibook specific issues ou can see the OmniBook mailing list:
+http://zurich.ai.mit.edu/mailman/listinfo/omnibook
+
+or the Toshiba linux mailing list:
+http://linux.toshiba-dme.co.jp/linux/
+

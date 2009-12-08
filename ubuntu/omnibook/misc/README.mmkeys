@@ -1,0 +1,9 @@
+This patch maps some extra Fn+key combinations to keycodes for multimedia
+keyboards and only works for the nbsmi-backend. It might be useful if you
+want to control some mediaplayer while working with other applications.
+
+Following combinations are mapped:
+Fn+Y => Previous song
+Fn+X => Play/pause
+Fn+V => Stop CD
+Fn+B => Next song

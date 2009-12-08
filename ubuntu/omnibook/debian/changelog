@@ -1,0 +1,170 @@
+omnibook (2:2.20070211+svn20090714b-1) unstable; urgency=low
+
+  * New SVN snapshot:
+    + fix build issue induced by previous patches
+    + fix build with kernel >= 2.6.30
+
+ -- Julien Valroff <julien@kirya.net>  Tue, 14 Jul 2009 18:17:49 +0200
+
+omnibook (2:2.20070211+svn20090714-1) unstable; urgency=low
+
+  * New SVN snapshot:
+    + Applied patches from Azael Avalos <coproscefalo@gmail.com>
+    to add support to Satellite X205 and other laptops based on
+    ICH8
+  * New Standards version 3.8.2
+  * Bumped DH compat to 7
+  * Updated copyright information
+  * Now use dh_prep instead of dh_clean -k
+
+ -- Julien Valroff <julien@kirya.net>  Tue, 14 Jul 2009 10:03:00 +0200
+
+omnibook (2:2.20070211+svn20090227-1) unstable; urgency=low
+
+  * New SVN snapshot
+    + Applied patch from Danny Kukawka <dkukawka@suse.de> to
+    fix compiler warning about use uninitialized variable
+    + Applied patch from Danny Kukawka <dkukawka@suse.de> to
+    fix build the driver on older kernel versions
+
+  * New Standards version 3.8.0 - no further changes needed
+  * Updated copryight information
+
+ -- Julien Valroff <julien@kirya.net>  Fri, 27 Feb 2009 19:57:35 +0100
+
+omnibook (2:2.20070211+svn20071217-1) unstable; urgency=low
+
+  * New SVN snapshot (r271)
+  * Added amd64 as a compatible architecture for the module
+  * New Standards version 3.7.3 - no further changes needed
+
+ -- Julien Valroff <julien@kirya.net>  Mon, 17 Dec 2007 18:00:29 +0100
+
+omnibook (2:2.20070211+svn20071006-1) unstable; urgency=low
+
+  * New SVN snapshot (r264):
+    + Update for acpi and backlight API changes in linux 2.6.23
+  * First upload to Debian (Closes: #445602):
+    + Improved debian/copyright
+    + Bumped debhelper compat to version 5
+    + Added myself as maintainer
+    + Updated README.Debian
+  * debian/control:
+    + Moved Homepage to own field (from pseudo-field in long description)
+    + Added Vcs-* fields
+
+ -- Julien Valroff <julien@kirya.net>  Thu, 29 Nov 2007 18:30:27 +0100
+
+omnibook (2:2.20070211+svn20070905-1) unstable; urgency=low
+
+  * Added dependency on dpatch
+  * [debian/rules]:
+    - Fixed lintian warning in the clean target
+
+ -- Julien Valroff <julien@kirya.net>  Wed, 05 Sep 2007 20:25:13 +0200
+
+omnibook (2:2.20070211+svn20070526-1) unstable; urgency=low
+
+  * New SVN snapshot (r259):
+    + Fixed compilation issue with kernel 2.6.21
+    + DMI signature added:
+        Toshiba Satellite P25 (ectype 11)
+        Toshiba Satellite M60 (ectype 12)
+  * Added patch to disable debug for SVN snasphot
+
+ -- Julien Valroff <julien@kirya.net>  Sat, 26 May 2007 15:19:57 +0200
+
+omnibook (2:2.20070211-1) unstable; urgency=low
+
+  * New upstream release:
+    + For ectype 12 (Satellite M40X, M70, M100, ...):
+      - improved bluetooth control
+      - cooling method control
+      - CPU throttling ( ACPI T-States)
+    + Full hotkeys support for Tecra S1
+    + Bluetooth control for Ectype 14 (Satellite A100, A105, M115, ...)
+  * Updated homepage in long description
+
+ -- Julien Valroff <julien@kirya.net>  Mon, 12 Feb 2007 18:50:05 +0100
+
+omnibook (2:2.20060921+svn20061202-1) unstable; urgency=low
+
+  * New SVN snapshot (r228)
+
+ -- Julien Valroff <julien@kirya.net>  Sat,  2 Dec 2006 10:17:07 +0100
+
+omnibook (2:2.20060921+svn20061112-1) unstable; urgency=low
+
+  * SVN snapshot:
+    + Disabled Acer support
+    + Fixed and improved bluetooth handling for TSM30X class laptop
+    + DMI signature added:
+      HP Pavilion ze4500 (ectype 7)
+      Toshiba Satellite 1130 (ectype 1)
+      Toshiba Satellite A75 (ectype 12)
+      Toshiba Tecra A4 (ectype 13)
+    + Implemented Volume down,up and Mute buttons polling for ectype 2
+    + Implemented ectype 13 Fn hotkeys handling.
+  * changed compression of the sources in /usr/src/ to bzip2
+
+ -- Julien Valroff <julien@kirya.net>  Sat, 11 Nov 2006 14:08:47 +0100
+
+omnibook (2:2.20060921-1) unstable; urgency=low
+
+  * New upstream release:
+    + Expand display and hotkeys features
+    + Added support for more laptops
+    + Code cleanups
+    + Minor bug fixes
+
+ -- Julien Valroff <julien@kirya.net>  Mon, 25 Sep 2006 08:14:59 +0200
+
+omnibook (2:2.20060817-1) unstable; urgency=low
+
+  * New upstream release
+  * [01_makfefile.dpatch] Removed - fixed upstream
+  * Changed defaut STEM value to linux (follows kernel-package)
+  * Uses dh_installmodules for maintainance scripts
+
+ -- Julien Valroff <julien@kirya.net>  Mon, 11 Sep 2006 18:00:50 +0200
+
+omnibook (2:2.20060809-2) unstable; urgency=low
+
+  * Include copyright and Debian changelog in omnibook-module
+  * Fix Makefile issue in a more elegant way
+
+ -- Julien Valroff <julien@kirya.net>  Thu, 10 Aug 2006 10:16:47 +0200
+
+omnibook (2:2.20060809-1) unstable; urgency=low
+
+  * New upstream release:
+    + Addeed autodetection of the Toshiba Satellite M40X laptop
+
+ -- Julien Valroff <julien@kirya.net>  Thu, 10 Aug 2006 09:40:45 +0200
+
+omnibook (2:2.20060806-1) unstable; urgency=low
+
+  * New upstream branch - Mathieu Bérard launched new project
+  * Added myself as co-maintainer
+  * Bumped upstream version and use epoch to ensure upgrades
+  * [debian/rules]:
+    + Clean-ups
+    + Recommends linux-image or kernel-image
+  * [debian/control] Improved long description
+  * [debian/post*.modules.in] Fixed bashisms
+  * Added patch to fix install target in Makefile
+
+ -- Julien Valroff <julien@kirya.net>  Thu, 10 Aug 2006 01:35:38 +0200
+
+omnibook (20060126-1) unstable; urgency=low
+
+  * Minor build inconveniences corrected.
+
+ -- Daniel Gimpelevich <daniel@gimpelevich.san-francisco.ca.us>  Sun, 18 Jun 2006 12:28:55 -0700
+
+omnibook (20060126-0) unstable; urgency=low
+
+  * Locally built.
+
+ -- Péter Soós <sp@osb.hu>  Wed, 25 Jan 2006 21:06:28 +0100
+

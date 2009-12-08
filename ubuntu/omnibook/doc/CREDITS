@@ -1,0 +1,39 @@
+The module was originally written by
+
+* Soós Péter <sp@osb.hu>
+
+Special thanks to the following persons and/or organisations (without
+particular order):
+
+* Al Stone <ahs3@fc.hp.com> and Linux Systems Operation at HP for lending
+  an HP OmniBook 500 for the project purposes.
+* Pavel Mihaylov <bin@bash.info> for his omke project discovering a lot of
+  OmniBook features, providing some code for XE3 GC machines and testing.
+* Ducrot Bruno <ducrot@poupinou.org> sharing lots of information about
+  embedded controller and related code, added lots of Toshiba support,
+  writing tosh3k code, sending patches etc.
+
+Thanks to the following people (without particular order):
+
+* Al Stone <ahs3@fc.hp.com> for sharing some programming information.
+* Guido Guenther <agx@sigxcpu.org> for initial OneTouch enabling code.
+* Jens Thoms Toerring <Jens.Toerring@physik.fu-berlin.de> for initial
+  OneTouch power management code.
+* Maciek Gorniak <mago@acn.waw.pl> for initial HP Pavilion N5415 detecting
+  code and initial lcd brighness code.
+* Rick Richardson <rickr@mn.rr.com> for some bugfixes and useful patches.
+* Bob McElrath <mcelrath@draal.physics.wisc.edu> for initial Compal ACL00
+  code.
+* Luisimi Moya <luismimoya@eresmas.net> for Acer Aspire 1400 support.
+* Bernhard Kaindl <bernhard.kaindl@gmx.de> for bugfixes and patches
+* Gabriele Vivinetto <gabriele.mailing@rvmgroup.it> for documentation
+  enhancements and testing.
+* Mark Chappell <nslm@nslm.fsnet.co.uk> for building on kernel 2.6.
+* Massimo Dal Zotto <dz@debian.org> for his i8k code.
+* Jonathan A. Buzzard <jonathan@buzzard.org.uk> for his toshiba code.
+* Some others on OmniBook mailing list at
+  http://zurich.ai.mit.edu/mailman/listinfo/omnibook
+  for providing information and testing.
+
+Last but not least thanks to Linus Torvald and more for creating and
+maintaining the Linux kernel.

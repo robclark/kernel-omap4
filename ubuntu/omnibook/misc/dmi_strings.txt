@@ -1,0 +1,857 @@
+HP OmniBook XT1000 -------------------------
+
+BIOS Vendor:   Insyde Software
+BIOS Version:  IB.M1.05
+BIOS Release:  02/28/2002
+System Vendor: Hewlett-Packard
+Product Name:  HP OmniBook PC
+Version:       HP OmniBook XT1000
+Board Vendor:  Hewlett-Packard
+Board Name:    HP OmniBook PC
+Board Version: HP OmniBook XT1000
+
+---------------------------------------------
+HP OmniBook XT1500 --------------------------
+
+BIOS Vendor:   Insyde Software
+BIOS Version:  IC.M1.05
+BIOS Release:  08/13/2002
+System Vendor: Hewlett-Packard
+Product Name:  HP OmniBook PC
+Version:       HP OmniBook
+Board Vendor:  Hewlett-Packard
+Board Name:    HP OmniBook PC
+Board Version: HP OmniBook
+
+---------------------------------------------
+HP OmniBook XT1500 -------------------------
+
+BIOS Vendor:   Phoenix Technologies LTD
+BIOS Version:  ID.M1.04
+BIOS Release:  08/14/2002
+System Vendor: Hewlett-Packard
+Product Name:  HP OmniBook PC
+Version:       HP OmniBook XE3 GF
+Board Vendor:  Hewlett-Packard
+Board Name:    N/A
+Board Version: OmniBook Zinfandel 4.5
+
+---------------------------------------------
+HP OmniBook XE3 GC --------------------------
+
+BIOS Vendor:   Phoenix Technologies LTD
+BIOS Version:  GC.M1.63
+BIOS Release:  01/01/1992
+System Vendor: Hewlett-Packard
+Product Name:  HP OmniBook PC
+Version:       HP OmniBook XE3 GC
+Board Vendor:  Hewlett-Packard
+Board Name:    N/A
+Board Version: OmniBook N32N-733
+
+---------------------------------------------
+HP OmniBook XE3 GF --------------------------
+
+BIOS Vendor:   Phoenix Technologies LTD
+BIOS Version:  GF.M1.07
+BIOS Release:  03/05/2002
+System Vendor: Hewlett-Packard
+Product Name:  HP OmniBook PC
+Version:       HP OmniBook XE3 GF
+Board Vendor:  Hewlett-Packard
+Board Name:    N/A
+Board Version: OmniBook N32N-101
+
+---------------------------------------------
+HP OmniBook 500 FA --------------------------
+
+BIOS Vendor:   Phoenix Technologies Ltd
+BIOS Version:  FA.M2.62
+BIOS Release:  11/30/1999
+System Vendor: Hewlett-Packard
+Product Name:  HP OmniBook PC
+Version:       HP OmniBook 500 FA
+Board Vendor:  Hewlett-Packard
+Board Name:    HP OmniBook PC
+Board Version: 500 FA
+
+---------------------------------------------
+HP OmniBook 510 FB --------------------------
+
+BIOS Vendor:   Phoenix Technologies Ltd.
+BIOS Version:  FB.M1.20
+BIOS Release:  04/12/02
+System Vendor: Hewlett-Packard
+Product Name:  HP OmniBook PC
+Version:       HP OmniBook 510 FB
+Board Vendor:  Hewlett-Packard
+Board Name:    HP OmniBook PC
+Board Version: 510FB
+
+---------------------------------------------
+Toshiba Satellite 3000-100 ------------------
+
+BIOS Vendor:   TOSHIBA
+BIOS Version:  V2.20
+BIOS Release:  10/12/01
+System Vendor: TOSHIBA
+Product Name:  S3000-100
+Version:       PS300E-03EKL-FR
+Board Vendor:  Null
+Board Name:    888M1
+Board Version: Null
+
+---------------------------------------------
+Toshiba Satellite 1115-s103------------------
+
+BIOS Vendor:   TOSHIBA
+BIOS Version:  V1.20
+BIOS Release:  09/11/2002
+System Vendor: TOSHIBA
+Product Name:  Satellite 1115
+Version:       PS111U-001FUV
+Board Vendor:  TOSHIBA
+Board Name:    BTK20
+Board Version: Null
+
+---------------------------------------------
+Toshiba Satellite 1110 ----------------------
+
+BIOS Vendor:   TOSHIBA
+BIOS Version:  V1.20
+BIOS Release:  09/11/2002
+System Vendor: TOSHIBA
+Product Name:  S1110
+Version:       PS111E-003DN-GR
+Board Vendor:  TOSHIBA
+Board Name:    BTK20
+Board Version: Null
+
+---------------------------------------------
+Toshiba Satellite 1130 ----------------------
+
+BIOS Vendor: TOSHIBA
+BIOS Version: V1.70A
+BIOS Release: 09/02/2003
+System Vendor: TOSHIBA
+Product Name: Satellite 1130
+Version: PS113E-05ZYF-GR
+Board Vendor: TOSHIBA
+Board Name: BTW30
+Board Version: Null
+
+---------------------------------------------
+Toshiba Satellite 1900-704 ------------------
+
+BIOS Vendor:   TOSHIBA
+BIOS Version:  V1.50
+BIOS Release:  11/25/2002
+System Vendor: TOSHIBA
+Product Name:  Satellite 1950
+Version:       PS195E-008QY-DU
+Board Vendor:  TOSHIBA
+Board Name:    ATR60
+
+---------------------------------------------
+Toshiba Satellite 1955-s805 -----------------
+
+BIOS Vendor:   TOSHIBA
+BIOS Version:  V1.00
+BIOS Release:  01/17/2003
+System Vendor: TOSHIBA
+Product Name:  Satellite 1955
+Version:       PS197U-000LEV
+Board Vendor:  TOSHIBA
+Board Name:    BTR80
+Board Version: Null
+
+---------------------------------------------
+Toshiba Satellite A70 -----------------------
+
+BIOS Vendor: TOSHIBA 
+BIOS Version: V1.50 
+BIOS Release: 11/16/2004 
+System Vendor: TOSHIBA 
+Product Name: Satellite A70 
+Version: PSA70C-KL100E 
+Serial Number: X4451615K 
+Board Vendor: TOSHIBA 
+Board Name: EDW10 
+Board Version: Null 
+
+---------------------------------------------
+Toshiba Satellite A80 -----------------------
+
+BIOS Vendor: TOSHIBA
+BIOS Version: V2.50
+BIOS Release: 01/11/2006
+System Vendor: TOSHIBA
+Product Name: Satellite A80
+Version: PSA80E-03T00JSP
+Board Vendor: TOSHIBA
+Board Name: Null
+
+---------------------------------------------
+Toshiba Satellite A105 ----------------------
+
+BIOS Vendor:   Phoenix Technologies LTD
+BIOS Version:  1.30
+BIOS Release:  02/09/2006
+System Vendor: TOSHIBA
+Product Name:  Satellite A105
+Version:       PSAA8U-02000U
+Board Vendor:  Intel Corporation
+Board Name:    Not Applicable
+
+---------------------------------------------
+Toshiba Satellite P10 -----------------------
+
+BIOS Vendor:   TOSHIBA
+BIOS Version:  V1.20
+BIOS Release:  09/12/2003
+System Vendor: TOSHIBA
+Product Name:  Satellite P10
+Version:       PSP10E-34FJR
+Board Vendor:  TOSHIBA
+Board Name:    DAL00
+Board Version: Null
+
+---------------------------------------------
+Toshiba Satellite P15 -----------------------
+
+BIOS Vendor:   TOSHIBA
+BIOS Version:  V1.20
+BIOS Release:  09/12/2003
+System Vendor: TOSHIBA
+Product Name:  Satellite P15
+Version:       PSP10U-0DUJPV
+Board Vendor:  TOSHIBA
+Board Name:    DAL00
+Board Version: Null
+
+---------------------------------------------
+Toshiba Satellite P25 -----------------------
+
+BIOS Vendor:   TOSHIBA
+BIOS Version:  V2.10
+BIOS Release:  12/27/2004
+System Vendor: TOSHIBA
+Product Name:  Satellite P25
+Version:       PSP20U-19PS8R
+Board Vendor:  TOSHIBA
+Board Name:    Null
+
+---------------------------------------------
+Toshiba Satellite P100 ----------------------
+
+BIOS Vendor:   TOSHIBA
+BIOS Version:  V3.30  
+BIOS Release:  12/22/2006
+System Vendor: TOSHIBA
+Product Name:  Satellite P100
+Version:       PSPA3E-02E013G3                   
+Board Vendor:  TOSHIBA
+Board Name:    Not Applicable                 
+
+---------------------------------------------
+Toshiba Satellite M40 -----------------------
+
+BIOS Vendor:   Phoenix Technologies LTD
+BIOS Version:  1.10
+BIOS Release:  08/24/05
+System Vendor: TOSHIBA
+Product Name:  Satellite M40
+Version:       PSM44E-00U00EFR
+Board Vendor:  ATI
+Board Name:    SB400
+Board Version: Rev0.4b
+
+---------------------------------------------
+Toshiba Satellite M45 (S355) ----------------
+
+BIOS Vendor:   TOSHIBA
+BIOS Version:  Version 2.00
+BIOS Release:  02/07/2006
+System Vendor: TOSHIBA
+Product Name:  Satellite M45
+Version:       PSM40U-073001
+Board Vendor:  TOSHIBA
+Board Name:    Version A0
+
+---------------------------------------------
+Toshiba Satellite M40X (-131)----------------
+
+BIOS Vendor:   TOSHIBA
+BIOS Version:  V1.60
+BIOS Release:  06/09/2005
+System Vendor: TOSHIBA
+Product Name:  Satellite M40X
+Version:       PSM4XE-01400GFR
+Board Vendor:  TOSHIBA
+Board Name:    EAL30
+Board Version: Null
+
+---------------------------------------------
+Toshiba Satellite M50------------------------
+
+BIOS Vendor: TOSHIBA
+BIOS Version: V2.10
+BIOS Release: 05/08/2006
+System Vendor: TOSHIBA
+Product Name: Satellite M50
+Version: PSM51E-01C011IT
+Board Vendor: TOSHIBA
+Board Name: Null
+
+---------------------------------------------
+Toshiba Satellite M60 -----------------------
+
+BIOS Vendor:   TOSHIBA
+BIOS Version:  V1.60
+BIOS Release:  03/16/2006
+System Vendor: TOSHIBA
+Product Name:  Satellite M60
+Version:       PSM60E-0CD01FIT
+Board Vendor:  TOSHIBA
+Board Name:    Null
+
+---------------------------------------------
+Toshiba Satellite M70 -----------------------
+
+BIOS Vendor:	TOSHIBA
+BIOS Version:	V1.10
+BIOS Release:	09/15/2005
+System Vendor:	TOSHIBA
+Product Name:	Satellite M70
+Version:	PSM71E-01100KFR
+Board Vendor:	TOSHIBA
+Board Name:	HTW00
+Board Version:	Null
+
+---------------------------------------------
+Toshiba Satellite A75 -----------------------
+
+IOS Vendor:    TOSHIBA
+BIOS Version:  V1.50
+BIOS Release:  11/16/2004
+System Vendor: TOSHIBA
+Product Name:  Satellite A75
+Version:       PSA70U-004004B
+Board Vendor:  TOSHIBA
+Board Name:    Null
+
+---------------------------------------------
+Toshiba Satellite M100 ----------------------
+
+BIOS Vendor:    TOSHIBA
+BIOS Version:   V1.90
+BIOS Release:   07/20/2006
+System Vendor:  TOSHIBA
+Product Name:   SATELLITE M100
+Version:        PSMA0E-030019TE
+Board Vendor:   TOSHIBA
+Board Name:     HAQAA
+Board Version:  Null
+
+---------------------------------------------
+Toshiba Satellite M100 ----------------------
+
+BIOS Vendor:   TOSHIBA
+BIOS Version:  V1.00
+BIOS Release:  03/30/2006
+System Vendor: TOSHIBA
+Product Name:  Satellite M100
+Version:       PSMA2U-00T00G
+Board Vendor:  TOSHIBA
+Board Name:    HAWAA
+Board Version: None
+
+---------------------------------------------
+Toshiba Satellite M115 ----------------------
+
+Bios vender: Phoenix Tech. LTD
+Bios version: 1.00
+Bios release: 08/31/2006
+System Vendor: Toshiba
+Product Name: Satellite M115
+Version: PSMBOU-015007
+Board vendor Intel
+Board name: N/a
+
+---------------------------------------------
+Toshiba Equium A110 -------------------------
+
+BIOS Vendor:   TOSHIBA
+BIOS Version:  V1.30
+BIOS Release:  07/20/2006
+System Vendor: TOSHIBA
+Product Name:  EQUIUM A110
+Version:       PSAB2E-002006AV
+Board Vendor:  TOSHIBA
+Board Name:    Null
+
+---------------------------------------------
+Toshiba Tecra A4 ----------------------------
+
+
+BIOS Vendor:   TOSHIBA
+BIOS Version:  Version 1.70
+BIOS Release:  10/14/2005
+System Vendor: TOSHIBA
+Product Name:  Tecra A4
+Version:       PTA40E-0UN00FSP
+Board Vendor:  TOSHIBA
+Board Name:    Version A0
+
+---------------------------------------------
+Toshiba Tecra A6 ----------------------------
+
+BIOS Vendor: TOSHIBA
+BIOS Version: V2.70
+BIOS Release: 04/26/2007
+System Vendor: TOSHIBA
+Product Name: TECRA A6
+Version: PTA60U-0FK00D
+Board Vendor: TOSHIBA
+Board Name: Null
+
+---------------------------------------------
+Toshiba Tecra S2 ----------------------------
+
+BIOS Vendor:   TOSHIBA
+BIOS Version:  V2.50
+BIOS Release:  01/11/2006
+System Vendor: TOSHIBA
+Product Name:  Tecra S2
+Version:       PTS20E-1FE04Q8M
+Board Vendor:  TOSHIBA
+Board Name:    Null
+
+---------------------------------------------
+Compal ACL00 --------------------------------
+
+BIOS Vendor:   COMPAL
+BIOS Version:  V2.10C
+BIOS Release:  03/25/02
+System Vendor: COMPAL
+Product Name:  *
+Version:       *
+Board Vendor:  Null
+Board Name:    ACL00
+Board Version: Null
+
+---------------------------------------------
+Compal ACL10 --------------------------------
+
+BIOS Vendor:   COMPAL
+BIOS Version:  V1.10
+BIOS Release:  04/12/2001
+System Vendor: *
+Product Name:  *
+Version:       *
+Board Vendor:  COMPAL
+Board Name:    ACL10
+Board Version: Null
+
+---------------------------------------------
+HP Pavilion ZT1195 --------------------------
+
+BIOS Vendor:   Insyde Software
+BIOS Version:  IC.M1.00
+BIOS Release:  03/20/2002
+System Vendor: Hewlett-Packard
+Product Name:  HP Pavilion Notebook PC
+Version:       HP Pavilion Notebook
+Board Vendor:  Hewlett-Packard
+Board Name:    HP Pavilion Notebook PC
+Board Version: HP Pavilion Notebook
+
+---------------------------------------------
+HP Pavilion ZT1141 --------------------------
+
+BIOS Vendor:   Insyde Software
+BIOS Version:  IB.M1.05
+BIOS Release:  02/28/2002
+System Vendor: Hewlett-Packard
+Product Name:  HP Pavilion Notebook PC
+Version:       HP Pavilion Notebook ZT1000
+Board Vendor:  Hewlett-Packard
+Board Name:    HP Pavilion Notebook PC
+Board Version: HP Pavilion Notebook ZT1000
+
+---------------------------------------------
+HP OmniBook 6100 EB -------------------------
+
+BIOS Vendor:   Phoenix Technologies Ltd.
+BIOS Version:  EB.M2.20
+BIOS Release:  02/27/02
+System Vendor: Hewlett-Packard
+Product Name:  HP OmniBook PC
+Version:       HP OmniBook 6100 EB
+Board Vendor:  Hewlett-Packard
+Board Name:    HP OmniBook PC
+Board Version: 6100EB
+
+---------------------------------------------
+HP OmniBook 6000 EA -------------------------
+
+BIOS Vendor:   Phoenix Technologies Ltd.
+BIOS Version:  EA.M1.81
+BIOS Release:  02/22/2002
+System Vendor: Hewlett-Packard
+Product Name:  HP OmniBook PC
+Version:       HP OmniBook 6000 EA
+Board Vendor:  Hewlett-Packard
+Board Name:    HP OmniBook PC
+Board Version: 6000EA
+
+---------------------------------------------
+HP OmniBook xe4500 --------------------------
+
+BIOS Vendor:   Phoenix Technologies Ltd.
+BIOS Version:  KB.M1.30
+BIOS Release:  08/05/20022
+System Vendor: Hewlett-Packard.
+Product Name:  HP OmniBook PC
+Version:       HP OmniBook xe4500
+Board Vendor:  Hewlett-Packard
+Board Name:    HP OmniBook PC
+Board Version: xe4500
+
+---------------------------------------------
+HP Pavilion N5441 ---------------------------
+
+BIOS Vendor:   Phoenix Technologies LTD
+BIOS Version:  GD.M1.08
+BIOS Release:  09/27/2001
+System Vendor: Hewlett-Packard
+Product Name:  HP Pavilion Notebook PC
+Version:       HP Pavilion Notebook Model GD
+Board Vendor:  Hewlett-Packard
+Board Name:    N/A
+Board Version: OmniBook N32N-736
+
+---------------------------------------------
+HP Pavilion N5430 ---------------------------
+
+BIOS Vendor:   Phoenix Technologies LTD
+BIOS Version:  GD.M1.08
+BIOS Release:  09/27/2001
+System Vendor: Hewlett-Packard
+Product Name:  HP OmniBook PC
+Version:       HP OmniBook XE3 GD
+Board Vendor:  Hewlett-Packard
+Board Name:    N/A
+Board Version: OmniBook N32N-736
+
+---------------------------------------------
+HP Pavilion N5415 ---------------------------
+
+BIOS Vendor:   Phoenix Technologies LTD
+BIOS Version:  GE.M1.04
+BIOS Release:  07/30/2002
+System Vendor: Hewlett-Packard
+Product Name:  HP OmniBook PC
+Version:       HP OmniBook XE3 GE
+Board Vendor:  Hewlett-Packard
+Board Name:    N/A
+Board Version: OmniBook N32N-736
+
+---------------------------------------------
+HP Pavilion N5290 ---------------------------
+
+BIOS Vendor:   Phoenix Technologies LTD
+BIOS Version:  GC.M1.63
+BIOS Release:  01/01/1992
+System Vendor: Hewlett-Packard
+Product Name:  HP Pavilion Notebook PC
+Version:       HP Pavilion Notebook XE3 GC
+Board Vendor:  Hewlett-Packard
+Board Name:    N/A
+Board Version: OmniBook N32N-733
+
+---------------------------------------------
+HP OmniBook vt6200 -------------------------
+
+BIOS Vendor:   Phoenix Technologies Ltd.
+BIOS Version:  EG.M2.10
+BIOS Release:  09/19/02
+System Vendor: Hewlett-Packard
+Product Name:  HP OmniBook PC
+Version:       HP OmniBook 6200 EG
+Board Vendor:  Hewlett-Packard
+Board Name:    HP OmniBook PC
+Board Version: 6200EG
+
+---------------------------------------------
+HP OmniBook 4150 ----------------------------
+
+BIOS Vendor:   Phoenix Technologies LTD
+BIOS Version:  CI.M2.250
+BIOS Release:  06/10/99
+System Vendor: Hewlett-Packard
+Product Name:  HP OmniBook PC
+Version:       HP OmniBook 4150
+Board Vendor:  Hewlett-Packard
+Board Name:    N/A
+Board Version: OmniBook TS32T2
+
+---------------------------------------------
+HP OmniBook xt6200 --------------------------
+
+BIOS Vendor:   Phoenix Technologies Ltd
+BIOS Version:  EG.M2.10
+BIOS Release:  09/19/02
+System Vendor: Hewlett-Packard
+Product Name:  HP OmniBook PC
+Version:       HP OmniBook 6200 EG
+Board Vendor:  Hewlett-Packard
+Board Name:    HP OmniBook PC
+Board Version: 6200EG
+
+---------------------------------------------
+HP Pavilion ze4125 --------------------------
+
+BIOS Vendor:   Phoenix Technologies Ltd
+BIOS Version:  KA.M1.20
+BIOS Release:  09/13/2002
+System Vendor: Hewlett-Packard
+Product Name:  HP NoteBook PC
+Version:       HP NoteBook ze4000
+Board Vendor:  Hewlett-Packard
+Board Name:    HP NoteBook PC
+Board Version: HP NoteBook ze4000
+
+---------------------------------------------
+HP OmniBook xt155 ---------------------------
+
+BIOS Vendor:   Phoenix Technologies Ltd.
+BIOS Version:  KE.M1.40
+BIOS Release:  10/11/20022
+System Vendor: Hewlett-Packard
+Product Name:  HP NoteBook PC
+Version:       HP Notebook PC
+Board Vendor:  Hewlett-Packard
+Board Name:    HP NoteBook PC
+Board Version: HP Notebook PC
+
+---------------------------------------------
+HP OmniBook xe4100 --------------------------
+
+BIOS Vendor:   Phoenix Technologies Ltd.
+BIOS Version:  KC.M1.10
+BIOS Release:  07/11/2002
+System Vendor: Hewlett-Packard
+Product Name:  HP OmniBook PC
+Version:       HP OmniBook xe4000
+Board Vendor:  Hewlett-Packard
+Board Name:    HP OmniBook PC
+Board Version: 4000KC
+
+---------------------------------------------
+HP Omnibook xe4400 --------------------------
+
+BIOS Vendor:   Phoenix Technologies Ltd.
+BIOS Version:  KD.M1.60
+BIOS Release:  09/19/20022
+System Vendor: Hewlett-Packard
+Product Name:  HP OmniBook PC
+Version:       HP Omnibook xe4400
+Board Vendor:  Hewlett-Packard
+Board Name:    HP OmniBook PC
+Board Version: xe4400
+
+---------------------------------------------
+HP Pavilion ze4100 --------------------------
+
+BIOS Vendor:   Phoenix Technologies Ltd.
+BIOS Version:  KE.M1.40
+BIOS Release:  10/11/20022
+System Vendor: Hewlett-Packard
+Product Name:  HP NoteBook PC         
+Version:       HP Notebook PC
+Board Vendor:  Hewlett-Packard
+Board Name:    HP NoteBook PC         
+Board Version: HP Notebook PC
+
+---------------------------------------------
+Acer Aspire 1350 ----------------------------
+BIOS Vendor:   Acer   
+BIOS Version:  3A24
+BIOS Release:  12/01/2003
+System Vendor: Acer,Inc.
+Product Name:  Aspire 1350
+Version:       3A24
+Board Vendor:  Acer,Inc.
+Board Name:    Aspire 1350
+Board Version: Rev.A
+
+---------------------------------------------
+Acer Aspire 1406 LC -------------------------
+
+BIOS Vendor:   Acer
+BIOS Version:  V2.30
+BIOS Release:  10/04/02
+System Vendor: Acer
+Product Name:  Aspire 1400 series
+Version:       *
+Board Vendor:  Null
+Board Name:    BR20
+Board Version: Null
+
+---------------------------------------------
+HP Pavilion ze4200 --------------------------
+
+BIOS Vendor:   Phoenix Technologies Ltd.
+BIOS Version:  KE.M1.53
+BIOS Release:  12/10/20022
+System Vendor: Hewlett-Packard
+Product Name:  Pavilion ze4200
+Version:       KE.M1.53
+Board Vendor:  Hewlett-Packard
+Board Name:    002A
+Board Version: NS570 Version PQ1A74
+
+---------------------------------------------
+HP Pavilion ze4500 --------------------------
+
+BIOS Vendor:   Phoenix Technologies Ltd.
+BIOS Version:  KAM1.57  
+BIOS Release:  02/19/2004
+System Vendor: Hewlett-Packard          
+Product Name:  Pavilion ze4500 (DP793E) 
+Version:       KAM1.57  
+Board Vendor:  Hewlett-Packard          
+Board Name:    PQ1A83
+
+---------------------------------------------
+HP Pavilion ZU1175 --------------------------
+
+BIOS Vendor:   Phoenix Technologies Ltd.
+BIOS Version:  FA.M2.60
+BIOS Release:  11/30/1999
+System Vendor: Hewlett-Packard
+Product Name:  HP Pavilion Notebook PC
+Version:       HP Pavilion ZU1000 FA
+Board Vendor:  Hewlett-Packard
+Board Name:    HP Pavilion Notebook PC
+Board Version: 1000FA
+
+---------------------------------------------
+HP Pavilion XH545 ---------------------------
+
+BIOS Vendor:   Phoenix Technologies LTD
+BIOS Version:  GE.M1.03
+BIOS Release:  11/08/2001
+System Vendor: Hewlett-Packard
+Product Name:  HP Pavilion Notebook PC
+Version:       HP Pavilion Notebook Model GE
+Board Vendor:  Hewlett-Packard
+Board Name:    N/A
+Board Version: OmniBook N32N-736
+
+---------------------------------------------
+Toshiba Satellite 2430-402 ------------------
+
+BIOS Vendor:   TOSHIBA
+BIOS Version:  V1.30
+BIOS Release:  01/16/2003
+System Vendor: TOSHIBA
+Product Name:  Satellite 2430
+Version:       PS243E-06P4S-4V
+Board Vendor:  TOSHIBA
+Board Name:    BTS88
+Board Version: Null
+
+---------------------------------------------
+HP OmniBook 900 B ---------------------------
+
+BIOS Vendor:   Phoenix Technologies LTD
+BIOS Version:  CL.M3.13
+BIOS Release:  11/11/99
+System Vendor: Hewlett-Packard
+Product Name:  HP OmniBook PC
+Version:       HP OmniBook 900 B
+Board Vendor:  Hewlett-Packard
+Board Name:    N/A
+Board Version: OmniBook TS32U2
+
+---------------------------------------------
+HP Compaq nx9000 ----------------------------
+
+BIOS Vendor:   Phoenix Technologies Ltd.
+BIOS Version:  KE_KG.M1.06
+BIOS Release:  05/16/2003
+System Vendor: Hewlett-Packard        
+Product Name:  HP nx9000 (DG223T)       
+Version:       KG.M1.06
+Board Vendor:  Hewlett-Packard        
+Board Name:    002A                   
+Board Version: NS570 Version PQ1A78   
+
+---------------------------------------------
+HP Compaq nx9000 ----------------------------
+
+BIOS Vendor:   Phoenix Technologies Ltd.
+BIOS Version:  KE_KG.M1.15
+BIOS Release:  12/19/2003
+System Vendor: Hewlett-Packard
+Product Name:  HP Notebook PC
+Version:       HP Notebook PC
+Board Vendor:  <NULL>
+Board Name:    <NULL>
+Board Version: <NULL>
+
+---------------------------------------------
+HP Compaq nx9005 ----------------------------
+
+BIOS Vendor:   Phoenix Technologies Ltd.
+BIOS Version:  KAM1.46
+BIOS Release:  07/21/200392
+System Vendor: Hewlett-Packard
+Product Name:  HP nx9005 (DJ163A)
+Version:       KAM1.46
+Board Vendor:  Hewlett-Packard
+Board Name:    0024
+Board Version: PQ1A78
+
+----------------------------------------------
+HP Compaq nx9010 -----------------------------
+
+BIOS Vendor:   Phoenix Technologies Ltd.
+BIOS Version:  KF_KH.F.08
+BIOS Release:  06/06/2003
+System Vendor: Hewlett-Packard
+Product Name:  HP nx9010 (DJ123A)
+Version:       KH.F.08
+Board Vendor:  Hewlett-Packard
+Board Name:    0850
+Board Version: NS570 Version PQ1B56
+
+----------------------------------------------
+HP Pavilion ze8500 --------------------------
+
+BIOS Vendor:   Phoenix Technologies Ltd.
+BIOS Version:  KF_KH.F.18
+BIOS Release:  11/13/2003
+System Vendor: Hewlett-Packard
+Product Name:  Pavilion ze8500 (DJ317A)
+Version:       KH.F.18
+Board Vendor:  Hewlett-Packard
+Board Name:    0850
+Board Version: NS570 Version PQ1B60
+
+---------------------------------------------
+Fujitsu-Siemens Amilo D ---------------------
+
+BIOS Vendor:   Phoenix
+BIOS Version:  V1.20
+BIOS Release:  11/14/2001
+System Vendor: FUJITSU SIEMENS
+Product Name:  Amilo D-Series
+Version:       DESKTOP CPU ONLY
+Board Vendor:  CY23
+Board Name:    8606-686B
+Board Version: None
+
+---------------------------------------------

@@ -1,0 +1,521 @@
+Changelog file for omnibook package:
+------------------------------------
+
+2.XXXXXXXX Mathieu Bérard <math_b@users.sourceforge.net>
+* DMI signature added:
+	Toshiba Satellite P25 (ectype 11)
+	Toshiba Satellite M60 (ectype 12)
+* Applied patch from Danny Kukawka <dkukawka@suse.de> to
+  fix compiler warning about use uninitialized variable
+* Applied patch from Danny Kukawka <dkukawka@suse.de> to
+  fix build the driver on older kernel versions
+* Applied patches from Azael Avalos <coproscefalo@gmail.com>
+  to add support to Satellite X205 and other laptops based on
+  ICH8
+* Fix build with kernel >= 2.6.30
+
+2.20070211 Mathieu Bérard <math_b@users.sourceforge.net>
+* Disable Acer support, acerhk module should provided better
+  support with a far more complete autodetection database
+  (see http://www2.informatik.hu-berlin.de/~tauber/acerhk/)
+* Fix and improve bluetooth handling for TSM30X class laptops
+  bluetooth now also works for TSA105
+* Implement Volume down,up and Mute buttons polling for ectype 2
+   It was the last missing part from the "omke" module which never
+   got ported to linux 2.6
+* Implement ectype 13 Fn hotkeys handling.
+* DMI signature added:
+	HP Pavilion ze4500 (ectype 7)
+	Toshiba Satellite 1130 (ectype 1)
+	Toshiba Satellite A75 (ectype 12)
+	Toshiba Tecra A4 (ectype 13)
+	Toshiba Satellite A80 (ectype 12)
+	Toshiba Satellite P100 (ectype 14)
+* Split TSM30X (ectype 12) : this ectype was reimplemented and if the
+  new implementation works with Toshiba M40X, M70, M100... it does not
+  (and will never, due to hardware) with Toshiba M30X, the only way
+  to fix this is to split TSM30X (ectype 12) in :
+  -TSM70 (ectype 12) => new implementation (compal.c & acpi.c backends)
+  -TSM30X (ectype 15) => old implementation (legacy backends)
+  This is done by renaming TSM30X to TSM40 and restore old TSM30X
+  The state of the Toshiba M35X is unknown and is assigned to TSM70, one
+  should send a bug report if that fail.
+  Fix bugs 1617818 and 1605278
+* New features for TSM70 class laptops:
+  -Cooling method control (can tune fan behaviour to 'Save power' or
+   to 'Maximize performance') provided in /proc/omnibook/cooling 
+  -CPU Throttling status&control (also known as ACPI T-States) should
+   be supported out of the box via /proc/acpi/processor/CPU0/throttling
+   but at least Toshiba Satellite M70 as a deficient ACPI FADT table
+   which prevent than, thus a custom access to ACPI Throttling is 
+   provided in /proc/omnibook/throttling
+
+2.20060921 Mathieu Bérard <math_b@users.sourceforge.net>
+* The minimal required kernel version is now 2.6.9 (kref API)
+* Convert semaphore to mutex with fallback for pre 2.6.16 kernel
+* Kill CONFIG_OMNIBOOK_APMEMU and introduce OMNIBOOK_LEGACY:
+  pre-ACPI features now depends on it.
+  Default enabling of ac and battery features also
+  depends on it. It is _disabled_ by default.
+* Introduce ACPI methods execution backend: TSM70 needs it
+  for Display and Wifi/Bluetooth features
+* Expand display and hotkeys features
+* Introduce experimental NbSmi backend for TSM40. It is
+  based on technical documentation provided by Toshiba.
+  Thanks Toshiba !
+* Kill unused omnibook_mem_read/write function for mmio
+  access
+* Cleanup in blank.c fan.c temperature.c
+* Unbreak Pio backend: use request/release_region
+* Introduce bluetooth and wifi frontend features : they allow
+  adapter state querry and control (existence probing, wifi
+  kill switch probing and adapter enabling/disabling).
+  Supported by TSM30X and TSM40
+* Introduce omnibook_backend struct as a uniform way of 
+  communication between backend and frontend, this
+  kill omnibook_io_{read/write} and friends.
+* Modify ombibook_feature struct to incorporate pointers
+  to an omnibook_table table and to a omnibook_operation
+  struct which is picked-up from the ectype matching
+  omnibook_table entry upon feature initialization
+* Add muteled resume handler
+* Add touchpad handling for TSM30X
+* Add proper display handling for TSM30X
+* Change all features struct name from foo_feature to
+  foo_driver to kept modpost section mismatch detection
+  silent. Put tbl, init and exit entries to their relevant
+  sections.
+* Many bugfix and dock support for TSM40 by Holger Nelson.
+* Add DMI Signature for Toshiba Satellite 1700-Series, with ectype 10.
+  LCD does not work.
+* Add DMI Signature for Toshiba Equium A110, added with
+  ectype 1, until implementation of a better backend
+* Add DMI Signature for Toshiba _Satellite_ M100, Satellite A70 
+  and Tecra S2. added with ectype 12
+* Add DMI Signature for Toshiba Tecra S1, added with
+  ectype 13
+
+2.200608017 Mathieu Bérard <math_b@users.sourceforge.net>
+* Fix bug un omnibook_io_match
+* Fix DMI handling behaviour: we stop on the FIRST matched
+  DMI entry. This is restoring pre-20060806 behaviour.
+  Invert M40 vs. M40X entry position.
+
+2.20060816 Mathieu Bérard <math_b@users.sourceforge.net>
+* Merge from the new-backend branch: Add new backend code 
+  (in compal.c) used with TSM30X class laptops:
+  Used for lcd access
+  Used for hotkeys support: now most Fn+key generate a scancode,
+  as well as the wifi kill switch.
+  Warning: tested only on TSM40X an TSM70 laptops.
+* Create omnibook_io_operation struct and omnibook_io_{read/write}
+  funtions to simplify implementation of some simple features.
+  Used with ac display dock and led features.
+* Rename onetouch feature to "hotkeys" which is a vendor neutral name.
+* The minimal required kernel version is now 2.6.9 (kref API)
+* Convert semaphore to mutex with fallback for pre 2.6.16 kernel
+* Kill CONFIG_OMNIBOOK_APMEMU and introduce OMNIBOOK_LEGACY:
+  pre-ACPI features now depends on it.
+  Default enabling of ac and battery features also
+  depends on it. It is _disabled_ by default.
+* Introduce ACPI methods execution backend: TSM70 needs it
+  for Display and Wifi/Bluetooth features
+* Expand display and hotkeys features
+* Introduce experimental NbSmi backend for TSM40. It is
+  based on technical documentation provided by Toshiba.
+  Thanks Toshiba !
+* Kill unused omnibook_mem_read/write function for mmio
+  access
+* Cleanup in blank.c fan.c temperature.c
+* Unbreak Pio backend: use request/release_region
+* Introduce bluetooth and wifi frontend features : they allow
+  adapter state querry and control (existence probing, wifi 
+  kill switch probing and adapter enabling/disabling).
+  Supported by TSM30X and TSM40
+* Introduce omnibook_backend struct as a uniform way of 
+  communication between backend and frontend, this
+  kill omnibook_io_{read/write} and friends.
+* Modify ombibook_feature struct to incorporate pointers
+  to an omnibook_table table and to a omnibook_operation
+  struct which is picked-up from the ectype matching
+  omnibook_table entry upon feature initialization
+* Add muteled resume handler
+* Add touchpad handling for TSM30X
+* Add proper display handling for TSM30X
+* Change all features struct name from foo_feature to
+  foo_driver to kept modpost section mismatch detection
+  silent. Put tbl, init and exit entries to their relevant
+  sections.
+
+2.20060809 Mathieu Bérard <math_b@users.sourceforge.net>
+* Add dmi info for Toshiba Satellite M40X (Thanks Julien Valroff) 
+* Fix two brown paper bag bugs in Debian/Ubuntu support 
+
+2.20060806 Mathieu Bérard <math_b@users.sourceforge.net>
+* Make the module linux 2.6 only
+  Kernel versions from 2.6.8 to a least 2.6.17 are supported
+  Code for compatibility with kernels older than 2.6.17 is 
+  mostly implemented in compat.h
+* Integrate with Driver Model:
+  register as a platform device and optional
+  registration as a backlight device (2.6.17+ required here)
+* Get rid of deprecated pm_legacy functions
+* Use kernel-provided DMI information:
+  Use kernel-provided dmi_check_system for system identification
+  omnibook_tc_t and omnibook_models_t are merged and converted into a
+  dmi_system_id struct and moved from init.c to laptop.h
+* MODULE_PARAM -> 2.6-style module_parm_*
+* Move some code from "feature".c files back to init.c
+  Interface is provided by the new omnibook_feature struct
+  Enabled features are now in placed in a linked list
+  This eliminate util.c
+  Rationale: Reduce code duplication and create a standard template for features
+* Move dmi and version display into their own file: info.c
+* Remove all (as unneeded) EXPORT_SYMBOL
+* Misc fixes in Makefile
+  Also make more use of Kbuild
+* Use sscanf and simple_stro{u}l for strings parsing instead of custom code
+* Run lindent for better conformance with kernel coding style
+* Add very limited support for some Toshiba M40 (more info needed)
+* Use bitmasks for EC types matching, this change is transparent for the user
+  (e.g. one can still use ectype=num module parameter)
+  Rationale: Reduce the size of the omnibook_feature struct
+* Polish Debian support: Use module-assistant and fix all Lintian warning
+  Fix building against non-running kernel (Thanks to Daniel Gimpelevich)
+* Update documentation and omnibook-integration.patch
+* Fix spinlock usage: they can be used unconditionally as they are automatically
+  optimized out at build-time on UP. This should improve PREEMPT safety
+* Spinlock protect omnibook_mem_* and use ioread8 and iowrite8
+* Fix: Custom EC access function are also used if ACPI is compiled but disabled
+* Cleanup: remove lots of unneeded #ifdef
+* Add a new feature for testers: dump
+  Dump was stolen from the ibm_acpi driver
+  It is disabled by default
+* Bump version to 2.YYYYMMDD
+
+2006-05-15 Thomas Perl <thp@perli.net>
+* Added support for xe4500's "audio mute" led
+
+2006-01-26 Soós Péter <sp@osb.hu>
+* Added support for kernels >= 2.6.15 (pm_legacy.h)
+* Added Toshiba Satellite M30X
+* Added support for Toshiba Satellite M70
+* Added support for HP Pavilion ze4300 series
+* Fixed module unloading on 2.6 series kernels (thanks to
+  math_b@users.sourceforge.net)
+* Changed version number to +%Y%m%d format
+* Added Debian support
+
+2005-02-17 Soós Péter <sp@osb.hu> 
+* Fixed Makefile
+* Updated Toshiba 1115 information
+
+2004-12-15 Scott Barnes <reeve@users.sourceforge.net>
+* Added Toshiba Satellite M35X
+
+2004-09-16 Soós Péter <sp@osb.hu>
+* Added INSTALL-2.6 file
+* Little spelling fixes in documentation
+* Little bugfixes
+* Added Compal ACL10
+
+2004-07-01 Soós Péter <sp@osb.hu>
+* Added new technology codes
+* Added some new HP nx9000 detection string
+* Added Toshiba Satellite P20
+
+2004-06-07 Chris Green <cmg@dok.org>
+* Added Toshiba Satellite P15
+
+2004-06-01 Soós Péter <sp@osb.hu>
+* Added Toshiba Satellite 1955
+* Added Toshiba Satellite 2435
+* Added Toshiba Satellite P10 (new ectype)
+* Acer Aspire 1350
+
+2004-01-23 Soós Péter <sp@osb.hu>
+* Added HP Pavilion ze8500 (HP nx9010)
+* fixed PM handler for OneTouch keys and touchpad
+
+2004-01-20 Soós Péter <sp@osb.hu>
+* Only fan status supported on HP OmniBook 4150, XE2 and
+  Fujitsu-Siemens Amilo D, fan control is unsupported
+* #include fixes in ec.c
+
+2004-01-16 Soós Péter <sp@osb.hu>
+* Added fan support for Fujitsu-Siemens Amilo D series laptops
+
+2004-01-14 Soós Péter <sp@osb.hu>
+* Fixed Makefile for kernels 2.6
+* Added Fujitsu-Siemens Amilo D series laptops (new ectype)
+
+2003-12-08 Soós Péter <sp@osb.hu>
+
+* Fixed tecnology code detection
+* Added HP/Compaq nx9005
+* Fixed Makefile for kernel 2.4
+
+2003-11-12 Soós Péter <sp@osb.hu>
+
+* Fixed KERNEL_WARNING in init.c
+
+2003-11-10 Soós Péter <sp@osb.hu>
+
+* Fixed timeout bugs in ec.c
+* Fixed touchpad dependency code for kernel 2.6
+* Added Compaq nx9000
+
+2003-11-10 Mark Chappell <mark@nslm.fsnet.co.uk>
+
+* Added kernel 2.6 support to Makefile
+
+2003-10-23 Soós Péter <sp@osb.hu>
+
+* Totally removed key polling code for kernels >= 2.5.0 but 2.5/2.6 kernels
+  is unsuported yet
+* proc_battery is static
+* Added HP OmniBook 900 B support
+* Added HP OmniBook XE2 support (added new ectype value for it)
+* Added Compaq nx9010
+* Reversed ChangeLog
+* Some documentation changes
+
+2003-08-28 Soós Péter <sp@osb.hu>
+
+* Added Toshiba Satellite 2430
+* Documentation enhancements
+
+2003-04-03 Soós Péter <sp@osb.hu>
+
+* Really fixed __init bug in user parameter code
+* Fixed omnibook_dmi_ident (it was static)
+
+2003-03-31 Soós Péter <sp@osb.hu>
+
+* Fixed HP technology code detection
+* Key polling is disabled by default on XE3GC style machines
+* Fixed PM code in polling.c
+* Added util.c
+* Fixed __init bug in user parameter code
+* Cleaned up ec.h
+* Added Toshiba Satellite 1950 detection
+* Documentation enhancements
+
+2003-03-13 Soós Péter <sp@osb.hu>
+
+* Added HP Pavilion ZU1155 and ZU1175 detection
+
+2003-03-11 Soós Péter <sp@osb.hu>
+
+* Fixed bogus version information
+
+2003-03-06 Ducrot Bruno <ducrot@poupinou.org>
+
+* Fan off hack for XE3GF style machines
+
+2003-03-04 Ducrot Bruno <ducrot@poupinou.org>
+
+* Fixed spinlock problem
+
+2003-02-28 Soós Péter <sp@osb.hu>
+
+* Added /proc/omnibook/version
+* Added OMNIBOOK_ prefix to MODULE_NAME and MODULE_VERSION definitions
+* Fixed bugs in lcd.c (thanks to Bernhard Kaindl <bernhard.kaindl@gmx.de>)
+* Some code tuning and cosmetic changes
+* Fixed OmniBook 4150 support
+
+2003-02-26 Soós Péter <sp@osb.hu>
+
+* Fixed kernel Oops in technology code identification
+* Some minor changes in logging
+
+2003-02-25 Soós Péter <sp@osb.hu>
+
+* Try to identify HP laptops by technology code if machine is unsupported
+* Fixed dmi identification code
+
+2003-02-14 Soós Péter <sp@osb.hu>
+
+* Added HP Pavilion ze4100 support
+* Added HP Pavilion ze4200 support
+* Fixed HP Pavilion xt155 detection
+* Added Acer Aspire 1400 series laptop support
+* Fixed APM status detection bug
+* Cleaned up dmi identification code
+* Removed "Asset Tag:" field from dmi string structure
+
+2003-01-27 Soós Péter <sp@osb.hu>
+
+* Added HP Pavilion N5430 support
+* EC functions are work even if boot parameter acpi=off is given
+* Improved error handling in externally callable functions
+* Fixed kernel integration patch
+* Removed unreliable undocking feature for OB500
+* Fixed HP Pavilion N5415 support
+* Added new format hotkeys sample files
+
+2003-01-09 Ducrot Bruno <ducrot@poupinou.org>
+
+* Added to use ACPI_EC if available
+
+2003-01-09 Soós Péter <sp@osb.hu>
+
+* Fixed reverse console blanking bug on OB5xx and OB6xxx
+* Disabled unreliable undocking feature on OB500
+
+2003-01-08 Ducrot Bruno <ducrot@poupinou.org>
+
+* Added Toshiba Satellite 3000, 3005, 1000, 1005, 1110, 1115, 1900, 1905
+  support
+
+2003-01-08 Soós Péter <sp@osb.hu>
+
+* The ectype values changed again! See the README!
+* Fixed new ectypes detection bug
+* Added OmniBook xe4400 support
+* Added LCD display turn off at console blanking on OB5xx and OB6xxx
+* Documentation fixes
+
+2003-01-07 Soós Péter <sp@osb.hu>
+
+* Fixed bit level negation bug in fan.c
+* Added turn fan on for Toshiba 3000
+* Corrected OmniBook 4150 support code
+
+2003-01-06 Soós Péter <sp@osb.hu>
+
+* Changed ectype values! See the README!
+* Fixed some bugs in obtest utility
+* Fixed second battery status bug in battery.c
+* Added textual descriptions to some functions in /proc/omnibook
+* Fix APM emulation to work when APM support is present but APM power
+  status reporting flagged broken
+* Added docking station support
+* Added fan support
+* Added module parameter: user
+* Added OmniBook xe155, xe4100 and ze4125 support
+* Fan policy moved to /proc/omnibook/fan_policy
+* Reorganized scancode emulation code for XE3 GC
+* Polling of volume buttons on XE3CG style models can be enabled/disabled
+  via /proc/omnibook/key_polling
+* Finished abstraction layer
+* Some minor changes in Rick's model detection code
+* New kernel integration code
+
+2002-12-22 Rick Richardson <rickr@mn.rr.com>
+
+* Added on and off as valid input to /proc/omnibook/lcd, to turn
+  the LCD backlight on and off.
+
+2002-12-15 Rick Richardson <rickr@mn.rr.com>
+
+* Reimplemented model detection so you only have to modify one file
+  to add a new model. features.h is now deprecated.
+* Added the Toshiba Satellite 1115/S103 to the supported models
+* Fixed bug in apmemu.c which caused /proc/apm to report the battery
+  status as critical when the battery was charging.
+
+2002-10-16 Soós Péter <sp@osb.hu>
+
+* Added HP Pavilion N5415 support
+* Corrected HP Pavilion N5441 support
+* Fix values of OB500 type machines in ec.h
+* LCD brightness support added for XE3GC and XE3GF style machines
+* Added HP OmniBook 510 FB support
+* AC adapter status monitoring is working on all machines
+* External display status monitoring is working on all machines
+* CPU temperature monitoring is working on all machines
+* __init functions gone to init.h
+* Added an abstraction layer between the low level, hardware dependent
+  functions and the applications (not yet finished). See omnibook.h for
+  details.
+
+2002-09-20 Soós Péter <sp@osb.hu>
+
+* Using save_flags()/cli() instead spinlocks in ec.c because of laptops do
+  not have more than one CPU (yet ;)). This improves performance and
+  eliminates packet loss in ppp stack
+* The previous version of XE3 GC scancode emulation was buggy: it worked only
+  when ACPI enabled. Current version is working ACPI independent way
+
+2002-09-05 Soós Péter <sp@osb.hu>
+
+* Added secondary battery support (untested, please report!)
+* Added ectype module parameter to specify the type of embedded
+  controller firmware
+* Added some OmniBook XE3 GC support code
+* Added some OmniBook 500 style embedded controller firmware support code
+  (OmniBook 5xx, 6xxx and some Pavilions)
+* Reorganized features matrix (again): the features depends on the embedded
+  controller firmware, not the model
+* Added external display status monitoring on some machine
+* Added scancode emulation on OmniBook XE3 GC
+
+2002-08-14 Soós Péter <sp@osb.hu>
+
+* Added HP OmniBook 6000 EA support (OneTouch only)
+* Added HP OmniBook 6100 EB support (OneTouch only)
+* Fixed Toshiba Satellite 3000-100 detection
+* Fixed timeout and locking bugs in ec.c
+* Added HP Pavilion Notebook ZT1141
+* Reorganized the feature matrix and parameter detection code to make easy
+  to add new features differents machine by machine
+
+2002-08-11 Soós Péter <sp@osb.hu>
+
+* Fixed removing of procfs entries
+* Fixed APM detection
+* Added kernel source integration
+* Fixed __initdata bugs
+* Handling difference between untesed and unsupported features
+
+2002-08-09 Soós Péter <sp@osb.hu>
+
+* Added Compal ACL00 laptop support
+* Updated documentation
+* Added touchpad support
+* Some bugfixes
+* /proc/apm emulation added
+
+2002-08-06 Soós Péter <sp@osb.hu>
+
+* Corrected full charged battery info
+* Added OneTouch handling via procfs
+* Added console blank handling via procfs
+* Added temperature policy handling via procfs
+* Corrected the bug in DMI code to report the serial number
+* Added module parameter support
+* Added HP Pavilion Notebook N5490, ZT1195 (and probably other Pavilions)
+
+2002-07-17 Soós Péter <sp@osb.hu>
+
+* Improved error handling
+* Some text corrections
+* Added Toshiba Satellite 3000-100 support
+* Some code tuning
+* Added omnibook prefix for variables and functions to prevent conflicts
+  with another code
+* Added /proc filesystem support
+* Added battery status monitoring
+* Added CPU temperature monitoring
+
+2002-06-03 Soós Péter <sp@osb.hu>
+
+* Some code tuning
+
+2002-05-07 Soós Péter <sp@osb.hu>
+
+* Added missing #include <linux/sched.h> to main.c
+* Some text corrections
+* Added HP OmniBook 500 FA support (OneTouch only)
+
+2002-05-06 Soós Péter <sp@osb.hu>
+
+* LCD display turn off at console blanking added
+* Code cleanup
+
+2002-05-02 Soós Péter <sp@osb.hu>
+
+* The first release of omnibook module
+* OneTouch button support

@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<definition>
+	<config model="HP OmniBook 5xx">
+
+	<!--
+		Multimedia keys are disabled by default on HP OmniBook
+		laptops. For enabling them see the project at URL
+		http://sourceforge.net/projects/omke
+	-->
+
+		<Shell		keycode="244"/>
+		<Help		keycode="243"/>
+
+		<!-- Keys below available on the docking station only -->
+
+		<PrevTrack	keycode="144"/>
+		<Play		keycode="162"/>
+		<Stop		keycode="164"/>
+		<NextTrack	keycode="153"/>
+
+		<VolUp		keycode="176" adj="1"/>
+		<VolDown	keycode="174" adj="1"/>
+
+	</config>
+
+	<contributor>
+		<name>Soos, Peter</name>
+		<email>sp@osb.hu</email>
+	</contributor>
+</definition>

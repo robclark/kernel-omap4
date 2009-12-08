@@ -1,0 +1,17 @@
+Bugs and problems in omnibook module code
+=========================================
+
+* Volume Control buttons on machine (not on docking station) do not generate
+  scancodes on OB500 style models. It is unhandled yet.
+* Setting the LCD brightness on HP OmniBook XE3 GF via /proc/omnibook/lcd
+  is working if you press one of the brightness control keys once after
+  writing the value into /proc/omnibook/lcd.
+* I'm not a native English speaker so text corrections are welcome.
+* obtest can BADLY confuse the in-kernel ACPI code due to its racy 
+  implementation.
+* Reenabling wifi adapter after previous disabling is broken on 
+  Toshiba Satellite M100 (ipw3945)
+* Real support of ectype 14 is still missing 
+* See http://sourceforge.net/tracker/?atid=868542&group_id=174260&func=browse
+  for sf.net bug tracking system.
+
