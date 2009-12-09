@@ -1,0 +1,60 @@
+SW RF kill switch for Fujitsu Siemens Amilo M 7400 / Maxdata 7000DX
+and compatible hardware.
+
+Please be sure that CONFIG_CHECK_SIGNATURE=y in your kernel configuration!
+Otherwise this module will not compile.
+
+Nov 22, 2008 - Release 0.5.2
+
+This package, with minor modifications from zwobbl's 0.5.1, was created
+by legolas558.
+
+More information at:
+http://legolas558.iragan.com/fsam7400
+
+Sep 24, 2006 - Release 0.5.1
+------------ -----   -----       ----       ---       --         -
+
+* Fix: possible null pointer dereference in proc code
+
+* Fix: module exit code was mistakenly disabled
+
+
+for prior changes see CHANGELOG
+
+
+TODO
+------------ -----   -----       ----       ---       --         -
+
+* Fix bugs (if there are any ;))
+
+
+------------ -----   -----       ----       ---       --         -
+
+Have a look in INSTALL for further details to get things working!
+
+
+License
+------------ -----   -----       ----       ---       --         -
+
+  Copyright(c) 2006 zwobbl. All rights reserved.
+
+  This program is free software; you can redistribute it and/or modify it
+  under the terms of the GNU General Public License as published by the Free
+  Software Foundation; either version 2 of the License, or (at your option)
+  any later version.
+
+  This program is distributed in the hope that it will be useful, but WITHOUT
+  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+  more details.
+
+  You should have received a copy of the GNU General Public License along with
+  this program; if not, write to the Free Software Foundation, Inc., 59
+  Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+
+  The full GNU General Public License is included in this distribution in the
+  file called LICENSE.
+
+  Contact Information:
+  Marcel Naziri <fsam7400@zwobbl.de>

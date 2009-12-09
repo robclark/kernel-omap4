@@ -1,0 +1,34 @@
+Nov 22 2008 Changes in 0.5.2 by legolas558
+* fixed some missing include files
+
+Sep 22 2006 Changes in 0.5.1
+* Fix: possible null pointer dereference in proc code
+* Fix: module exit code was mistakenly disabled
+
+Sep 22 2006 Changes in 0.5.0
+* fixed compilation problems with kernel 2.6.18
+* debug-output enabling via module parameter
+* hibernation support: reconstruct last radio state on resume
+* disabled autoload option by default
+
+Jul 16 2006 Changes in 0.4.1
+* new Makefile fixing problems with kernel 2.6.17
+* several bug fixes and compiler cleanups
+
+Aug 20 2004 Changes in 0.4.0
+* several bug fixes and compiler cleanups
+* UID/GID for procfs entry selectable via module parameter
+* Autoload support: fsam7400 modprobes and rmmods ipw2100 automatically
+  depending on radio state
+
+Apr 15 2004 Changes in 0.3.0
+* Fix: radio state was not displayed properly
+* some proc improvements
+* finished code for alternative routine address calculation
+* debug-output selectable at compile-time with CONFIG_IPW2100_DEBUG define
+  for smaller module size if no debug is needed ;)
+
+Apr 9 2004 Changes in 0.2.1
+* Initial release
+* Determines if wireless device is enabled by default Bios-settings
+* Auto-off functionality

@@ -1,0 +1,6 @@
+CHANGELOG	Recently changes logged
+FILES		This file
+fsam7400.c	The source code, what else... :)
+INSTALL		Installation instructions
+Makefile	Makefile to build, install, uninstall the module
+README		don't forget to read it

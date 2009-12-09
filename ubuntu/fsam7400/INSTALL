@@ -1,0 +1,110 @@
+SW RF kill switch for Fujitsu Siemens Amilo M 7400
+Copyright (C) 2006, zwobbl
+For additional information, contact Marcel Naziri <fsam7400@zwobbl.de>
+
+COMPILER REQUIREMENTS
+---------   ------     ----       ---    --       --       -          -
+
+You need to be using GCC v3.0 or higher in order to build the fsam7400 module.
+Using older versions will result in several compilation errors.
+
+
+INSTALLING THE BITS
+------------ -----   -----       ----       ---       --         -
+
+# Unpack the source tarball
+
+% tar xvzf fsam7400-0.x.y.tgz
+% cd fsam7400-0.x.y
+
+Make sure to be root when performing the following operations. Also you must 
+have a kernel source tree installed under /usr/src/linux
+
+# Build the kernel module
+
+% make 
+
+Debug output is enabled by default. This is a good idea if you use the fsam module for 
+the first time, so you get some nice information printed on kernel log. If you don't 
+need the messages anymore, you have to comment out the line CONFIG_IPW2100_DEBUG=y in 
+the Makefile.
+
+# Install the kernel module
+
+% make install
+
+Now you are ready for...
+
+
+LOADING THE DRIVER
+------------ -----   -----       ----       ---       --         -
+
+Also easy to go... :)
+
+% modprobe fsam7400
+
+If you have set "wireless device" enabled in your "Advanced" bios settings of
+your Amilo M 7400 radio should be turned on at this point. So you're done!
+Watch out your kernel log if supported hardware was found. :)
+
+
+RADIO STATE AT LOADING
+
+You can override the wireless bios setting with
+
+% modprobe fsam7400 radio=[0|1]
+
+
+PROC FILESYSTEM
+
+If your hardware is supported by the driver you will get an entry in /proc 
+called driver/wireless/radio which will give you state information by typing
+
+% cat /proc/driver/wireless/radio
+
+You can turn the radio on and off at your will with 
+
+% echo [1|on] > /proc/driver/wireless/radio
+% echo [0|off] > /proc/driver/wireless/radio
+
+The module also recognizes parameters to set the user- and/or group-ID to 
+something other than root, so you don't have to adjust it by hand. 
+Just select your favourite IDs and type
+
+% modprobe fsam7400 uid=1000 gid=500
+
+Note, that /proc/driver/wireless/radio will only be read- and writeable by 
+user & group and only readable by others.
+
+If you want to see debug output on syslog use the following parameter when 
+loading the module 
+
+% modprobe fsam7400 debug=1
+
+
+AUTOMATION FEATURES
+
+By default the driver will turn off the radio automatically short before the 
+module is unloaded. To override this behaviour load the module adding the 
+following parameter
+
+% modprobe fsam7400 autooff=0
+
+Also since 0.4.0 the driver can automatically modprobe the ipw2100 module when
+radio state changes to on and rmmods it when radio is turned off by fsam7400.
+To enable autoload support, use
+
+% modprobe fsam7400 autoload=1
+
+
+HIBERNATION SUPPORT
+
+After hibernation and boot up of the system the wireless radio might be disabled
+again. To revert to the radio state before hibernation just put the following
+in the wakeup script
+
+% echo resume > /proc/driver/wireless/radio
+
+
+
+That's all for now. Have fun with the driver!
