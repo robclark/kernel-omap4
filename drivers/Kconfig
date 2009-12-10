@@ -120,4 +120,6 @@ source "drivers/clk/Kconfig"
 
 source "drivers/media/video/dmm/Kconfig"
 
+source "drivers/media/video/tiler/Kconfig"
+
 endmenu
