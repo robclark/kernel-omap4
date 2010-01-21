@@ -118,6 +118,9 @@ static struct notifier_block mce_dec_nb = {
 	.priority      = -1,
 };
 
+void				(*cpu_specific_poll)(struct mce *);
+EXPORT_SYMBOL_GPL(cpu_specific_poll);
+
 /* MCA banks polled by the period polling timer for corrected events */
 DEFINE_PER_CPU(mce_banks_t, mce_poll_banks) = {
 	[0 ... BITS_TO_LONGS(MAX_NR_BANKS)-1] = ~0UL
@@ -379,6 +382,11 @@ static void mce_wrmsrl(u32 msr, u64 v)
 	wrmsrl(msr, v);
 }
 
+static int under_injection(void)
+{
+	return __get_cpu_var(injectm).finished;
+}
+
 /*
  * Simple lockless ring to communicate PFNs from the exception handler with the
  * process context work function. This is vastly simplified because there's
@@ -582,6 +590,10 @@ void machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 
 		if (!(flags & MCP_TIMESTAMP))
 			m.tsc = 0;
+
+		if (cpu_specific_poll && !under_injection() && !mce_dont_log_ce)
+			cpu_specific_poll(&m);
+
 		/*
 		 * Don't get the IP here because it's unlikely to
 		 * have anything to do with the actual error location.
