@@ -1,4 +1,5 @@
 config FSAM7400
 	tristate "SW RF kill switch for Fujitsu Siemens Amilo M 7400"
+	depends on CHECK_SIGNATURE
 	default m
 	---help---
