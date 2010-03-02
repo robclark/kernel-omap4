@@ -1,0 +1,5 @@
+config RTL8192SE
+	tristate "Kernel module for RTL81991/2SE or RTL8171 wireless"
+	depends on X86
+	default m
+	---help---

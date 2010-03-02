@@ -33,6 +33,10 @@ obj-$(CONFIG_SCSI_ISCSITARGET)	+= iscsitarget/
 ##
 ##
 ##
+obj-$(CONFIG_RTL8192SE)		+= rtl8192se/
+##
+##
+##
 ##
 ##
 ##

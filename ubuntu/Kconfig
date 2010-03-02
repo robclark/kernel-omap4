@@ -31,6 +31,10 @@ source "ubuntu/iscsitarget/Kconfig"
 ##
 ##
 ##
+source "ubuntu/rtl8192se/Kconfig"
+##
+##
+##
 ##
 ##
 ##
