@@ -292,7 +292,7 @@ static int keeplocked;
 /* default compatibility mode */
 static int autoclose=1;
 static int autoeject;
-static int lockdoor = 1;
+static int lockdoor = 0;
 /* will we ever get to use this... sigh. */
 static int check_media_type;
 /* automatically restart mrw format */
