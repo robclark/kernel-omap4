@@ -1,0 +1,8 @@
+arch="armel"
+supported="Versatile"
+desc="Versatile-based systems"
+target="PB, AB, Qemu, etc."
+bootloader=""
+provides=""
+section_image="universe/base"
+do_debug="Yes"

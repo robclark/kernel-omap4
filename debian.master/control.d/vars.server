@@ -1,0 +1,6 @@
+arch="amd64"
+supported="Server"
+target="Geared toward 64 bit server systems."
+desc="x86_64"
+bootloader="grub-pc | grub | lilo (>= 19.1)"
+provides="redhat-cluster-modules, kvm-api-4, ivtv-modules, ndiswrapper-modules-1.9"

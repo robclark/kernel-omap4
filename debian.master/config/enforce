@@ -1,0 +1,60 @@
+#
+# SECURITY items
+#
+# Ensure this option is enabled.
+value CONFIG_COMPAT_BRK n
+value CONFIG_DEVKMEM n
+value CONFIG_LSM_MMAP_MIN_ADDR 0
+value CONFIG_SECURITY y
+!exists CONFIG_SECURITY_FILE_CAPABILITIES | value CONFIG_SECURITY_FILE_CAPABILITIES y
+value CONFIG_SECURITY_SELINUX y
+value CONFIG_SECURITY_SMACK y
+value CONFIG_SECURITY_YAMA y
+value CONFIG_SYN_COOKIES y
+value CONFIG_DEFAULT_SECURITY_APPARMOR y
+# For architectures which support this option ensure it is enabled.
+!exists CONFIG_SECCOMP | value CONFIG_SECCOMP y
+!exists CONFIG_CC_STACKPROTECTOR | value CONFIG_CC_STACKPROTECTOR y
+!exists CONFIG_DEBUG_RODATA | value CONFIG_DEBUG_RODATA y
+!exists CONFIG_STRICT_DEVMEM | value CONFIG_STRICT_DEVMEM y
+# For architectures which support this option ensure it is disabled.
+!exists CONFIG_COMPAT_VDSO | value CONFIG_COMPAT_VDSO n
+# Default to 32768 for armel, 65536 for everything else.
+( arch armel & value CONFIG_DEFAULT_MMAP_MIN_ADDR 32768 ) | \
+	( value CONFIG_DEFAULT_MMAP_MIN_ADDR 65536)
+
+# CONFIG_USB_DEVICE_FS breaks udev USB firmware loading and is deprecated
+# ensure it is disabled.
+value CONFIG_USB_DEVICEFS n
+
+# upstart requires DEVTMPFS be enabled and mounted by default.
+value CONFIG_DEVTMPFS y
+value CONFIG_DEVTMPFS_MOUNT y
+
+# some /dev nodes require POSIX ACLs, like /dev/dsp
+value CONFIG_TMPFS_POSIX_ACL y
+
+# Ramdisk size should be a minimum of 64M
+value CONFIG_BLK_DEV_RAM_SIZE 65536
+
+# LVM requires dm_mod built in to activate correctly (LP: #560717)
+value CONFIG_BLK_DEV_DM y
+
+# sysfs: ensure all DEPRECATED items are off
+value CONFIG_SYSFS_DEPRECATED_V2 n
+!exists CONFIG_SYSFS_DEPRECATED | value CONFIG_SYSFS_DEPRECATED n
+
+# automatically add local version will cause packaging failure
+value CONFIG_LOCALVERSION_AUTO n
+
+# provide framebuffer console form the start
+# UbuntuSpec:foundations-m-grub2-boot-framebuffer
+value CONFIG_FRAMEBUFFER_CONSOLE y
+
+# GRUB changes will rely on built in vesafb on x86,
+# UbuntuSpec:foundations-m-grub2-boot-framebuffer
+(( arch i386 | arch amd64 ) & value CONFIG_FB_VESA y) | \
+	value CONFIG_FB_VESA m | !exists CONFIG_FB_VESA
+
+# Build in uinput module so that it's always available (LP: 584812)
+value CONFIG_INPUT_UINPUT y

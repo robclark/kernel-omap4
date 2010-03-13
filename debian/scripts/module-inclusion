@@ -1,0 +1,51 @@
+#!/bin/bash
+
+#
+# Build a new directory of modules based on an inclusion list.
+# The includsion list format must be a bash regular expression.
+#
+# usage: $0 ROOT INCLUSION_LIST
+# example: $0 debian/build/build-virtual debian.master/control.d/virtual.inclusion-list
+ROOT=$1
+ILIST=$2
+
+NROOT=${ROOT}.new
+
+#
+# Prep a destination directory.
+#
+mkdir -p ${NROOT}
+rsync -a --exclude="*.ko" ${ROOT}/ ${NROOT}
+
+cat ${ILIST} |while read i
+do
+	#
+	# 'find' blurts a warning if it cannot find any ko files.
+	#
+	if echo "$i" | grep '\*' > /dev/null
+	then
+		(cd ${ROOT}; eval find "${i}" -name "*.ko") |while read f
+		do
+			mkdir -p ${NROOT}/`dirname $f`
+			cp ${ROOT}/$f ${NROOT}/$f
+		done
+	else
+		if [ -f "${ROOT}/$i" ]
+		then
+			mkdir -p ${NROOT}/`dirname $i`
+			cp ${ROOT}/$i ${NROOT}/$i
+		else
+			echo Warning: Could not find ${ROOT}/$i
+		fi
+	fi
+
+done
+
+#
+# Cleanup
+#
+rm -rf ${ROOT}
+mv ${NROOT} ${ROOT}
+
+exit 0
+

@@ -364,6 +364,12 @@ config X86_UV
 # Following is an alphabetically sorted list of 32 bit extended platforms
 # Please maintain the alphabetic order if and when there are additions
 
+config X86_LPIA
+	bool "LPIA-compatible"
+	depends on X86_32 && X86_PC
+	help
+	  Choose this option if your computer is an LPIA platform.
+
 config X86_ELAN
 	bool "AMD Elan"
 	depends on X86_32
@@ -2152,6 +2158,8 @@ config HAVE_TEXT_POKE_SMP
 source "net/Kconfig"
 
 source "drivers/Kconfig"
+
+source "ubuntu/Kconfig"
 
 source "drivers/firmware/Kconfig"
 
