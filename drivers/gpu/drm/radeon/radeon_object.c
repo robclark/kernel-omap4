@@ -67,15 +67,19 @@ bool radeon_ttm_bo_is_radeon_bo(struct ttm_buffer_object *bo)
 
 void radeon_ttm_placement_from_domain(struct radeon_bo *rbo, u32 domain)
 {
-	u32 c = 0;
+	u32 c = 0, b = 0;
 
 	rbo->placement.fpfn = 0;
 	rbo->placement.lpfn = 0;
 	rbo->placement.placement = rbo->placements;
-	rbo->placement.busy_placement = rbo->placements;
+	rbo->placement.busy_placement = rbo->busy_placements;
 	if (domain & RADEON_GEM_DOMAIN_VRAM)
 		rbo->placements[c++] = TTM_PL_FLAG_WC | TTM_PL_FLAG_UNCACHED |
 					TTM_PL_FLAG_VRAM;
+	/* add busy placement to TTM if VRAM is only option */
+	if (domain == RADEON_GEM_DOMAIN_VRAM) {
+		rbo->busy_placements[b++] = TTM_PL_MASK_CACHING | TTM_PL_FLAG_TT;
+	}
 	if (domain & RADEON_GEM_DOMAIN_GTT)
 		rbo->placements[c++] = TTM_PL_MASK_CACHING | TTM_PL_FLAG_TT;
 	if (domain & RADEON_GEM_DOMAIN_CPU)
@@ -83,7 +87,7 @@ void radeon_ttm_placement_from_domain(struct radeon_bo *rbo, u32 domain)
 	if (!c)
 		rbo->placements[c++] = TTM_PL_MASK_CACHING | TTM_PL_FLAG_SYSTEM;
 	rbo->placement.num_placement = c;
-	rbo->placement.num_busy_placement = c;
+	rbo->placement.num_busy_placement = b;
 }
 
 int radeon_bo_create(struct radeon_device *rdev, struct drm_gem_object *gobj,
