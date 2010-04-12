@@ -1,5 +1,5 @@
 /*
- * dmm_mem.c
+ * tmm_pat.c
  *
  * DMM driver support functions for TI OMAP processors.
  *
@@ -21,7 +21,7 @@
 #include <linux/mutex.h>
 #include <linux/list.h>
 
-#include "dmm_mem.h"
+#include "tmm.h"
 
 /**
  * Number of pages to allocate when
