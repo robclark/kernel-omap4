@@ -292,7 +292,7 @@ fail_alloc_rxq:
 fail_alloc_txq:
 	free_irq(mbox->irq, mbox);
 fail_request_irq:
-	if (mbox->ops->shutdown)
+	if (likely(mbox->ops->shutdown))
 		mbox->ops->shutdown(mbox);
 	mbox->use_count--;
 fail_startup:
