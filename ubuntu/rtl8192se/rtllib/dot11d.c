@@ -44,7 +44,7 @@ static CHANNEL_LIST ChannelPlan[] = {
 void Dot11d_Init(struct rtllib_device *ieee)
 {
 	PRT_DOT11D_INFO pDot11dInfo = GET_DOT11D_INFO(ieee);
-#if defined CONFIG_CRDA && (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30))
+#ifdef CONFIG_CRDA 
 	ieee->bGlobalDomain = true;
 	pDot11dInfo->bEnabled = true;
 #else
@@ -109,7 +109,7 @@ void Dot11d_Reset(struct rtllib_device *ieee)
 		return;
 #endif
 
-#ifndef	CONFIG_CRDA
+#ifndef CONFIG_CRDA
 	u32 i;
 	memset(pDot11dInfo->channel_map, 0, MAX_CHANNEL_NUMBER+1);
 	memset(pDot11dInfo->MaxTxPwrDbmList, 0xFF, MAX_CHANNEL_NUMBER+1);
@@ -130,13 +130,8 @@ void Dot11d_UpdateCountryIe(struct rtllib_device *dev, u8 *pTaddr,
 	                    u16 CoutryIeLen, u8* pCoutryIe)
 {
 	PRT_DOT11D_INFO pDot11dInfo = GET_DOT11D_INFO(dev);
-#if defined CONFIG_CRDA && (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30)) && (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,32)) 
-	//struct wireless_dev *wdev = &dev->wdev;
+#ifdef CONFIG_CRDA 
 	
-	//if((rtllib_act_scanning(dev,false) == true) && (dev->FirstIe_InScan == 1)){
-	//			dev->FirstIe_InScan = false;
-	//} 
-	//regulatory_hint_11d(wdev->wiphy, pCoutryIe, CoutryIeLen);
 #else	
 	u8 i, j, NumTriples, MaxChnlNum;
 	PCHNL_TXPOWER_TRIPLE pTriple;
@@ -186,7 +181,6 @@ void Dot11d_UpdateCountryIe(struct rtllib_device *dev, u8 *pTaddr,
 #ifdef CONFIG_CRDA 
    	queue_delayed_work_rsl(dev->wq, &dev->softmac_hint11d_wq, 0);
 #endif	
-
 }
 
 u8 DOT11D_GetMaxTxPwrInDbm( struct rtllib_device *dev, u8 Channel)

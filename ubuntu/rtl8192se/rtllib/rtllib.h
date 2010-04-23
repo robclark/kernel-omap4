@@ -39,7 +39,7 @@
 #include <linux/delay.h>
 #include <linux/wireless.h>
 
-#if defined CONFIG_CRDA && (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30))
+#ifdef CONFIG_CFG_80211 
 #include <net/cfg80211.h>
 #endif
 
@@ -117,9 +117,9 @@ struct iw_spy_data{
 #endif
 
 #if (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,18))
-#define skb_tail_pointer_rtl(skb) skb_tail_pointer(skb)
+#define skb_tail_pointer_rsl(skb) skb_tail_pointer(skb)
 #else
-#define skb_tail_pointer_rtl(skb) skb->tail
+#define skb_tail_pointer_rsl(skb) skb->tail
 #endif
 
 #if (LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0))
@@ -280,17 +280,19 @@ static inline void *netdev_priv_rsl(struct net_device *dev)
 #define NORMAL_QUEUE                           MGNT_QUEUE
 #endif
 
-#ifdef _RTL8192_EXT_PATCH_
 #ifndef IW_MODE_MESH 
 #define IW_MODE_MESH			7	
 #endif
+#ifdef _RTL8192_EXT_PATCH_
 #define WIFI_MESH_TYPE	RTLLIB_FTYPE_DATA
 
+#define WLAN_MESH_HDR_LEN 6
 #define WLAN_MESH_HDR_6ADDR_LEN 18			
 #define WLAN_MESH_HDR_4ADDR_LEN 6			
 #define MAX_MP 						65			
 #define IEEE_MESH_MAC_HASH_SIZE 31
-#define MAX_HOST_NAME_LENGTH			32
+#define MAX_MESH_ID_LEN 33
+#define MAX_HOST_NAME_LENGTH			33
 #endif
 #define AMSDU_SUBHEADER_LEN 14
 #define SWRF_TIMEOUT				50
@@ -475,6 +477,29 @@ enum	_ReasonCode{
 	dest_not_QSTA	= 0x32, 
 };
 
+typedef enum _HAL_DEF_VARIABLE{
+	HAL_DEF_TPC_ENABLE,				
+	HAL_DEF_INIT_GAIN, 				
+	HAL_DEF_PROT_IMP_MODE,			
+	HAL_DEF_HIGH_POWER_MECHANISM,	
+	HAL_DEF_RATE_ADAPTIVE_MECHANISM,	
+	HAL_DEF_ANTENNA_DIVERSITY_MECHANISM,	
+	HAL_DEF_LED,					
+	HAL_DEF_CW_MAX_MIN,				
+	 
+	HAL_DEF_WOWLAN,
+	HAL_DEF_ENDPOINTS,				
+	HAL_DEF_MIN_TX_POWER_DBM,		
+	HAL_DEF_MAX_TX_POWER_DBM,		
+	HW_DEF_EFUSE_REPG_SECTION1_FLAG, 
+	HW_DEF_EFUSE_REPG_DATA, 
+	HW_DEF_GPIO,
+	HAL_DEF_PCI_SUPPORT_ASPM,		
+	HAL_DEF_THERMAL_VALUE,
+      HAL_DEF_USB_IN_TOKEN_REV, 
+}HAL_DEF_VARIABLE;
+
+
 typedef enum _HW_VARIABLES{
 	HW_VAR_ETHER_ADDR,
 	HW_VAR_MULTICAST_REG,		
@@ -550,7 +575,14 @@ typedef enum _HW_VARIABLES{
 	HW_VAR_CORRECT_TSF,			
 	HW_VAR_BCN_VALID,				
 	HW_VAR_FWLPS_RF_ON,			
-	HW_VAR_DUAL_TSF_RST			
+	HW_VAR_DUAL_TSF_RST,			
+        HW_VAR_H2C_FW_UPDATE_GTK, 
+        HW_VAR_WF_MASK,	
+	HW_VAR_WF_CRC,	
+	HW_VAR_WF_IS_MAC_ADDR, 
+	HW_VAR_H2C_FW_OFFLOAD, 
+	HW_VAR_RESET_WFCRC, 
+	HW_VAR_SWITCH_EPHY_WoWLAN, 
 }HW_VARIABLES;
 
 
@@ -748,7 +780,11 @@ static inline void msleep(unsigned int msecs)
 #define RTLLIB_STYPE_MANAGE_ACT	0x00D0
 #ifdef _RTL8192_EXT_PATCH_
 /* added for mesh action frame type */
+#ifdef COMPATIBLE_WITH_RALINK_MESH
 #define RTLLIB_STYPE_MESH_ACT        0x00F0
+#else
+#define RTLLIB_STYPE_MESH_ACT        RTLLIB_STYPE_MANAGE_ACT
+#endif
 #endif
 
 /* control */
@@ -794,10 +830,10 @@ typedef enum _ACT_CATEGORY{
         ACT_CAT_HT  = 7,
         ACT_CAT_WMM = 17,
 #ifdef _RTL8192_EXT_PATCH_
-        ACT_CAT_MESH_PEERLINK_MGNT = 30,
-        ACT_CAT_MESH_LINK_METRIC = 31,
-        ACT_CAT_MESH_PATH_SELECT = 32,
-        ACT_CAT_MESH_INTERWORKING = 33,
+        ACT_CAT_MESH_PEERLINK_MGNT = 0x0f, 
+        ACT_CAT_MESH_LINK_METRIC = 0x10, 
+        ACT_CAT_MESH_PATH_SELECT = 0x11, 
+        ACT_CAT_MESH_INTERWORKING = 0x12, 
         ACT_CAT_MESH_SECURITY_INFO = 35,
 #endif
 } ACT_CATEGORY, *PACT_CATEGORY;
@@ -906,7 +942,7 @@ do { if (rtllib_debug_level & (level)) \
 			printk(KERN_DEBUG "rtllib: %s()\n", __FUNCTION__);	\
 			for(i=0; i<(int)(datalen); i++)			\
 			{						\
-				printk("%2x ", pdata[i]);		\
+				printk("%2.2x ", pdata[i]);		\
 				if ((i+1)%16 == 0) printk("\n");	\
 			}				\
 			printk("\n");			\
@@ -1047,7 +1083,7 @@ struct rtllib_snap_hdr {
 #define WLAN_GET_SEQ_FRAG(seq) ((seq) & RTLLIB_SCTL_FRAG)
 #define WLAN_GET_SEQ_SEQ(seq)  (((seq) & RTLLIB_SCTL_SEQ) >> 4)
 
-#if !(defined CONFIG_CRDA && (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30)))
+#ifndef CONFIG_CFG_80211
 /* Authentication algorithms */
 #define WLAN_AUTH_OPEN 0
 #define WLAN_AUTH_SHARED_KEY 1
@@ -1238,69 +1274,68 @@ struct ieee_mesh_seq {
 struct rtllib_rx_stats {
 #if 1
 	u32 mac_time[2];
-	s8 rssi;
-	u8 signal;
-	u8 noise;
+	s8  rssi;
+	u8  signal;
+	u8  noise;
 	u16 rate; /* in 100 kbps */
-	u8 received_channel;
-	u8 control;
-	u8 mask;
-	u8 freq;
+	u8  received_channel;
+	u8  control;
+	u8  mask;
+	u8  freq;
 	u16 len;
 	u64 tsf;
 	u32 beacon_time;
-	u8 nic_type;
-	u16       Length;
-	u8        SignalQuality; 
-	s32       RecvSignalPower; 
-	s8        RxPower; 
-	u8        SignalStrength; 
-	u16       bHwError:1;
-	u16       bCRC:1;
-	u16       bICV:1;
-	u16       bShortPreamble:1;
-	u16       Antenna:1;      
-	u16       Decrypted:1;    
-	u16       Wakeup:1;       
-	u16       Reserved0:1;    
-	u8        AGC;
-	u32       TimeStampLow;
-	u32       TimeStampHigh;
-	bool      bShift;
-	bool      bIsQosData;             
-	u8        UserPriority;
+	u8  nic_type;
+	u16 Length;
+	u8  SignalQuality; 
+	s32 RecvSignalPower; 
+	s8  RxPower; 
+	u8  SignalStrength; 
+	u16 bHwError:1;
+	u16 bCRC:1;
+	u16 bICV:1;
+	u16 bShortPreamble:1;
+	u16 Antenna:1;      
+	u16 Decrypted:1;    
+	u16 Wakeup:1;       
+	u16 Reserved0:1;    
+	u8  AGC;
+	u32 TimeStampLow;
+	u32 TimeStampHigh;
+	bool bShift;
+	bool bIsQosData;             
+	u8   UserPriority;
 
-
-	u8        RxDrvInfoSize;
-	u8        RxBufShift;
-	bool      bIsAMPDU;
-	bool      bFirstMPDU;
-	bool      bContainHTC;
-	bool      RxIs40MHzPacket;
-	u32       RxPWDBAll;
-	u8        RxMIMOSignalStrength[4];        
-	s8        RxMIMOSignalQuality[2];
-	bool      bPacketMatchBSSID;
-	bool      bIsCCK;
-	bool      bPacketToSelf;
-	u8*       virtual_address;
-	u16          packetlength;              
-	u16          fraglength;                        
-	u16          fragoffset;                        
-	u16          ntotalfrag;
-	bool      	  bisrxaggrsubframe;
-	bool		  bPacketBeacon;	
-	bool		  bToSelfBA;		
-	char 	  cck_adc_pwdb[4];	
-	u16		  Seq_Num;
-	u8		nTotalAggPkt;		
+	u8    RxDrvInfoSize;
+	u8    RxBufShift;
+	bool  bIsAMPDU;
+	bool  bFirstMPDU;
+	bool  bContainHTC;
+	bool  RxIs40MHzPacket;
+	u32   RxPWDBAll;
+	u8    RxMIMOSignalStrength[4];        
+	s8    RxMIMOSignalQuality[2];
+	bool  bPacketMatchBSSID;
+	bool  bIsCCK;
+	bool  bPacketToSelf;
+	u8*    virtual_address;
+	u16    packetlength;        
+	u16    fraglength;          
+	u16    fragoffset;          
+	u16    ntotalfrag;
+	bool   bisrxaggrsubframe;
+	bool   bPacketBeacon;       
+	bool   bToSelfBA;	    
+	char   cck_adc_pwdb[4];	    
+	u16    Seq_Num;
+	u8     nTotalAggPkt;	    
 #ifdef TCP_CSUM_OFFLOAD_RX
 	u8	tcp_csum_valid;
 #endif
 #if defined (RTL8192S_WAPI_SUPPORT)
-	u8		WapiTempPN[16];
-	u8		WapiSrcAddr[6];
-	u8		bWapiCheckPNInDecrypt;
+	u8	WapiTempPN[16];
+	u8	WapiSrcAddr[6];
+	u8	bWapiCheckPNInDecrypt;
 #endif
 #endif
 
@@ -1432,9 +1467,9 @@ enum rtllib_mfie {
 #ifdef _RTL8192_EXT_PATCH_
 	MFIE_TYPE_MESH_PANN = 51,
 	MFIE_TYPE_MESH_RANN = 52,
-	MFIE_TYPE_MESH_PATH_REQ = 53,
-	MFIE_TYPE_MESH_PATH_REP = 54,
-	MFIE_TYPE_MESH_PATH_ERR = 55,
+	MFIE_TYPE_MESH_PATH_REQ = 138, 
+	MFIE_TYPE_MESH_PATH_REP = 139, 
+	MFIE_TYPE_MESH_PATH_ERR = 140, 
 #endif
 	MFIE_TYPE_HT_INFO= 61,
 #if defined (RTL8192S_WAPI_SUPPORT)
@@ -1442,18 +1477,18 @@ enum rtllib_mfie {
 #endif
 	MFIE_TYPE_AIRONET=133,
 #ifdef _RTL8192_EXT_PATCH_
-	MFIE_TYPE_MESH_CONFIGURATION = 136,   	
-	MFIE_TYPE_MESH_ID = 137,     
+	MFIE_TYPE_MESH_CONFIGURATION = 121, 
+	MFIE_TYPE_MESH_ID = 122, 
 	MFIE_TYPE_MESH_LOCAL_LINK_STATE_ANNOU = 138,   
 	MFIE_TYPE_MESH_ABBR_HANDSHAKE_IE_	=139,  
-	MFIE_TYPE_MESH_PEER_LINK_MGNT = 140,   
+	MFIE_TYPE_MESH_PEER_LINK_MGNT = 125, 
 	MFIE_TYPE_MESH_NEIGHBOR_LIST = 142,     
 	MFIE_TYPE_MESH_TIM = 143,     
 	MFIE_TYPE_MESH_ATIM_WINDOW = 144,     
 	MFIE_TYPE_MESH_BEACON_TIMING = 145,     
 	MFIE_TYPE_MESH_MDAOP_ADVERTISMENTS = 148,   
-	MFIE_TYPE_MESH_MSC = 158,   
-	MFIE_TYPE_MESH_MSA = 159,   
+	MFIE_TYPE_MESH_MSC = 149, 
+	MFIE_TYPE_MESH_MSA = 150, 
 	MFIE_TYPE_MESH_MOAOP_SET_TEARDOWN = 212,   
 #endif
 	MFIE_TYPE_GENERIC = 221,
@@ -1551,7 +1586,9 @@ struct rtllib_plink_open {
 	struct rtllib_hdr_3addr header;
 	u8       category;
 	u8       action;
+#ifndef COMPATIBLE_WITH_RALINK_MESH
 	struct mesh_peering_protocol_version_t mesh_peering_protocol_version;
+#endif
 	__le16 capability;
 	/* SSID, supported rates, RSN */
         struct rtllib_info_element info_element[0];
@@ -1561,8 +1598,13 @@ struct rtllib_plink_confirm {
 	struct rtllib_hdr_3addr header;
 	u8       category;
 	u8       action;
+#ifndef COMPATIBLE_WITH_RALINK_MESH
 	struct mesh_peering_protocol_version_t mesh_peering_protocol_version;
+#endif
 	__le16 capability;
+#ifdef COMPATIBLE_WITH_RALINK_MESH
+	__le16 status_code;
+#endif
 	__le16 aid;
 	/* SSID, supported rates, RSN */
         struct rtllib_info_element info_element[0];
@@ -1572,7 +1614,9 @@ struct rtllib_plink_close {
 	struct rtllib_hdr_3addr header;
 	u8       category;
 	u8       action;
+#ifndef COMPATIBLE_WITH_RALINK_MESH
 	struct mesh_peering_protocol_version_t mesh_peering_protocol_version;
+#endif
 	/* SSID, supported rates, RSN */
 	struct rtllib_info_element info_element[0];
 } __attribute__ ((packed));
@@ -1993,7 +2037,6 @@ typedef struct _mesh_config_t {
 	u8 congest_ctl_mode[4];
 	u8 mesh_capability[2];
 } mesh_config_t;
-#define MAX_MESH_ID_LEN 32
 #define MESH_CONF_TOTAL_LEN 19
 #endif
 
@@ -2053,7 +2096,6 @@ struct rtllib_network {
 
         u8 wmm_info;
         struct rtllib_wmm_ac_param wmm_param[4];
-        u8 QoS_Enable;
 #ifdef THOMAS_TURBO
 	u8 Turbo_Enable;
 #endif
@@ -2238,6 +2280,29 @@ typedef	enum _RT_RF_POWER_STATE
 	eRfOff
 }RT_RF_POWER_STATE;
 
+#define	MAX_SUPPORT_WOL_PATTERN_NUM		8
+
+#define	MAX_WOL_BIT_MASK_SIZE		16 
+#define	MAX_WOL_PATTERN_SIZE		128
+
+typedef enum _WOLPATTERN_TYPE
+{
+	eNetBIOS = 0,
+	eIPv4IPv6ARP,
+	eIPv4IPv6TCPSYN,
+	eMACIDOnly,
+	eNoDefined,
+}WOLPATTERN_TYPE;
+
+typedef struct _RT_PM_WOL_PATTERN_INFO
+{
+	u32	PatternId; 
+	u32	Mask[4];
+	u16	CrcRemainder;
+	u8	WFMIndex; 
+	WOLPATTERN_TYPE	PatternType;
+}RT_PM_WOL_PATTERN_INFO, *PRT_PM_WOL_PATTERN_INFO;
+
 typedef struct _RT_POWER_SAVE_CONTROL
 {
 
@@ -2288,6 +2353,12 @@ typedef struct _RT_POWER_SAVE_CONTROL
 	bool				LinkReqInIPSRFOffPgs;
 	bool				BufConnectinfoBefore;
 	
+
+	bool				bGpioRfSw;
+
+	u8				oWLANMode;
+	RT_PM_WOL_PATTERN_INFO		PmWoLPatternInfo[MAX_SUPPORT_WOL_PATTERN_NUM]; 
+
 }RT_POWER_SAVE_CONTROL,*PRT_POWER_SAVE_CONTROL;
 
 typedef u32 RT_RF_CHANGE_SOURCE;
@@ -2426,8 +2497,24 @@ typedef struct _rate_adaptive
 	u8				PreRATRState;
 	
 } rate_adaptive, *prate_adaptive;
+typedef enum _RATR_TABLE_MODE_8192S{
+	RATR_INX_WIRELESS_NGB = 0,
+	RATR_INX_WIRELESS_NG = 1,
+	RATR_INX_WIRELESS_NB = 2,
+	RATR_INX_WIRELESS_N = 3,
+	RATR_INX_WIRELESS_GB = 4,
+	RATR_INX_WIRELESS_G = 5,
+	RATR_INX_WIRELESS_B = 6,
+	RATR_INX_WIRELESS_MC = 7,
+	RATR_INX_WIRELESS_A = 8,
+}RATR_TABLE_MODE_8192S, *PRATR_TABLE_MODE_8192S;
+
 #if defined(RTL8192U) || defined(RTL8192SU) || defined(RTL8192SE) || defined RTL8192CE
 #define PEER_MAX_ASSOC 10
+typedef struct _RSSI_STA{
+	long	UndecoratedSmoothedPWDB;
+}RSSI_STA, *PRSSI_STA;
+
 struct sta_info {
 	u8 macaddr[ETH_ALEN];
 	u16 aid;
@@ -2439,6 +2526,7 @@ struct sta_info {
 	RT_HTINFO_STA_ENTRY htinfo;
 	u8 wme_enable;
 	u32 CurDataRate;
+	RSSI_STA rssi_stat;
 	rate_adaptive     rate_adaptive;
 	u8 bPowerSave;		
 	struct sk_buff_head PsQueue;		
@@ -2542,7 +2630,6 @@ typedef struct _RT_PEERMP_HTINFO{
 #endif
 
 #define	NUM_PMKID_CACHE		16
-
 typedef struct _RT_PMKID_LIST
 {
 	u8						bUsed;
@@ -2553,15 +2640,15 @@ typedef struct _RT_PMKID_LIST
 	u16 					ssid_length;
 } RT_PMKID_LIST, *PRT_PMKID_LIST;
 
-#if defined CONFIG_CRDA && (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30))
+#ifdef CONFIG_CFG_80211 
 enum {
 	LIBIPW_CH_PASSIVE_ONLY 		= (1 << 0),
 	LIBIPW_CH_80211H_RULES 		= (1 << 1),
-	LIBIPW_CH_B_ONLY 				= (1 << 2),
-	LIBIPW_CH_NO_IBSS 				= (1 << 3),
+	LIBIPW_CH_B_ONLY 		= (1 << 2),
+	LIBIPW_CH_NO_IBSS 		= (1 << 3),
 	LIBIPW_CH_UNIFORM_SPREADING 	= (1 << 4),
 	LIBIPW_CH_RADAR_DETECT 		= (1 << 5),
-	LIBIPW_CH_INVALID 				= (1 << 6),
+	LIBIPW_CH_INVALID 		= (1 << 6),
 };
 struct rtllib_channel {
 	u32 freq;
@@ -2691,6 +2778,13 @@ struct ieee802_11_elems {
 
 #endif
 
+
+typedef struct _RT_INTEL_PROMISCUOUS_MODE_INFO {
+     bool bPromiscuousOn;
+     bool bFilterSourceStationFrame;
+} RT_INTEL_PROMISCUOUS_MODE_INFO, *PRT_INTEL_PROMISCUOUS_MODE_INFO;
+
+
 /*************** DRIVER STATUS   *****/
 #define STATUS_SCANNING			0
 #define STATUS_SCAN_HW			1
@@ -2708,22 +2802,19 @@ enum {
 struct rtllib_device {
 	struct pci_dev *pdev;
 	struct net_device *dev;
-        struct rtllib_security sec;
+	struct rtllib_security sec;
 
 	bool disable_mgnt_queue;
 
 	unsigned long status;
 	short hwscan_ch_bk;
-        HT_EXTCHNL_OFFSET chan_offset_bk;
-        HT_CHANNEL_WIDTH bandwidth_bk;
+	HT_EXTCHNL_OFFSET chan_offset_bk;
+	HT_CHANNEL_WIDTH bandwidth_bk;
 	u8 hwscan_sem_up;
-
-
-#if defined CONFIG_CRDA && (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30))
+#ifdef CONFIG_CFG_80211
 	struct wireless_dev wdev;
 	struct rtl_regulatory regulatory;
 #endif
-
 	u8	CntAfterLink;
 
 	u8 VersionID;
@@ -2759,6 +2850,7 @@ struct rtllib_device {
 	bool wx_set_enc; 
 #if defined(RTL8192U) || defined(RTL8192SU) || defined(RTL8192SE) || defined RTL8192CE
 	struct sta_info *peer_assoc_list[PEER_MAX_ASSOC];
+	u8 AvailableAIDTable[PEER_MAX_ASSOC];  
 	atomic_t	AsocEntryNum;
 	u64	CurrTsf;
 	u64	TargetTsf;
@@ -2812,6 +2904,9 @@ struct rtllib_device {
 	int scan_age;
 
 	int iw_mode; /* operating mode (IW_MODE_*) */
+	bool bNetPromiscuousMode; 
+	RT_INTEL_PROMISCUOUS_MODE_INFO IntelPromiscuousModeInfo;
+	
 	struct iw_spy_data spy_data; 
 
 	spinlock_t lock;
@@ -2980,7 +3075,6 @@ struct rtllib_device {
 	short ssid_set;
 	
 	/* set on initialization */
-	u8  qos_support;
 	unsigned int wmm_acm;
 	
 	/* for discarding duplicated packets in IBSS */
@@ -3076,7 +3170,6 @@ struct rtllib_device {
 	SW_RATR_TABLE swmeshratrtable[8];
 	short meshid_set;
 	u8 p2pmode;
-	u8 is_server_eth0;  
 	u8 serverExtChlOffset;
 	u8 APExtChlOffset;
 	short meshScanMode;
@@ -3109,6 +3202,7 @@ struct rtllib_device {
 	work_struct_rsl ext_path_sel_ops_wq;  
 	work_struct_rsl ext_update_extchnloffset_wq;  
 	delayed_work_struct_rsl ext_wx_set_key_wq;
+	work_struct_rsl ext_start_mesh_protocol_wq;  
 #endif
 
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)  
@@ -3324,7 +3418,6 @@ struct rtllib_device {
 	u8 (*ext_patch_rtllib_acl_query) (struct rtllib_device *ieee, u8 *sa);
 
 	
-	void (*ext_patch_rtllib_update_ratr_mask)(struct net_device* dev,u8* MacAddr,u8 rssi_level,u32 *ratr_bitmap,u8* bShortGI);
 	struct sk_buff* (*ext_patch_rtllib_send_ath_commit) (struct rtllib_device * ieee,u8 * addr);
 	struct sk_buff* (*ext_patch_rtllib_send_ath_confirm) (struct rtllib_device * ieee,u8 * addr);
 	int (*ext_patch_rtllib_rx_ath_commit) (struct rtllib_device * ieee,u8 * addr);
@@ -3332,17 +3425,16 @@ struct rtllib_device {
 
 #endif 
 	bool (*SetFwCmdHandler)(struct net_device *dev,	FW_CMD_IO_TYPE		FwCmdIO);
-#ifdef _RTL8192_EXT_PATCH_
-	void (*UpdateHalRAMaskHandler)(struct net_device* dev, bool bMulticast, u8 macId, u8* MacAddr, u8 wirelessMode, 	u8 rssi_level);
-#else
-	void (*UpdateHalRAMaskHandler)(struct net_device* dev, bool bMulticast, u8 macId, u8* MacAddr, u8 *pEntry, 	u8 rssi_level);
-#endif
+	void (*UpdateHalRAMaskHandler)(struct net_device* dev, bool bMulticast, u8 macId, u8 MimoPs, u8 WirelessMode, u8 bCurTxBW40MHz,	u8 rssi_level);
 	void (*UpdateBeaconInterruptHandler)(struct net_device* dev, bool start);
 	u16  (*rtl_11n_user_show_rates)(struct net_device *dev);
 	void (*ScanOperationBackupHandler)(struct net_device *dev, u8 Operation);
 	void (*LedControlHandler)(struct net_device * dev, LED_CTL_MODE LedAction);
 	void (*SetHwRegHandler)(struct net_device *dev,u8 variable,u8* val);
 	void (*GetHwRegHandler)(struct net_device *dev,u8 variable,u8* val);
+
+	void (*AllowAllDestAddrHandler)(struct net_device *dev, bool bAllowAllDA, bool WriteIntoReg);
+	
 #ifdef ENABLE_IPS
         void (*rtllib_ips_leave_wq) (struct net_device *dev);
         void (*rtllib_ips_leave)(struct net_device *dev);
@@ -3355,6 +3447,7 @@ struct rtllib_device {
 	bool (*check_ht_cap)(struct net_device* dev, struct sta_info *sta, struct rtllib_network* net);
 	void (*Adhoc_InitRateAdaptive)(struct net_device *dev,struct sta_info  *pEntry);
 #endif
+	void (*rtllib_rfkill_poll)(struct net_device *dev);
 
 	/* This must be the last item so that it points to the data
 	 * allocated beyond this structure by alloc_rtllib */
@@ -3673,6 +3766,11 @@ extern void rtllib_sta_ps_send_pspoll_frame(struct rtllib_device *ieee);
 extern void rtllib_check_all_nets(struct rtllib_device *ieee);
 extern void rtllib_start_protocol(struct rtllib_device *ieee);
 extern void rtllib_stop_protocol(struct rtllib_device *ieee, u8 shutdown);
+
+extern void rtllib_EnableNetMonitorMode(struct net_device* dev, bool bInitState);
+extern void rtllib_DisableNetMonitorMode(struct net_device* dev, bool bInitState);
+extern void rtllib_EnableIntelPromiscuousMode(struct net_device* dev, bool bInitState);
+extern void rtllib_DisableIntelPromiscuousMode(struct net_device* dev, bool bInitState);
 #ifdef _RTL8192_EXT_PATCH_
 extern void rtllib_send_probe_requests(struct rtllib_device *ieee, u8 is_mesh);
 #else
@@ -3690,6 +3788,8 @@ extern void rtllib_softmac_stop_protocol(struct rtllib_device *ieee, u8 shutdown
 extern void rtllib_reset_queue(struct rtllib_device *ieee);
 extern void rtllib_wake_queue(struct rtllib_device *ieee);
 extern void rtllib_stop_queue(struct rtllib_device *ieee);
+extern void rtllib_wake_all_queues(struct rtllib_device *ieee);
+extern void rtllib_stop_all_queues(struct rtllib_device *ieee);
 extern struct sk_buff *rtllib_get_beacon(struct rtllib_device *ieee);
 extern void rtllib_start_send_beacons(struct rtllib_device *ieee);
 extern void rtllib_stop_send_beacons(struct rtllib_device *ieee);
@@ -3706,7 +3806,6 @@ extern u16 rtllib_query_seqnum(struct rtllib_device*ieee, struct sk_buff* skb, u
 extern u8 rtllib_ap_sec_type(struct rtllib_device *ieee);
 
 #ifdef _RTL8192_EXT_PATCH_
-extern void rtllib_rx_auth_rq(struct rtllib_device *ieee, struct sk_buff *skb);
 extern void rtllib_resp_to_auth(struct rtllib_device *ieee, int s, u8* dest);
 extern void rtllib_associate_step1(struct rtllib_device *ieee,u8 * addr);
 extern bool rtllib_ext_prepare_to_joinmesh(struct rtllib_device *ieee, struct rtllib_network *pstat);
@@ -3903,10 +4002,8 @@ void rtllib_crypto_wep_exit(void);
 /* For the function is more related to hardware setting, it's better to use the  
  * ieee handler to refer to it.
  */
-void rtllib_update_active_chan_map(struct rtllib_device *ieee);
- void
-rtllib_FlushRxTsPendingPkts(struct rtllib_device *ieee, PRX_TS_RECORD pTS);
-extern short check_nic_enough_desc(struct net_device *dev, int queue_index);
+extern void rtllib_update_active_chan_map(struct rtllib_device *ieee);
+extern void rtllib_FlushRxTsPendingPkts(struct rtllib_device *ieee, PRX_TS_RECORD pTS);
 extern int rtllib_data_xmit(struct sk_buff *skb, struct net_device *dev);
 extern int rtllib_parse_info_param(struct rtllib_device *ieee,
 		struct rtllib_info_element *info_element, 

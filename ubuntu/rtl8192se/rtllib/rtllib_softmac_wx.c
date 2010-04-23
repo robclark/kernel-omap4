@@ -64,8 +64,6 @@ int rtllib_wx_set_freq(struct rtllib_device *ieee, struct iw_request_info *a,
 	}else { /* Set the channel */
 		
 #ifdef ENABLE_DOT11D
-		//we just active scan channel set here, 
-		//no_ibss/passive scan channel are not permited
 		if (ieee->active_channel_map[fwrq->m] != 1) {
 			ret = -EINVAL;
 			goto out;
@@ -338,8 +336,12 @@ int rtllib_wx_set_mode(struct rtllib_device *ieee, struct iw_request_info *a,
 #else
 		ieee->dev->type = ARPHRD_IEEE80211;
 #endif
+		rtllib_EnableNetMonitorMode(ieee->dev,false);	
+		
 	} else {
 		ieee->dev->type = ARPHRD_ETHER;
+		if (ieee->iw_mode == IW_MODE_MONITOR)
+			rtllib_DisableNetMonitorMode(ieee->dev,false);
 	}
 	
 	if (!ieee->proto_started) {
@@ -384,7 +386,8 @@ void rtllib_wx_sync_scan_wq(void *data)
 	rtllib_sta_ps_send_null_frame(ieee, 1);
 #endif
 
-	netif_carrier_off(ieee->dev);
+	rtllib_stop_all_queues(ieee);
+
 	if (ieee->data_hard_stop)
 		ieee->data_hard_stop(ieee->dev);
 	rtllib_stop_send_beacons(ieee);
@@ -464,7 +467,8 @@ void rtllib_wx_sync_scan_wq(void *data)
 	if(ieee->iw_mode == IW_MODE_ADHOC || ieee->iw_mode == IW_MODE_MASTER)
 		rtllib_start_send_beacons(ieee);
 	
-	netif_carrier_on(ieee->dev);
+	rtllib_wake_all_queues(ieee);
+
 	count = 0;	
 out:
 	up(&ieee->wx_sem);

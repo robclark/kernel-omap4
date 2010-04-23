@@ -582,7 +582,7 @@ void writeOFDMPowerReg(
 			rfa_lower_bound = 0x10-rf_pwr_diff;
 			RT_TRACE(COMP_POWER,"rfa_lower_bound= %d\n", rfa_lower_bound);
 		}
-		else if (rf_pwr_diff >= 0)	
+		else
 		{
 			rfa_upper_bound = RF6052_MAX_TX_PWR-rf_pwr_diff;
 			RT_TRACE(COMP_POWER,"rfa_upper_bound= %d\n", rfa_upper_bound);

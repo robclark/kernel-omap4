@@ -86,9 +86,14 @@
 #include "rtl8192c/r8192C_com.h"
 #endif
 
-#if defined CONFIG_CRDA && (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30))
+#ifdef CONFIG_CFG_80211 
 #include "rtl_regd.h"
 #endif
+
+#ifdef CONFIG_RTL_RFKILL
+#include "rtl_rfkill.h"
+#endif
+
 #include "rtl_debug.h"
 #include "rtl_eeprom.h"
 #include "rtl_ps.h"
@@ -96,7 +101,7 @@
 
 #define DRV_COPYRIGHT  "Copyright(c) 2008 - 2010 Realsil Semiconductor Corporation"
 #define DRV_AUTHOR  "<wlanfae@realtek.com>"
-#define DRV_VERSION  "0014.0115.2010"
+#define DRV_VERSION  "0015.0127.2010"
 
 #ifdef RTL8190P
 #define DRV_NAME "rtl819xP"
@@ -171,6 +176,12 @@ do { if(rt_global_debug_component & component) \
 	printk(KERN_DEBUG DRV_NAME ":" x "\n" , \
 	       ##args);\
 }while(0);
+
+#ifdef _RTL8192_EXT_PATCH_	
+#define IS_NIC_DOWN(priv)	((!(priv)->up) && (!(priv)->mesh_up))
+#else  
+#define IS_NIC_DOWN(priv)	(!(priv)->up)
+#endif  
 
 #ifdef RTL8192CE
 #define RT_ASSERT(_Exp,Fmt)				\
@@ -733,6 +744,7 @@ struct rtl819x_ops{
 	nic_t nic_type;
 	void (* get_eeprom_size)(struct net_device* dev);
 	void (* init_adapter_variable)(struct net_device* dev);
+	void (* init_before_adapter_start)(struct net_device* dev);
 	bool (* initialize_adapter)(struct net_device* dev);
 	void (*link_change)(struct net_device* dev);
 	void (* tx_fill_descriptor)(struct net_device* dev, tx_desc * tx_desc, cb_desc * cb_desc, struct sk_buff *skb);
@@ -760,21 +772,23 @@ typedef struct r8192_priv
 	struct pci_dev *pdev;
 	struct pci_dev *bridge_pdev;
 
-#ifdef _RTL8192_EXT_PATCH_
+	u8	RegPciASPM;
+	u8	RegHwSwRfOffD3;
+	u8	RegSupportPciASPM;
+	
 	u8      rssi_level;
-#endif	
 	void *scan_cmd;
 
 	u8 check_roaming_cnt;
 	struct rtl819x_ops* ops;
 	bool bfirst_init;
+	bool bfirst_after_down;
+	bool initialized_at_probe;
 	LOG_INTERRUPT_8190_T InterruptLog;
 	bool bIgnoreSilentReset;
 	u32 	SilentResetRxSoltNum;
 	u32	SilentResetRxSlotIndex;
-#if defined RTL8192SE || defined RTL8192CE
 	u32	SilentResetRxStuckEvent[MAX_SILENT_RESET_RX_SLOT_NUM];
-#endif
 	RT_CUSTOMER_ID CustomerID;
 	bool	being_init_adapter;
 	bool	sw_radio_on;
@@ -802,7 +816,7 @@ typedef struct r8192_priv
 	spinlock_t D3_lock;
 #endif
 
-#if defined CONFIG_CRDA && (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30))
+#ifdef CONFIG_CFG_80211
 	struct ieee80211_rate rates[IEEE80211_NUM_BANDS][RTL_RATE_MAX];
 	struct ieee80211_supported_band bands[IEEE80211_NUM_BANDS];
 #endif	
@@ -945,7 +959,9 @@ typedef struct r8192_priv
 #ifdef CONFIG_RTLWIFI_DEBUGFS
 	rtl_fs_debug *debug;
 #endif /* CONFIG_IWLWIFI_DEBUGFS */
-
+#ifdef CONFIG_RTL_RFKILL
+	bool rfkill_off;
+#endif	
 	/**********************************************************/
 	u16	basic_rate;
 	u8	short_preamble;
@@ -1306,16 +1322,23 @@ extern const struct ethtool_ops rtl819x_ethtool_ops;
 #endif
 
 bool init_firmware(struct net_device *dev);
-void rtl819xE_tx_cmd(struct net_device *dev, struct sk_buff *skb);
+void rtl8192_tx_cmd(struct net_device *dev, struct sk_buff *skb);
 short rtl8192_tx(struct net_device *dev, struct sk_buff* skb);
+
+u8 read_nic_io_byte(struct net_device *dev, int x);
+u32 read_nic_io_dword(struct net_device *dev, int x);
+u16 read_nic_io_word(struct net_device *dev, int x) ;
+void write_nic_io_byte(struct net_device *dev, int x,u8 y);
+void write_nic_io_word(struct net_device *dev, int x,u16 y);
+void write_nic_io_dword(struct net_device *dev, int x,u32 y);
+
 u8 read_nic_byte(struct net_device *dev, int x);
-u8 read_nic_byte_E(struct net_device *dev, int x);
 u32 read_nic_dword(struct net_device *dev, int x);
 u16 read_nic_word(struct net_device *dev, int x) ;
 void write_nic_byte(struct net_device *dev, int x,u8 y);
-void write_nic_byte_E(struct net_device *dev, int x,u8 y);
 void write_nic_word(struct net_device *dev, int x,u16 y);
 void write_nic_dword(struct net_device *dev, int x,u32 y);
+
 void force_pci_posting(struct net_device *dev);
 
 void rtl8192_rx_enable(struct net_device *);
@@ -1339,6 +1362,8 @@ int rtl8192_up(struct net_device *dev);
 void rtl8192_commit(struct net_device *dev);
 void rtl8192_set_chan(struct net_device *dev,short ch);
 
+void check_rfctrl_gpio_timer(unsigned long data);
+
 
 extern void firmware_init_param(struct net_device *dev);
 extern bool cmpk_message_handle_tx(struct net_device *dev, u8* codevirtualaddress, u32 packettype, u32 buffer_len);
@@ -1350,11 +1375,7 @@ short rtl8192_pci_initdescring(struct net_device *dev);
 
 void rtl8192_cancel_deferred_work(struct r8192_priv* priv);
 
-#ifdef _RTL8192_EXT_PATCH_
 int _rtl8192_up(struct net_device *dev,bool is_silent_reset);
-#else
-int _rtl8192_up(struct net_device *dev);
-#endif
 
 short rtl8192_is_tx_queue_empty(struct net_device *dev);
 #ifdef RTL8192SE
@@ -1368,10 +1389,10 @@ void SetBeaconRelatedRegisters8192SE(struct net_device *dev);
 
 #if LINUX_VERSION_CODE >=KERNEL_VERSION(2,6,20)
 void rtl8192se_check_tsf_wq(struct work_struct * work);
-void rtl8192se_update_peer_ratr_table_wq(struct work_struct * work);
+void rtl8192se_update_assoc_sta_info_wq(struct work_struct * work);
 #else
 void rtl8192se_check_tsf_wq(struct net_device *dev);
-void rtl8192se_update_peer_ratr_table_wq(struct net_device *dev);
+void rtl8192se_update_assoc_sta_info_wq(struct net_device *dev);
 #endif
 #endif
 
@@ -1380,6 +1401,10 @@ u8 HalSetSysClk8192SE(struct net_device *dev, u8 Data);
 void gen_RefreshLedState(struct net_device *dev);
 #ifdef _RTL8192_EXT_PATCH_
 extern int r8192_mesh_set_enc_ext(struct net_device *dev, struct iw_point *encoding, struct iw_encode_ext *ext, u8 *addr);
+#ifdef BUILT_IN_MSHCLASS
+extern int msh_init(void);
+extern void msh_exit(void);
+#endif
 #endif
 #define IS_HARDWARE_TYPE_819xP(_priv) ((((struct r8192_priv*)rtllib_priv(dev))->card_8192==NIC_8190P)||\
 					(((struct r8192_priv*)rtllib_priv(dev))->card_8192==NIC_8192E))
@@ -1390,13 +1415,12 @@ extern int r8192_mesh_set_enc_ext(struct net_device *dev, struct iw_point *encod
 #define IS_HARDWARE_TYPE_8192DU(_priv)	(((struct r8192_priv*)rtllib_priv(dev))->card_8192==NIC_8192DU)
 extern void dm_InitRateAdaptiveMask(struct net_device * dev);
 
-void tx_timeout(struct net_device *dev);
+void rtl8192_tx_timeout(struct net_device *dev);
 void rtl8192_pci_resetdescring(struct net_device *dev);
 void rtl8192_SetWirelessMode(struct net_device* dev, u8 wireless_mode);
 void rtl8192_irq_enable(struct net_device *dev);
 void rtl8192_config_rate(struct net_device* dev, u16* rate_config);
 void rtl8192_update_cap(struct net_device* dev, u16 cap);
-u8 QueryIsShort(u8 TxHT, u8 TxRate, cb_desc *tcb_desc);
 void rtl8192_irq_disable(struct net_device *dev);
 
 void rtl819x_UpdateRxPktTimeStamp (struct net_device *dev, struct rtllib_rx_stats *stats);
@@ -1405,7 +1429,7 @@ void rtl819x_update_rxsignalstatistics8190pci(struct r8192_priv * priv,struct rt
 u8 rtl819x_evm_dbtopercentage(char value);
 void rtl819x_process_cck_rxpathsel(struct r8192_priv * priv,struct rtllib_rx_stats * pprevious_stats);
 u8 rtl819x_query_rxpwrpercentage(	char		antpower	);
-void rtl8192x_record_rxdesc_forlateruse(struct rtllib_rx_stats * psrc_stats,struct rtllib_rx_stats * ptarget_stats);
+void rtl8192_record_rxdesc_forlateruse(struct rtllib_rx_stats * psrc_stats,struct rtllib_rx_stats * ptarget_stats);
 
 bool NicIFEnableNIC(struct net_device* dev);
 bool NicIFDisableNIC(struct net_device* dev);
@@ -1416,7 +1440,7 @@ MgntActSet_RF_State(
 	RT_RF_POWER_STATE	StateToSet,
 	RT_RF_CHANGE_SOURCE ChangeSource
 	);
-#if defined CONFIG_CRDA && (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30))
+#ifdef CONFIG_CFG_80211
 struct net_device *wiphy_to_net_device(struct wiphy *wiphy);
 #endif
 

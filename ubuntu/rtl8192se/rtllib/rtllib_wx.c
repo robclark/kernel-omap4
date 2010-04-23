@@ -969,51 +969,49 @@ int rtllib_mesh_set_encode_ext(struct rtllib_device *ieee,
 	int ret = 0;
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0)
 	struct net_device *dev = ieee->dev;
-        int i, idx;
-        int group_key = 0;
-        const char *alg, *module;
-        struct rtllib_crypto_ops *ops;
-        struct rtllib_crypt_data **crypt;
+	int i, idx;
+	int group_key = 0;
+	const char *alg, *module;
+	struct rtllib_crypto_ops *ops;
+	struct rtllib_crypt_data **crypt;
 
-        struct rtllib_security sec = {
-                .flags = 0,
-        };
-        idx = encoding->flags & IW_ENCODE_INDEX;
-	printk("idx in set enc %d \n",idx);
+	struct rtllib_security sec = {
+	        .flags = 0,
+	};
+	idx = encoding->flags & IW_ENCODE_INDEX;
 
-        if (idx) {
-                if (idx < 1 || idx > WEP_KEYS)
-                        return -EINVAL;
-                idx--;
-        } else
-                idx = ieee->tx_keyidx;
+	if (idx) {
+		if (idx < 1 || idx > WEP_KEYS)
+			return -EINVAL;
+		idx--;
+	} else
+		idx = ieee->tx_keyidx;
 
 
-        if (ext->ext_flags & IW_ENCODE_EXT_GROUP_KEY) {
-
+	if (ext->ext_flags & IW_ENCODE_EXT_GROUP_KEY) {
 		crypt = &ieee->cryptlist[0]->crypt[idx];
-		printk("Get crypt for GTK.\n");
-                group_key = 1;
-        } else {
-                /* some Cisco APs use idx>0 for unicast in dynamic WEP */
-		printk("not group key, flags:%x, ext->alg:%d\n", ext->ext_flags, ext->alg);
+		group_key = 1;
+	} else {
+		/* some Cisco APs use idx>0 for unicast in dynamic WEP */
 		if (idx != 0 && ext->alg != IW_ENCODE_ALG_WEP)
 			return -EINVAL;
 		if ((ieee->iw_mode == IW_MODE_INFRA) || (ieee->mesh_started==1))
 		{
 			crypt = &ieee->cryptlist[entry]->crypt[idx];
+#if 0  
 			if(*crypt == NULL )
-				printk("&ieee->cryptlist[%d]->crypt[%d] is  NULL.\n",entry,idx);
+				printk("%s: ERR! &ieee->cryptlist[%d]->crypt[%d] is  NULL.\n",__func__, entry,idx);
+#endif			
 		}
-                else
-                        return -EINVAL;
-        }
+		else
+			return -EINVAL;
+	}
 
-        sec.flags |= SEC_ENABLED;
-        if ((encoding->flags & IW_ENCODE_DISABLED) ||
-            ext->alg == IW_ENCODE_ALG_NONE) {
-                if (*crypt){
-                 	printk("=====>%s():DISABLE crypt is not NULL\n",__FUNCTION__);
+	sec.flags |= SEC_ENABLED;
+	if ((encoding->flags & IW_ENCODE_DISABLED) ||
+		ext->alg == IW_ENCODE_ALG_NONE) {
+		if (*crypt){
+			printk("=====>%s():DISABLE crypt is not NULL\n",__FUNCTION__);
 		 	rtllib_crypt_delayed_deinit(ieee, crypt);
 		}
 #ifdef _RTL8192_EXT_PATCH_
@@ -1031,78 +1029,76 @@ int rtllib_mesh_set_encode_ext(struct rtllib_device *ieee,
 		}
 #endif
 
-                for (i = 0; i < WEP_KEYS; i++)
-
-                if (ieee->cryptlist[0]->crypt[i] != NULL)
-	                break;
-
-                if (i == WEP_KEYS) {
-                        sec.enabled = 0;
-                        sec.level = SEC_LEVEL_0;
-                        sec.flags |= SEC_LEVEL;
-                }
-                goto done;
-        }
+		for (i = 0; i < WEP_KEYS; i++){
+			if (ieee->cryptlist[0]->crypt[i] != NULL)
+				break;
+		}
+		if (i == WEP_KEYS) {
+			sec.enabled = 0;
+			sec.level = SEC_LEVEL_0;
+			sec.flags |= SEC_LEVEL;
+		}
+		goto done;
+	}
 	
 	sec.enabled = 1;
 #if 0
-        if (group_key ? !ieee->host_mc_decrypt :
-            !(ieee->host_encrypt || ieee->host_decrypt ||
-              ieee->host_encrypt_msdu))
-                goto skip_host_crypt;
+	if (group_key ? !ieee->host_mc_decrypt :
+		!(ieee->host_encrypt || ieee->host_decrypt ||
+		ieee->host_encrypt_msdu))
+		goto skip_host_crypt;
 #endif
-        switch (ext->alg) {
-        case IW_ENCODE_ALG_WEP:
-                alg = "WEP";
-                module = "rtllib_crypt_wep";
-                break;
-        case IW_ENCODE_ALG_TKIP:
-                alg = "TKIP";
-                module = "rtllib_crypt_tkip";
-                break;
-        case IW_ENCODE_ALG_CCMP:
-                alg = "CCMP";
-                module = "rtllib_crypt_ccmp";
-                break;
-        default:
-                RTLLIB_DEBUG_WX("%s: unknown crypto alg %d\n",
-                                   dev->name, ext->alg);
-                ret = -EINVAL;
-                goto done;
-        }
-	printk("alg name:%s\n",alg);
+	switch (ext->alg) {
+		case IW_ENCODE_ALG_WEP:
+			alg = "WEP";
+			module = "rtllib_crypt_wep";
+			break;
+		case IW_ENCODE_ALG_TKIP:
+			alg = "TKIP";
+			module = "rtllib_crypt_tkip";
+			break;
+		case IW_ENCODE_ALG_CCMP:
+			alg = "CCMP";
+			module = "rtllib_crypt_ccmp";
+			break;
+		default:
+			RTLLIB_DEBUG_WX("%s: unknown crypto alg %d\n",
+			                   dev->name, ext->alg);
+			ret = -EINVAL;
+			goto done;
+	}
+	printk("%s: alg name:%s\n",__FUNCTION__, alg);
 
-	 ops = rtllib_get_crypto_ops(alg);
-        if (ops == NULL) {
-                request_module("%s",module);
-                ops = rtllib_get_crypto_ops(alg);
-        }
-        if (ops == NULL) {
-                RTLLIB_DEBUG_WX("%s: unknown crypto alg %d\n",
-                                   dev->name, ext->alg);
+	ops = rtllib_get_crypto_ops(alg);
+	if (ops == NULL) {
+		request_module("%s",module);
+		ops = rtllib_get_crypto_ops(alg);
+	}
+	if (ops == NULL) {
+		RTLLIB_DEBUG_WX("%s: unknown crypto alg %d\n",
+		               dev->name, ext->alg);
 		printk("========>unknown crypto alg %d\n", ext->alg);
-                ret = -EINVAL;
-                goto done;
-        }
+		ret = -EINVAL;
+		goto done;
+	}
 
-        if (*crypt == NULL || (*crypt)->ops != ops) {
-		
-                struct rtllib_crypt_data *new_crypt;
-		printk("Create new crypt struct.\n ");
+	if (*crypt == NULL || (*crypt)->ops != ops) {
 
-                rtllib_crypt_delayed_deinit(ieee, crypt);
+		struct rtllib_crypt_data *new_crypt;
+
+		rtllib_crypt_delayed_deinit(ieee, crypt);
 
 #if (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,13))
-                new_crypt = kzalloc(sizeof(*new_crypt), GFP_KERNEL);
+		new_crypt = kzalloc(sizeof(*new_crypt), GFP_KERNEL);
 #else
-                new_crypt = kmalloc(sizeof(*new_crypt), GFP_KERNEL);
+		new_crypt = kmalloc(sizeof(*new_crypt), GFP_KERNEL);
 		memset(new_crypt,0,sizeof(*new_crypt));
 #endif
-                if (new_crypt == NULL) {
-                        ret = -ENOMEM;
-                        goto done;
-                }
-                new_crypt->ops = ops;
+		if (new_crypt == NULL) {
+			ret = -ENOMEM;
+			goto done;
+		}
+		new_crypt->ops = ops;
 #ifdef BUILT_IN_RTLLIB
 		if (new_crypt->ops)
 #else
@@ -1111,62 +1107,61 @@ int rtllib_mesh_set_encode_ext(struct rtllib_device *ieee,
 		{
 			new_crypt->priv = new_crypt->ops->init(idx);
 		}
-                if (new_crypt->priv == NULL) {
-                        kfree(new_crypt);
-                        ret = -EINVAL;
-                        goto done;
-                }
-                *crypt = new_crypt;
+		if (new_crypt->priv == NULL) {
+			kfree(new_crypt);
+			ret = -EINVAL;
+			goto done;
+		}
+		*crypt = new_crypt;
+	}
 
- 	}
+	printk("%s: key_len %x \n",__FUNCTION__, ext->key_len);
 
-	printk("key_len %x \n",ext->key_len);
-
-        if (ext->key_len > 0 && (*crypt)->ops->set_key &&
-            (*crypt)->ops->set_key(ext->key, ext->key_len, ext->rx_seq,
+	if (ext->key_len > 0 && (*crypt)->ops->set_key &&
+		(*crypt)->ops->set_key(ext->key, ext->key_len, ext->rx_seq,
                                    (*crypt)->priv) < 0) {
-                RTLLIB_DEBUG_WX("%s: key setting failed\n", dev->name);
+		RTLLIB_DEBUG_WX("%s: key setting failed\n", dev->name);
 		printk("key setting failed\n");
-                ret = -EINVAL;
-                goto done;
-        }
+		ret = -EINVAL;
+		goto done;
+	}
 #if 1	
-        if (ext->ext_flags & IW_ENCODE_EXT_SET_TX_KEY) {
-                ieee->mesh_txkeyidx = idx;
-                sec.active_key = idx;
-                sec.flags |= SEC_ACTIVE_KEY;
-        }
+	if (ext->ext_flags & IW_ENCODE_EXT_SET_TX_KEY) {
+		ieee->mesh_txkeyidx = idx;
+		sec.active_key = idx;
+		sec.flags |= SEC_ACTIVE_KEY;
+	}
 
-        if (ext->alg != IW_ENCODE_ALG_NONE) {
-                sec.key_sizes[idx] = ext->key_len;
-                sec.flags |= (1 << idx);
-                if (ext->alg == IW_ENCODE_ALG_WEP) {
-                        sec.flags |= SEC_LEVEL;
-                        sec.level = SEC_LEVEL_1;
-                } else if (ext->alg == IW_ENCODE_ALG_TKIP) {
-                        sec.flags |= SEC_LEVEL;
-                        sec.level = SEC_LEVEL_2;
-                } else if (ext->alg == IW_ENCODE_ALG_CCMP) {
-                        sec.flags |= SEC_LEVEL;
-                        sec.level = SEC_LEVEL_3;
-                }
-                /* Don't set sec level for group keys. */
-                if (group_key)
-                        sec.flags &= ~SEC_LEVEL;
-        }
+	if (ext->alg != IW_ENCODE_ALG_NONE) {
+		sec.key_sizes[idx] = ext->key_len;
+		sec.flags |= (1 << idx);
+		if (ext->alg == IW_ENCODE_ALG_WEP) {
+			sec.flags |= SEC_LEVEL;
+			sec.level = SEC_LEVEL_1;
+		} else if (ext->alg == IW_ENCODE_ALG_TKIP) {
+			sec.flags |= SEC_LEVEL;
+			sec.level = SEC_LEVEL_2;
+		} else if (ext->alg == IW_ENCODE_ALG_CCMP) {
+			sec.flags |= SEC_LEVEL;
+			sec.level = SEC_LEVEL_3;
+		}
+		/* Don't set sec level for group keys. */
+		if (group_key)
+			sec.flags &= ~SEC_LEVEL;
+	}
 #endif
 done:
-        if (ieee->set_security)
-                ieee->set_security(ieee->dev, &sec);
+	if (ieee->set_security)
+		ieee->set_security(ieee->dev, &sec);
 
-	 if (ieee->reset_on_keychange &&
-            ieee->iw_mode != IW_MODE_INFRA &&
-            ieee->reset_port && ieee->reset_port(dev)) {
-                RTLLIB_DEBUG_WX("%s: reset_port failed\n", dev->name);
-                return -EINVAL;
-        }
+	if (ieee->reset_on_keychange &&
+		ieee->iw_mode != IW_MODE_INFRA &&
+		ieee->reset_port && ieee->reset_port(dev)) {
+		RTLLIB_DEBUG_WX("%s: reset_port failed\n", dev->name);
+		return -EINVAL;
+	}
 #endif
-        return ret;
+	return ret;
 }
 #endif
 

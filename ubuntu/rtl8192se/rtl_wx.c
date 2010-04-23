@@ -495,6 +495,8 @@ static int r8192_wx_set_mode(struct net_device *dev, struct iw_request_info *a,
 			     union iwreq_data *wrqu, char *b)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
+	struct rtllib_device* ieee = netdev_priv_rsl(dev);
+
 	RT_RF_POWER_STATE	rtState;
 	int ret;
 
@@ -508,7 +510,9 @@ static int r8192_wx_set_mode(struct net_device *dev, struct iw_request_info *a,
 	rtState = priv->rtllib->eRFPowerState;
 	down(&priv->wx_sem);
 #ifdef ENABLE_IPS	
-	if(wrqu->mode == IW_MODE_ADHOC){
+	if(wrqu->mode == IW_MODE_ADHOC || wrqu->mode == IW_MODE_MONITOR
+		|| ieee->bNetPromiscuousMode )
+	{
 		if(priv->rtllib->PowerSaveControl.bInactivePs){ 
 			if(rtState == eRfOff){
 				if(priv->rtllib->RfOffReason > RF_CHANGE_BY_IPS)
@@ -1074,20 +1078,9 @@ static int r8192_wx_set_enc(struct net_device *dev,
 				KEY_TYPE_WEP40,         
 				zero_addr[key_idx],
 				0,                      
-				hwkey);                 
+				hwkey,                 
+				0);
 
-#endif
-#if 0
-			if(key_idx == 0){
-
-				setKey( dev,
-					4,                      
-					key_idx,                      
-					KEY_TYPE_WEP40,        
-					broadcast_addr,         
-					0,                      
-					hwkey);                 
-			}
 #endif
 		}
 
@@ -1108,19 +1101,8 @@ static int r8192_wx_set_enc(struct net_device *dev,
 				KEY_TYPE_WEP104,        
 				zero_addr[key_idx],
 				0,                      
-				hwkey);                 
-#endif
-#if 0 
-			if(key_idx == 0){
-
-				setKey( dev,
-					4,                      
-					key_idx,                      
-					KEY_TYPE_WEP104,        
-					broadcast_addr,         
-					0,                      
-					hwkey);                 
-			}
+				hwkey,                 
+				0);
 #endif
 		}
 		else printk("wrong type in WEP, not WEP40 and WEP104\n");
@@ -1374,11 +1356,7 @@ static int r8192_set_hw_enc(struct net_device *dev,
 		ext->alg == IW_ENCODE_ALG_NONE) 
 	{
 		if(is_mesh)
-		{
-#ifdef _RTL8192_EXT_PATCH_	
 			ieee->mesh_pairwise_key_type = ieee->mesh_pairwise_key_type = KEY_TYPE_NA;
-#endif
-		}
 		else
 			ieee->pairwise_key_type = ieee->group_key_type = KEY_TYPE_NA;
 		CamResetAllEntry(dev);
@@ -1400,11 +1378,7 @@ static int r8192_set_hw_enc(struct net_device *dev,
 		if ((ext->key_len == 13) && (alg == KEY_TYPE_WEP40) )
 			alg = KEY_TYPE_WEP104;
 		if(is_mesh)
-		{
-#ifdef _RTL8192_EXT_PATCH_	
 			ieee->mesh_pairwise_key_type = alg;
-#endif
-		}
 		else
 			ieee->pairwise_key_type = alg;
 		EnableHWSecurityConfig8192(dev);
@@ -1412,18 +1386,14 @@ static int r8192_set_hw_enc(struct net_device *dev,
 	memcpy((u8*)key, ext->key, 16); 
 	if ((alg & KEY_TYPE_WEP40) && (ieee->auth_mode !=2) )
 	{
-			printk("=====>set WEP key\n");
-			if (ext->key_len == 13){
-				if(is_mesh)
-				{
-#ifdef _RTL8192_EXT_PATCH_	
-					ieee->mesh_pairwise_key_type = alg = KEY_TYPE_WEP104;
-#endif
-				}
-				else
-					ieee->pairwise_key_type = alg = KEY_TYPE_WEP104;
-			}
-			if(ieee->iw_mode == IW_MODE_ADHOC){
+		printk("=====>set WEP key\n");
+		if (ext->key_len == 13){
+			if(is_mesh)
+				ieee->mesh_pairwise_key_type = alg = KEY_TYPE_WEP104;
+			else
+				ieee->pairwise_key_type = alg = KEY_TYPE_WEP104;
+		}
+		if(ieee->iw_mode == IW_MODE_ADHOC){
 			set_swcam( dev,
 					idx,
 					idx, 
@@ -1439,7 +1409,7 @@ static int r8192_set_hw_enc(struct net_device *dev,
 					zero, 
 					0,              
 					key);           
-			}
+		}
 			
 		if(!is_mesh){ 
 			if(ieee->state == RTLLIB_LINKED){
@@ -1465,11 +1435,7 @@ static int r8192_set_hw_enc(struct net_device *dev,
 	{
 		printk("set group key\n");
 		if(is_mesh)
-		{
-#ifdef _RTL8192_EXT_PATCH_	
 			ieee->mesh_group_key_type = alg;
-#endif
-		}
 		else
 			ieee->group_key_type = alg;
 		if(ieee->iw_mode == IW_MODE_ADHOC){
@@ -1490,13 +1456,11 @@ static int r8192_set_hw_enc(struct net_device *dev,
 					key);           
 		}
 			
-#ifdef _RTL8192_EXT_PATCH_	
 		if(is_mesh)
 			meshdev_set_key_for_linked_peers(dev,
 				idx, 
 				alg,  
 				key); 
-#endif
 	}
 	else 
 	{
@@ -1506,22 +1470,21 @@ static int r8192_set_hw_enc(struct net_device *dev,
 			write_nic_byte(dev, 0x173, 1); 
 		}
 #endif
-			set_swcam( dev,
-					31, 
-					idx, 
-					alg,  
-					(u8*)ieee->ap_mac_addr, 
-					0,              
-					key,           
-					is_mesh);
-			setKey( dev,
-					31, 
-					idx, 
-					alg,  
-					(u8*)ieee->ap_mac_addr, 
-					0,              
-					key);           
-			
+		set_swcam( dev,
+				31, 
+				idx, 
+				alg,  
+				(u8*)ieee->ap_mac_addr, 
+				0,              
+				key,           
+				is_mesh);
+		setKey( dev,
+				31, 
+				idx, 
+				alg,  
+				(u8*)ieee->ap_mac_addr, 
+				0,              
+				key);           
 	}
 
 end_hw_sec:
@@ -1616,7 +1579,6 @@ int r8192_mesh_set_enc_ext(struct net_device *dev,
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtllib_device* ieee = priv->rtllib;
 	u8 entry_idx = 0;
-	printk("=========================>%s()\n",__FUNCTION__);
 	down(&priv->wx_sem);
 	if(memcmp(addr,broadcast_addr,6))
 	{
@@ -1638,7 +1600,7 @@ int r8192_mesh_set_enc_ext(struct net_device *dev,
 		u32 key[4] = {0};
 		u8 idx = 0, alg = 0, group = 0;
 		if ((encoding->flags & IW_ENCODE_DISABLED) ||
-		ext->alg == IW_ENCODE_ALG_NONE) 
+			ext->alg == IW_ENCODE_ALG_NONE) 
 		{
 			CamResetAllEntry(dev);
 			CamRestoreEachIFEntry(dev,0);
@@ -1674,10 +1636,11 @@ int r8192_mesh_set_enc_ext(struct net_device *dev,
 		}
 		else 
 		{
-			printk("===>%s(): set pairwise key\n",__FUNCTION__);
+#if 0	
 			if ((ieee->mesh_pairwise_key_type == KEY_TYPE_CCMP) && ieee->pHTInfo->bCurrentHTSupport){
 				write_nic_byte(dev, 0x173, 1); 
 			}
+#endif			
 			entry_idx = rtl8192_get_free_hwsec_cam_entry(ieee,addr);
 #if 0 
 			printk("%s(): Can't find  free hw security cam entry\n",__FUNCTION__);
@@ -1687,7 +1650,7 @@ int r8192_mesh_set_enc_ext(struct net_device *dev,
 				printk("%s(): Can't find  free hw security cam entry\n",__FUNCTION__);
 				ret = -1;
 			} else {
-			set_swcam( dev,
+				set_swcam( dev,
 					entry_idx,		
 					idx, 		
 					alg,  		
@@ -1695,7 +1658,7 @@ int r8192_mesh_set_enc_ext(struct net_device *dev,
 					0,              
 					key,		
 					1);           	
-			setKey( dev,
+				setKey( dev,
 					entry_idx,		
 					idx, 		
 					alg,  		
@@ -1795,7 +1758,8 @@ static int r8192_wx_set_enc_ext(struct net_device *dev,
 					alg,  
 					zero, 
 					0,              
-					key);           
+					key,          
+					0);
 		}
 		else if (group)
 		{
@@ -1813,7 +1777,8 @@ static int r8192_wx_set_enc_ext(struct net_device *dev,
 					alg,  
 					broadcast_addr, 
 					0,              
-					key);           
+					key,                 
+					0);
 		}
 		else 
 		{
@@ -1835,7 +1800,8 @@ static int r8192_wx_set_enc_ext(struct net_device *dev,
 					alg,  
 					(u8*)ieee->ap_mac_addr, 
 					0,              
-					key);           
+					key,                 
+					0);
 		}
 
 
@@ -1983,7 +1949,7 @@ static int r8192_wx_enable_mesh(struct net_device *dev,
 			}
 		}
 #endif
-		if((ieee->only_mesh == 0) &&(ieee->is_server_eth0 == 0))  
+		if(ieee->only_mesh == 0) 
 		{
 			tmprqu.mode = ieee->iw_mode;
 			ieee->iw_mode = 0; 
@@ -2224,8 +2190,6 @@ static int r8192_wx_set_mesh_security(struct net_device *dev,
         struct r8192_priv *priv = rtllib_priv(dev);
         struct rtllib_device* ieee = priv->rtllib;
 
-
-	printk("===>%s()\n",__FUNCTION__);	
         down(&priv->wx_sem);
 
         printk("%s(): set mesh security! extra is %d\n",__FUNCTION__, *extra);
@@ -2243,7 +2207,6 @@ static int r8192_wx_set_mesh_security(struct net_device *dev,
 		ieee->mesh_pairwise_key_type = KEY_TYPE_CCMP;
 		ieee->mesh_group_key_type = KEY_TYPE_CCMP;
 	}
-       	printk("=================>ieee->mesh_pairwise_key_type is %d,ieee->mesh_group_key_type is %d\n",ieee->mesh_pairwise_key_type,ieee->mesh_group_key_type); 
         up(&priv->wx_sem);
         return 0;
 
@@ -2279,22 +2242,80 @@ static int r8192_wx_set_mesh_sec_type(struct net_device *dev,
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rtllib_device* ieee = priv->rtllib;
 
-
-	printk("===>%s()\n",__FUNCTION__);	
-	down(&priv->wx_sem);
-
 	printk("%s(): set mesh security type! extra is %d\n",__FUNCTION__, *extra);
 	if (ieee->mesh_sec_type == 1 && *extra != 1 && ieee->mesh_security_setting == 3) {
+		rtl8192_abbr_handshk_disable_key(ieee); 
+	
 		if(priv->mshobj->ext_patch_r819x_wx_release_sae_info)
 			priv->mshobj->ext_patch_r819x_wx_release_sae_info(ieee);
 	}
+	down(&priv->wx_sem);
+
 	ieee->mesh_sec_type = *extra;
+
+	if(ieee->mesh_sec_type == 0)
+		ieee->mesh_pairwise_key_type = ieee->mesh_group_key_type = KEY_TYPE_NA;
 
 	up(&priv->wx_sem);
 	return 0;
 }
 
 #endif 
+
+#define OID_RT_INTEL_PROMISCUOUS_MODE	0xFF0101F6
+
+static int r8192_wx_set_PromiscuousMode(struct net_device *dev,
+                struct iw_request_info *info,
+                union iwreq_data *wrqu, char *extra)
+{
+	struct r8192_priv *priv = rtllib_priv(dev);
+	struct rtllib_device* ieee = priv->rtllib;
+
+	u32 *info_buf = (u32*)(wrqu->data.pointer);
+
+	u32 oid = info_buf[0];
+	u32 bPromiscuousOn = info_buf[1];
+	u32 bFilterSourceStationFrame = info_buf[2];
+
+	if (OID_RT_INTEL_PROMISCUOUS_MODE == oid)
+	{
+		ieee->IntelPromiscuousModeInfo.bPromiscuousOn = 
+					(bPromiscuousOn)? (true) : (false);
+		ieee->IntelPromiscuousModeInfo.bFilterSourceStationFrame = 
+					(bFilterSourceStationFrame)? (true) : (false);
+
+		(bPromiscuousOn) ? (rtllib_EnableIntelPromiscuousMode(dev, false)) : 
+				(rtllib_DisableIntelPromiscuousMode(dev, false));	
+
+		printk("=======>%s(), on = %d, filter src sta = %d\n", __FUNCTION__, 
+			bPromiscuousOn, bFilterSourceStationFrame);
+	} else {
+		return -1;
+	}
+	
+	return 0;
+}
+
+
+static int r8192_wx_get_PromiscuousMode(struct net_device *dev,
+                               struct iw_request_info *info,
+                               union iwreq_data *wrqu, char *extra)
+{
+	struct r8192_priv *priv = rtllib_priv(dev);
+	struct rtllib_device* ieee = priv->rtllib;
+
+        down(&priv->wx_sem);
+
+        snprintf(extra, 45, "PromiscuousMode:%d, FilterSrcSTAFrame:%d",\
+			ieee->IntelPromiscuousModeInfo.bPromiscuousOn,\
+			ieee->IntelPromiscuousModeInfo.bFilterSourceStationFrame);
+        wrqu->data.length = strlen(extra) + 1;
+
+        up(&priv->wx_sem);
+
+	return 0;
+}
+
 
 #define IW_IOCTL(x) [(x)-SIOCSIWCOMMIT]
 static iw_handler r8192_wx_handlers[] =
@@ -2376,8 +2397,8 @@ static const struct iw_priv_args r8192_private_args[] = {
 		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED|1, IW_PRIV_TYPE_NONE, 
 		"set_power"
 	}
-        ,
 #ifdef _RTL8192_EXT_PATCH_
+	,
 	{
 		SIOCIWFIRSTPRIV + 0x7,
 		IW_PRIV_TYPE_NONE, IW_PRIV_TYPE_CHAR|512, 
@@ -2389,8 +2410,8 @@ static const struct iw_priv_args r8192_private_args[] = {
 		IW_PRIV_TYPE_NONE, IW_PRIV_TYPE_CHAR|64, 
 		"resume_firm"
 	}
-	,
 #endif
+	,
 	{
 		SIOCIWFIRSTPRIV + 0x9,
 		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED|1, IW_PRIV_TYPE_NONE, 
@@ -2442,27 +2463,38 @@ static const struct iw_priv_args r8192_private_args[] = {
 		SIOCIWFIRSTPRIV + 0x11,
                 IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "SetBW"
 	}
-        ,
-        {
-                SIOCIWFIRSTPRIV + 0x12,
-                IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "TxStart"
-        }
 	,
-    	{
-        	SIOCIWFIRSTPRIV + 0x13,
-                IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,0, "SetSingleCarrier"
-    	}
-        ,
-        {
-                SIOCIWFIRSTPRIV + 0x14,
-                IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 3, 0, "WriteRF"
-        }
-        ,
-        {
-                SIOCIWFIRSTPRIV + 0x15,
-                IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 3, 0, "WriteMAC"
-        }
+	{
+		SIOCIWFIRSTPRIV + 0x12,
+		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "TxStart"
+	}
+	,
+	{
+		SIOCIWFIRSTPRIV + 0x13,
+		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,0, "SetSingleCarrier"
+	}
+	,
+	{
+		SIOCIWFIRSTPRIV + 0x14,
+		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 3, 0, "WriteRF"
+	}
+	,
+	{
+		SIOCIWFIRSTPRIV + 0x15,
+		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 3, 0, "WriteMAC"
+	}
 #endif
+	,
+	{
+		SIOCIWFIRSTPRIV + 0x16,
+                IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 3, 0, "setpromisc"
+	}
+	,
+	{
+		SIOCIWFIRSTPRIV + 0x17,
+		0,IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_FIXED | 45, "getpromisc"
+	}
+
 };
 
 static iw_handler r8192_private_handler[] = {
@@ -2508,6 +2540,8 @@ static iw_handler r8192_private_handler[] = {
 	(iw_handler)NULL,
 	(iw_handler)NULL,
 #endif
+	(iw_handler)r8192_wx_set_PromiscuousMode,
+	(iw_handler)r8192_wx_get_PromiscuousMode,
 };
 
 struct iw_statistics *r8192_get_wireless_stats(struct net_device *dev)
@@ -2580,6 +2614,7 @@ u16 rtl8192_11n_user_show_rates(struct net_device* dev)
 	u32  Sgstrength;
 	bool TxorRx = priv->rtllib->bForcedShowRxRate;          
 
+
 	if (!TxorRx) {
 		{
 			return CONVERT_RATE(priv->rtllib, priv->rtllib->softmac_stats.CurrentShowTxate);
@@ -2616,7 +2651,6 @@ u16 rtl8192_11n_user_show_rates(struct net_device* dev)
 		else
 			bMaxRateMcs15 = true;
 
-		//for linked 20M BW AP, show 135M
 		if((priv->rtllib->state == RTLLIB_LINKED) && !(priv->rtllib->pHTInfo->bCurBW40MHz))
 			bMaxRateMcs15 = false;
 
@@ -2690,14 +2724,13 @@ struct iw_handler_def  r8192_wx_handlers_def={
 #define RTL_OID_802_11_MESH_HOSTNAME		(OID_GET_SET_TOGGLE + OID_802_11_MESH_HOSTNAME)
 #define RTL_OID_802_11_MESH_ONLY_MODE    (OID_GET_SET_TOGGLE + OID_802_11_MESH_ONLY_MODE)
 
-#define MAX_MESH_ID_LEN 32
 #define MAX_NEIGHBOR_NUM 64 
 typedef struct _MESH_NEIGHBOR_ENTRY
 {
 	char Rssi;
-	unsigned char HostName[MAX_HOST_NAME_LENGTH+1];
+	unsigned char HostName[MAX_HOST_NAME_LENGTH];
 	unsigned char MacAddr[ETH_ALEN];
-	unsigned char MeshId[MAX_MESH_ID_LEN+1];
+	unsigned char MeshId[MAX_MESH_ID_LEN];
 	unsigned char Channel;
 	unsigned char Status; 
 	unsigned char MeshEncrypType;		
@@ -2738,7 +2771,7 @@ static int meshdev_set_key_for_linked_peers(struct net_device *dev, u8 KeyIndex,
 			return -1;
 		}
 		if ((((ieee->LinkingPeerBitMap>>found_idx) & (BIT0)) == BIT0) && ((ieee->LinkingPeerSecState[found_idx] == USED) )) {
-		entry_idx = rtl8192_get_free_hwsec_cam_entry(ieee, pneighbor_entry->MacAddr);
+			entry_idx = rtl8192_get_free_hwsec_cam_entry(ieee, pneighbor_entry->MacAddr);
 #if 0
 			printk("%s: Can not find free hw security cam entry, use software encryption entry(%d)\n", __FUNCTION__,entry_idx);
 			if (mshobj->ext_patch_r819x_set_msh_peer_entry_sec_info)
@@ -2752,24 +2785,24 @@ static int meshdev_set_key_for_linked_peers(struct net_device *dev, u8 KeyIndex,
 				ieee->LinkingPeerSecState[found_idx] = SW_SEC; 
 			} else {
 				printk("==========>%s():entry_idx is %d,set HW CAM\n",__FUNCTION__,entry_idx);
-		set_swcam( dev,
-				entry_idx,
-				KeyIndex, 
-				KeyType,  
-				pneighbor_entry->MacAddr, 
-				0,              
-				KeyContent,           
-				1);
-		setKey( dev,
-				entry_idx,
-				KeyIndex, 
-				KeyType,  
-				pneighbor_entry->MacAddr, 
-				0,              
-				KeyContent);           
-				if (mshobj->ext_patch_r819x_set_msh_peer_entry_sec_info)
-					mshobj->ext_patch_r819x_set_msh_peer_entry_sec_info(ieee,pneighbor_entry->MacAddr,HW_SEC);
-				ieee->LinkingPeerSecState[found_idx] = HW_SEC; 
+				set_swcam( dev,
+						entry_idx,
+						KeyIndex, 
+						KeyType,  
+						pneighbor_entry->MacAddr, 
+						0,              
+						KeyContent,           
+						1);
+				setKey( dev,
+						entry_idx,
+						KeyIndex, 
+						KeyType,  
+						pneighbor_entry->MacAddr, 
+						0,              
+						KeyContent);           
+						if (mshobj->ext_patch_r819x_set_msh_peer_entry_sec_info)
+							mshobj->ext_patch_r819x_set_msh_peer_entry_sec_info(ieee,pneighbor_entry->MacAddr,HW_SEC);
+						ieee->LinkingPeerSecState[found_idx] = HW_SEC; 
 			}
 #endif
 		}
@@ -2798,21 +2831,21 @@ int meshdev_set_key_for_peer(struct net_device *dev,
 		printk("%s: Can not find free hw security cam entry\n", __FUNCTION__);
 		return -1;
 	} else {
-	set_swcam(dev,
-		entry_idx,
-		KeyIndex, 
-		KeyType,  
-		Addr, 
-		0,              
-		KeyContent,           
-		1);
-	setKey(dev,
-		entry_idx,
-		KeyIndex, 
-		KeyType,  
-		Addr, 
-		0,              
-		KeyContent);           
+		set_swcam(dev,
+			entry_idx,
+			KeyIndex, 
+			KeyType,  
+			Addr, 
+			0,              
+			KeyContent,           
+			1);
+		setKey(dev,
+			entry_idx,
+			KeyIndex, 
+			KeyType,  
+			Addr, 
+			0,              
+			KeyContent);           
 	}
 	return 0;
 #endif
@@ -3025,74 +3058,14 @@ static int meshdev_wx_set_enc(struct net_device *meshdev,
 		if(wrqu->encoding.length==0x5){
 		ieee->mesh_pairwise_key_type = KEY_TYPE_WEP40;
 			EnableHWSecurityConfig8192(dev);
-#if 0		
-			set_swcam( dev,
-				key_idx,                
-				key_idx,                
-				KEY_TYPE_WEP40,         
-				zero_addr[key_idx],
-				0,                      
-				hwkey,               
-				1);
-			setKey( dev,
-				key_idx,                
-				key_idx,                
-				KEY_TYPE_WEP40,         
-				zero_addr[key_idx],
-				0,                      
-				hwkey);                 
-			
-#endif
-
-#if 0
-			if(key_idx == 0){
-
-				setKey( dev,
-					4,                      
-					key_idx,                      
-					KEY_TYPE_WEP40,        
-					broadcast_addr,         
-					0,                      
-					hwkey);                 
-			}
-#endif
 		}
 
 		else if(wrqu->encoding.length==0xd){
 			ieee->mesh_pairwise_key_type = KEY_TYPE_WEP104;
 				EnableHWSecurityConfig8192(dev);
-#if 0
-			set_swcam( dev,
-				key_idx,                
-				key_idx,                
-				KEY_TYPE_WEP104,        
-				zero_addr[key_idx],
-				0,                      
-				hwkey,               
-				1);
-			setKey( dev,
-				key_idx,                
-				key_idx,                
-				KEY_TYPE_WEP104,        
-				zero_addr[key_idx],
-				0,                      
-				hwkey);                 
-			
-#endif
-#if 0 
-			if(key_idx == 0){
-
-				setKey( dev,
-					4,                      
-					key_idx,                      
-					KEY_TYPE_WEP104,        
-					broadcast_addr,         
-					0,                      
-					hwkey);                 
-			}
-#endif
 		}
-		else printk("wrong type in WEP, not WEP40 and WEP104\n");
+		else 
+			printk("wrong type in WEP, not WEP40 and WEP104\n");
 
 		meshdev_set_key_for_linked_peers(dev,
 						key_idx, 
@@ -3127,7 +3100,6 @@ static int meshdev_wx_get_enc(struct net_device *meshdev,
 	struct r8192_priv* priv = rtllib_priv(dev);
 
 	if(!priv->mesh_up){
-		printk("============>%s():driver is not up return\n",__FUNCTION__);
 		return -ENETDOWN;
 	}
 	return rtllib_wx_get_encode(ieee, info, wrqu, extra,1);
@@ -3999,8 +3971,14 @@ static int Set_MeshID_Proc(struct net_device *meshdev, char *arg)
 #endif
 	}
 	SEM_UP_PRIV_WX(&priv->wx_sem);	
+#if 1
+	if (ieee->mesh_sec_type == 1) {	
+		rtl8192_abbr_handshk_set_GTK(ieee,1);
+	}
+#else
 	if (ieee->mesh_sec_type == 1) 	
-	rtl8192_abbr_handshk_set_key(ieee); 
+		rtl8192_abbr_handshk_set_key(ieee); 
+#endif
 End:
 	return ret;	
 }
@@ -4100,7 +4078,7 @@ static int Set_OnlyMesh_Proc(struct net_device *meshdev, char *arg)
 
 	ieee->p2pmode = 1;	
 	ieee->only_mesh = my_atoi(arg);
-printk("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!mesh only = %d\n", ieee->only_mesh);
+printk("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!mesh only = %d, p2pmode = %d\n", ieee->only_mesh, ieee->p2pmode);
 	if(ieee->only_mesh)
 		ieee->current_network.channel = ieee->current_mesh_network.channel;
 	if(ieee->only_mesh == 0)

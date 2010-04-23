@@ -26,7 +26,7 @@
 #ifndef RTL_REGD_H
 #define RTL_REGD_H
 
-#if defined CONFIG_CRDA && (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30))
+#ifdef CONFIG_CFG_80211 
 
 #include <linux/nl80211.h>
 #include <net/cfg80211.h>

@@ -125,7 +125,7 @@ int WAPI_CreateEvent_Send(struct rtllib_device *ieee, u8 EventId, u8 *MacAddr, u
 	RT_ASSERT_RET_VALUE(ieee, -1);
 	RT_ASSERT_RET_VALUE(MacAddr, -1);
 
-	pbuf= (u8 *)kmalloc((sizeof(WAPI_EVENT_T) + BufLen), GFP_KERNEL);
+	pbuf= (u8 *)kmalloc((sizeof(WAPI_EVENT_T) + BufLen), GFP_ATOMIC);
 	if(NULL == pbuf)
 	    return -1;
 

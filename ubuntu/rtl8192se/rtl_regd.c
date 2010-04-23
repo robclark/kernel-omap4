@@ -22,13 +22,13 @@
  * Contact Information:
  * wlanfae <wlanfae@realtek.com>
  ******************************************************************************/
-
+#ifdef CONFIG_CFG_80211
 #include "rtl_core.h"
-#if defined CONFIG_CRDA && (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30))
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <net/cfg80211.h>
 
+#ifdef CONFIG_CRDA
 static struct country_code_to_enum_rd allCountries[] = {
 	{COUNTRY_CODE_FCC, "US"},
 	{COUNTRY_CODE_IC, "US"},
@@ -118,6 +118,34 @@ static void rtl_reg_apply_chan_plan(struct wiphy *wiphy)
 	return;
 }
 
+void rtl_dump_channel_map(struct wiphy *wiphy)
+{
+	enum ieee80211_band band;
+	struct ieee80211_supported_band *sband;
+	struct ieee80211_channel *ch;
+	unsigned int i;
+
+	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
+
+		if (!wiphy->bands[band])
+			continue;
+
+		sband = wiphy->bands[band];
+
+		for (i = 0; i < sband->n_channels; i++) {
+			ch = &sband->channels[i];
+			printk("chan:%d, NO_IBSS:%d," 
+					" PASSIVE_SCAN:%d, RADAR:%d, DISABLED:%d\n", i+1,
+					(ch->flags&IEEE80211_CHAN_NO_IBSS) ? 1:0, 
+					(ch->flags&IEEE80211_CHAN_PASSIVE_SCAN) ? 1:0,
+					(ch->flags&IEEE80211_CHAN_RADAR) ? 1:0,
+					(ch->flags&IEEE80211_CHAN_DISABLED) ? 1:0
+			      );
+		}
+
+	}
+}
+
 static void rtl_reg_apply_world_flags(struct wiphy *wiphy,
 				      enum nl80211_reg_initiator initiator,
 				      struct rtl_regulatory *reg)
@@ -197,35 +225,8 @@ rtl_regd_init_wiphy(struct rtl_regulatory *reg,
 	return 0;
 }
 
-void rtl_dump_channel_map(struct wiphy *wiphy)
-{
-	enum ieee80211_band band;
-	struct ieee80211_supported_band *sband;
-	struct ieee80211_channel *ch;
-	unsigned int i;
-
-	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
-
-		if (!wiphy->bands[band])
-			continue;
-
-		sband = wiphy->bands[band];
-
-		for (i = 0; i < sband->n_channels; i++) {
-			ch = &sband->channels[i];
-			printk("chan:%d, NO_IBSS:%d," 
-					" PASSIVE_SCAN:%d, RADAR:%d, DISABLED:%d\n", i+1,
-					(ch->flags&IEEE80211_CHAN_NO_IBSS) ? 1:0, 
-					(ch->flags&IEEE80211_CHAN_PASSIVE_SCAN) ? 1:0,
-					(ch->flags&IEEE80211_CHAN_RADAR) ? 1:0,
-					(ch->flags&IEEE80211_CHAN_DISABLED) ? 1:0
-			      );
-		}
-
-	}
-}
-
-static struct country_code_to_enum_rd *rtl_regd_find_country(u16 countryCode)
+static struct 
+country_code_to_enum_rd *rtl_regd_find_country(u16 countryCode)
 {       
 	int i;
 
@@ -235,7 +236,6 @@ static struct country_code_to_enum_rd *rtl_regd_find_country(u16 countryCode)
 	}
 	return NULL;
 } 
-
 
 int rtl_regd_init(struct net_device *dev,
 	      int (*reg_notifier)(struct wiphy *wiphy,
@@ -287,6 +287,7 @@ int rtl_reg_notifier(struct wiphy *wiphy,
 	printk("rtl_regd: %s\n", __func__);
 	return rtl_reg_notifier_apply(wiphy, request, reg);
 }
+#endif
 
 struct net_device *wiphy_to_net_device(struct wiphy *wiphy)
 {
@@ -354,20 +355,24 @@ bool rtl8192_register_wiphy_dev(struct net_device *dev)
 {	
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct wireless_dev *wdev = &priv->rtllib->wdev;
+#ifdef CONFIG_CRDA
 	struct rtl_regulatory *reg;
-
+#endif
 	memcpy(wdev->wiphy->perm_addr, dev->dev_addr, ETH_ALEN);
 	wdev->wiphy->bands[IEEE80211_BAND_2GHZ] = &(priv->bands[IEEE80211_BAND_2GHZ]);
 	set_wiphy_dev(wdev->wiphy, &priv->pdev->dev);
 
+#ifdef CONFIG_CRDA
 	if (rtl_regd_init(dev, rtl_reg_notifier)) {
 		return false;
 	}
+#endif
 
 	if (wiphy_register(wdev->wiphy)) {
 		return false;
 	}
 
+#ifdef CONFIG_CRDA
 	reg = &priv->rtllib->regulatory;
 	if (reg != NULL) {
 		if (regulatory_hint(wdev->wiphy, reg->alpha2)) {
@@ -379,6 +384,7 @@ bool rtl8192_register_wiphy_dev(struct net_device *dev)
 	} else {
 		printk("#########%s() regulator null\n", __func__);
 	}
+#endif
 	return true;
 }
 #endif

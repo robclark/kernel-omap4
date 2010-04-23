@@ -118,8 +118,19 @@ static struct sk_buff* rtllib_ADDBA(struct rtllib_device* ieee, u8* Dst, PBA_REC
 	memcpy(BAReq->addr1, Dst, ETH_ALEN);
 	memcpy(BAReq->addr2, ieee->dev->dev_addr, ETH_ALEN);
 
+#ifdef _RTL8192_EXT_PATCH_ 
+	if((ieee->iw_mode == IW_MODE_MESH) && (ieee->only_mesh == 0) && ieee->ext_patch_rtllib_is_mesh && ieee->ext_patch_rtllib_is_mesh(ieee, Dst)){
+#ifdef COMPATIBLE_WITH_RALINK_MESH		
+		memcpy(BAReq->addr3, Dst, ETH_ALEN);
+#else
+		memcpy(BAReq->addr3, ieee->current_mesh_network.bssid, ETH_ALEN);
+#endif		
+	}
+	else
+		memcpy(BAReq->addr3, ieee->current_network.bssid, ETH_ALEN);
+#else	
 	memcpy(BAReq->addr3, ieee->current_network.bssid, ETH_ALEN);
-
+#endif
 	BAReq->frame_ctl = cpu_to_le16(RTLLIB_STYPE_MANAGE_ACT); 
 
 	tag = (u8*)skb_put(skb, 9);
@@ -198,7 +209,19 @@ static struct sk_buff* rtllib_DELBA(
 
 	memcpy(Delba->addr1, dst, ETH_ALEN);
 	memcpy(Delba->addr2, ieee->dev->dev_addr, ETH_ALEN);
+#ifdef _RTL8192_EXT_PATCH_ 
+	if((ieee->iw_mode == IW_MODE_MESH) && (ieee->only_mesh == 0) && ieee->ext_patch_rtllib_is_mesh && ieee->ext_patch_rtllib_is_mesh(ieee, dst)){
+#ifdef COMPATIBLE_WITH_RALINK_MESH		
+		memcpy(Delba->addr3, dst, ETH_ALEN);
+#else
+		memcpy(Delba->addr3, ieee->current_mesh_network.bssid, ETH_ALEN);
+#endif		
+	}
+	else
+		memcpy(Delba->addr3, ieee->current_network.bssid, ETH_ALEN);
+#else	
 	memcpy(Delba->addr3, ieee->current_network.bssid, ETH_ALEN);
+#endif
 	Delba->frame_ctl = cpu_to_le16(RTLLIB_STYPE_MANAGE_ACT); 
 	
 	tag = (u8*)skb_put(skb, 6);	
@@ -520,7 +543,7 @@ int rtllib_rx_DELBA(struct rtllib_device* ieee,struct sk_buff *skb)
 				RX_DIR,
 				false)	)
 		{
-			RTLLIB_DEBUG(RTLLIB_DL_ERR,  "can't get TS for RXTS in %s().dsf:"MAC_FMT" TID:%d\n", __FUNCTION__, MAC_ARG(dst), (u8)pDelBaParamSet->field.TID);
+			RTLLIB_DEBUG(RTLLIB_DL_ERR,  "can't get TS for RXTS in %s().dst:"MAC_FMT" TID:%d\n", __FUNCTION__, MAC_ARG(dst), (u8)pDelBaParamSet->field.TID);
 			return -1;
 		}
 		

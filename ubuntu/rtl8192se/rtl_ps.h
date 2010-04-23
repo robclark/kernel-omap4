@@ -36,6 +36,7 @@ struct net_device;
 #define RT_ENABLE_ASPM(dev)             PlatformEnableASPM(dev)
 #define RT_ENTER_D3(dev, _bTempSetting) PlatformSetPMCSR(dev, 0x03, _bTempSetting)
 #define RT_LEAVE_D3(dev, _bTempSetting) PlatformSetPMCSR(dev, 0, _bTempSetting)
+bool PlatformEnable92CEBackDoor(struct net_device *dev);
 void PlatformDisableASPM(struct net_device *dev);
 void PlatformEnableASPM(struct net_device *dev);
 u32 PlatformResetPciSpace(struct net_device *dev,u8 Value);

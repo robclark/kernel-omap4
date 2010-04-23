@@ -105,19 +105,11 @@ static u32 edca_setting_UL[HT_IOT_PEER_MAX] =
 #elif defined(RTL8192SE)
 static u32 edca_setting_DL[HT_IOT_PEER_MAX] = 
 { 0xa44f, 		
-#ifdef _RTL8192_EXT_PATCH_
-   0xa44f, 		
-#else
    0x5ea44f, 	
-#endif
    0x5ea44f,	
    0xa630, 		
    0xa44f,
-#ifdef _RTL8192_EXT_PATCH_
-   0x4322,
-#else
    0xa630, 		
-#endif
    0xa630,		
    0xa42b,
    0x5e4322,	
@@ -128,11 +120,7 @@ static u32 edca_setting_DL_GMode[HT_IOT_PEER_MAX] =
 															
 { 0x4322, 		
    0xa44f, 		
-#ifdef _RTL8192_EXT_PATCH_
-   0x4322,		
-#else
    0x5ea44f,	
-#endif
    0xa42b, 		
    0x5e4322, 	
    0x4322, 		
@@ -144,11 +132,7 @@ static u32 edca_setting_DL_GMode[HT_IOT_PEER_MAX] =
 
 static u32 edca_setting_UL[HT_IOT_PEER_MAX] = 
 { 0x5e4322, 	
-#ifdef _RTL8192_EXT_PATCH_
-   0x5ea44f,	
-#else
    0xa44f,		
-#endif
    0x5ea44f,	
    0x5ea322, 	
    0x5ea422,
@@ -219,8 +203,9 @@ static	void dm_CtrlInitGainBeforeConnectByRssiAndFalseAlarm(struct net_device *d
 static	void	dm_initial_gain_STABeforeConnect(struct net_device *dev);
 
 void	dm_InitRateAdaptiveMask(struct net_device *dev);
-static	void dm_RefreshRateAdaptiveMask(struct net_device *dev);
+#if 0
 static 	void Adhoc_dm_CheckRateAdaptive(struct net_device * dev);
+#endif
 void 		Adhoc_InitRateAdaptive(struct net_device *dev,struct sta_info  *pEntry);
 #endif
 
@@ -247,21 +232,20 @@ static	void	dm_bb_initialgain_restore(struct net_device *dev);
 static	void	dm_bb_initialgain_backup(struct net_device *dev);
 #endif
 
-static	void	dm_dig_init(struct net_device *dev);
-static	void	dm_ctrl_initgain_byrssi(struct net_device *dev);
-static	void	dm_ctrl_initgain_byrssi_highpwr(struct net_device *dev);
-static	void	dm_ctrl_initgain_byrssi_by_driverrssi(	struct net_device *dev);
-static	void	dm_ctrl_initgain_byrssi_by_fwfalse_alarm(struct net_device *dev);
-static	void	dm_initial_gain(struct net_device *dev);
-static	void	dm_pd_th(struct net_device *dev);
-static	void	dm_cs_ratio(struct net_device *dev);
+static	void dm_dig_init(struct net_device *dev);
+static	void dm_ctrl_initgain_byrssi(struct net_device *dev);
+static	void dm_ctrl_initgain_byrssi_highpwr(struct net_device *dev);
+static	void dm_ctrl_initgain_byrssi_by_driverrssi(	struct net_device *dev);
+static	void dm_ctrl_initgain_byrssi_by_fwfalse_alarm(struct net_device *dev);
+static	void dm_initial_gain(struct net_device *dev);
+static	void dm_pd_th(struct net_device *dev);
+static	void dm_cs_ratio(struct net_device *dev);
 
 static	void dm_init_ctstoself(struct net_device *dev);
 static	void dm_Init_WA_Broadcom_IOT(struct net_device *dev);
 #ifdef RTL8192SE
 static	void dm_WA_Broadcom_IOT(struct net_device *dev);
 #endif
-
 
 static	void	dm_check_edca_turbo(struct net_device *dev);
 
@@ -274,7 +258,7 @@ static	void	dm_check_rfctrl_gpio(struct net_device *dev);
 static	void dm_check_pbc_gpio(struct net_device *dev);
 
 
-static	void	dm_check_rx_path_selection(struct net_device *dev);
+static	void dm_check_rx_path_selection(struct net_device *dev);
 static 	void dm_init_rxpath_selection(struct net_device *dev);
 static	void dm_rxpath_sel_byrssi(struct net_device *dev);
 
@@ -282,9 +266,9 @@ static	void dm_rxpath_sel_byrssi(struct net_device *dev);
 static void dm_init_fsync(struct net_device *dev);
 static void dm_deInit_fsync(struct net_device *dev);
 
-static	void	dm_check_txrateandretrycount(struct net_device *dev);
+static	void dm_check_txrateandretrycount(struct net_device *dev);
+static  void dm_check_ac_dc_power(struct net_device *dev);
 
-static  void	dm_check_ac_dc_power(struct net_device *dev);
 /*---------------------Define local function prototype-----------------------*/
 
 static	void	dm_init_dynamic_txpower(struct net_device *dev);
@@ -293,8 +277,8 @@ static	void	dm_dynamic_txpower(struct net_device *dev);
 
 static	void dm_send_rssi_tofw(struct net_device *dev);
 static	void	dm_ctstoself(struct net_device *dev);
-#ifdef _RTL8192_EXT_PATCH_
-static	void dm_refresh_rate_adaptive_mask(struct net_device *dev);
+#if defined RTL8192SE
+static	void dm_RefreshRateAdaptiveMask(struct net_device *dev);
 #endif
 /*---------------------------Define function prototype------------------------*/
 
@@ -302,9 +286,7 @@ extern	void
 init_hal_dm(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-#ifdef _RTL8192_EXT_PATCH_
 	priv->DM_Type = DM_Type_ByDriver;
-#endif	
 
 	priv->undecorated_smoothed_pwdb = -1;	
 	
@@ -380,27 +362,24 @@ void dm_CheckRxAggregation(struct net_device *dev) {
 
 extern  void    hal_dm_watchdog(struct net_device *dev)
 {
-#ifdef RTL8192SE
 	struct r8192_priv *priv = rtllib_priv(dev);
-#endif
-#ifdef _RTL8192_EXT_PATCH_
 	if(priv->being_init_adapter)
 		return;
-#endif
+
 	dm_check_ac_dc_power(dev);
 
 	dm_check_pbc_gpio(dev);
 	dm_check_txrateandretrycount(dev);
 	dm_check_edca_turbo(dev);
-#ifdef _RTL8192_EXT_PATCH_
-	dm_refresh_rate_adaptive_mask(dev);
-#endif
-        if (IS_HARDWARE_TYPE_8192SE(dev)){
+
+	if (IS_HARDWARE_TYPE_8192SE(dev)){
 #ifdef RTL8192SE
-	    dm_WA_Broadcom_IOT(dev);
-            return;
-            dm_check_txpower_tracking(dev);
-	    dm_ctrl_initgain_byrssi(dev);	
+		dm_RefreshRateAdaptiveMask(dev);
+		dm_WA_Broadcom_IOT(dev);
+		return;
+#if 0			
+		dm_check_txpower_tracking(dev);
+		dm_ctrl_initgain_byrssi(dev);	
 		dm_dynamic_txpower(dev);
 		dm_RefreshRateAdaptiveMask(dev);
 		dm_check_fsync(dev); 
@@ -408,12 +387,13 @@ extern  void    hal_dm_watchdog(struct net_device *dev)
 			Adhoc_dm_CheckRateAdaptive(dev);
 		else
 			dm_check_rate_adaptive(dev);
+#endif		
 #endif
-        }
+	}
 	dm_check_rate_adaptive(dev);
 	dm_dynamic_txpower(dev);	
 	dm_check_txpower_tracking(dev);
-	
+
 	dm_ctrl_initgain_byrssi(dev);
 	dm_bandwidth_autoswitch(dev);
 
@@ -422,7 +402,7 @@ extern  void    hal_dm_watchdog(struct net_device *dev)
 
 	dm_send_rssi_tofw(dev);
 	dm_ctstoself(dev);
-	
+
 #ifdef USB_RX_AGGREGATION_SUPPORT
 	dm_CheckRxAggregation(dev);
 #endif	
@@ -507,13 +487,7 @@ static void dm_check_rate_adaptive(struct net_device * dev)
 	bool						bshort_gi_enabled = false;
 	static u8					ping_rssi_state=0;
 
-	
-#ifdef _RTL8192_EXT_PATCH_
-	if((!priv->up)&& (!priv->mesh_up))
-#else
-	if(!priv->up)
-#endif
-	{
+	if(IS_NIC_DOWN(priv)){
 		RT_TRACE(COMP_RATE, "<---- dm_check_rate_adaptive(): driver is going to unload\n");
 		return;
 	}
@@ -640,11 +614,14 @@ void dm_InitRateAdaptiveMask(struct net_device * dev)
 	pRA->ratr_state = DM_RATR_STA_MAX;
 	pRA->PreRATRState = DM_RATR_STA_MAX;
 
+#ifdef _RTL8192_EXT_PATCH_
 	if (priv->DM_Type == DM_Type_ByDriver && priv->pFirmware->FirmwareVersion >= 60)
 		priv->rtllib->bUseRAMask = true;
 	else
+#endif		
 		priv->rtllib->bUseRAMask = false;
 
+	printk("=========>%s: bUseRAMask=%d\n", __func__, priv->rtllib->bUseRAMask);
 	priv->bInformFWDriverControlDM = false;
 	
 }
@@ -2153,13 +2130,8 @@ extern void dm_restore_dynamic_mechanism_state(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	u32 	reg_ratr = priv->rate_adaptive.last_ratr;
-	
-#ifdef _RTL8192_EXT_PATCH_
-	if((!priv->up)&& (!priv->mesh_up))
-#else
-	if(!priv->up)
-#endif
-	{
+
+	if(IS_NIC_DOWN(priv)){
 		RT_TRACE(COMP_RATE, "<---- dm_restore_dynamic_mechanism_state(): driver is going to unload\n");
 		return;
 	}
@@ -3476,28 +3448,19 @@ dm_WA_Broadcom_IOT(struct net_device * dev)
 		}
 	}
 
-	if(update)
-	{
-#ifdef _RTL8192_EXT_PATCH_
+	if(update){
 		if(priv->rtllib->bUseRAMask){
-			printk("=============>%s():bUseRAMask is true\n",__FUNCTION__);
 			priv->rtllib->UpdateHalRAMaskHandler(
 										dev,
 										false,
 										0,
-										NULL,
+										priv->rtllib->pHTInfo->PeerMimoPs,
 										priv->rtllib->mode,
+										priv->rtllib->pHTInfo->bCurTxBW40MHz,
 										0);
-		}
-		else{
-			printk("=============>%s():bUseRAMask is false\n",__FUNCTION__);
+		}else{
 			priv->ops->update_ratr_table(dev, priv->rtllib->dot11HTOperationalRateSet, NULL);
 		}
-#else
-		if(!priv->rtllib->bUseRAMask){
-			priv->ops->update_ratr_table(dev, priv->rtllib->dot11HTOperationalRateSet, NULL);
-		}
-#endif
 		priv->rtllib->SetHwRegHandler( dev, HW_VAR_BASIC_RATE, (u8*)(&priv->basic_rate));
 	}
 }
@@ -3609,6 +3572,11 @@ extern	void	dm_CheckRfCtrlGPIO(void *data)
 		return;
 	}
 
+	if(priv->bfirst_after_down){
+		priv->bfirst_after_down = 1;
+		return;
+	}
+
 
 
 	{
@@ -3694,13 +3662,10 @@ extern void Power_DomainInit92SE(struct net_device *dev)
 #endif
 
 	tmpU1b = read_nic_byte(dev, SYS_FUNC_EN+1);
-	if(priv->rtllib->RfOffReason & (RF_CHANGE_BY_IPS | RF_CHANGE_BY_HW))
-	{
+	if (priv->rtllib->RfOffReason & (RF_CHANGE_BY_IPS | RF_CHANGE_BY_HW)) {
 		tmpU1b &= 0xFB;
-	}
-	else
-	{
-	tmpU1b &= 0x73;
+	} else {
+		tmpU1b &= 0x73;
 	}
 	
 	write_nic_byte(dev, SYS_FUNC_EN+1, tmpU1b);
@@ -3738,11 +3703,7 @@ extern void Power_DomainInit92SE(struct net_device *dev)
 
 
 	tmpU2b = read_nic_word(dev, SYS_FUNC_EN);
-#ifdef _RTL8192_EXT_PATCH_
-	write_nic_word(dev, SYS_FUNC_EN, tmpU2b |= BIT13);
-#else
 	write_nic_word(dev, SYS_FUNC_EN, (tmpU2b |BIT13));
-#endif
 
 	write_nic_byte(dev, SYS_ISO_CTRL+1, 0x68);
 
@@ -3834,6 +3795,68 @@ void	SET_RTL8192SE_RF_HALT(struct net_device *dev)
 															
 }
 
+u8 RfOnOffDetect(struct net_device *dev)
+{
+	struct r8192_priv *priv = rtllib_priv(dev);
+	u8	u1Tmp;
+	u8	retval=eRfOn;
+
+	if(priv->pwrdown)
+	{
+		u1Tmp = read_nic_byte(dev, 0x06);
+		printk("pwrdown, 0x6(BIT6)=%02x\n", u1Tmp);
+		retval = (u1Tmp & BIT6) ? eRfOn: eRfOff;
+	}
+	else
+	{
+#ifdef CONFIG_BT_COEXIST
+		if(pHalData->bt_coexist.BluetoothCoexist)
+		{
+			if(pHalData->bt_coexist.BT_CoexistType == BT_2Wire)
+			{
+				PlatformEFIOWrite1Byte(pAdapter, MAC_PINMUX_CFG, 0xa);
+				u1Tmp = PlatformEFIORead1Byte(pAdapter, GPIO_IO_SEL);
+				delay_us(100);
+				u1Tmp = PlatformEFIORead1Byte(pAdapter, GPIO_IN);
+				RTPRINT(FPWR, PWRHW, ("GPIO_IN=%02x\n", u1Tmp));
+				retval = (u1Tmp & HAL_8192S_HW_GPIO_OFF_BIT) ? eRfOn : eRfOff;
+			}
+			else if( (pHalData->bt_coexist.BT_CoexistType == BT_ISSC_3Wire) ||
+					(pHalData->bt_coexist.BT_CoexistType == BT_Accel) ||
+					(pHalData->bt_coexist.BT_CoexistType == BT_CSR) )
+			{
+				u4tmp = PHY_QueryBBReg(pAdapter, 0x87c, bMaskDWord);
+				if((u4tmp & BIT17) != 0)
+				{
+					PHY_SetBBReg(pAdapter, 0x87c, bMaskDWord, u4tmp & ~BIT17);
+					delay_us(50);
+					RTPRINT(FBT, BT_RFPoll, ("BT write 0x87c (~BIT17) = 0x%x\n", u4tmp &~BIT17));
+				}
+				u4tmp = PHY_QueryBBReg(pAdapter, 0x8e0, bMaskDWord);
+				RTPRINT(FBT, BT_RFPoll, ("BT read 0x8e0 (BIT24)= 0x%x\n", u4tmp));
+				retval = (u4tmp & BIT24) ? eRfOn : eRfOff;
+				RTPRINT(FBT, BT_RFPoll, ("BT check RF state to %s\n", (retval==eRfOn)? "ON":"OFF"));
+			}
+		}
+		else
+#endif
+		{
+			write_nic_byte(dev, MAC_PINMUX_CFG, (GPIOMUX_EN | GPIOSEL_GPIO));
+			u1Tmp = read_nic_byte(dev, GPIO_IO_SEL);
+
+			u1Tmp &= HAL_8192S_HW_GPIO_OFF_MASK;
+			write_nic_byte(dev, GPIO_IO_SEL, u1Tmp);
+
+			mdelay(10);
+
+			u1Tmp = read_nic_byte(dev, GPIO_IN);
+			retval = (u1Tmp & HAL_8192S_HW_GPIO_OFF_BIT) ? eRfOn : eRfOff;
+		}
+	}
+
+	return retval;
+}
+
 extern void dm_CheckRfCtrlGPIO(void *data)
 {
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
@@ -3844,18 +3867,16 @@ extern void dm_CheckRfCtrlGPIO(void *data)
 	struct r8192_priv *priv = rtllib_priv(dev);
 #endif
 
-	u8					u1Tmp = 0;
 	RT_RF_POWER_STATE	eRfPowerStateToSet, CurRfState;
 	bool					bActuallySet = false;
 	PRT_POWER_SAVE_CONTROL		pPSC = (PRT_POWER_SAVE_CONTROL)(&(priv->rtllib->PowerSaveControl));
 	unsigned long flag = 0;
-	bool				turnonbypowerdomain = false;
+	bool			turnonbypowerdomain = false;
 
-	char *argv[3];
-	static char *RadioPowerPath = "/etc/acpi/events/RadioPower.sh";
-	static char *envp[] = {"HOME=/", "TERM=linux", "PATH=/usr/bin:/bin", NULL};
-	u8 count = 0;
 
+#ifdef CONFIG_RTL_RFKILL
+	return;
+#endif	
 	if((priv->up_first_time == 1) || (priv->being_init_adapter))
 	{
 		;
@@ -3878,19 +3899,14 @@ extern void dm_CheckRfCtrlGPIO(void *data)
 	RT_TRACE(COMP_RF, "GPIOChangeRFWorkItemCallBack() ---------> \n");
 
 	spin_lock_irqsave(&priv->rf_ps_lock,flag);
-#if 1
-	if(priv->RFChangeInProgress)
-	{
+	if (priv->RFChangeInProgress) {
 		spin_unlock_irqrestore(&priv->rf_ps_lock,flag);
 		RT_TRACE(COMP_RF, "GPIOChangeRFWorkItemCallBack(): RF Change in progress! \n");
 		return;
-	}
-	else
-	{
+	} else {
 		priv->RFChangeInProgress = true;
 		spin_unlock_irqrestore(&priv->rf_ps_lock,flag);
 	}
-#endif
 	CurRfState = priv->rtllib->eRFPowerState;
 #ifdef CONFIG_ASPM_OR_D3
 	if((pPSC->RegRfPsLevel & RT_RF_OFF_LEVL_ASPM) && RT_IN_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_ASPM))
@@ -3912,38 +3928,9 @@ extern void dm_CheckRfCtrlGPIO(void *data)
 		Power_DomainInit92SE(dev);
 		turnonbypowerdomain = true;
 	}
-	while(u1Tmp == 0){
-		if(priv->BluetoothCoexist == 0) {
-			write_nic_byte(dev, MAC_PINMUX_CFG, (GPIOMUX_EN | GPIOSEL_GPIO));
-		} else {
-			write_nic_byte(dev, MAC_PINMUX_CFG, 0xa);
-			printk("!!!!!!!!!!!!!!!%s:write 0x%x to 0x2F1\n", __FUNCTION__, 0xa);
-		}
 
-		u1Tmp = read_nic_byte(dev, GPIO_IO_SEL);
-		if(count >= 100)
-			break;
-		count++;
-	}
-	u1Tmp &= HAL_8192S_HW_GPIO_OFF_MASK;
-	write_nic_byte(dev, GPIO_IO_SEL, u1Tmp);
-
-	mdelay(10);
-
-	if(priv->pwrdown)
-	{
-		u1Tmp = read_nic_byte(dev, 0x06);
-		printk( "GPIO 04h BIT6=%02x\n", u1Tmp);
-		eRfPowerStateToSet = (u1Tmp & BIT6) ? eRfOn: eRfOff;		
-	}
-	else
-	{
-	u1Tmp = read_nic_byte(dev, GPIO_IN);
-	eRfPowerStateToSet = (u1Tmp & HAL_8192S_HW_GPIO_OFF_BIT) ? eRfOn : eRfOff;
-	}
-
-	if(priv->bResetInProgress)
-	{
+	eRfPowerStateToSet = RfOnOffDetect(dev);
+	if (priv->bResetInProgress) {
 		spin_lock_irqsave(&priv->rf_ps_lock,flag);
 		priv->RFChangeInProgress = false;
 		spin_unlock_irqrestore(&priv->rf_ps_lock,flag);
@@ -3961,8 +3948,8 @@ extern void dm_CheckRfCtrlGPIO(void *data)
 		printk("GPIOChangeRF  - HW Radio ON, RF ON\n");
                 eRfPowerStateToSet = eRfOn;
 		bActuallySet = true;
-	}
-	else if ( (priv->bHwRadioOff == false) && ((eRfPowerStateToSet == eRfOff) || (priv->sw_radio_on == false)))
+	} else if ((priv->bHwRadioOff == false) && 
+		 ((eRfPowerStateToSet == eRfOff) || (priv->sw_radio_on == false)))
 	{
 		RT_TRACE(COMP_RF, "GPIOChangeRF  - HW Radio OFF\n");
 		printk("GPIOChangeRF  - HW Radio OFF\n");
@@ -3970,8 +3957,7 @@ extern void dm_CheckRfCtrlGPIO(void *data)
 		bActuallySet = true;
 	}
 
-	if(bActuallySet)
-	{
+	if (bActuallySet) {
 		priv->bHwRfOffAction = 1;
 #ifdef CONFIG_ASPM_OR_D3
 		if(eRfPowerStateToSet == eRfOn)
@@ -3996,6 +3982,14 @@ extern void dm_CheckRfCtrlGPIO(void *data)
 		MgntActSet_RF_State(dev, eRfPowerStateToSet, RF_CHANGE_BY_HW);
 
 		{
+#ifdef CONFIG_CFG_80211			
+			struct wireless_dev *wdev = &priv->rtllib->wdev;
+			wiphy_rfkill_set_hw_state(wdev->wiphy, priv->bHwRadioOff);
+#else
+			char *argv[3];
+			static char *RadioPowerPath = "/etc/acpi/events/RadioPower.sh";
+			static char *envp[] = {"HOME=/", "TERM=linux", "PATH=/usr/bin:/bin", NULL};
+
 			if(priv->bHwRadioOff == true)
 				argv[1] = "RFOFF";
 			else
@@ -4004,12 +3998,13 @@ extern void dm_CheckRfCtrlGPIO(void *data)
 			argv[0] = RadioPowerPath;
 			argv[2] = NULL;
 			call_usermodehelper(RadioPowerPath,argv,envp,1);
+
+#endif			
 		}
 
 		if(eRfPowerStateToSet == eRfOff)
 		{
 			if(priv->pwrdown){
-				MgntActSet_RF_State(dev, eRfOff, RF_CHANGE_BY_HW);
 
 				write_nic_byte(dev, SYS_FUNC_EN+1, 0x31);
 			}
@@ -4904,8 +4899,8 @@ static void dm_dynamic_txpower(struct net_device *dev)
 	long				UndecoratedSmoothedPWDB;
 
 	if( (priv->rtllib->bdynamic_txpower_enable != true) ||
-		(priv->DMFlag & HAL_DM_HIPWR_DISABLE) ||
-		priv->rtllib->pHTInfo->IOTAction & HT_IOT_ACT_DISABLE_HIGH_POWER) {
+			(priv->DMFlag & HAL_DM_HIPWR_DISABLE) ||
+			priv->rtllib->pHTInfo->IOTAction & HT_IOT_ACT_DISABLE_HIGH_POWER) {
 		priv->DynamicTxHighPowerLvl = TxHighPwrLevel_Normal;
 		return;
 	}
@@ -4990,6 +4985,7 @@ static void dm_send_rssi_tofw(struct net_device *dev)
 #endif
 }
 
+#if defined RTL8192SE
 /*-----------------------------------------------------------------------------
  * Function:	dm_RefreshRateAdaptiveMask()
  *
@@ -5006,186 +5002,62 @@ static void dm_send_rssi_tofw(struct net_device *dev)
  *	05/27/2009	hpfan	Create Version 0.  
  *
  *---------------------------------------------------------------------------*/
-#ifdef RTL8192SE
 static void dm_RefreshRateAdaptiveMask(struct net_device *dev)
 {
-	struct r8192_priv *	priv = rtllib_priv(dev);
+	struct r8192_priv *priv = rtllib_priv(dev);
 	prate_adaptive	pRA = (prate_adaptive)&priv->rate_adaptive;
-	u32				LowRSSIThreshForRA = 0, HighRSSIThreshForRA = 0;
-	u8				rssi_level;
-
-	if(!priv->up)
-	{
-		RT_TRACE(COMP_RATE, "<---- dm_RefreshRateAdaptiveMask(): driver is going to unload\n");
+	u32	LowRSSIThreshForRA = 0, HighRSSIThreshForRA = 0;
+	u8	rssi_level;
+	
+	if(IS_NIC_DOWN(priv)){
+		RT_TRACE(COMP_RATE,"<---- dm_RefreshRateAdaptiveMask(): driver is going to unload\n");
 		return;
 	}
 
-	if(!priv->rtllib->bUseRAMask)
-	{
-		RT_TRACE(COMP_RATE, "<---- dm_RefreshRateAdaptiveMask(): driver does not control rate adaptive mask\n");
+	if(!priv->rtllib->bUseRAMask){
 		return;
 	}
 
-	if(priv->pFirmware->FirmwareVersion >= 61 && !priv->bInformFWDriverControlDM)
-	{
+	if(priv->pFirmware->FirmwareVersion >= 61 && !priv->bInformFWDriverControlDM){
 		RT_TRACE(COMP_RATE, "<---- dm_RefreshRateAdaptiveMask(): inform fw driver control dm\n");
 		priv->rtllib->SetFwCmdHandler(dev, FW_CMD_CTRL_DM_BY_DRIVER);
 		priv->bInformFWDriverControlDM = true;
 	}
 		
-
-	if(priv->rtllib->state == RTLLIB_LINKED )
+	if((priv->rtllib->state == RTLLIB_LINKED && (priv->rtllib->iw_mode == IW_MODE_INFRA)) 
+#ifdef _RTL8192_EXT_PATCH_			
+		|| ((priv->rtllib->state == RTLLIB_LINKED) && (priv->rtllib->iw_mode == IW_MODE_MESH) && (priv->rtllib->only_mesh == 0))
+#endif		
+		)
 	{
 		
-		switch (pRA->PreRATRState)
-		{
+		switch (pRA->PreRATRState){
 			case DM_RATR_STA_HIGH:
-			{
 				HighRSSIThreshForRA = 50;
 				LowRSSIThreshForRA = 20;
-			}
-			break;
-			
+				break;
 			case DM_RATR_STA_MIDDLE:
-			{
 				HighRSSIThreshForRA = 55;
 				LowRSSIThreshForRA = 20;
-			}
-			break;
-			
+				break;
 			case DM_RATR_STA_LOW:
-			{
 				HighRSSIThreshForRA = 50;
 				LowRSSIThreshForRA = 25;
-			}
-			break;
-
+				break;
 			default:
-			{
 				HighRSSIThreshForRA = 50;
 				LowRSSIThreshForRA = 20;
-			}
+				break;
 		}
 
-		if(priv->undecorated_smoothed_pwdb > (long)HighRSSIThreshForRA)
-		{
+		if(priv->undecorated_smoothed_pwdb > (long)HighRSSIThreshForRA){
 			pRA->ratr_state = DM_RATR_STA_HIGH;
 			rssi_level = 1;
 		}
-		else if(priv->undecorated_smoothed_pwdb > (long)LowRSSIThreshForRA)
-		{
+		else if(priv->undecorated_smoothed_pwdb > (long)LowRSSIThreshForRA){
 			pRA->ratr_state = DM_RATR_STA_MIDDLE;
 			rssi_level = 2;
-		}
-		else
-		{
-			pRA->ratr_state = DM_RATR_STA_LOW;
-			rssi_level = 3;
-		}
-
-		if(pRA->PreRATRState != pRA->ratr_state)
-		{
-			RT_TRACE(COMP_RATE, "RSSI = %ld\n", priv->undecorated_smoothed_pwdb);
-			RT_TRACE(COMP_RATE, "RSSI_LEVEL = %d\n", rssi_level);
-			RT_TRACE(COMP_RATE, "PreState = %d, CurState = %d\n", pRA->PreRATRState, pRA->ratr_state);
-#ifdef _RTL8192_EXT_PATCH_
-			priv->rtllib->UpdateHalRAMaskHandler(
-									dev,
-									false,
-									0,
-									NULL,
-									priv->rtllib->mode,
-									rssi_level);
-#else
-			priv->rtllib->UpdateHalRAMaskHandler(
-									dev,
-									false,
-									0,
-									NULL,
-									NULL,
-									rssi_level);
-#endif
-			pRA->PreRATRState = pRA->ratr_state;
-		}
-	}
-}
-#ifdef _RTL8192_EXT_PATCH_
-static	void	dm_refresh_rate_adaptive_mask(struct net_device *dev)
-{
-
-	struct r8192_priv *priv = rtllib_priv(dev);
-	prate_adaptive	pRA = (prate_adaptive)&priv->rate_adaptive;
-	u32	LowRSSIThreshForRA = 0, HighRSSIThreshForRA = 0;
-	u8	rssi_level;
-#ifdef _RTL8192_EXT_PATCH_
-	if((!priv->up) && (!priv->mesh_up))
-#else
-	if(!priv->up)
-#endif
-	{
-		RT_TRACE(COMP_RATE,"<---- dm_refresh_rate_adaptive_mask(): driver is going to unload\n");
-		return;
-	}
-
-	if(!priv->rtllib->bUseRAMask)
-	{
-		RT_TRACE(COMP_RATE, "<---- dm_refresh_rate_adaptive_mask(): driver does not control rate adaptive mask\n");
-		return;
-	}
-
-	if(priv->pFirmware->FirmwareVersion >= 61 && !priv->bInformFWDriverControlDM)
-	{
-		RT_TRACE(COMP_RATE, "<---- dm_refresh_rate_adaptive_mask(): inform fw driver control dm\n");
-		priv->rtllib->SetFwCmdHandler(dev, FW_CMD_CTRL_DM_BY_DRIVER);
-		priv->bInformFWDriverControlDM = true;
-	}
-		
-	if((priv->rtllib->state == RTLLIB_LINKED && 
-			(priv->rtllib->iw_mode != IW_MODE_MESH)) || ((priv->rtllib->state == RTLLIB_LINKED) && (priv->rtllib->iw_mode == IW_MODE_MESH) && (priv->rtllib->only_mesh == 0)))
-	{
-		
-		switch (pRA->PreRATRState)
-		{
-			case DM_RATR_STA_HIGH:
-			{
-				HighRSSIThreshForRA = 50;
-				LowRSSIThreshForRA = 20;
-			}
-			break;
-			
-			case DM_RATR_STA_MIDDLE:
-			{
-				HighRSSIThreshForRA = 55;
-				LowRSSIThreshForRA = 20;
-			}
-			break;
-			
-			case DM_RATR_STA_LOW:
-			{
-				HighRSSIThreshForRA = 50;
-				LowRSSIThreshForRA = 25;
-			}
-			break;
-
-			default:
-			{
-				HighRSSIThreshForRA = 50;
-				LowRSSIThreshForRA = 20;
-			}
-		}
-
-		if(priv->undecorated_smoothed_pwdb > (long)HighRSSIThreshForRA)
-		{
-			pRA->ratr_state = DM_RATR_STA_HIGH;
-			rssi_level = 1;
-		}
-		else if(priv->undecorated_smoothed_pwdb > (long)LowRSSIThreshForRA)
-		{
-			pRA->ratr_state = DM_RATR_STA_MIDDLE;
-			rssi_level = 2;
-		}
-		else
-		{
+		}else{
 			pRA->ratr_state = DM_RATR_STA_LOW;
 			rssi_level = 3;
 		}
@@ -5199,22 +5071,79 @@ static	void	dm_refresh_rate_adaptive_mask(struct net_device *dev)
 									dev,
 									false,
 									0,
-									NULL,
+									priv->rtllib->pHTInfo->PeerMimoPs,
 									priv->rtllib->mode,
+									priv->rtllib->pHTInfo->bCurTxBW40MHz,
 									rssi_level);
 			priv->rssi_level = rssi_level;
 			pRA->PreRATRState = pRA->ratr_state;
 		}
 	}
-	
+	if((priv->rtllib->state == RTLLIB_LINKED) && (priv->rtllib->iw_mode == IW_MODE_ADHOC)){
+		int	i;
+		struct sta_info *pEntry;
+
+		for(i = 0; i < PEER_MAX_ASSOC; i++){
+			pEntry = priv->rtllib->peer_assoc_list[i];
+			if(NULL != pEntry){
+				pRA = &pEntry->rate_adaptive;
+				switch (pRA->PreRATRState){
+					case DM_RATR_STA_HIGH:
+						HighRSSIThreshForRA = 50;
+						LowRSSIThreshForRA = 20;
+						break;
+					case DM_RATR_STA_MIDDLE:
+						HighRSSIThreshForRA = 55;
+						LowRSSIThreshForRA = 20;
+						break;
+					case DM_RATR_STA_LOW:
+						HighRSSIThreshForRA = 50;
+						LowRSSIThreshForRA = 25;
+						break;
+					default:
+						HighRSSIThreshForRA = 50;
+						LowRSSIThreshForRA = 20;
+						break;
+				}
+
+				if(pEntry->rssi_stat.UndecoratedSmoothedPWDB > HighRSSIThreshForRA){
+					pRA->ratr_state = DM_RATR_STA_HIGH;
+					rssi_level = 1;
+				}else if(pEntry->rssi_stat.UndecoratedSmoothedPWDB > LowRSSIThreshForRA){
+					pRA->ratr_state = DM_RATR_STA_MIDDLE;
+					rssi_level = 2;
+				}else{
+					pRA->ratr_state = DM_RATR_STA_LOW;
+					rssi_level = 3;
+				}
+
+				if(pRA->PreRATRState != pRA->ratr_state){
+					RT_TRACE(COMP_RATE, "AsocEntry addr : "MAC_FMT"\n", MAC_ARG(pEntry->macaddr));
+					RT_TRACE(COMP_RATE, "RSSI = %ld\n", pEntry->rssi_stat.UndecoratedSmoothedPWDB);
+					RT_TRACE(COMP_RATE, "RSSI_LEVEL = %d\n", rssi_level);
+					RT_TRACE(COMP_RATE, "PreState = %d, CurState = %d\n", pRA->PreRATRState, pRA->ratr_state);
+					priv->rtllib->UpdateHalRAMaskHandler(
+											dev,
+											false,
+											pEntry->aid+1,
+											pEntry->htinfo.MimoPs,
+											pEntry->wireless_mode,
+											pEntry->htinfo.bCurTxBW40MHz,
+											rssi_level);
+					pRA->PreRATRState = pRA->ratr_state;
+				}
+
+			}
+		}
+	}
+#ifdef _RTL8192_EXT_PATCH_			
 	if(priv->rtllib->iw_mode == IW_MODE_MESH)
 	{
 		if(priv->mshobj->ext_refresh_rate_adaptive_mask)
 			priv->mshobj->ext_refresh_rate_adaptive_mask(priv);
 	}
-
-}
 #endif
+}
 
 void Adhoc_InitRateAdaptive(struct net_device *dev,struct sta_info  *pEntry)
 {
@@ -5259,7 +5188,7 @@ void Adhoc_InitRateAdaptiveState(struct net_device *dev,struct sta_info  *pEntry
 	pRA->PreRATRState = DM_RATR_STA_MAX;
 }
 
-
+#if 0
 static void Adhoc_dm_CheckRateAdaptive(struct net_device * dev)
 {
 	struct r8192_priv 			*priv = rtllib_priv(dev);
@@ -5360,5 +5289,6 @@ static void Adhoc_dm_CheckRateAdaptive(struct net_device * dev)
 }	
 #endif
 
+#endif
 /*---------------------------Define function prototype------------------------*/
 

@@ -31,11 +31,7 @@ struct net_device;
 void CamResetAllEntry(struct net_device* dev);
 void EnableHWSecurityConfig8192(struct net_device *dev);
 void setKey(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType, u8 *MacAddr, u8 DefaultKey, u32 *KeyContent );
-#ifdef _RTL8192_EXT_PATCH_
 void set_swcam(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType, u8 *MacAddr, u8 DefaultKey, u32 *KeyContent, u8 is_mesh);
-#else
-void set_swcam(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType, u8 *MacAddr, u8 DefaultKey, u32 *KeyContent );
-#endif
 void CamPrintDbgReg(struct net_device* dev);
 
 #ifdef _RTL8192_EXT_PATCH_

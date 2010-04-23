@@ -141,7 +141,7 @@ typedef enum _PHY_Rate_Tx_Power_Offset_Area{
 	RA_OFFSET_HT_OFDM4,
 	RA_OFFSET_HT_CCK,
 }RA_OFFSET_AREA,*PRA_OFFSET_AREA;
-
+#if 0
 typedef enum _RATR_TABLE_MODE_8192S{
 	RATR_INX_WIRELESS_NGB = 0,
 	RATR_INX_WIRELESS_NG = 1,
@@ -153,7 +153,7 @@ typedef enum _RATR_TABLE_MODE_8192S{
 	RATR_INX_WIRELESS_MC = 7,
 	RATR_INX_WIRELESS_A = 8,
 }RATR_TABLE_MODE_8192S, *PRATR_TABLE_MODE_8192S;
-
+#endif
 /*------------------------------Define structure----------------------------*/ 
 
 

@@ -423,11 +423,7 @@ typedef struct _tx_desc_8192se{
 	u32		TSFL:5;	
 	u32		RTSRC:6;	
 	u32		DATARC:6;	
-#ifdef _RTL8192_EXT_PATCH_
 	u32		Rsvd_MacID:5;
-#else
-	u32		Rsvd1:5;
-#endif
 	u32		AggEn:1;
 	u32		BK:1;	
 	u32		OwnMAC:1;

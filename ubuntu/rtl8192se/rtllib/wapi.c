@@ -443,6 +443,10 @@ u8 Wapi_defragment(struct rtllib_device* ieee,u8* data, u16 len,
 			}else{	
 				data[10] = 0x0;
 				data[11] = 0x0;
+				if (len > 2000) {
+					WAPI_TRACE(WAPI_ERR,"111****************************%s():cache buf len is not enough: %d\n",__FUNCTION__,len);
+					goto drop1;
+				}
 				pcache_info->lastFragNum= 0x00;
 				memcpy(pcache_info->cache_buffer,data,len);
 				pcache_info->cache_buffer_len = len;
@@ -455,6 +459,10 @@ u8 Wapi_defragment(struct rtllib_device* ieee,u8* data, u16 len,
 		}else{
 			if(data[10] == 0){
 				WAPI_TRACE(WAPI_RX, "%s(): First fragment, no More fragment, ready to send to App.\n",__FUNCTION__);
+				if (len > 2000) {
+					WAPI_TRACE(WAPI_ERR,"222****************************%s():cache buf len is not enough: %d\n",__FUNCTION__,len);
+					goto drop1;
+				}
 				memcpy(rxbuffer,data,len);
 				*rxbuffer_len = len;
 				goto success;
@@ -473,6 +481,11 @@ u8 Wapi_defragment(struct rtllib_device* ieee,u8* data, u16 len,
 			}else{
 				if(data[10] == (pcache_info->lastFragNum+1)){
 					WAPI_TRACE(WAPI_RX, "%s(): Not First fragment, More fragment, same seq num, copy to cache.\n",__FUNCTION__);
+					if ((pcache_info->cache_buffer_len + len - 12) > 2000) {
+						WAPI_TRACE(WAPI_ERR,"333****************************%s():cache buf len is not enough: %d\n",__FUNCTION__,pcache_info->cache_buffer_len + len - 12);
+						list_del(&pcache_info->list);
+						goto drop1;
+					}
 					memcpy(pcache_info->cache_buffer+(pcache_info->cache_buffer_len),data+12,len-12);
 					pcache_info->cache_buffer_len += len-12;
 					pcache_info->lastFragNum  = data[10];
@@ -491,6 +504,11 @@ u8 Wapi_defragment(struct rtllib_device* ieee,u8* data, u16 len,
 			}else{
 				if(data[10] == (pcache_info->lastFragNum+1)){					
 					WAPI_TRACE(WAPI_RX, "%s(): Not First fragment, no More fragment, same seq num, ready to send to App.\n",__FUNCTION__);
+					if ((pcache_info->cache_buffer_len + len - 12) > 2000) {
+						WAPI_TRACE(WAPI_ERR,"444****************************%s():cache buf len is not enough: %d\n",__FUNCTION__,pcache_info->cache_buffer_len + len - 12);
+						list_del(&pcache_info->list);
+						goto drop1;
+					}
 					memcpy(pcache_info->cache_buffer+(pcache_info->cache_buffer_len),data+12,len-12);
 					pcache_info->cache_buffer_len += len-12;
 					memcpy(rxbuffer,pcache_info->cache_buffer,pcache_info->cache_buffer_len);
@@ -534,10 +552,11 @@ void WapiHandleRecvPacket(struct rtllib_device* ieee,struct sk_buff *skb,u8 WaiP
 	int hdrlen = 0;
 	u16 recvLength = 0, fc = 0, rxbuffer_len = 0;
 
-	WAPI_TRACE(WAPI_RX, "===========> %s\n", __FUNCTION__);
+	WAPI_TRACE(WAPI_RX, "===========> %s: WaiPkt is %d\n", __FUNCTION__,WaiPkt);
 	
 	hdr = (struct rtllib_hdr_3addrqos *)skb->data;
 	pTaddr = hdr->addr2;
+	fc = hdr->frame_ctl;
 	hdrlen = rtllib_get_hdrlen(fc);
 	
 	pWapiInfo = &(ieee->wapiInfo);
@@ -1271,6 +1290,7 @@ int SecSMS4HeaderFillIV(struct rtllib_device *ieee, struct sk_buff *pskb)
 			bPNOverflow = WapiIncreasePN(pWapiInfo->lastTxMulticastPN, 1);
 			memcpy(pWapiExt->PN, pWapiInfo->lastTxMulticastPN, 16);
 			if (bPNOverflow){
+				WAPI_TRACE(WAPI_ERR,"===============>%s():multicast PN overflow\n",__FUNCTION__);
 				WapiCreateAppEventAndSend(ieee,NULL,0,pRA, false, false, true, 0, false);
 			}		          
 		}else{
@@ -1300,6 +1320,7 @@ int SecSMS4HeaderFillIV(struct rtllib_device *ieee, struct sk_buff *pskb)
 				bPNOverflow = WapiIncreasePN(pWapiSta->lastTxUnicastPN, 2);
 				memcpy(pWapiExt->PN, pWapiSta->lastTxUnicastPN, 16);
 				if (bPNOverflow){
+					WAPI_TRACE(WAPI_ERR,"===============>%s():unicast PN overflow\n",__FUNCTION__);
 					WapiCreateAppEventAndSend(ieee,NULL,0,pWapiSta->PeerMacAddr, false, true, false, 0, false);
 				}
 			}else{
@@ -1466,6 +1487,8 @@ u8 SecSWSMS4Decryption(
 			pLastRxPN = pWapiSta->lastRxMulticastPN;  
 			if (!WapiComparePN(pRecvPN, pLastRxPN)){
 				WAPI_TRACE(WAPI_ERR, "%s: MSK PN is not larger than last, Dropped!!!\n", __FUNCTION__);
+				WAPI_DATA(WAPI_ERR, "pRecvPN:", pRecvPN, 16);
+				WAPI_DATA(WAPI_ERR, "pLastRxPN:", pLastRxPN, 16);
 				return false;
 			}
 
@@ -1497,6 +1520,11 @@ u8 SecSWSMS4Decryption(
 				if (!WapiComparePN(pRecvPN, pLastRxPN)){
 					return false;
 				}
+				if(rx_stats->bIsQosData){
+					WapiSetLastRxUnicastPNForQoSData(TID, pRecvPN, pWapiSta);
+				}else{
+					memcpy(pWapiSta->lastRxUnicastPN, pRecvPN, 16);
+				}
 			}else{
 				memcpy(rx_stats->WapiTempPN,pRecvPN,16);
 			}
@@ -1526,7 +1554,8 @@ u8 SecSWSMS4Decryption(
 			pMicKey = pWapiSta->wapiUskUpdate.micKey;
 			pDataKey = pWapiSta->wapiUskUpdate.dataKey;
 		}else{
-			WAPI_TRACE(WAPI_RX, "%s: No valid USK!!!KeyIdx=%d pWapiSta->wapiUsk.keyId=%d pWapiSta->wapiUskUpdate.keyId=%d\n", __FUNCTION__, KeyIdx, pWapiSta->wapiUsk.keyId, pWapiSta->wapiUskUpdate.keyId);
+			WAPI_TRACE(WAPI_ERR, "%s: No valid USK!!!KeyIdx=%d pWapiSta->wapiUsk.keyId=%d pWapiSta->wapiUskUpdate.keyId=%d\n", __FUNCTION__, KeyIdx, pWapiSta->wapiUsk.keyId, pWapiSta->wapiUskUpdate.keyId);
+			dump_buf(pskb->data,pskb->len);
 			return false;
 		}     	
 	}	
@@ -1551,13 +1580,13 @@ u8 SecSWSMS4Decryption(
 		WAPI_TRACE(WAPI_RX, "%s: Check MIC OK!!\n", __FUNCTION__);
 		if (bUseUpdatedKey){
 			if ( is_multicast_ether_addr(pRA) ){
-				WAPI_TRACE(WAPI_API, "%s(): AE use new update MSK!!", __FUNCTION__);
+				WAPI_TRACE(WAPI_API, "%s(): AE use new update MSK!!\n", __FUNCTION__);
 				pWapiSta->wapiMsk.keyId = pWapiSta->wapiMskUpdate.keyId;
 				memcpy(pWapiSta->wapiMsk.dataKey, pWapiSta->wapiMskUpdate.dataKey, 16);  
 				memcpy(pWapiSta->wapiMsk.micKey, pWapiSta->wapiMskUpdate.micKey, 16);  
 				pWapiSta->wapiMskUpdate.bTxEnable = pWapiSta->wapiMskUpdate.bSet = false;
 			}else{
-				WAPI_TRACE(WAPI_API, "%s(): AE use new update USK!!", __FUNCTION__);
+				WAPI_TRACE(WAPI_API, "%s(): AE use new update USK!!\n", __FUNCTION__);
 				pWapiSta->wapiUsk.keyId = pWapiSta->wapiUskUpdate.keyId;
 				memcpy(pWapiSta->wapiUsk.dataKey, pWapiSta->wapiUskUpdate.dataKey, 16);  
 				memcpy(pWapiSta->wapiUsk.micKey, pWapiSta->wapiUskUpdate.micKey, 16);  

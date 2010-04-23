@@ -593,7 +593,7 @@ HTIOTActIsForcedAMSDU8K(struct rtllib_device *ieee, struct rtllib_network *netwo
 u8 HTIOTActIsCCDFsync(struct rtllib_device *ieee)
 {
 	u8	retValue = 0;
-#if (defined RTL8190P || defined RTL8192E || defined RTL8192U  ||defined RTL8192SE) 
+#if (defined RTL8190P || defined RTL8192U  || defined RTL8192SU)
 	if(ieee->pHTInfo->IOTPeer == HT_IOT_PEER_BROADCOM)
 	{
 		retValue = 1;
@@ -1495,14 +1495,22 @@ void HTUpdateSelfAndPeerSetting(struct rtllib_device* ieee, 	struct rtllib_netwo
 void HTUseDefaultSetting(struct rtllib_device* ieee)
 {
 	PRT_HIGH_THROUGHPUT pHTInfo = ieee->pHTInfo;
-	
+		
+#ifdef _RTL8192_EXT_PATCH_
+	ieee->current_mesh_network.qos_data.supported = 1;
+	ieee->current_mesh_network.qos_data.active = ieee->current_mesh_network.qos_data.supported;
+#endif	
 	if(pHTInfo->bEnableHT)
 	{
 		pHTInfo->bCurrentHTSupport = true;
 		pHTInfo->bCurSuppCCK = pHTInfo->bRegSuppCCK;
 
+#ifdef _RTL8192_EXT_PATCH_
+		if(!((ieee->iw_mode == IW_MODE_MESH) && ieee->proto_started && (ieee->state == RTLLIB_LINKED)))
+			pHTInfo->bCurBW40MHz = pHTInfo->bRegBW40MHz;
+#else
 		pHTInfo->bCurBW40MHz = pHTInfo->bRegBW40MHz;
-
+#endif
 		pHTInfo->bCurShortGI20MHz= pHTInfo->bRegShortGI20MHz;
 
 		pHTInfo->bCurShortGI40MHz= pHTInfo->bRegShortGI40MHz;
@@ -1511,17 +1519,23 @@ void HTUseDefaultSetting(struct rtllib_device* ieee)
 		ieee->current_mesh_network.qos_data.active = ieee->current_mesh_network.qos_data.supported;
 #endif		
 
+		if(ieee->iw_mode == IW_MODE_ADHOC)
+		{
+			ieee->current_network.qos_data.active = ieee->current_network.qos_data.supported;
+		}
 #ifdef ENABLE_AMSDU
 		if(ieee->iw_mode == IW_MODE_ADHOC)
 		{
-			ieee->current_network.qos_data.supported = 1;
-			ieee->current_network.qos_data.active = ieee->current_network.qos_data.supported;
 			pHTInfo->bCurrent_AMSDU_Support = 1;
 		}
 #ifdef _RTL8192_EXT_PATCH_
 		else if(ieee->iw_mode == IW_MODE_MESH)
 		{
+#ifdef COMPATIBLE_WITH_RALINK_MESH
+			pHTInfo->bCurrent_Mesh_AMSDU_Support = 0;
+#else
 			pHTInfo->bCurrent_Mesh_AMSDU_Support = 1;
+#endif
 			pHTInfo->bCurrent_AMSDU_Support = pHTInfo->bAMSDU_Support;
 		}
 #endif
@@ -1538,7 +1552,11 @@ void HTUseDefaultSetting(struct rtllib_device* ieee)
 #ifdef _RTL8192_EXT_PATCH_
 		else if(ieee->iw_mode == IW_MODE_MESH)
 		{
+#ifdef COMPATIBLE_WITH_RALINK_MESH
+			pHTInfo->bCurrentMeshAMPDUEnable = 1;
+#else
 			pHTInfo->bCurrentMeshAMPDUEnable = 0;
+#endif
 			pHTInfo->bCurrentAMPDUEnable = pHTInfo->bAMPDUEnable;
 		}
 #endif
@@ -1599,6 +1617,7 @@ void HTSetConnectBwMode(struct rtllib_device* ieee, HT_CHANNEL_WIDTH	Bandwidth, 
 	
 
 	if(pHTInfo->bSwBwInProgress) {
+		printk("%s: bSwBwInProgress!!\n", __FUNCTION__);
 		return;
 	}
 	if(Bandwidth==HT_CHANNEL_WIDTH_20_40)

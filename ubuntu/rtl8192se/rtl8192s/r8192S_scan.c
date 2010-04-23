@@ -92,14 +92,14 @@ void rtl8192se_before_hw_scan(struct net_device *dev)
 	rtllib_sta_ps_send_null_frame(ieee, 1);
 #endif
 
-	netif_carrier_off(ieee->dev);
+	rtllib_stop_all_queues(ieee);
+
 	if (ieee->data_hard_stop)
 		ieee->data_hard_stop(ieee->dev);
 	rtllib_stop_send_beacons(ieee);
 	ieee->state = RTLLIB_LINKED_SCANNING;
 	ieee->link_change(ieee->dev);
 	/* wait for ps packet to be kicked out successfully */
-	//msleep(50);
 	mdelay(50);
 
 #if(RTL8192S_DISABLE_FW_DM == 0)
@@ -112,7 +112,7 @@ void rtl8192se_before_hw_scan(struct net_device *dev)
 		priv->hwscan_bw_40 = 1;
 		priv->rtllib->chan_offset_bk = chan_offset = ieee->pHTInfo->CurSTAExtChnlOffset;
 		priv->rtllib->bandwidth_bk = bandwidth = (HT_CHANNEL_WIDTH)ieee->pHTInfo->bCurBW40MHz;
-		printk("-------------->%s():before scan force BW to 20M:%d, %d\n", __func__,chan_offset, bandwidth);
+		printk("before scan force BW to 20M:%d, %d\n", chan_offset, bandwidth);
 		ieee->SetBWModeHandler(ieee->dev, HT_CHANNEL_WIDTH_20, HT_EXTCHNL_OFFSET_NO_EXT);
 	}
 }
@@ -135,7 +135,7 @@ void rtl8192se_after_hw_scan(struct net_device *dev)
 
 	if (priv->hwscan_bw_40) {
 		priv->hwscan_bw_40 = 0;
-		printk("-------------->%s():after scan back BW to 40M:%d, %d\n", __func__, chan_offset, bandwidth);
+		printk("after scan back BW to 40M:%d, %d\n", chan_offset, bandwidth);
 #if 1
 		if (chan_offset == HT_EXTCHNL_OFFSET_UPPER){
 			ieee->set_chan(ieee->dev, priv->rtllib->hwscan_ch_bk + 2);
@@ -170,7 +170,7 @@ void rtl8192se_after_hw_scan(struct net_device *dev)
 	if(ieee->iw_mode == IW_MODE_ADHOC || ieee->iw_mode == IW_MODE_MASTER)
 		rtllib_start_send_beacons(ieee);
 	
-	netif_carrier_on(ieee->dev);
+	rtllib_wake_all_queues(ieee);
 	
 out:
 	return;
@@ -273,12 +273,12 @@ void rtl8192se_start_hw_scan(void *data)
 	/* Make sure the scan wasn't canceled before this queued work
 	 * was given the chance to run... */
 	if (!test_bit(STATUS_SCANNING, &priv->rtllib->status)){
-		RT_TRACE(COMP_ERR,"not in scanning. Ignoring second request.\n");
+		RT_TRACE(COMP_ERR,"scan was canceled.");
 		goto done;
 	}
 
 	if (test_bit(STATUS_SCAN_ABORTING, &priv->rtllib->status)) {
-		RT_TRACE(COMP_ERR, "Scan request while abort pending.  Queuing.\n");
+		RT_TRACE(COMP_ERR, "Scan request while abort pending.  Queuing.");
 		goto done;
 	}
 	
@@ -310,7 +310,6 @@ void rtl8192se_start_hw_scan(void *data)
 	
 	/* inform mac80211 scan aborted */
 	
-	//printk("<-------------%s() failed\n", __func__);
 	spin_unlock_irqrestore(&priv->fw_scan_lock,flags);
 
 	return;
@@ -393,7 +392,7 @@ void rtl8192se_cancel_hw_scan(struct net_device *dev)
 
 	if (test_bit(STATUS_SCANNING, &priv->rtllib->status)) {
 		if (!test_bit(STATUS_SCAN_ABORTING, &priv->rtllib->status)) {
-			printk("-------------->%s()scan abort start...\n", __func__);
+			printk("====>%s stop HW scan\n", __func__);
 			cancel_delayed_work(&priv->check_hw_scan_wq);
 
 			set_bit(STATUS_SCAN_ABORTING, &priv->rtllib->status);

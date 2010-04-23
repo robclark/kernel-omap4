@@ -62,11 +62,24 @@ MODULE_LICENSE("GPL");
 
 #define DRV_NAME "rtllib"
 
+#ifdef CONFIG_CFG_80211 
+#ifdef CONFIG_RTL_RFKILL
+static inline void rtllib_rfkill_poll(struct wiphy *wiphy)
+{
+	struct rtllib_device *rtllib = NULL;
 
-#if defined CONFIG_CRDA && (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30))
-struct cfg80211_ops rtllib_config_ops = { };
+	rtllib = (struct rtllib_device *)wiphy_priv(wiphy);
+
+	rtllib = (struct rtllib_device *)netdev_priv_rsl(rtllib->dev);
+
+	if (rtllib->rtllib_rfkill_poll)
+		rtllib->rtllib_rfkill_poll(rtllib->dev);
+}
+#else
+static inline void rtllib_rfkill_poll(struct wiphy *wiphy) {}
+#endif
+struct cfg80211_ops rtllib_config_ops = {.rfkill_poll = rtllib_rfkill_poll };
 void *rtllib_wiphy_privid = &rtllib_wiphy_privid;
-
 #endif
 
 void _setup_timer( struct timer_list* ptimer, void* fun, unsigned long data )
@@ -159,7 +172,7 @@ static inline void rtllib_networks_initialize(struct rtllib_device *ieee)
 #endif
 }
 
-#if defined CONFIG_CRDA && (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30))
+#if defined CONFIG_CFG_80211 
 static bool rtllib_wdev_alloc(struct rtllib_device *ieee, int sizeof_priv)
 {
 	int priv_size;
@@ -213,11 +226,10 @@ struct net_device *alloc_rtllib(int sizeof_priv)
 	memset(ieee, 0, sizeof(struct rtllib_device)+sizeof_priv);
 	ieee->dev = dev;
 
-#if defined CONFIG_CRDA && (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30))
+#ifdef CONFIG_CFG_80211
 	if(!rtllib_wdev_alloc(ieee, sizeof_priv))
 		goto failed;
 #endif
-
 	err = rtllib_networks_allocate(ieee);
 	if (err) {
 		RTLLIB_ERROR("Unable to allocate beacon storage: %d\n",
@@ -456,7 +468,7 @@ void free_rtllib(struct net_device *dev)
 	}
 #endif
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0))	
-#if defined CONFIG_CRDA && (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30))
+#ifdef CONFIG_CFG_80211
 	wiphy_unregister(ieee->wdev.wiphy);
 	wiphy_free(ieee->wdev.wiphy);
 #endif

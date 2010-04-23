@@ -729,7 +729,7 @@ FirmwareSetH2CCmd(
 		
 	}
 	
-	write_nic_byte(dev, TPPoll, BIT0<<(TXCMD_QUEUE));
+	write_nic_byte(dev, TPPoll, TPPoll_CQ);
 
 	return RT_STATUS_SUCCESS;
 }
@@ -771,7 +771,7 @@ rtl8192se_set_scan_cmd(struct net_device *dev, u32 start_flag)
 		SiteSurveyPara->desc.MacID 	= 0;
 		SiteSurveyPara->desc.TXHT		= (tcb_desc->data_rate&0x80)?1:0;	
 		SiteSurveyPara->desc.TxRate	= MRateToHwRate8192SE(dev,tcb_desc->data_rate);
-		SiteSurveyPara->desc.TxShort	= QueryIsShort(((tcb_desc->data_rate&0x80)?1:0), MRateToHwRate8192SE(dev,tcb_desc->data_rate), tcb_desc);
+		SiteSurveyPara->desc.TxShort	= rtl8192se_QueryIsShort(((tcb_desc->data_rate&0x80)?1:0), MRateToHwRate8192SE(dev,tcb_desc->data_rate), tcb_desc);
 
 		SiteSurveyPara->desc.AggEn 	= 0;
 		SiteSurveyPara->desc.Seq 		= 0; 

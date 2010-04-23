@@ -525,10 +525,34 @@ void LeisurePSLeave(struct net_device *dev)
 #endif
 
 #ifdef CONFIG_ASPM_OR_D3
+bool
+PlatformEnable92CEBackDoor(struct net_device *dev)
+{
+	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
+	bool			bResult = true;
+	u8			value;
+
+	pci_read_config_byte(priv->pdev, 0x70f, &value);
+	value |= BIT7;
+	pci_write_config_byte(priv->pdev, 0x70f, value);
+
+
+	pci_read_config_byte(priv->pdev, 0x719, &value);
+	value |= (BIT3|BIT4);
+	pci_write_config_byte(priv->pdev, 0x719, value);
+	
+
+	return bResult;
+}
+
 bool PlatformSwitchDevicePciASPM(struct net_device *dev, u8 value)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
 	bool bResult = false;
+
+#ifdef RTL8192CE
+	value |= 0x40;
+#endif
 
 	pci_write_config_byte(priv->pdev, priv->ASPMRegOffset, value);
 	udelay(100);
@@ -565,6 +589,14 @@ PlatformDisableASPM(struct net_device *dev)
 
 	u8	LinkCtrlReg;
 	u16	PciBridgeLinkCtrlReg, ASPMLevel=0;
+
+#ifdef RTL8192CE
+	if (!priv->aspm_clkreq_enable) {
+		RT_TRACE(COMP_INIT, "%s: Fail to enable ASPM. Cannot find the Bus of PCI(Bridge).\n",\
+			       	__FUNCTION__);
+		return;
+	}
+#endif
 
 	LinkCtrlReg = priv->LinkCtrlReg;
 	ASPMLevel |= BIT0|BIT1;

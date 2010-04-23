@@ -52,6 +52,9 @@ int rtl8192E_suspend (struct pci_dev *pdev, pm_message_t state)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct r8192_priv *priv = rtllib_priv(dev); 
+#if !(defined RTL8192SE || defined RTL8192CE)		
+	u32	ulRegRead;
+#endif
 
         RT_TRACE(COMP_POWER, "============> r8192E suspend call.\n");
         printk("============> r8192E suspend call.\n");

@@ -35,7 +35,6 @@ void TsInactTimeout(unsigned long data)
 {
 }
 
-#if 1
 void RxPktPendingTimeout(unsigned long data)
 {
 	PRX_TS_RECORD	pRxTs = (PRX_TS_RECORD)data;
@@ -48,9 +47,7 @@ void RxPktPendingTimeout(unsigned long data)
 	u8 index = 0;
 	bool bPktInBuf = false;
 
-
 	spin_lock_irqsave(&(ieee->reorder_spinlock), flags);
-	RTLLIB_DEBUG(RTLLIB_DL_REORDER,"==================>%s()\n",__FUNCTION__);
 	if(pRxTs->RxTimeoutIndicateSeq != 0xffff)
 	{
 		while(!list_empty(&pRxTs->RxPendingPktList))
@@ -67,7 +64,7 @@ void RxPktPendingTimeout(unsigned long data)
 				if(SN_EQUAL(pReorderEntry->SeqNum, pRxTs->RxIndicateSeq))
 					pRxTs->RxIndicateSeq = (pRxTs->RxIndicateSeq + 1) % 4096;
 
-				RTLLIB_DEBUG(RTLLIB_DL_REORDER,"RxPktPendingTimeout(): IndicateSeq: %d\n", pReorderEntry->SeqNum);
+				RTLLIB_DEBUG(RTLLIB_DL_REORDER,"%s(): Indicate SeqNum: %d\n",__func__, pReorderEntry->SeqNum);
 				stats_IndicateArray[index] = pReorderEntry->prxb;
 				index++;
 				
@@ -81,8 +78,7 @@ void RxPktPendingTimeout(unsigned long data)
 		}
 	}
 
-	if(index>0)
-	{
+	if(index>0){
 		pRxTs->RxTimeoutIndicateSeq = 0xffff;
 	
 		if(index > REORDER_WIN_SIZE){
@@ -91,32 +87,15 @@ void RxPktPendingTimeout(unsigned long data)
 			return;
 		}
 		rtllib_indicate_packets(ieee, stats_IndicateArray, index);
-		 bPktInBuf = false;
-
+		bPktInBuf = false;
 	}
 
-	if(bPktInBuf && (pRxTs->RxTimeoutIndicateSeq==0xffff))
-	{
+	if(bPktInBuf && (pRxTs->RxTimeoutIndicateSeq==0xffff)){
 		pRxTs->RxTimeoutIndicateSeq = pRxTs->RxIndicateSeq;
-#if 0   
-		if(timer_pending(&pTS->RxPktPendingTimer))
-			del_timer_sync(&pTS->RxPktPendingTimer);
-		pTS->RxPktPendingTimer.expires = jiffies + MSECS(pHTInfo->RxReorderPendingTime);
-		add_timer(&pTS->RxPktPendingTimer);
-#else
 		mod_timer(&pRxTs->RxPktPendingTimer,  jiffies + MSECS(ieee->pHTInfo->RxReorderPendingTime));
-#endif
-
-#if 0		
-		if(timer_pending(&pRxTs->RxPktPendingTimer))
-			del_timer_sync(&pRxTs->RxPktPendingTimer);
-		pRxTs->RxPktPendingTimer.expires = jiffies + ieee->pHTInfo->RxReorderPendingTime;
-		add_timer(&pRxTs->RxPktPendingTimer);
-#endif
 	}
 	spin_unlock_irqrestore(&(ieee->reorder_spinlock), flags);
 }
-#endif
 
 void TsAddBaProcess(unsigned long data)
 {
@@ -549,35 +528,33 @@ void RemoveTsEntry(
 	{
 		PRX_REORDER_ENTRY	pRxReorderEntry;
 		PRX_TS_RECORD 		pRxTS = (PRX_TS_RECORD)pTs;
+		spin_lock_irqsave(&(ieee->reorder_spinlock), flags);
+
 		if(timer_pending(&pRxTS->RxPktPendingTimer))	
 			del_timer_sync(&pRxTS->RxPktPendingTimer);
 
-                while(!list_empty(&pRxTS->RxPendingPktList))
-                {
-                        spin_lock_irqsave(&(ieee->reorder_spinlock), flags);
+		while(!list_empty(&pRxTS->RxPendingPktList)){
 			pRxReorderEntry = (PRX_REORDER_ENTRY)list_entry(pRxTS->RxPendingPktList.prev,RX_REORDER_ENTRY,List);
-                        list_del_init(&pRxReorderEntry->List);
-                        {
-                                int i = 0;
-                                struct rtllib_rxb * prxb = pRxReorderEntry->prxb;
-				if (unlikely(!prxb))
-				{
+			RTLLIB_DEBUG(RTLLIB_DL_REORDER,"%s(): Delete SeqNum %d!\n",__FUNCTION__, pRxReorderEntry->SeqNum);
+			list_del_init(&pRxReorderEntry->List);
+			{
+				int i = 0;
+				struct rtllib_rxb * prxb = pRxReorderEntry->prxb;
+				if (unlikely(!prxb)){
 					spin_unlock_irqrestore(&(ieee->reorder_spinlock), flags);
 					return;
 				}
-                                for(i =0; i < prxb->nr_subframes; i++) {
-                                        dev_kfree_skb(prxb->subframes[i]);
-                                }
-                                kfree(prxb);
-                                prxb = NULL;
-                        }
-                        list_add_tail(&pRxReorderEntry->List,&ieee->RxReorder_Unused_List);
-                        spin_unlock_irqrestore(&(ieee->reorder_spinlock), flags);
-                }
-
+				for(i =0; i < prxb->nr_subframes; i++) {
+					dev_kfree_skb(prxb->subframes[i]);
+				}
+				kfree(prxb);
+				prxb = NULL;
+			}
+			list_add_tail(&pRxReorderEntry->List,&ieee->RxReorder_Unused_List);
+		}
+		spin_unlock_irqrestore(&(ieee->reorder_spinlock), flags);
 	}
-	else
-	{
+	else{
 		PTX_TS_RECORD pTxTS = (PTX_TS_RECORD)pTs;
 		del_timer_sync(&pTxTS->TsAddBaTimer);
 	}
