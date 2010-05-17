@@ -84,7 +84,6 @@ static void __iommu_set_twl(struct iommu *obj, bool on)
 	iommu_write_reg(obj, l, MMU_CNTL);
 }
 
-
 static int omap2_iommu_enable(struct iommu *obj)
 {
 	u32 l, pa;
