@@ -2064,8 +2064,8 @@ static wstdcall NTSTATUS NdisAddDevice(struct driver_object *drv_obj,
 	}
 	nmb->next_device = IoAttachDeviceToDeviceStack(fdo, pdo);
 	spin_lock_init(&wnd->tx_ring_lock);
-	init_MUTEX(&wnd->tx_ring_mutex);
-	init_MUTEX(&wnd->ndis_req_mutex);
+	sema_init(&wnd->tx_ring_mutex, 1);
+	sema_init(&wnd->ndis_req_mutex, 1);
 	wnd->ndis_req_done = 0;
 	initialize_work(&wnd->tx_work, tx_worker, wnd);
 	wnd->tx_ring_start = 0;

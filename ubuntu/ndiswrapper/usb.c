@@ -234,7 +234,7 @@ wstdcall void wrap_cancel_irp(struct device_object *dev_obj, struct irp *irp)
 	USBTRACE("canceling urb %p", urb);
 	if (wrap_cancel_urb(IRP_WRAP_URB(irp))) {
 		irp->cancel = FALSE;
-		ERROR("urb %p can't be canceld: %d", urb,
+		ERROR("urb %p can't be canceled: %d", urb,
 		      IRP_WRAP_URB(irp)->state);
 	} else
 		USBTRACE("urb %p canceled", urb);

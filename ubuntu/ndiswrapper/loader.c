@@ -847,7 +847,7 @@ int loader_init(void)
 
 	InitializeListHead(&wrap_drivers);
 	InitializeListHead(&wrap_devices);
-	init_MUTEX(&loader_mutex);
+	sema_init(&loader_mutex, 1);
 	init_completion(&loader_complete);
 	if ((err = misc_register(&wrapper_misc)) < 0 ) {
 		ERROR("couldn't register module (%d)", err);

@@ -73,45 +73,36 @@ extern struct wrap_export ntoskernel_exports[], ntoskernel_io_exports[],
 extern struct wrap_export usb_exports[];
 #endif
 
-static char *get_export(char *name)
+static int get_export(char *name, generic_func *func)
 {
-	int i;
+	int i, j;
 
-	for (i = 0 ; ntoskernel_exports[i].name != NULL; i++)
-		if (strcmp(ntoskernel_exports[i].name, name) == 0)
-			return (char *)ntoskernel_exports[i].func;
-
-	for (i = 0 ; ntoskernel_io_exports[i].name != NULL; i++)
-		if (strcmp(ntoskernel_io_exports[i].name, name) == 0)
-			return (char *)ntoskernel_io_exports[i].func;
-
-	for (i = 0 ; ndis_exports[i].name != NULL; i++)
-		if (strcmp(ndis_exports[i].name, name) == 0)
-			return (char *)ndis_exports[i].func;
-
-	for (i = 0 ; crt_exports[i].name != NULL; i++)
-		if (strcmp(crt_exports[i].name, name) == 0)
-			return (char *)crt_exports[i].func;
-
-	for (i = 0 ; hal_exports[i].name != NULL; i++)
-		if (strcmp(hal_exports[i].name, name) == 0)
-			return (char *)hal_exports[i].func;
-
-	for (i = 0 ; rtl_exports[i].name != NULL; i++)
-		if (strcmp(rtl_exports[i].name, name) == 0)
-			return (char *)rtl_exports[i].func;
-
+	struct wrap_export *exports[] = {
+		ntoskernel_exports,
+		ntoskernel_io_exports,
+		ndis_exports,
+		crt_exports,
+		hal_exports,
+		rtl_exports,
 #ifdef ENABLE_USB
-	for (i = 0 ; usb_exports[i].name != NULL; i++)
-		if (strcmp(usb_exports[i].name, name) == 0)
-			return (char *)usb_exports[i].func;
+		usb_exports,
 #endif
+	};
+
+	for (j = 0; j < ARRAY_SIZE(exports); j++)
+		for (i = 0; exports[j][i].name != NULL; i++)
+			if (strcmp(exports[j][i].name, name) == 0) {
+				*func = exports[j][i].func;
+				return 0;
+			}
 
 	for (i = 0; i < num_pe_exports; i++)
-		if (strcmp(pe_exports[i].name, name) == 0)
-			return (char *)pe_exports[i].addr;
+		if (strcmp(pe_exports[i].name, name) == 0) {
+			*func = pe_exports[i].addr;
+			return 0;
+		}
 
-	return NULL;
+	return -1;
 }
 #endif // TEST_LOADER
 
@@ -220,7 +211,7 @@ static int import(void *image, IMAGE_IMPORT_DESCRIPTOR *dirent, char *dll)
 	char *symname = NULL;
 	int i;
 	int ret = 0;
-	void *adr;
+	generic_func adr;
 
 	lookup_tbl  = RVA2VA(image, dirent->u.OriginalFirstThunk, ULONG_PTR *);
 	address_tbl = RVA2VA(image, dirent->FirstThunk, ULONG_PTR *);
@@ -237,10 +228,9 @@ static int import(void *image, IMAGE_IMPORT_DESCRIPTOR *dirent, char *dll)
 					   ~IMAGE_ORDINAL_FLAG) + 2), char *);
 		}
 
-		adr = get_export(symname);
-		if (adr == NULL) {
+		ret = get_export(symname, &adr);
+		if (ret < 0) {
 			ERROR("unknown symbol: %s:'%s'", dll, symname);
-			ret = -1;
 		} else {
 			DBGLINKER("found symbol: %s:%s: addr: %p, rva = %Lu",
 				  dll, symname, adr, (uint64_t)address_tbl[i]);
