@@ -193,11 +193,11 @@ static void build_inquiry_response(struct iscsi_cmnd *cmnd)
 		data[7] = 0x02;
 		memset(data + 8, 0x20, 28);
 		memcpy(data + 8,
-		       VENDOR_ID, min_t(size_t, strlen(VENDOR_ID), 8));
+			VENDOR_ID, min_t(size_t, strlen(VENDOR_ID), 8));
 		memcpy(data + 16,
-		       PRODUCT_ID, min_t(size_t, strlen(PRODUCT_ID), 16));
+			PRODUCT_ID, min_t(size_t, strlen(PRODUCT_ID), 16));
 		memcpy(data + 32,
-		       PRODUCT_REV, min_t(size_t, strlen(PRODUCT_REV), 4));
+			PRODUCT_REV, min_t(size_t, strlen(PRODUCT_REV), 4));
 		data[58] = 0x03;
 		data[59] = 0x20;
 		data[60] = 0x09;
@@ -217,35 +217,41 @@ static void build_inquiry_response(struct iscsi_cmnd *cmnd)
 			tio_set(tio, 7, 0);
 			err = 0;
 		} else if (scb[2] == 0x80) {
-			int len = (cmnd->lun && strlen(cmnd->lun->scsi_sn)) ?
-				SCSI_SN_LEN : 4;
+			u32 len = 4;
+
+			if (cmnd->lun) {
+				if (strlen(cmnd->lun->scsi_sn) <= 16)
+					len = 16;
+				else
+					len = SCSI_SN_LEN;
+			}
 
 			data[1] = 0x80;
 			data[3] = len;
 			memset(data + 4, 0x20, len);
+			if (cmnd->lun) {
+				size_t offset = len -
+						strlen(cmnd->lun->scsi_sn);
+				memcpy(data + 4 + offset, cmnd->lun->scsi_sn,
+						strlen(cmnd->lun->scsi_sn));
+			}
 			tio_set(tio, len + 4, 0);
 			err = 0;
-
-			if (len == SCSI_SN_LEN) {
-				char *p, *q;
-
-				p = data + 4 + len - 1;
-				q = cmnd->lun->scsi_sn + len - 1;
-
-				for (; len > 0; len--, q--)
-					if (isascii(*q) && isprint(*q))
-						*(p--) = *q;
-			}
 		} else if (scb[2] == 0x83) {
-			u32 len = SCSI_ID_LEN * sizeof(u8);
+			u32 len = SCSI_ID_LEN + 8;
 
 			data[1] = 0x83;
 			data[3] = len + 4;
 			data[4] = 0x1;
 			data[5] = 0x1;
 			data[7] = len;
-			if (cmnd->lun) /* We need this ? */
-				memcpy(data + 8, cmnd->lun->scsi_id, len);
+			if (cmnd->lun) { /* We need this ? */
+				memset(data + 8, 0x00, 8);
+				memcpy(data + 8, VENDOR_ID, 
+					min_t(size_t, strlen(VENDOR_ID), 8));
+				memcpy(data + 16, cmnd->lun->scsi_id,
+								SCSI_ID_LEN);
+			}
 			tio_set(tio, len + 8, 0);
 			err = 0;
 		}
@@ -432,9 +438,19 @@ static void build_reserve_response(struct iscsi_cmnd *cmnd)
 
 static void build_release_response(struct iscsi_cmnd *cmnd)
 {
-	if (volume_release(cmnd->lun,
-			   cmnd->conn->session->sid, 0))
+	int ret = volume_release(cmnd->lun,
+				 cmnd->conn->session->sid, 0);
+	switch (ret) {
+	case -ENOENT:
+		/* Logical Unit Not Supported (?) */
+		iscsi_cmnd_set_sense(cmnd, ILLEGAL_REQUEST, 0x25, 0x0);
+		break;
+	case -EBUSY:
 		cmnd->status = SAM_STAT_RESERVATION_CONFLICT;
+		break;
+	default:
+		break;
+	}
 }
 
 static void build_reservation_conflict_response(struct iscsi_cmnd *cmnd)
@@ -475,8 +491,9 @@ static int disk_check_reservation(struct iscsi_cmnd *cmnd)
 {
 	struct iscsi_scsi_cmd_hdr *req = cmnd_hdr(cmnd);
 
-	if (is_volume_reserved(cmnd->lun,
-			       cmnd->conn->session->sid)) {
+	int ret = is_volume_reserved(cmnd->lun,
+				     cmnd->conn->session->sid);
+	if (ret == -EBUSY) {
 		switch (req->scb[0]) {
 		case INQUIRY:
 		case RELEASE:

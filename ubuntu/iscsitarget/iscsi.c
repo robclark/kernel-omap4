@@ -345,6 +345,8 @@ void iscsi_cmnd_set_sense(struct iscsi_cmnd *cmnd, u8 sense_key, u8 asc,
 	cmnd->sense_buf[7] = 6;	// Additional sense length
 	cmnd->sense_buf[12] = asc;
 	cmnd->sense_buf[13] = ascq;
+
+	/* Call to ACA/UAI handler */
 }
 
 static struct iscsi_cmnd *create_sense_rsp(struct iscsi_cmnd *req,
@@ -534,10 +536,20 @@ static int check_cmd_sn(struct iscsi_cmnd *cmnd)
 	u32 cmd_sn;
 
 	cmnd->pdu.bhs.sn = cmd_sn = be32_to_cpu(cmnd->pdu.bhs.sn);
-	dprintk(D_GENERIC, "%d(%d)\n", cmd_sn, session->exp_cmd_sn);
-	if ((s32)(cmd_sn - session->exp_cmd_sn) >= 0)
+
+	dprintk(D_GENERIC, "cmd_sn(%u) exp_cmd_sn(%u) max_cmd_sn(%u)\n",
+		cmd_sn, session->exp_cmd_sn, session->max_cmd_sn);
+
+	if  (between(cmd_sn, session->exp_cmd_sn, session->max_cmd_sn))
 		return 0;
-	eprintk("sequence error (%x,%x)\n", cmd_sn, session->exp_cmd_sn);
+	else if (cmnd_immediate(cmnd))
+		return 0;
+
+	eprintk("sequence error: cmd_sn(%u) exp_cmd_sn(%u) max_cmd_sn(%u)\n",
+		cmd_sn, session->exp_cmd_sn, session->max_cmd_sn);
+
+	set_cmnd_tmfabort(cmnd);
+
 	return -ISCSI_REASON_PROTOCOL_ERROR;
 }
 
@@ -609,7 +621,8 @@ static int cmnd_insert_hash(struct iscsi_cmnd *cmnd)
 	if (!err) {
 		update_stat_sn(cmnd);
 		err = check_cmd_sn(cmnd);
-	}
+	} else if (!cmnd_immediate(cmnd))
+		set_cmnd_tmfabort(cmnd);
 
 	return err;
 }
@@ -826,15 +839,12 @@ static void send_r2t(struct iscsi_cmnd *req)
 
 static void scsi_cmnd_exec(struct iscsi_cmnd *cmnd)
 {
-	if (cmnd->r2t_length) {
-		if (!cmnd->is_unsolicited_data)
-			send_r2t(cmnd);
+	assert(!cmnd->r2t_length);
+
+	if (cmnd->lun) {
+		iscsi_scsi_queuecmnd(cmnd);
 	} else {
-		if (cmnd->lun) {
-			iscsi_scsi_queuecmnd(cmnd);
-		} else {
-			iscsi_device_queue_cmnd(cmnd);
-		}
+		iscsi_device_queue_cmnd(cmnd);
 	}
 }
 
@@ -864,7 +874,7 @@ static int nop_out_start(struct iscsi_conn *conn, struct iscsi_cmnd *cmnd)
 	}
 
 	if (cmnd_itt(cmnd) == cpu_to_be32(ISCSI_RESERVED_TAG)) {
-		if (!(cmnd->pdu.bhs.opcode & ISCSI_OP_IMMEDIATE))
+		if (!cmnd_immediate(cmnd))
 			eprintk("%s\n", "initiator bug!");
 		update_stat_sn(cmnd);
 		err = check_cmd_sn(cmnd);
@@ -1093,6 +1103,8 @@ skip_data:
 	return;
 }
 
+static void iscsi_session_push_cmnd(struct iscsi_cmnd *cmnd);
+
 static void data_out_end(struct iscsi_conn *conn, struct iscsi_cmnd *cmnd)
 {
 	struct iscsi_data_out_hdr *req = (struct iscsi_data_out_hdr *) &cmnd->pdu.bhs;
@@ -1116,8 +1128,7 @@ static void data_out_end(struct iscsi_conn *conn, struct iscsi_cmnd *cmnd)
 	if (req->ttt == cpu_to_be32(ISCSI_RESERVED_TAG)) {
 		if (req->flags & ISCSI_FLG_FINAL) {
 			scsi_cmnd->is_unsolicited_data = 0;
-			if (!cmnd_pending(scsi_cmnd))
-				scsi_cmnd_exec(scsi_cmnd);
+			iscsi_session_push_cmnd(scsi_cmnd);
 		}
 	} else {
 		/* TODO : proper error handling */
@@ -1132,7 +1143,7 @@ static void data_out_end(struct iscsi_conn *conn, struct iscsi_cmnd *cmnd)
 		if (scsi_cmnd->r2t_length == 0)
 			assert(list_empty(&scsi_cmnd->pdu_list));
 
-		scsi_cmnd_exec(scsi_cmnd);
+		iscsi_session_push_cmnd(scsi_cmnd);
 	}
 
 out:
@@ -1140,35 +1151,64 @@ out:
 	return;
 }
 
-static int __cmnd_abort(struct iscsi_cmnd *cmnd)
+static void __cmnd_abort(struct iscsi_cmnd *cmnd)
 {
+	if (cmnd_rxstart(cmnd))
+		set_cmnd_tmfabort(cmnd);
+
 	if (cmnd_waitio(cmnd))
-		return -ISCSI_RESPONSE_UNKNOWN_TASK;
+		return;
 
 	if (cmnd->conn->read_cmnd != cmnd)
 		cmnd_release(cmnd, 1);
-	else if (cmnd_rxstart(cmnd))
-		set_cmnd_tmfabort(cmnd);
-	else
-		return -ISCSI_RESPONSE_UNKNOWN_TASK;
-
-	return 0;
 }
 
-static int cmnd_abort(struct iscsi_session *session, u32 itt)
+static int cmnd_abort(struct iscsi_session *session, struct iscsi_cmnd *req)
 {
+	struct iscsi_task_mgt_hdr *req_hdr =
+				(struct iscsi_task_mgt_hdr *)&req->pdu.bhs;
 	struct iscsi_cmnd *cmnd;
-	int err =  -ISCSI_RESPONSE_UNKNOWN_TASK;
 
-	if ((cmnd = cmnd_find_hash(session, itt, ISCSI_RESERVED_TAG))) {
-		eprintk("%x %x %x %u %u %u %u\n", cmnd_itt(cmnd), cmnd_opcode(cmnd),
-			cmnd->r2t_length, cmnd_scsicode(cmnd),
-			cmnd_write_size(cmnd), cmnd->is_unsolicited_data,
-			cmnd->outstanding_r2t);
-		err = __cmnd_abort(cmnd);
+	u32 min_cmd_sn = req_hdr->cmd_sn - session->max_queued_cmnds;
+
+	req_hdr->ref_cmd_sn = be32_to_cpu(req_hdr->ref_cmd_sn);
+
+	dprintk(D_GENERIC, "cmd_sn(%u) ref_cmd_sn(%u) min_cmd_sn(%u) rtt(%x)"
+		" lun(%d) cid(%u)\n",
+		req_hdr->cmd_sn, req_hdr->ref_cmd_sn, min_cmd_sn, req_hdr->rtt,
+		translate_lun(req_hdr->lun), req->conn->cid);
+
+	if (after(req_hdr->ref_cmd_sn, req_hdr->cmd_sn))
+		return ISCSI_RESPONSE_FUNCTION_REJECTED;
+
+	if (!(cmnd = cmnd_find_hash(session, req_hdr->rtt, ISCSI_RESERVED_TAG))) {
+		if (between(req_hdr->ref_cmd_sn, min_cmd_sn, req_hdr->cmd_sn))
+			return ISCSI_RESPONSE_FUNCTION_COMPLETE;
+		else
+			return ISCSI_RESPONSE_UNKNOWN_TASK;
 	}
 
-	return err;
+	dprintk(D_GENERIC, "itt(%x) opcode(%x) scsicode(%x) lun(%d) cid(%u)\n",
+		cmnd_itt(cmnd), cmnd_opcode(cmnd), cmnd_scsicode(cmnd),
+		translate_lun(cmnd_hdr(cmnd)->lun), cmnd->conn->cid);
+
+	if (cmnd_opcode(cmnd) == ISCSI_OP_SCSI_TASK_MGT_MSG)
+		return ISCSI_RESPONSE_FUNCTION_REJECTED;
+
+	if (translate_lun(cmnd_hdr(cmnd)->lun) !=
+						translate_lun(req_hdr->lun))
+		return ISCSI_RESPONSE_FUNCTION_REJECTED;
+
+	if (cmnd->conn && test_bit(CONN_ACTIVE, &cmnd->conn->state)) {
+		if (cmnd->conn->cid != req->conn->cid)
+			return ISCSI_RESPONSE_FUNCTION_REJECTED;
+	} else {
+		/* Switch cmnd connection allegiance */
+	}
+
+	__cmnd_abort(cmnd);
+
+	return ISCSI_RESPONSE_FUNCTION_COMPLETE;
 }
 
 static int target_reset(struct iscsi_cmnd *req, u32 lun, int all)
@@ -1187,7 +1227,8 @@ static int target_reset(struct iscsi_cmnd *req, u32 lun, int all)
 
 				if (all)
 					__cmnd_abort(cmnd);
-				else if (translate_lun(cmnd_hdr(cmnd)->lun) == lun)
+				else if (translate_lun(cmnd_hdr(cmnd)->lun)
+									== lun)
 					__cmnd_abort(cmnd);
 			}
 		}
@@ -1214,7 +1255,12 @@ static void task_set_abort(struct iscsi_cmnd *req)
 
 	list_for_each_entry(conn, &session->conn_list, list) {
 		list_for_each_entry_safe(cmnd, tmp, &conn->pdu_list, conn_list) {
-			if (cmnd != req)
+			if (translate_lun(cmnd_hdr(cmnd)->lun)
+					!= translate_lun(cmnd_hdr(req)->lun))
+				continue;
+
+			if (before(cmnd_hdr(cmnd)->cmd_sn,
+					cmnd_hdr(req)->cmd_sn))
 				__cmnd_abort(cmnd);
 		}
 	}
@@ -1274,7 +1320,7 @@ static void execute_task_management(struct iscsi_cmnd *req)
 	struct iscsi_task_mgt_hdr *req_hdr = (struct iscsi_task_mgt_hdr *)&req->pdu.bhs;
 	struct iscsi_task_rsp_hdr *rsp_hdr;
 	u32 lun;
-	int err, function = req_hdr->function & ISCSI_FUNCTION_MASK;
+	int function = req_hdr->function & ISCSI_FUNCTION_MASK;
 
 	rsp = iscsi_cmnd_create_rsp_cmnd(req, 1);
 	rsp_hdr = (struct iscsi_task_rsp_hdr *)&rsp->pdu.bhs;
@@ -1299,8 +1345,7 @@ static void execute_task_management(struct iscsi_cmnd *req)
 
 	switch (function) {
 	case ISCSI_FUNCTION_ABORT_TASK:
-		if ((err = cmnd_abort(conn->session, req_hdr->rtt)) < 0)
-			rsp_hdr->response = -err;
+		rsp_hdr->response = cmnd_abort(conn->session, req);
 		break;
 	case ISCSI_FUNCTION_ABORT_TASK_SET:
 		task_set_abort(req);
@@ -1443,7 +1488,7 @@ static void nop_in_tx_end(struct iscsi_cmnd *cmnd)
 		conn->session->target->trgt_param.nop_timeout = t;
 	}
 
-	dprintk(D_GENERIC, "NOP-In %p, %x: timer %p\n",	cmnd, cmnd_ttt(cmnd),
+	dprintk(D_GENERIC, "NOP-In %p, %x: timer %p\n", cmnd, cmnd_ttt(cmnd),
 		&cmnd->req->timer);
 
 	set_cmnd_timer_active(cmnd->req);
@@ -1700,10 +1745,16 @@ static void iscsi_session_push_cmnd(struct iscsi_cmnd *cmnd)
 	struct list_head *entry;
 	u32 cmd_sn;
 
+	if (cmnd->r2t_length) {
+		if (!cmnd->is_unsolicited_data)
+			send_r2t(cmnd);
+		return;
+	}
+
 	dprintk(D_GENERIC, "%p:%x %u,%u\n",
 		cmnd, cmnd_opcode(cmnd), cmnd->pdu.bhs.sn, session->exp_cmd_sn);
 
-	if (cmnd->pdu.bhs.opcode & ISCSI_OP_IMMEDIATE) {
+	if (cmnd_immediate(cmnd)) {
 		iscsi_cmnd_exec(cmnd);
 		return;
 	}
@@ -1716,24 +1767,16 @@ static void iscsi_session_push_cmnd(struct iscsi_cmnd *cmnd)
 
 			if (list_empty(&session->pending_list))
 				break;
+
 			cmnd = list_entry(session->pending_list.next, struct iscsi_cmnd, list);
 			if (cmnd->pdu.bhs.sn != cmd_sn)
 				break;
-/* 			eprintk("find out-of-order %x %u %u\n", */
-/* 				cmnd_itt(cmnd), cmd_sn, cmnd->pdu.bhs.sn); */
+
 			list_del_init(&cmnd->list);
 			clear_cmnd_pending(cmnd);
 		}
 	} else {
-/* 		eprintk("out-of-order %x %u %u\n", */
-/* 			cmnd_itt(cmnd), cmd_sn, session->exp_cmd_sn); */
-
 		set_cmnd_pending(cmnd);
-		if (before(cmd_sn, session->exp_cmd_sn)) /* close the conn */
-			eprintk("unexpected cmd_sn (%u,%u)\n", cmd_sn, session->exp_cmd_sn);
-
-		if (after(cmd_sn, session->exp_cmd_sn + session->max_queued_cmnds))
-			eprintk("too large cmd_sn (%u,%u)\n", cmd_sn, session->exp_cmd_sn);
 
 		list_for_each(entry, &session->pending_list) {
 			struct iscsi_cmnd *tmp = list_entry(entry, struct iscsi_cmnd, list);

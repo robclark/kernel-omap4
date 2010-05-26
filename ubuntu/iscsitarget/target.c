@@ -192,21 +192,23 @@ out:
 
 int target_add(struct target_info *info)
 {
-	int err = -EEXIST;
 	u32 tid = info->tid;
+	int err;
 
-	down(&target_list_sem);
+	err = down_interruptible(&target_list_sem);
+	if (err < 0)
+		return err;
 
 	if (nr_targets > MAX_NR_TARGETS) {
 		err = -EBUSY;
 		goto out;
 	}
 
-	if (__target_lookup_by_name(info->name))
+	if (__target_lookup_by_name(info->name) || 
+			(tid && __target_lookup_by_id(tid))) {
+		err = -EEXIST;
 		goto out;
-
-	if (tid && __target_lookup_by_id(tid))
-		goto out;
+	}
 
 	if (!tid) {
 		do {
@@ -217,7 +219,8 @@ int target_add(struct target_info *info)
 		tid = next_target_id;
 	}
 
-	if (!(err = iscsi_target_create(info, tid)))
+	err = iscsi_target_create(info, tid);
+	if (!err)
 		nr_targets++;
 out:
 	up(&target_list_sem);
@@ -246,13 +249,24 @@ static void target_destroy(struct iscsi_target *target)
 }
 
 /* @locking: target_list_sem must be locked */
-int __target_del(struct iscsi_target *target)
+static int __target_del(struct iscsi_target *target)
 {
+	int err;
+
 	target_lock(target, 0);
 
 	if (!list_empty(&target->session_list)) {
-		target_unlock(target);
-		return -EBUSY;
+		struct iscsi_session *session;
+
+		do {
+			session = list_entry(target->session_list.next,
+						struct iscsi_session, list);
+			err = session_del(target, session->sid);
+			if (err < 0) {
+				target_unlock(target);
+				return err;
+			}
+		} while (!list_empty(&target->session_list));
 	}
 
 	list_del(&target->t_list);
@@ -260,13 +274,16 @@ int __target_del(struct iscsi_target *target)
 
 	target_unlock(target);
 	target_destroy(target);
+
 	return 0;
 }
 
 int target_del(u32 id)
 {
 	struct iscsi_target *target;
-	int err = down_interruptible(&target_list_sem);
+	int err;
+
+	err = down_interruptible(&target_list_sem);
 	if (err < 0)
 		return err;
 
@@ -277,15 +294,16 @@ int target_del(u32 id)
 	}
 
 	err = __target_del(target);
- out:
+out:
 	up(&target_list_sem);
+
 	return err;
 }
 
 void target_del_all(void)
 {
-	DECLARE_COMPLETION_ONSTACK(done);
 	struct iscsi_target *target, *tmp;
+	int err;
 
 	down(&target_list_sem);
 
@@ -293,11 +311,10 @@ void target_del_all(void)
 		iprintk("Removing all connections, sessions and targets\n");
 
 	list_for_each_entry_safe(target, tmp, &target_list, t_list) {
-		init_completion(&done);
-		target->done = &done;
-		session_del_all(target);
-		wait_for_completion(&done);
-		__target_del(target);
+		u32 tid = target->tid;
+		err =__target_del(target);
+		if (err)
+			eprintk("Error deleteing target %u: %d\n", tid, err);
 	}
 
 	next_target_id = 0;

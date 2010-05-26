@@ -9,6 +9,8 @@
 #include "iscsi.h"
 #include "iscsi_dbg.h"
 
+static DECLARE_MUTEX(ioctl_sem);
+
 struct proc_entries {
 	const char *name;
 	struct file_operations *fops;
@@ -60,26 +62,45 @@ err:
 	return -ENOMEM;
 }
 
+static int get_module_info(unsigned long ptr)
+{
+	struct module_info info;
+	int err;
+
+	snprintf(info.version, sizeof(info.version), "%s", IET_VERSION_STRING);
+
+	err = copy_to_user((void *) ptr, &info, sizeof(info));
+	if (err)
+		return -EFAULT;
+
+	return 0;
+}
+
 static int get_conn_info(struct iscsi_target *target, unsigned long ptr)
 {
-	int err;
 	struct iscsi_session *session;
-	struct conn_info info;
 	struct iscsi_conn *conn;
+	struct conn_info info;
+	int err;
 
-	if ((err = copy_from_user(&info, (void *) ptr, sizeof(info))) < 0)
-		return err;
+	err = copy_from_user(&info, (void *) ptr, sizeof(info));
+	if (err)
+		return -EFAULT;
 
 	session = session_lookup(target, info.sid);
 	if (!session)
 		return -ENOENT;
+
 	conn = conn_lookup(session, info.cid);
+	if (!conn)
+		return -ENOENT;
 
 	info.cid = conn->cid;
 	info.stat_sn = conn->stat_sn;
 	info.exp_stat_sn = conn->exp_stat_sn;
 
-	if (copy_to_user((void *) ptr, &info, sizeof(info)))
+	err = copy_to_user((void *) ptr, &info, sizeof(info));
+	if (err)
 		return -EFAULT;
 
 	return 0;
@@ -87,14 +108,16 @@ static int get_conn_info(struct iscsi_target *target, unsigned long ptr)
 
 static int add_conn(struct iscsi_target *target, unsigned long ptr)
 {
-	int err;
 	struct iscsi_session *session;
 	struct conn_info info;
+	int err;
 
-	if ((err = copy_from_user(&info, (void *) ptr, sizeof(info))) < 0)
-		return err;
+	err = copy_from_user(&info, (void *) ptr, sizeof(info));
+	if (err)
+		return -EFAULT;
 
-	if (!(session = session_lookup(target, info.sid)))
+	session = session_lookup(target, info.sid);
+	if (!session)
 		return -ENOENT;
 
 	return conn_add(session, &info);
@@ -102,14 +125,16 @@ static int add_conn(struct iscsi_target *target, unsigned long ptr)
 
 static int del_conn(struct iscsi_target *target, unsigned long ptr)
 {
-	int err;
 	struct iscsi_session *session;
 	struct conn_info info;
+	int err;
 
-	if ((err = copy_from_user(&info, (void *) ptr, sizeof(info))) < 0)
-		return err;
+	err = copy_from_user(&info, (void *) ptr, sizeof(info));
+	if (err)
+		return -EFAULT;
 
-	if (!(session = session_lookup(target, info.sid)))
+	session = session_lookup(target, info.sid);
+	if (!session)
 		return -ENOENT;
 
 	return conn_del(session, &info);
@@ -117,22 +142,23 @@ static int del_conn(struct iscsi_target *target, unsigned long ptr)
 
 static int get_session_info(struct iscsi_target *target, unsigned long ptr)
 {
-	int err;
 	struct iscsi_session *session;
 	struct session_info info;
+	int err;
 
-	if ((err = copy_from_user(&info, (void *) ptr, sizeof(info))) < 0)
-		return err;
+	err = copy_from_user(&info, (void *) ptr, sizeof(info));
+	if (err)
+		return -EFAULT;
 
 	session = session_lookup(target, info.sid);
-
 	if (!session)
 		return -ENOENT;
 
 	info.exp_cmd_sn = session->exp_cmd_sn;
 	info.max_cmd_sn = session->max_cmd_sn;
 
-	if (copy_to_user((void *) ptr, &info, sizeof(info)))
+	err = copy_to_user((void *) ptr, &info, sizeof(info));
+	if (err)
 		return -EFAULT;
 
 	return 0;
@@ -140,78 +166,90 @@ static int get_session_info(struct iscsi_target *target, unsigned long ptr)
 
 static int add_session(struct iscsi_target *target, unsigned long ptr)
 {
-	int err;
 	struct session_info info;
+	int err;
 
-	if ((err = copy_from_user(&info, (void *) ptr, sizeof(info))) < 0)
-		return err;
+	err = copy_from_user(&info, (void *) ptr, sizeof(info));
+	if (err)
+		return -EFAULT;
 
 	return session_add(target, &info);
 }
 
 static int del_session(struct iscsi_target *target, unsigned long ptr)
 {
-	int err;
 	struct session_info info;
+	int err;
 
-	if ((err = copy_from_user(&info, (void *) ptr, sizeof(info))) < 0)
-		return err;
+	err = copy_from_user(&info, (void *) ptr, sizeof(info));
+	if (err)
+		return -EFAULT;
 
 	return session_del(target, info.sid);
 }
 
 static int add_volume(struct iscsi_target *target, unsigned long ptr)
 {
-	int err;
 	struct volume_info info;
+	int err;
 
-	if ((err = copy_from_user(&info, (void *) ptr, sizeof(info))) < 0)
-		return err;
+	err = copy_from_user(&info, (void *) ptr, sizeof(info));
+	if (err)
+		return -EFAULT;
 
 	return volume_add(target, &info);
 }
 
 static int del_volume(struct iscsi_target *target, unsigned long ptr)
 {
-	int err;
 	struct volume_info info;
+	int err;
 
-	if ((err = copy_from_user(&info, (void *) ptr, sizeof(info))) < 0)
-		return err;
+	err = copy_from_user(&info, (void *) ptr, sizeof(info));
+	if (err)
+		return -EFAULT;
 
 	return iscsi_volume_del(target, &info);
 }
 
 static int iscsi_param_config(struct iscsi_target *target, unsigned long ptr, int set)
 {
-	int err;
 	struct iscsi_param_info info;
+	int err;
 
-	if ((err = copy_from_user(&info, (void *) ptr, sizeof(info))) < 0)
-		goto out;
+	err = copy_from_user(&info, (void *) ptr, sizeof(info));
+	if (err)
+		return -EFAULT;
 
-	if ((err = iscsi_param_set(target, &info, set)) < 0)
-		goto out;
+	err = iscsi_param_set(target, &info, set);
+	if (err < 0 || set)
+		return err;
 
-	if (!set)
-		err = copy_to_user((void *) ptr, &info, sizeof(info));
+	err = copy_to_user((void *) ptr, &info, sizeof(info));
+	if (err)
+		return -EFAULT;
 
-out:
-	return err;
+	return 0;
 }
 
 static int add_target(unsigned long ptr)
 {
-	int err;
 	struct target_info info;
+	int err;
 
-	if ((err = copy_from_user(&info, (void *) ptr, sizeof(info))) < 0)
+	err = copy_from_user(&info, (void *) ptr, sizeof(info));
+	if (err)
+		return -EFAULT;
+
+	err = target_add(&info);
+	if (err < 0)
 		return err;
 
-	if (!(err = target_add(&info)))
-		err = copy_to_user((void *) ptr, &info, sizeof(info));
+	err = copy_to_user((void *) ptr, &info, sizeof(info));
+	if (err)
+		return -EFAULT;
 
-	return err;
+	return 0;
 }
 
 static long ioctl(struct file *file, unsigned int cmd, unsigned long arg)
@@ -220,40 +258,39 @@ static long ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	long err;
 	u32 id;
 
-	if ((err = get_user(id, (u32 *) arg)) != 0)
+	err = down_interruptible(&ioctl_sem);
+	if (err < 0)
+		return err;
+
+	if (cmd == GET_MODULE_INFO) {
+		err = get_module_info(arg);
+		goto done;
+	}
+
+	if (cmd == ADD_TARGET) {
+		err = add_target(arg);
+		goto done;
+	}
+
+	err = get_user(id, (u32 *) arg);
+	if (err < 0)
 		goto done;
 
+	/* locking handled in target_del */
 	if (cmd == DEL_TARGET) {
 		err = target_del(id);
 		goto done;
 	}
 
 	target = target_lookup_by_id(id);
-
-	if (cmd == ADD_TARGET)
-		if (target) {
-			err = -EEXIST;
-			eprintk("Target %u already exist!\n", id);
-			goto done;
-		}
-
-	switch (cmd) {
-	case ADD_TARGET:
-		assert(!target);
-		err = add_target(arg);
-		goto done;
-	}
-
 	if (!target) {
-		eprintk("can't find the target %u\n", id);
-		err = -EINVAL;
+		err = -ENOENT;
 		goto done;
 	}
 
-	if ((err = target_lock(target, 1)) < 0) {
-		eprintk("interrupted %ld %d\n", err, cmd);
+	err = target_lock(target, 1);
+	if (err < 0)
 		goto done;
-	}
 
 	switch (cmd) {
 	case ADD_VOLUME:
@@ -300,17 +337,20 @@ static long ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		err = -EINVAL;
 	}
 
-	if (target)
-		target_unlock(target);
-
+	target_unlock(target);
 done:
+	up(&ioctl_sem);
+
 	return err;
 }
 
 static int release(struct inode *i __attribute__((unused)),
 		   struct file *f __attribute__((unused)))
 {
+	down(&ioctl_sem);
 	target_del_all();
+	up(&ioctl_sem);
+
 	return 0;
 }
 

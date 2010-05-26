@@ -109,6 +109,7 @@ void ua_establish_for_session(struct iscsi_session *sess, u32 lun,
 {
 	struct list_head *l = &sess->ua_hash[ua_hashfn(lun)];
 	struct ua_entry *ua = kmem_cache_alloc(ua_cache, GFP_KERNEL);
+	struct ua_entry *e;
 
 	if (!ua) {
 		eprintk("%s", "Failed to alloc ua");
@@ -119,8 +120,19 @@ void ua_establish_for_session(struct iscsi_session *sess, u32 lun,
 	ua->ascq = ascq;
 	ua->lun = lun;
 	ua->session = sess;
+	INIT_LIST_HEAD(&ua->entry);
 
 	spin_lock(&sess->ua_hash_lock);
+	/* One UA per occurrence of an event */
+	list_for_each_entry(e, l, entry) {
+		if (e->session == sess && e->lun == lun &&
+				e->asc == asc && e->ascq == ascq &&
+				e->session->exp_cmd_sn == sess->exp_cmd_sn) {
+			spin_unlock(&sess->ua_hash_lock);
+			ua_free(ua);
+			return;
+		}
+	}
 	list_add_tail(&ua->entry, l);
 	spin_unlock(&sess->ua_hash_lock);
 

@@ -67,6 +67,15 @@ static int worker_thread(void *arg)
 	struct iscsi_conn *conn;
 	DECLARE_WAITQUEUE(wait, current);
 
+	get_io_context(GFP_KERNEL, -1);
+
+	if (!current->io_context)
+		eprintk("%s\n", "Failed to get IO context");
+	else if (info->wthread_ioc)
+		copy_io_context(&current->io_context, &info->wthread_ioc);
+	else
+		info->wthread_ioc = current->io_context;
+
 	add_wait_queue(&info->wthread_sleep, &wait);
 
 	__set_current_state(TASK_RUNNING);
@@ -74,12 +83,15 @@ static int worker_thread(void *arg)
 		while (!list_empty(&info->work_queue) &&
 		       (cmnd = get_ready_cmnd(info))) {
 			conn = cmnd->conn;
-			cmnd_execute(cmnd);
+			if (cmnd_tmfabort(cmnd))
+				cmnd_release(cmnd, 1);
+			else
+				cmnd_execute(cmnd);
 			assert(conn);
 			atomic_dec(&conn->nr_busy_cmnds);
 		}
 
-		__set_current_state(TASK_INTERRUPTIBLE);
+		set_current_state(TASK_INTERRUPTIBLE);
 		if (list_empty(&info->work_queue))
 			schedule();
 
@@ -87,6 +99,16 @@ static int worker_thread(void *arg)
 	} while (!kthread_should_stop());
 
 	remove_wait_queue(&info->wthread_sleep, &wait);
+
+	if (current->io_context) {
+		struct io_context *ioc = current->io_context;
+
+		task_lock(current);
+		current->io_context = NULL;
+		task_unlock(current);
+
+		put_io_context(ioc);
+	}
 
 	return 0;
 }
@@ -138,6 +160,7 @@ int wthread_init(struct worker_thread_info *info)
 	spin_lock_init(&info->wthread_lock);
 
 	info->nr_running_wthreads = 0;
+	info->wthread_ioc = NULL;
 
 	INIT_LIST_HEAD(&info->work_queue);
 	INIT_LIST_HEAD(&info->wthread_list);

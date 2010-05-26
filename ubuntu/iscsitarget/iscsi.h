@@ -8,6 +8,7 @@
 #ifndef __ISCSI_H__
 #define __ISCSI_H__
 
+#include <linux/blkdev.h>
 #include <linux/completion.h>
 #include <linux/pagemap.h>
 #include <linux/seq_file.h>
@@ -92,6 +93,8 @@ struct worker_thread_info {
 	struct list_head work_queue;
 
 	wait_queue_head_t wthread_sleep;
+
+	struct io_context *wthread_ioc;
 };
 
 struct iscsi_cmnd;
@@ -127,7 +130,6 @@ struct iscsi_target {
 	struct worker_thread_info * wthread_info;
 
 	struct semaphore target_sem;
-	struct completion *done;
 };
 
 struct iscsi_queue {
@@ -149,7 +151,7 @@ struct iet_volume {
 	struct iscsi_queue queue;
 
 	u8 scsi_id[SCSI_ID_LEN];
-	u8 scsi_sn[SCSI_SN_LEN];
+	u8 scsi_sn[SCSI_SN_LEN + 1];
 
 	u32 blk_shift;
 	u64 blk_cnt;
@@ -336,7 +338,6 @@ extern void send_nop_in(struct iscsi_conn *);
 extern struct iscsi_conn *conn_lookup(struct iscsi_session *, u16);
 extern int conn_add(struct iscsi_session *, struct conn_info *);
 extern int conn_del(struct iscsi_session *, struct conn_info *);
-extern void conn_del_all(struct iscsi_session *);
 extern int conn_free(struct iscsi_conn *);
 extern void conn_close(struct iscsi_conn *);
 extern void conn_info_show(struct seq_file *, struct iscsi_session *);
@@ -377,7 +378,6 @@ extern struct file_operations session_seq_fops;
 extern struct iscsi_session *session_lookup(struct iscsi_target *, u64);
 extern int session_add(struct iscsi_target *, struct session_info *);
 extern int session_del(struct iscsi_target *, u64);
-extern void session_del_all(struct iscsi_target *);
 
 /* volume.c */
 extern struct file_operations volume_seq_fops;
@@ -464,8 +464,11 @@ static inline void iscsi_cmnd_set_length(struct iscsi_pdu *pdu)
 #define cmnd_itt(cmnd) cpu_to_be32((cmnd)->pdu.bhs.itt)
 #define cmnd_opcode(cmnd) ((cmnd)->pdu.bhs.opcode & ISCSI_OPCODE_MASK)
 #define cmnd_scsicode(cmnd) cmnd_hdr(cmnd)->scb[0]
+#define cmnd_immediate(cmnd) ((cmnd)->pdu.bhs.opcode & ISCSI_OP_IMMEDIATE)
 
-#define	SECTOR_SIZE_BITS	9
+/* default and maximum scsi level block sizes */
+#define IET_DEF_BLOCK_SIZE	512
+#define IET_MAX_BLOCK_SIZE	4096
 
 enum cmnd_flags {
 	CMND_hashed,

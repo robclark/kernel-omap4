@@ -209,6 +209,7 @@ static int recv(struct iscsi_conn *conn)
 	hdigest = conn->hdigest_type & DIGEST_NONE ? 0 : 1;
 	ddigest = conn->ddigest_type & DIGEST_NONE ? 0 : 1;
 
+next_state:
 	switch (conn->read_state) {
 	case RX_INIT_BHS:
 		assert(!cmnd);
@@ -270,7 +271,7 @@ static int recv(struct iscsi_conn *conn)
 		return res;
 
 	if (conn->read_state != RX_END)
-		return res;
+		goto next_state;
 
 	if (conn->read_size) {
 		eprintk("%d %x %d\n", res, cmnd_opcode(cmnd), conn->read_size);
@@ -525,6 +526,7 @@ static int send(struct iscsi_conn *conn)
 
 	ddigest = conn->ddigest_type != DIGEST_NONE ? 1 : 0;
 
+next_state:
 	switch (conn->write_state) {
 	case TX_INIT:
 		assert(!cmnd);
@@ -555,7 +557,7 @@ static int send(struct iscsi_conn *conn)
 		return res;
 
 	if (conn->write_state != TX_END)
-		return res;
+		goto next_state;
 
 	if (conn->write_size) {
 		eprintk("%d %x %u\n", res, cmnd_opcode(cmnd), conn->write_size);

@@ -1,7 +1,7 @@
 #ifndef _IET_U_H
 #define _IET_U_H
 
-#define IET_VERSION_STRING	"1.4.19"
+#define IET_VERSION_STRING	"1.4.20.1"
 
 /* The maximum length of 223 bytes in the RFC. */
 #define ISCSI_NAME_LEN	256
@@ -9,13 +9,16 @@
 
 #define ISCSI_LISTEN_PORT	3260
 
-#define VENDOR_ID_LEN	8
-#define SCSI_ID_LEN	24
-#define SCSI_SN_LEN	16
+#define SCSI_ID_LEN	16
+#define SCSI_SN_LEN	(SCSI_ID_LEN * 2)
 
 #ifndef aligned_u64
 #define aligned_u64 unsigned long long __attribute__((aligned(8)))
 #endif
+
+struct module_info {
+	char version[128];
+};
 
 struct target_info {
 	u32 tid;
@@ -131,19 +134,18 @@ struct iet_event {
 
 #define NETLINK_IET	21
 
-#define ADD_TARGET _IOW('i', 0, struct target_info)
-#define DEL_TARGET _IOW('i', 1, struct target_info)
-#define START_TARGET _IO('i', 2)
-#define STOP_TARGET _IO('i', 3)
-#define ADD_VOLUME _IOW('i', 4, struct volume_info)
-#define DEL_VOLUME _IOW('i', 5, struct volume_info)
-#define ADD_SESSION _IOW('i', 6, struct session_info)
-#define DEL_SESSION _IOW('i', 7, struct session_info)
-#define GET_SESSION_INFO _IOWR('i', 8, struct session_info)
-#define ADD_CONN _IOW('i', 9, struct conn_info)
-#define DEL_CONN _IOW('i', 10, struct conn_info)
-#define GET_CONN_INFO _IOWR('i', 11, struct conn_info)
-#define ISCSI_PARAM_SET _IOW('i', 12, struct iscsi_param_info)
-#define ISCSI_PARAM_GET _IOWR('i', 13, struct iscsi_param_info)
+#define GET_MODULE_INFO _IOW('i', 20, struct module_info)
+#define ADD_TARGET _IOWR('i', 21, struct target_info)
+#define DEL_TARGET _IOW('i', 22, struct target_info)
+#define ADD_VOLUME _IOW('i', 24, struct volume_info)
+#define DEL_VOLUME _IOW('i', 25, struct volume_info)
+#define ADD_SESSION _IOW('i', 26, struct session_info)
+#define DEL_SESSION _IOW('i', 27, struct session_info)
+#define GET_SESSION_INFO _IOWR('i', 28, struct session_info)
+#define ADD_CONN _IOW('i', 29, struct conn_info)
+#define DEL_CONN _IOW('i', 30, struct conn_info)
+#define GET_CONN_INFO _IOWR('i', 31, struct conn_info)
+#define ISCSI_PARAM_SET _IOW('i', 32, struct iscsi_param_info)
+#define ISCSI_PARAM_GET _IOWR('i', 33, struct iscsi_param_info)
 
 #endif

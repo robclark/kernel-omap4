@@ -86,7 +86,8 @@ blockio_make_request(struct iet_volume *volume, struct tio *tio, int rw)
 			goto out;
 		}
 
-		bio->bi_sector = ppos >> volume->blk_shift;
+		/* bi_sector is ALWAYS in units of 512 bytes */
+		bio->bi_sector = ppos >> 9;
 		bio->bi_bdev = bio_data->bdev;
 		bio->bi_end_io = blockio_bio_endio;
 		bio->bi_private = tio_work;
@@ -174,77 +175,21 @@ blockio_open_path(struct iet_volume *volume, const char *path)
 	return err;
 }
 
-static int
-set_scsiid(struct iet_volume *volume, const char *id)
-{
-	size_t len;
-
-	if ((len = strlen(id)) > SCSI_ID_LEN - VENDOR_ID_LEN) {
-		eprintk("SCSI ID too long, %zd provided, %u max\n", len,
-			SCSI_ID_LEN - VENDOR_ID_LEN);
-		return -EINVAL;
-	}
-
-	memcpy(volume->scsi_id + VENDOR_ID_LEN, id, len);
-
-	return 0;
-}
-
-static void
-gen_scsiid(struct iet_volume *volume, struct inode *inode)
-{
-	int i;
-	u32 *p;
-
-	strlcpy(volume->scsi_id, VENDOR_ID, VENDOR_ID_LEN);
-
-	for (i = VENDOR_ID_LEN; i < SCSI_ID_LEN; i++)
-		if (volume->scsi_id[i])
-			return;
-
-	/* If a scsi id doesn't exist generate a 16 byte one:
-	 * Bytes   1-4: target type
-	 * Bytes   5-8: target id
-	 * Bytes  9-12: inode number
-	 * Bytes 13-16: device type
-	 */
-	p = (u32 *) (volume->scsi_id + VENDOR_ID_LEN);
-	*(p + 0) = volume->target->trgt_param.target_type;
-	*(p + 1) = volume->target->tid;
-	*(p + 2) = volume->lun;
-	*(p + 3) = (unsigned int) inode->i_sb->s_dev;
-}
-
-static int
-set_scsisn(struct iet_volume *volume, const char *sn)
-{
-	size_t len;
-
-	if ((len = strlen(sn)) > SCSI_SN_LEN) {
-		eprintk("SCSI SN too long, %zd provided, %u max\n", len,
-			SCSI_SN_LEN);
-		return -EINVAL;
-	}
-
-	memcpy(volume->scsi_sn, sn, len);
-
-	return 0;
-}
-
 /* Create an enumeration of our accepted actions */
 enum
 {
-	Opt_scsiid, Opt_scsisn, Opt_path, Opt_ignore, Opt_err,
+	opt_path, opt_ignore, opt_err,
 };
 
 /* Create a match table using our action enums and their matching options */
 static match_table_t tokens = {
-	{Opt_scsiid, "ScsiId=%s"},
-	{Opt_scsisn, "ScsiSN=%s"},
-	{Opt_path, "Path=%s"},
-	{Opt_ignore, "Type=%s"},
-	{Opt_ignore, "IOMode=%s"},
-	{Opt_err, NULL},
+	{opt_path, "path=%s"},
+	{opt_ignore, "scsiid=%s"},
+	{opt_ignore, "scsisn=%s"},
+	{opt_ignore, "type=%s"},
+	{opt_ignore, "iomode=%s"},
+	{opt_ignore, "blocksize=%s"},
+	{opt_err, NULL},
 };
 
 static int
@@ -262,29 +207,10 @@ parse_blockio_params(struct iet_volume *volume, char *params)
 		int token;
 		if (!*p)
 			continue;
+		iet_strtolower(p);
 		token = match_token(p, tokens, args);
 		switch (token) {
-		case Opt_scsiid:
-			if (!(q = match_strdup(&args[0]))) {
-				err = -ENOMEM;
-				goto out;
-			}
-			err = set_scsiid(volume, q);
-			kfree(q);
-			if (err < 0)
-				goto out;
-			break;
-		case Opt_scsisn:
-			if (!(q = match_strdup(&args[0]))) {
-				err = -ENOMEM;
-				goto out;
-			}
-			err = set_scsisn(volume, q);
-			kfree(q);
-			if (err < 0)
-				goto out;
-			break;
-		case Opt_path:
+		case opt_path:
 			if (info->path) {
 				iprintk("Target %s, LUN %u: "
 					"duplicate \"Path\" param\n",
@@ -301,7 +227,7 @@ parse_blockio_params(struct iet_volume *volume, char *params)
 			if (err < 0)
 				goto out;
 			break;
-		case Opt_ignore:
+		case opt_ignore:
 			break;
 		default:
 			iprintk("Target %s, LUN %u: unknown param %s\n",
@@ -315,6 +241,7 @@ parse_blockio_params(struct iet_volume *volume, char *params)
 			volume->target->name, volume->lun);
 		err = -EINVAL;
 	}
+
   out:
 	return err;
 }
@@ -350,21 +277,30 @@ blockio_attach(struct iet_volume *volume, char *args)
 
 	volume->private = bio_data;
 
-	if ((err = parse_blockio_params(volume, args)) < 0) {
+	err = parse_blockio_params(volume, args);
+	if (!err) {
+		/* see Documentation/ABI/testing/sysfs-block */
+		unsigned bsz = bdev_logical_block_size(bio_data->bdev);
+		if (!volume->blk_shift)
+			volume->blk_shift = ilog2(bsz);
+		else if (volume->blk_shift < ilog2(bsz)) {
+			eprintk("Specified block size (%u) smaller than "
+				"device %s logical block size (%u)\n",
+				(1 << volume->blk_shift), bio_data->path, bsz);
+			err = -EINVAL;
+		}
+	}
+	if (err < 0) {
 		eprintk("Error attaching Lun %u to Target %s \n",
 			volume->lun, volume->target->name);
 		goto out;
 	}
 
-	/* Assign a vendor id, generate scsi id if none exists */
-	gen_scsiid(volume, bio_data->bdev->bd_inode);
+	volume->blk_cnt = bio_data->bdev->bd_inode->i_size >> volume->blk_shift;
 
 	/* Offer neither write nor read caching */
 	ClearLURCache(volume);
 	ClearLUWCache(volume);
-
-	volume->blk_shift = SECTOR_SIZE_BITS;
-	volume->blk_cnt = bio_data->bdev->bd_inode->i_size >> volume->blk_shift;
 
   out:
 	if (err < 0)

@@ -53,9 +53,9 @@ static int fileio_make_request(struct iet_volume *lu, struct tio *tio, int rw)
 		set_fs(get_ds());
 
 		if (rw == READ)
-			ret = do_sync_read(filp, buf, count, &ppos);
+			ret = vfs_read(filp, buf, count, &ppos);
 		else
-			ret = do_sync_write(filp, buf, count, &ppos);
+			ret = vfs_write(filp, buf, count, &ppos);
 
 		set_fs(oldfs);
 
@@ -82,6 +82,7 @@ static int fileio_sync(struct iet_volume *lu, struct tio *tio)
 
 	if (tio) {
 		ppos = (loff_t) tio->idx << PAGE_CACHE_SHIFT;
+		ppos += tio->offset;
 		count = tio->size;
 	} else {
 		ppos = 0;
@@ -124,63 +125,18 @@ static int open_path(struct iet_volume *volume, const char *path)
 	return err;
 }
 
-static int set_scsiid(struct iet_volume *volume, const char *id)
-{
-	size_t len;
-
-	if ((len = strlen(id)) > SCSI_ID_LEN - VENDOR_ID_LEN) {
-		eprintk("SCSI ID too long, %zd provided, %u max\n", len,
-			SCSI_ID_LEN - VENDOR_ID_LEN);
-		return -EINVAL;
-	}
-
-	memcpy(volume->scsi_id + VENDOR_ID_LEN, id, len);
-
-	return 0;
-}
-
-static void gen_scsiid(struct iet_volume *volume, struct inode *inode)
-{
-	int i;
-	u32 *p;
-
-	strlcpy(volume->scsi_id, VENDOR_ID, VENDOR_ID_LEN);
-
-	for (i = VENDOR_ID_LEN; i < SCSI_ID_LEN; i++)
-		if (volume->scsi_id[i])
-			return;
-
-	p = (u32 *) (volume->scsi_id + VENDOR_ID_LEN);
-	*(p + 0) = volume->target->trgt_param.target_type;
-	*(p + 1) = volume->target->tid;
-	*(p + 2) = (unsigned int) inode->i_ino;
-	*(p + 3) = (unsigned int) inode->i_sb->s_dev;
-}
-
-static int set_scsisn(struct iet_volume *volume, const char *sn)
-{
-	size_t len;
-
-	if ((len = strlen(sn)) > SCSI_SN_LEN) {
-		eprintk("SCSI SN too long, %zd provided, %u max\n", len,
-			SCSI_SN_LEN);
-		return -EINVAL;
-	}
-	memcpy(volume->scsi_sn, sn, len);
-	return 0;
-}
-
 enum {
-	Opt_scsiid, Opt_scsisn, Opt_path, Opt_ignore, Opt_err,
+	opt_path, opt_ignore, opt_err,
 };
 
 static match_table_t tokens = {
-	{Opt_scsiid, "ScsiId=%s"},
-	{Opt_scsisn, "ScsiSN=%s"},
-	{Opt_path, "Path=%s"},
-	{Opt_ignore, "Type=%s"},
-	{Opt_ignore, "IOMode=%s"},
-	{Opt_err, NULL},
+	{opt_path, "path=%s"},
+	{opt_ignore, "scsiid=%s"},
+	{opt_ignore, "scsisn=%s"},
+	{opt_ignore, "type=%s"},
+	{opt_ignore, "iomode=%s"},
+	{opt_ignore, "blocksize=%s"},
+	{opt_err, NULL},
 };
 
 static int parse_fileio_params(struct iet_volume *volume, char *params)
@@ -194,29 +150,10 @@ static int parse_fileio_params(struct iet_volume *volume, char *params)
 		int token;
 		if (!*p)
 			continue;
+		iet_strtolower(p);
 		token = match_token(p, tokens, args);
 		switch (token) {
-		case Opt_scsiid:
-			if (!(q = match_strdup(&args[0]))) {
-				err = -ENOMEM;
-				goto out;
-			}
-			err = set_scsiid(volume, q);
-			kfree(q);
-			if (err < 0)
-				goto out;
-			break;
-		case Opt_scsisn:
-			if (!(q = match_strdup(&args[0]))) {
-				err = -ENOMEM;
-				goto out;
-			}
-			err = set_scsisn(volume, q);
-			kfree(q);
-			if (err < 0)
-				goto out;
-			break;
-		case Opt_path:
+		case opt_path:
 			if (info->path) {
 				iprintk("Target %s, LUN %u: "
 					"duplicate \"Path\" param\n",
@@ -233,7 +170,7 @@ static int parse_fileio_params(struct iet_volume *volume, char *params)
 			if (err < 0)
 				goto out;
 			break;
-		case Opt_ignore:
+		case opt_ignore:
 			break;
 		default:
 			iprintk("Target %s, LUN %u: unknown param %s\n",
@@ -285,8 +222,6 @@ static int fileio_attach(struct iet_volume *lu, char *args)
 	}
 	inode = p->filp->f_dentry->d_inode;
 
-	gen_scsiid(lu, inode);
-
 	if (S_ISREG(inode->i_mode))
 		;
 	else if (S_ISBLK(inode->i_mode))
@@ -296,7 +231,9 @@ static int fileio_attach(struct iet_volume *lu, char *args)
 		goto out;
 	}
 
-	lu->blk_shift = SECTOR_SIZE_BITS;
+	if (!lu->blk_shift)
+		lu->blk_shift = ilog2(IET_DEF_BLOCK_SIZE);
+
 	lu->blk_cnt = inode->i_size >> lu->blk_shift;
 
 	/* we're using the page cache */

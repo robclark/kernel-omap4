@@ -7,6 +7,7 @@
 #include <linux/file.h>
 #include <linux/ip.h>
 #include <net/tcp.h>
+#include <scsi/scsi.h>
 
 #include "iscsi.h"
 #include "iscsi_dbg.h"
@@ -211,8 +212,21 @@ static int iet_conn_alloc(struct iscsi_session *session, struct conn_info *info)
 
 void conn_close(struct iscsi_conn *conn)
 {
+	struct iscsi_cmnd *cmnd;
+	struct iscsi_session *session = conn->session;
+
 	if (test_and_clear_bit(CONN_ACTIVE, &conn->state))
 		set_bit(CONN_CLOSING, &conn->state);
+
+	spin_lock(&conn->list_lock);
+	list_for_each_entry(cmnd, &conn->pdu_list, conn_list) {
+		set_cmnd_tmfabort(cmnd);
+		if (cmnd->lun) {
+			ua_establish_for_session(session, cmnd->lun->lun, 0x47, 0x7f);
+			iscsi_cmnd_set_sense(cmnd, UNIT_ATTENTION, 0x6e, 0x0);
+		}
+	}
+	spin_unlock(&conn->list_lock);
 
 	nthread_wakeup(conn->session->target);
 }
@@ -220,13 +234,17 @@ void conn_close(struct iscsi_conn *conn)
 int conn_add(struct iscsi_session *session, struct conn_info *info)
 {
 	struct iscsi_conn *conn;
-	int err = -EEXIST;
+	int err;
 
 	conn = conn_lookup(session, info->cid);
 	if (conn)
-		return err;
+		conn_close(conn);
 
-	return iet_conn_alloc(session, info);
+	err = iet_conn_alloc(session, info);
+	if (!err && conn)
+		err = -EEXIST;
+
+	return err;
 }
 
 int conn_del(struct iscsi_session *session, struct conn_info *info)
@@ -241,13 +259,4 @@ int conn_del(struct iscsi_session *session, struct conn_info *info)
 	conn_close(conn);
 
 	return 0;
-}
-
-/* target_lock() supposed to be held */
-void conn_del_all(struct iscsi_session *session)
-{
-	struct iscsi_conn *conn;
-
-	list_for_each_entry(conn, &session->conn_list, list)
-		conn_close(conn);
 }

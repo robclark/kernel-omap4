@@ -43,7 +43,7 @@ static void sess_param_check(struct iscsi_param_info *info)
 {
 	u32 *iparam = info->session_param;
 
-	CHECK_PARAM(info, iparam, max_connections, 1, 1);
+	CHECK_PARAM(info, iparam, max_connections, 1, 65535);
 	CHECK_PARAM(info, iparam, max_recv_data_length, 512,
 		    (u32) ((ISCSI_CONN_IOV_MAX - 1) * PAGE_CACHE_SIZE));
 	CHECK_PARAM(info, iparam, max_xmit_data_length, 512,
