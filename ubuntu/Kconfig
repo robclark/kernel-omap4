@@ -35,6 +35,10 @@ source "ubuntu/rtl8192se/Kconfig"
 ##
 ##
 ##
+source "ubuntu/aufs/Kconfig"
+##
+##
+##
 ##
 ##
 ##

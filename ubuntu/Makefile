@@ -37,6 +37,10 @@ obj-$(CONFIG_RTL8192SE)		+= rtl8192se/
 ##
 ##
 ##
+obj-$(CONFIG_AUFS_FS)		+= aufs/
+##
+##
+##
 ##
 ##
 ##
