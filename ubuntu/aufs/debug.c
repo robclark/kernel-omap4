@@ -243,11 +243,11 @@ static int do_pri_br(aufs_bindex_t bindex, struct au_branch *br)
 		goto out;
 
 	dpri("s%d: {perm 0x%x, cnt %d, wbr %p}, "
-	     "%s, dev 0x%02x%02x, flags 0x%lx, cnt(BIAS) %d, active %d, "
+	     "%s, dev 0x%02x%02x, flags 0x%lx, cnt %d, active %d, "
 	     "xino %d\n",
 	     bindex, br->br_perm, atomic_read(&br->br_count), br->br_wbr,
 	     au_sbtype(sb), MAJOR(sb->s_dev), MINOR(sb->s_dev),
-	     sb->s_flags, sb->s_count - S_BIAS,
+	     sb->s_flags, sb->s_count,
 	     atomic_read(&sb->s_active), !!br->br_xino.xi_file);
 	return 0;
 
