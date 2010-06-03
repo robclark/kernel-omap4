@@ -191,7 +191,7 @@ static void wrap_free_urb(struct urb *urb)
 	if (wrap_urb->flags & WRAP_URB_COPY_BUFFER) {
 		USBTRACE("freeing DMA buffer for URB: %p %p",
 			 urb, urb->transfer_buffer);
-		usb_buffer_free(IRP_WRAP_DEVICE(irp)->usb.udev,
+		usb_free_coherent(IRP_WRAP_DEVICE(irp)->usb.udev,
 				urb->transfer_buffer_length,
 				urb->transfer_buffer, urb->transfer_dma);
 	}
@@ -304,7 +304,7 @@ static struct urb *wrap_alloc_urb(struct irp *irp, unsigned int pipe,
 #endif
 		    )) {
 		urb->transfer_buffer =
-			usb_buffer_alloc(wd->usb.udev, buf_len, alloc_flags,
+			usb_alloc_coherent(wd->usb.udev, buf_len, alloc_flags,
 					 &urb->transfer_dma);
 		if (!urb->transfer_buffer) {
 			WARNING("couldn't allocate dma buf");
