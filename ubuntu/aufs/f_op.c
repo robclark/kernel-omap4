@@ -682,14 +682,14 @@ static int aufs_mmap(struct file *file, struct vm_area_struct *vma)
 
 /* ---------------------------------------------------------------------- */
 
-static int aufs_fsync_nondir(struct file *file, struct dentry *dentry,
-			     int datasync)
+static int aufs_fsync_nondir(struct file *file, int datasync)
 {
 	int err;
 	struct au_pin pin;
 	struct inode *inode;
 	struct file *h_file;
 	struct super_block *sb;
+	struct dentry *dentry = file->f_dentry;
 
 	inode = dentry->d_inode;
 	IMustLock(file->f_mapping->host);
@@ -728,7 +728,7 @@ static int aufs_fsync_nondir(struct file *file, struct dentry *dentry,
 		h_d = h_file->f_dentry;
 		h_mtx = &h_d->d_inode->i_mutex;
 		mutex_lock_nested(h_mtx, AuLsc_I_CHILD);
-		err = h_file->f_op->fsync(h_file, h_d, datasync);
+		err = h_file->f_op->fsync(h_file, datasync);
 		if (!err)
 			vfsub_update_h_iattr(&h_file->f_path, /*did*/NULL);
 		/*ignore*/
