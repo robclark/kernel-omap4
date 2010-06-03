@@ -939,37 +939,38 @@ static void update_iw_stats(struct ndis_device *wnd)
 static void set_multicast_list(struct ndis_device *wnd)
 {
 	struct net_device *net_dev;
+	int mc_count;
 	ULONG packet_filter;
 	NDIS_STATUS res;
 
 	net_dev = wnd->net_dev;
 	packet_filter = wnd->packet_filter;
+	mc_count = netdev_mc_count(net_dev);
 
 	TRACE2("0x%08x", packet_filter);
 	if (net_dev->flags & IFF_PROMISC) {
 		packet_filter |= NDIS_PACKET_TYPE_PROMISCUOUS |
 			NDIS_PACKET_TYPE_ALL_LOCAL;
 	} else if (net_dev->flags & IFF_ALLMULTI ||
-		   net_dev->mc_count > wnd->multicast_size) {
+		   mc_count > wnd->multicast_size) {
 		packet_filter |= NDIS_PACKET_TYPE_ALL_MULTICAST;
 		TRACE2("0x%08x", packet_filter);
-	} else if (net_dev->mc_count > 0) {
+	} else if (mc_count > 0) {
 		int i, size;
 		char *buf;
-		struct dev_mc_list *mclist;
-		size = min(wnd->multicast_size, net_dev->mc_count);
-		TRACE2("%d, %d", wnd->multicast_size, net_dev->mc_count);
+		struct netdev_hw_addr *ha;
+		size = min(wnd->multicast_size, mc_count);
+		TRACE2("%d, %d", wnd->multicast_size, mc_count);
 		buf = kmalloc(size * ETH_ALEN, GFP_KERNEL);
 		if (!buf) {
 			WARNING("couldn't allocate memory");
 			EXIT2(return);
 		}
-		mclist = net_dev->mc_list;
-		for (i = 0; i < size && mclist; mclist = mclist->next) {
-			if (mclist->dmi_addrlen != ETH_ALEN)
+		netdev_for_each_mc_addr(ha, net_dev) {
+			if (net_dev->addr_len != ETH_ALEN)
 				continue;
-			memcpy(buf + i * ETH_ALEN, mclist->dmi_addr, ETH_ALEN);
-			TRACE2(MACSTRSEP, MAC2STR(mclist->dmi_addr));
+			memcpy(buf + i * ETH_ALEN, ha->addr, ETH_ALEN);
+			TRACE2(MACSTRSEP, MAC2STR(ha->addr));
 			i++;
 		}
 		res = mp_set(wnd, OID_802_3_MULTICAST_LIST, buf, i * ETH_ALEN);
