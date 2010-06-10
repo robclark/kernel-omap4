@@ -233,6 +233,7 @@ static void option_instat_callback(struct urb *urb);
 #define AMOI_PRODUCT_H01A			0x7002
 #define AMOI_PRODUCT_H02			0x0802
 #define AMOI_PRODUCT_SKYPEPHONE_S2		0x0407
+#define AMOI_PRODUCT_9508			0x0800
 
 #define DELL_VENDOR_ID				0x413C
 
