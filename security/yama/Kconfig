@@ -1,0 +1,13 @@
+config SECURITY_YAMA
+	bool "Yama NAC Support"
+	depends on SECURITY
+	select SECURITYFS
+	select SECURITY_PATH
+	default n
+	help
+	  This selects Yama, the NAKed Access Control system which
+	  provides additional global security settings above regular
+	  Linux discretionary access controls.  Currently available
+	  are symlink, hardlink, and PTRACE scope restrictions.
+
+	  If you are unsure how to answer this question, answer N.
