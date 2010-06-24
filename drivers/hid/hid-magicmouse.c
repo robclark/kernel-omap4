@@ -562,4 +562,3 @@ static void __exit magicmouse_exit(void)
 module_init(magicmouse_init);
 module_exit(magicmouse_exit);
 MODULE_LICENSE("GPL");
-
