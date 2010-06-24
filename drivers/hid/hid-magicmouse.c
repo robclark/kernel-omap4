@@ -207,9 +207,6 @@ static void magicmouse_emit_touch(struct magicmouse_sc *msc, int raw_id, u8 *tda
 	 * vertical touch motions.
 	 */
 	if (emulate_scroll_wheel) {
-		static const int accel_profile[] = {
-			256, 228, 192, 160, 128, 96, 64, 32,
-		};
 		unsigned long now = jiffies;
 		int step_x = msc->touches[id].scroll_x - x;
 		int step_y = msc->touches[id].scroll_y - y;
@@ -562,3 +559,4 @@ static void __exit magicmouse_exit(void)
 module_init(magicmouse_init);
 module_exit(magicmouse_exit);
 MODULE_LICENSE("GPL");
+
