@@ -18,11 +18,11 @@
  */
 #include <linux/slab.h>
 
-#include "_tcm_sita.h"
-#include "tcm_sita.h"
+#include "_tcm-sita.h"
+#include "tcm-sita.h"
 
 #define TCM_ALG_NAME "tcm_sita"
-#include "tcm_utils.h"
+#include "tcm-utils.h"
 
 #define X_SCAN_LIMITER	1
 #define Y_SCAN_LIMITER	1
@@ -1355,4 +1355,3 @@ static s32 move_right(struct tcm *tcm, u16 x, u16 y, u32 num_pages,
 	*yy = pos / pvt->width;
 	return 0;
 }
-

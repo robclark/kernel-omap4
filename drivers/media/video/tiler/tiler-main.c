@@ -35,10 +35,10 @@
 #include <asm/mach/map.h>              /* for ioremap_page */
 #include <mach/tiler.h>
 #include <mach/dmm.h>
-#include "../dmm/tmm.h"
-#include "tiler_def.h"
-#include "tcm/tcm_sita.h"	/* Algo Specific header */
-#include "tiler_pack.h"
+#include "tmm.h"
+#include "tiler-def.h"
+#include "tcm/tcm-sita.h"	/* Algo Specific header */
+#include "tiler-reserve.h"
 
 #include <linux/syscalls.h>
 

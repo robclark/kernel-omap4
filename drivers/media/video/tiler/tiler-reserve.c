@@ -17,7 +17,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <mach/tiler.h>
-#include "tiler_def.h"
+#include "tiler-def.h"
 
 /* we want to find the most effective packing for the smallest area */
 
@@ -284,4 +284,3 @@ u16 nv12_together(u16 o, u16 w, u16 a, u16 n, u16 *area, u8 *packing)
 
 	return n_best;
 }
-

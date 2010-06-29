@@ -19,7 +19,7 @@
 #ifndef _TCM_SITA_H_
 #define _TCM_SITA_H_
 
-#include "tcm.h"
+#include "../tcm.h"
 
 #define TL_CORNER       0
 #define TR_CORNER       1

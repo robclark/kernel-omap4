@@ -17,7 +17,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <mach/tiler.h>
-#include "tiler_def.h"
+#include "tiler-def.h"
 
 #define DMM_SHIFT_PER_X_8 0
 #define DMM_SHIFT_PER_Y_8 0

@@ -17,7 +17,7 @@
 #ifndef _TCM_UTILS_H
 #define _TCM_UTILS_H
 
-#include "tcm.h"
+#include "../tcm.h"
 
 #define AREA_FMT   "(%03d %03d)-(%03d %03d)"
 #define AREA(area) (area).p0.x, (area).p0.y, (area).p1.x, (area).p1.y

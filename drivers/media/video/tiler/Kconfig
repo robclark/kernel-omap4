@@ -8,7 +8,9 @@ menuconfig TI_TILER
 	default y
         depends on HAVE_TI_TILER
 	help
-           TILER driver for TI chips.
+           TILER and TILER-DMM driver for TI chips.  The TI TILER device
+           enables video rotation on certain TI chips such as OMAP4 or
+           Netra.  Video rotation will be limited without TILER support.
 
 config TILER_GRANULARITY
         int "Allocation granularity (2^n)"
