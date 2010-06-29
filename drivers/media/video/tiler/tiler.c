@@ -1119,7 +1119,7 @@ static s32 tiler_ioctl(struct inode *ip, struct file *filp, u32 cmd,
 	struct tiler_block_info block_info = {0};
 
 	switch (cmd) {
-	case TILIOC_GBUF:
+	case TILIOC_GBLK:
 		if (copy_from_user(&block_info, (void __user *)arg,
 					sizeof(block_info)))
 			return -EFAULT;
@@ -1150,8 +1150,8 @@ static s32 tiler_ioctl(struct inode *ip, struct file *filp, u32 cmd,
 					sizeof(block_info)))
 			return -EFAULT;
 		break;
-	case TILIOC_FBUF:
-	case TILIOC_UMBUF:
+	case TILIOC_FBLK:
+	case TILIOC_UMBLK:
 		if (copy_from_user(&block_info, (void __user *)arg,
 					sizeof(block_info)))
 			return -EFAULT;
@@ -1180,7 +1180,7 @@ static s32 tiler_ioctl(struct inode *ip, struct file *filp, u32 cmd,
 		/* va not in page table */
 		return 0x0;
 		break;
-	case TILIOC_MBUF:
+	case TILIOC_MBLK:
 		if (copy_from_user(&block_info, (void __user *)arg,
 					sizeof(block_info)))
 			return -EFAULT;
@@ -1258,7 +1258,7 @@ static s32 tiler_ioctl(struct inode *ip, struct file *filp, u32 cmd,
 		mutex_unlock(&mtx);
 		return -EFAULT;
 		break;
-	case TILIOC_QUERY_BLK:
+	case TILIOC_QBLK:
 		if (copy_from_user(&block_info, (void __user *)arg,
 					sizeof(block_info)))
 			return -EFAULT;
