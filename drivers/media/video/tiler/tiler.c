@@ -72,6 +72,7 @@ struct gid_info {
 	struct list_head reserved;	/* areas pre-reserved */
 	struct list_head onedim;	/* all 1D areas in this pid/gid */
 	u32 gid;			/* group ID */
+	u32 refs;			/* instances directly using this ptr */
 	struct process_info *pi;	/* parent */
 };
 
@@ -159,7 +160,8 @@ done:
 }
 
 /* allocate an reserved area of size, alignment and link it to gi */
-static struct area_info *area_new(u16 width, u16 height, u16 align,
+/* leaves mutex locked to be able to add block to area */
+static struct area_info *area_new_m(u16 width, u16 height, u16 align,
 				  struct tcm *tcm, struct gid_info *gi)
 {
 	struct area_info *ai = kmalloc(sizeof(*ai), GFP_KERNEL);
@@ -179,7 +181,6 @@ static struct area_info *area_new(u16 width, u16 height, u16 align,
 	ai->gi = gi;
 	mutex_lock(&mtx);
 	list_add_tail(&ai->by_gid, &gi->areas);
-	mutex_unlock(&mtx);
 	return ai;
 }
 
@@ -366,10 +367,9 @@ static struct mem_info *get_2d_area(u16 w, u16 h, u16 align, u16 offs, u16 band,
 	mutex_unlock(&mtx);
 
 	/* if no area fit, reserve a new one */
-	ai = area_new(ALIGN(w + offs, max(band, align)), h,
+	ai = area_new_m(ALIGN(w + offs, max(band, align)), h,
 		      max(band, align), tcm, gi);
 	if (ai) {
-		mutex_lock(&mtx);
 		_m_add2area(mi, ai, ai->area.p0.x + offs,
 			     ai->area.p0.x + offs + w - 1,
 			     &ai->blocks);
@@ -387,7 +387,9 @@ done:
 /* (must have mutex) */
 static void _m_try_free_group(struct gid_info *gi)
 {
-	if (gi && list_empty(&gi->areas) && list_empty(&gi->onedim)) {
+	if (gi && list_empty(&gi->areas) && list_empty(&gi->onedim) &&
+	    /* also ensure noone is still using this group */
+	    !gi->refs) {
 		BUG_ON(!list_empty(&gi->reserved));
 		list_del(&gi->by_pid);
 
@@ -705,7 +707,7 @@ static struct gid_info *_m_get_gi(struct process_info *pi, u32 gid)
 	/* see if group already exist */
 	list_for_each_entry(gi, &pi->groups, by_pid) {
 		if (gi->gid == gid)
-			return gi;
+			goto done;
 	}
 
 	/* create new group */
@@ -720,6 +722,12 @@ static struct gid_info *_m_get_gi(struct process_info *pi, u32 gid)
 	gi->pi = pi;
 	gi->gid = gid;
 	list_add(&gi->by_pid, &pi->groups);
+done:
+	/*
+	 * Once area is allocated, the group info's ref count will be
+	 * decremented as the reference is no longer needed.
+	 */
+	gi->refs++;
 	return gi;
 }
 
@@ -759,6 +767,7 @@ static struct mem_info *__get_area(enum tiler_fmt fmt, u32 width, u32 height,
 	list_add(&mi->global, &blocks);
 	mi->alloced = true;
 	mi->refs++;
+	gi->refs--;
 	mutex_unlock(&mtx);
 
 	mi->sys_addr = __get_alias_addr(fmt, mi->area.p0.x, mi->area.p0.y);
@@ -893,6 +902,7 @@ static s32 map_block(enum tiler_fmt fmt, u32 width, u32 height, u32 gid,
 	mi = __get_area(fmt, width, height, 0, 0, gi);
 	if (!mi) {
 		mutex_lock(&mtx);
+		gi->refs--;
 		_m_try_free_group(gi);
 		mutex_unlock(&mtx);
 		return -ENOMEM;
@@ -1299,6 +1309,7 @@ s32 alloc_block(enum tiler_fmt fmt, u32 width, u32 height,
 	mi = __get_area(fmt, width, height, align, offs, gi);
 	if (!mi) {
 		mutex_lock(&mtx);
+		gi->refs--;
 		_m_try_free_group(gi);
 		mutex_unlock(&mtx);
 		return -ENOMEM;
