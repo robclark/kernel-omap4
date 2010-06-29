@@ -169,7 +169,7 @@ obj-$(CONFIG_VIDEO_IR_I2C)  += ir-kbd-i2c.o
 
 obj-y	+= davinci/
 obj-$(CONFIG_DMM_OMAP)  += dmm/
-obj-$(CONFIG_TILER_OMAP)  += tiler/
+obj-$(CONFIG_TI_TILER)  += tiler/
 
 obj-$(CONFIG_ARCH_OMAP)	+= omap/
 

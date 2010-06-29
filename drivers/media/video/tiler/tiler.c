@@ -42,12 +42,12 @@
 
 #include <linux/syscalls.h>
 
-static bool security = true;
-static bool ssptr_id = true;
+static bool security = CONFIG_TILER_SECURITY;
+static bool ssptr_id = CONFIG_TILER_SSPTR_ID;
 static bool ssptr_lookup = true;
 static bool offset_lookup = true;
-static uint default_align = PAGE_SIZE;
-static uint granularity = 128;
+static uint default_align = CONFIG_TILER_ALIGNMENT;
+static uint granularity = CONFIG_TILER_GRANULARITY;
 
 module_param(ssptr_id, bool, 0644);
 MODULE_PARM_DESC(ssptr_id, "Use ssptr as block ID");
@@ -1686,7 +1686,9 @@ static s32 tiler_ioctl(struct inode *ip, struct file *filp, u32 cmd,
 		if (mi) {
 			block_info.id = mi->blk.id;
 			block_info.stride = tiler_vstride(&mi->blk);
+#ifdef CONFIG_TILER_EXPOSE_SSPTR
 			block_info.ssptr = mi->blk.phys;
+#endif
 		}
 		if (copy_to_user((void __user *)arg, &block_info,
 					sizeof(block_info)))
@@ -1739,12 +1741,15 @@ static s32 tiler_ioctl(struct inode *ip, struct file *filp, u32 cmd,
 		if (mi) {
 			block_info.id = mi->blk.id;
 			block_info.stride = tiler_vstride(&mi->blk);
+#ifdef CONFIG_TILER_EXPOSE_SSPTR
 			block_info.ssptr = mi->blk.phys;
+#endif
 		}
 		if (copy_to_user((void __user *)arg, &block_info,
 					sizeof(block_info)))
 			return -EFAULT;
 		break;
+#ifndef CONFIG_TILER_SECURE
 	case TILIOC_QBUF:
 		if (!offset_lookup)
 			return -EPERM;
@@ -1770,6 +1775,7 @@ static s32 tiler_ioctl(struct inode *ip, struct file *filp, u32 cmd,
 		mutex_unlock(&mtx);
 		return -EFAULT;
 		break;
+#endif
 	case TILIOC_RBUF:
 		_b = kmalloc(sizeof(*_b), GFP_KERNEL);
 		if (!_b)
@@ -1835,6 +1841,7 @@ static s32 tiler_ioctl(struct inode *ip, struct file *filp, u32 cmd,
 	case TILIOC_URBLK:
 		unreserve_blocks(pi, arg);
 		break;
+#ifndef CONFIG_TILER_SECURE
 	case TILIOC_QBLK:
 		if (!ssptr_lookup)
 			return -EPERM;
@@ -1850,6 +1857,7 @@ static s32 tiler_ioctl(struct inode *ip, struct file *filp, u32 cmd,
 			sizeof(block_info)))
 			return -EFAULT;
 		break;
+#endif
 	default:
 		return -EINVAL;
 	}
@@ -2037,7 +2045,10 @@ static s32 __init tiler_init(void)
 	    granularity < 1 || granularity > PAGE_SIZE ||
 	    granularity & (granularity - 1))
 		return -EINVAL;
-
+#ifdef CONFIG_TILER_SECURE
+	security = true;
+	offset_lookup = ssptr_lookup = false;
+#endif
 	/* Allocate tiler container manager (we share 1 on OMAP4) */
 	div_pt.x = TILER_WIDTH;   /* hardcoded default */
 	div_pt.y = (3 * TILER_HEIGHT) / 4;
