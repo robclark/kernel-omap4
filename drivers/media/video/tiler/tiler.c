@@ -195,13 +195,13 @@ static inline void _m_area_free(struct area_info *ai)
 
 static s32 __analize_area(enum tiler_fmt fmt, u32 width, u32 height,
 			  u16 *x_area, u16 *y_area, u16 *band,
-			  u16 *align, u16 *offs)
+			  u16 *align, u16 *offs, u16 *in_offs)
 {
 	/* input: width, height is in pixels, align, offs in bytes */
 	/* output: x_area, y_area, band, align, offs in slots */
 
 	/* slot width, height, and row size */
-	u32 slot_w, slot_h, slot_row, bpp;
+	u32 slot_w, slot_h, slot_row, bpp, min_align;
 
 	/* align must be 2 power */
 	if (*align & (*align - 1))
@@ -243,8 +243,9 @@ static s32 __analize_area(enum tiler_fmt fmt, u32 width, u32 height,
 	/* how many slots are can be accessed via one physical page */
 	*band = PAGE_SIZE / slot_row;
 
-	/* minimum alignment is 1 slot, default alignment is page size */
-	*align = ALIGN(*align ? : PAGE_SIZE, slot_row);
+	/* minimum alignment is at least 1 slot.  Use default if needed */
+	min_align = slot_row;
+	*align = ALIGN(*align ? : PAGE_SIZE, min_align);
 
 	/* offset must be multiple of bpp */
 	if (*offs & (bpp - 1))
@@ -252,8 +253,13 @@ static s32 __analize_area(enum tiler_fmt fmt, u32 width, u32 height,
 
 	/* round down the offset to the nearest slot size, and increase width
 	   to allow space for having the correct offset */
-	width += (*offs & (*align - 1)) / bpp;
-	*offs &= ~(*align - 1);
+	width += (*offs & (min_align - 1)) / bpp;
+	if (in_offs)
+		*in_offs = *offs & (min_align - 1);
+	*offs &= ~(min_align - 1);
+
+	/* expand width to block size */
+	width = ALIGN(width, min_align / bpp);
 
 	/* adjust to slots */
 	*x_area = DIV_ROUND_UP(width, slot_w);
@@ -438,6 +444,7 @@ static s32 _m_free(struct mem_info *mi)
 		kfree(mi->pg_ptr);
 	} else if (mi->mem) {
 		tmm_free(TMM_SS(mi->sys_addr), mi->mem);
+		clear_pat(TMM_SS(mi->sys_addr), &mi->area);
 	}
 
 	/* safe deletion as list may not have been assigned */
@@ -452,7 +459,6 @@ static s32 _m_free(struct mem_info *mi)
 
 		/* check to see if area needs removing also */
 		if (ai && !--ai->nblocks) {
-			clear_pat(TMM_SS(mi->sys_addr), &ai->area);
 			res = tcm_free(&ai->area);
 			list_del(&ai->by_gid);
 			/* try to remove parent if it became empty */
@@ -462,7 +468,6 @@ static s32 _m_free(struct mem_info *mi)
 		}
 	} else {
 		/* remove 1D area */
-		clear_pat(TMM_SS(mi->sys_addr), &mi->area);
 		res = tcm_free(&mi->area);
 		/* try to remove parent if it became empty */
 		_m_try_free_group(mi->parent);
@@ -732,11 +737,12 @@ done:
 static struct mem_info *__get_area(enum tiler_fmt fmt, u32 width, u32 height,
 				   u16 align, u16 offs, struct gid_info *gi)
 {
-	u16 x, y, band;
+	u16 x, y, band, in_offs = 0;
 	struct mem_info *mi = NULL;
 
 	/* calculate dimensions, band, offs and alignment in slots */
-	if (__analize_area(fmt, width, height, &x, &y, &band, &align, &offs))
+	if (__analize_area(fmt, width, height, &x, &y, &band, &align, &offs,
+			   &in_offs))
 		return NULL;
 
 	if (fmt == TILFMT_PAGE)	{
@@ -768,7 +774,8 @@ static struct mem_info *__get_area(enum tiler_fmt fmt, u32 width, u32 height,
 	gi->refs--;
 	mutex_unlock(&mtx);
 
-	mi->sys_addr = __get_alias_addr(fmt, mi->area.p0.x, mi->area.p0.y);
+	mi->sys_addr = __get_alias_addr(fmt, mi->area.p0.x, mi->area.p0.y)
+		+ in_offs;
 	return mi;
 }
 
