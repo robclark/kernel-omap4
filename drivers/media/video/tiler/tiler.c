@@ -309,12 +309,12 @@ static u16 _m_blk_find_fit(u16 w, u16 align, u16 offs,
 /* (must have mutex) adds a block to an area with certain x coordinates */
 static inline
 struct mem_info *_m_add2area(struct mem_info *mi, struct area_info *ai,
-				u16 x0, u16 x1, struct list_head *before)
+				u16 x0, u16 w, struct list_head *before)
 {
 	mi->parent = ai;
 	mi->area = ai->area;
 	mi->area.p0.x = x0;
-	mi->area.p1.x = x1;
+	mi->area.p1.x = x0 + w - 1;
 	list_add_tail(&mi->by_area, before);
 	ai->nblocks++;
 	return mi;
@@ -359,7 +359,7 @@ static struct mem_info *get_2d_area(u16 w, u16 h, u16 align, u16 offs, u16 band,
 		    tcm_aheight(ai->area) == h) {
 			x = _m_blk_find_fit(w, align, offs, ai, &before);
 			if (x) {
-				_m_add2area(mi, ai, x - w, x - 1, before);
+				_m_add2area(mi, ai, x - w, w, before);
 				goto done;
 			}
 		}
@@ -370,9 +370,7 @@ static struct mem_info *get_2d_area(u16 w, u16 h, u16 align, u16 offs, u16 band,
 	ai = area_new_m(ALIGN(w + offs, max(band, align)), h,
 		      max(band, align), tcm, gi);
 	if (ai) {
-		_m_add2area(mi, ai, ai->area.p0.x + offs,
-			     ai->area.p0.x + offs + w - 1,
-			     &ai->blocks);
+		_m_add2area(mi, ai, ai->area.p0.x + offs, w, &ai->blocks);
 	} else {
 		/* clean up */
 		kfree(mi);
