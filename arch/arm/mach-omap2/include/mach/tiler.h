@@ -37,6 +37,8 @@
 #define TILIOC_RBUF  _IOWR('z', 106, struct tiler_buf_info)
 #define TILIOC_URBUF  _IOW('z', 107, struct tiler_buf_info)
 #define TILIOC_QBLK  _IOWR('z', 108, struct tiler_block_info)
+#define TILIOC_PRBLK  _IOW('z', 109, struct tiler_block_info)
+#define TILIOC_URBLK  _IOW('z', 110, u32)
 
 enum tiler_fmt {
 	TILFMT_MIN     = -2,
@@ -47,6 +49,7 @@ enum tiler_fmt {
 	TILFMT_32BIT   = 2,
 	TILFMT_PAGE    = 3,
 	TILFMT_MAX     = 3,
+	TILFMT_8AND16  = 4,	/* used to mark NV12 reserve block */
 };
 
 struct tiler_block_t {
@@ -211,33 +214,77 @@ s32 tiler_mapx(struct tiler_block_t *blk, enum tiler_fmt fmt,
 s32 tiler_free(struct tiler_block_t *blk);
 
 /**
- * Reserves tiler area for n identical set of blocks (buffer)
- * for the current process.  Use this method to get optimal
- * placement of multiple related tiler blocks; however, it may
- * not reserve area if tiler_alloc is equally efficient.
- *
- * @param n	number of identical set of blocks
- * @param b	information on the set of blocks (ptr, ssptr and
- *		stride fields are ignored)
- *
- * @return error status
- */
-s32 tiler_reserve(u32 n, struct tiler_buf_info *b);
-
-/**
- * Reserves tiler area for n identical set of blocks (buffer) fo
- * a given process. Use this method to get optimal placement of
- * multiple related tiler blocks; however, it may not reserve
+ * Reserves tiler area for n identical blocks for the current
+ * process.  Use this method to get optimal placement of
+ * multiple identical tiler blocks; however, it may not reserve
  * area if tiler_alloc is equally efficient.
  *
- * @param n	number of identical set of blocks
- * @param b	information on the set of blocks (ptr, ssptr and
- *		stride fields are ignored)
- * @param pid   process ID
+ * @param n		number of identical set of blocks
+ * @param fmt		TILER bit mode
+ * @param width		block width
+ * @param height	block height (must be 1 for 1D)
+ * @param align		block alignment (default: PAGE_SIZE)
+ * @param offs		block offset
  *
  * @return error status
  */
-s32 tiler_reservex(u32 n, struct tiler_buf_info *b, pid_t pid);
+s32 tiler_reserve(u32 n, enum tiler_fmt fmt, u32 width, u32 height,
+		  u32 align, u32 offs);
+
+/**
+ * Reserves tiler area for n identical blocks.  Use this method
+ * to get optimal placement of multiple identical tiler blocks;
+ * however, it may not reserve area if tiler_alloc is equally
+ * efficient.
+ *
+ * @param n		number of identical set of blocks
+ * @param fmt		TILER bit mode
+ * @param width		block width
+ * @param height	block height (must be 1 for 1D)
+ * @param align		block alignment (default: PAGE_SIZE)
+ * @param offs		block offset
+ * @param gid		group ID
+ * @param pid		process ID
+ *
+ * @return error status
+ */
+s32 tiler_reservex(u32 n, enum tiler_fmt fmt, u32 width, u32 height,
+		   u32 align, u32 offs, u32 gid, pid_t pid);
+
+/**
+ * Reserves tiler area for n identical NV12 blocks for the
+ * current process.  Use this method to get optimal placement of
+ * multiple identical NV12 tiler blocks; however, it may not
+ * reserve area if tiler_alloc is equally efficient.
+ *
+ * @param n		number of identical set of blocks
+ * @param width		block width (Y)
+ * @param height	block height (Y)
+ * @param align		block alignment (default: PAGE_SIZE)
+ * @param offs		block offset
+ *
+ * @return error status
+ */
+s32 tiler_reserve_nv12(u32 n, u32 width, u32 height, u32 align, u32 offs);
+
+/**
+ * Reserves tiler area for n identical NV12 blocks.  Use this
+ * method to get optimal placement of multiple identical NV12
+ * tiler blocks; however, it may not reserve area if tiler_alloc
+ * is equally efficient.
+ *
+ * @param n		number of identical set of blocks
+ * @param width		block width (Y)
+ * @param height	block height (Y)
+ * @param align		block alignment (default: PAGE_SIZE)
+ * @param offs		block offset
+ * @param gid		group ID
+ * @param pid		process ID
+ *
+ * @return error status
+ */
+s32 tiler_reservex_nv12(u32 n, u32 width, u32 height, u32 align, u32 offs,
+							u32 gid, pid_t pid);
 
 u32 tiler_reorient_addr(u32 tsptr, struct tiler_view_orient orient);
 

@@ -38,6 +38,7 @@
 #include "../dmm/tmm.h"
 #include "tiler_def.h"
 #include "tcm/tcm_sita.h"	/* Algo Specific header */
+#include "tiler_pack.h"
 
 #include <linux/syscalls.h>
 
@@ -1285,6 +1286,310 @@ static s32 alloc_block(enum tiler_fmt fmt, u32 width, u32 height,
 		u32 align, u32 offs, u32 key, u32 gid, struct process_info *pi,
 		struct mem_info **info);
 
+/* we have two algorithms for packing nv12 blocks */
+
+/* we want to find the most effective packing for the smallest area */
+
+/* layout reserved 2d areas in a larger area */
+/* NOTE: band, w, h, a(lign), o(ffs) is in slots */
+static s32 reserve_2d(enum tiler_fmt fmt, u16 n, u16 w, u16 h, u16 band,
+		      u16 align, u16 offs, struct gid_info *gi,
+		      struct list_head *pos)
+{
+	u16 x, x0, e = ALIGN(w, align), w_res = (n - 1) * e + w;
+	struct mem_info *mi = NULL;
+	struct area_info *ai = NULL;
+
+	printk(KERN_INFO "packing %u %u buffers into %u width\n",
+	       n, w, w_res);
+
+	/* calculate dimensions, band, offs and alignment in slots */
+	/* reserve an area */
+	ai = area_new_m(ALIGN(w_res + offs, max(band, align)), h,
+			max(band, align), TCM(fmt), gi);
+	if (!ai)
+		return -ENOMEM;
+
+	/* lay out blocks in the reserved area */
+	for (n = 0, x = offs; x < w_res; x += e, n++) {
+		/* reserve a block struct */
+		mi = kmalloc(sizeof(*mi), GFP_KERNEL);
+		if (!mi)
+			break;
+
+		memset(mi, 0, sizeof(*mi));
+		x0 = ai->area.p0.x + x;
+		_m_add2area(mi, ai, x0, w, &ai->blocks);
+		list_add(&mi->global, pos);
+	}
+
+	mutex_unlock(&mtx);
+	return n;
+}
+
+/* reserve nv12 blocks if standard allocator is inefficient */
+/* TILER is designed so that a (w * h) * 8bit area is twice as wide as a
+   (w/2 * h/2) * 16bit area.  Since having pairs of such 8-bit and 16-bit
+   blocks is a common usecase for TILER, we optimize packing these into a
+   TILER area */
+static s32 pack_nv12(int n, u16 w, u16 w1, u16 h, struct gid_info *gi,
+		     u8 *p)
+{
+	u16 wh = (w1 + 1) >> 1, width, x0;
+	int m;
+
+	struct mem_info *mi = NULL;
+	struct area_info *ai = NULL;
+	struct list_head *pos;
+
+	/* reserve area */
+	ai = area_new_m(w, h, 64, TCM(TILFMT_8BIT), gi);
+	if (!ai)
+		return -ENOMEM;
+
+	/* lay out blocks in the reserved area */
+	for (m = 0; m < 2 * n; m++) {
+		width =	(m & 1) ? wh : w1;
+		x0 = ai->area.p0.x + *p++;
+
+		/* get insertion head */
+		list_for_each(pos, &ai->blocks) {
+			mi = list_entry(pos, struct mem_info, by_area);
+			if (mi->area.p0.x > x0)
+				break;
+		}
+
+		/* reserve a block struct */
+		mi = kmalloc(sizeof(*mi), GFP_KERNEL);
+		if (!mi)
+			break;
+
+		memset(mi, 0, sizeof(*mi));
+
+		_m_add2area(mi, ai, x0, width, pos);
+		list_add(&mi->global, &gi->reserved);
+	}
+
+	mutex_unlock(&mtx);
+	return n;
+}
+
+static inline u32 nv12_eff(u16 n, u16 w, u16 area, u16 n_need)
+{
+	/* rank by total area needed first */
+	return 0x10000000 - DIV_ROUND_UP(n_need, n) * area * 32 +
+		/* then by efficiency */
+		1024 * n * ((w * 3 + 1) >> 1) / area;
+}
+
+static void reserve_nv12(u32 n, u32 width, u32 height, u32 align, u32 offs,
+			 u32 gid, struct process_info *pi)
+{
+	/* adjust alignment to at least 128 bytes (16-bit slot width) */
+	u16 w, h, band, a = MAX(128, align), o = offs, eff_w;
+	struct gid_info *gi;
+	int res = 0, res2, i;
+	u16 n_t, n_s, area_t, area_s;
+	u8 packing[2 * 21];
+	struct list_head reserved = LIST_HEAD_INIT(reserved);
+	struct mem_info *mi, *mi_;
+	bool can_together = TMM(TILFMT_8BIT) == TMM(TILFMT_16BIT);
+
+	/* Check input parameters for correctness, and support */
+	if (!width || !height || !n ||
+	    offs >= (align ? : PAGE_SIZE) || offs & 1 ||
+	    align >= PAGE_SIZE || TCM(TILFMT_8BIT) != TCM(TILFMT_16BIT) ||
+	    n > TILER_WIDTH * TILER_HEIGHT / 2)
+		return;
+
+	/* calculate dimensions, band, offs and alignment in slots */
+	if (__analize_area(TILFMT_8BIT, width, height, &w, &h, &band, &a, &o,
+									NULL))
+		return;
+
+	/* get group context */
+	mutex_lock(&mtx);
+	gi = _m_get_gi(pi, gid);
+	mutex_unlock(&mtx);
+	if (!gi)
+		return;
+
+	eff_w = ALIGN(w, a);
+
+	for (i = 0; i < n && res >= 0; i += res) {
+		/* check packing separately vs together */
+		n_s = nv12_separate(o, w, a, n - i, &area_s);
+		if (can_together)
+			n_t = nv12_together(o, w, a, n - i, &area_t, packing);
+		else
+			n_t = 0;
+
+		/* pack based on better efficiency */
+		res = -1;
+		if (!can_together ||
+			nv12_eff(n_s, w, area_s, n - i) >
+			nv12_eff(n_t, w, area_t, n - i)) {
+			/* pack separately */
+
+			res = reserve_2d(TILFMT_8BIT, n_s, w, h, band, a, o, gi,
+					 &reserved);
+
+			/* only reserve 16-bit blocks if 8-bit was successful,
+			   as we will try to match 16-bit areas to an already
+			   reserved 8-bit area, and there is no guarantee that
+			   an unreserved 8-bit area will match the offset of
+			   a singly reserved 16-bit area. */
+			res2 = (res < 0 ? res :
+				reserve_2d(TILFMT_16BIT, n_s, (w + 1) / 2, h,
+				band / 2, a / 2, o / 2, gi, &reserved));
+			if (res2 < 0 || res != res2) {
+				/* clean up */
+				mutex_lock(&mtx);
+				list_for_each_entry_safe(mi, mi_, &reserved,
+									global)
+					_m_free(mi);
+				mutex_unlock(&mtx);
+				res = -1;
+			} else {
+				/* add list to reserved */
+				mutex_lock(&mtx);
+				list_splice_init(&reserved, &gi->reserved);
+				mutex_unlock(&mtx);
+			}
+		}
+
+		/* if separate packing failed, still try to pack together */
+		if (res < 0 && can_together && n_t) {
+			/* pack together */
+			res = pack_nv12(n_t, area_t, w, h, gi, packing);
+		}
+	}
+
+	mutex_lock(&mtx);
+	gi->refs--;
+	_m_try_free_group(gi);
+	mutex_unlock(&mtx);
+}
+
+/* reserve 2d blocks (if standard allocator is inefficient) */
+static void reserve_blocks(u32 n, enum tiler_fmt fmt, u32 width, u32 height,
+			   u32 align, u32 offs, u32 gid,
+			   struct process_info *pi)
+{
+	u32 til_width, bpp, bpt, res = 0, i;
+	u16 o = offs, a = align, band, w, h, e, n_try;
+	struct gid_info *gi;
+
+	/* Check input parameters for correctness, and support */
+	if (!width || !height || !n ||
+	    align > PAGE_SIZE || offs >= (align ? : PAGE_SIZE) ||
+	    fmt < TILFMT_8BIT || fmt > TILFMT_32BIT)
+		return;
+
+	/* tiler page width in pixels, bytes per pixel, tiler page in bytes */
+	til_width = fmt == TILFMT_32BIT ? 32 : 64;
+	bpp = 1 << (fmt - TILFMT_8BIT);
+	bpt = til_width * bpp;
+
+	/* check offset.  Also, if block is less than half the mapping window,
+	   the default allocation is sufficient.  Also check for basic area
+	   info. */
+	if (width * bpp * 2 <= PAGE_SIZE ||
+	    __analize_area(fmt, width, height, &w, &h, &band, &a, &o, NULL))
+		return;
+
+	/* get group id */
+	mutex_lock(&mtx);
+	gi = _m_get_gi(pi, gid);
+	mutex_unlock(&mtx);
+	if (!gi)
+		return;
+
+	/* effective width of a buffer */
+	e = ALIGN(w, a);
+
+	for (i = 0; i < n && res >= 0; i += res) {
+		/* blocks to allocate in one area */
+		n_try = MIN(n - i, TILER_WIDTH);
+		tiler_best2pack(offs, w, e, band, &n_try, NULL);
+
+		res = -1;
+		while (n_try > 1) {
+			res = reserve_2d(fmt, n_try, w, h, band, a, o, gi,
+					 &gi->reserved);
+			if (res >= 0)
+				break;
+
+			/* reduce n if failed to allocate area */
+			n_try--;
+		}
+	}
+	/* keep reserved blocks even if failed to reserve all */
+
+	mutex_lock(&mtx);
+	gi->refs--;
+	_m_try_free_group(gi);
+	mutex_unlock(&mtx);
+}
+
+s32 tiler_reservex(u32 n, enum tiler_fmt fmt, u32 width, u32 height,
+		   u32 align, u32 offs, u32 gid, pid_t pid)
+{
+	struct process_info *pi = __get_pi(pid, true);
+
+	if (pi)
+		reserve_blocks(n, fmt, width, height, align, offs, gid, pi);
+	return 0;
+}
+EXPORT_SYMBOL(tiler_reservex);
+
+s32 tiler_reserve(u32 n, enum tiler_fmt fmt, u32 width, u32 height,
+		  u32 align, u32 offs)
+{
+	return tiler_reservex(n, fmt, width, height, align, offs,
+			      0, current->tgid);
+}
+EXPORT_SYMBOL(tiler_reserve);
+
+/* reserve area for n identical buffers */
+s32 tiler_reservex_nv12(u32 n, u32 width, u32 height, u32 align, u32 offs,
+			u32 gid, pid_t pid)
+{
+	struct process_info *pi = __get_pi(pid, true);
+
+	if (pi)
+		reserve_nv12(n, width, height, align, offs, gid, pi);
+	return 0;
+}
+EXPORT_SYMBOL(tiler_reservex_nv12);
+
+s32 tiler_reserve_nv12(u32 n, u32 width, u32 height, u32 align, u32 offs)
+{
+	return tiler_reservex_nv12(n, width, height, align, offs,
+				   0, current->tgid);
+}
+EXPORT_SYMBOL(tiler_reserve_nv12);
+
+void unreserve_blocks(struct process_info *pi, u32 gid)
+{
+	struct gid_info *gi;
+	struct mem_info *mi, *mi_;
+
+	mutex_lock(&mtx);
+	gi = _m_get_gi(pi, gid);
+	if (!gi)
+		goto done;
+	/* we have the mutex, so no need to keep reference */
+	gi->refs--;
+
+	list_for_each_entry_safe(mi, mi_, &gi->reserved, global) {
+		BUG_ON(mi->refs || mi->alloced);
+		_m_free(mi);
+	}
+done:
+	mutex_unlock(&mtx);
+}
+
 static s32 tiler_ioctl(struct inode *ip, struct file *filp, u32 cmd,
 			unsigned long arg)
 {
@@ -1454,6 +1759,31 @@ static s32 tiler_ioctl(struct inode *ip, struct file *filp, u32 cmd,
 		mutex_unlock(&mtx);
 		return -EFAULT;
 		break;
+	case TILIOC_PRBLK:
+		if (copy_from_user(&block_info, (void __user *)arg,
+					sizeof(block_info)))
+			return -EFAULT;
+
+		if (block_info.fmt == TILFMT_8AND16) {
+			reserve_nv12(block_info.key,
+				     block_info.dim.area.width,
+				     block_info.dim.area.height,
+				     block_info.align,
+				     block_info.offs,
+				     block_info.group_id, pi);
+		} else {
+			reserve_blocks(block_info.key,
+				       block_info.fmt,
+				       block_info.dim.area.width,
+				       block_info.dim.area.height,
+				       block_info.align,
+				       block_info.offs,
+				       block_info.group_id, pi);
+		}
+		break;
+	case TILIOC_URBLK:
+		unreserve_blocks(pi, arg);
+		break;
 	case TILIOC_QBLK:
 		if (copy_from_user(&block_info, (void __user *)arg,
 					sizeof(block_info)))
@@ -1561,66 +1891,6 @@ s32 tiler_alloc(struct tiler_block_t *blk, enum tiler_fmt fmt,
 	return tiler_allocx(blk, fmt, align, offs, 0, current->tgid);
 }
 EXPORT_SYMBOL(tiler_alloc);
-
-static void reserve_nv12_blocks(u32 n, u32 width, u32 height,
-				  u32 align, u32 offs, u32 gid, pid_t pid)
-{
-}
-
-static void reserve_blocks(u32 n, enum tiler_fmt fmt, u32 width, u32 height,
-			     u32 align, u32 offs, u32 gid, pid_t pid)
-{
-}
-
-/* reserve area for n identical buffers */
-s32 tiler_reservex(u32 n, struct tiler_buf_info *b, pid_t pid)
-{
-	u32 i;
-
-	if (b->num_blocks > TILER_MAX_NUM_BLOCKS)
-		return -EINVAL;
-
-	for (i = 0; i < b->num_blocks; i++) {
-		/* check for NV12 reservations */
-		if (i + 1 < b->num_blocks &&
-		    b->blocks[i].fmt == TILFMT_8BIT &&
-		    b->blocks[i + 1].fmt == TILFMT_16BIT &&
-		    b->blocks[i].dim.area.height ==
-			b->blocks[i + 1].dim.area.height &&
-		    b->blocks[i].dim.area.width ==
-			b->blocks[i + 1].dim.area.width) {
-			reserve_nv12_blocks(n,
-					      b->blocks[i].dim.area.width,
-					      b->blocks[i].dim.area.height,
-					      0, /* align */
-					      0, /* offs */
-					      0, /* gid */
-					      pid);
-			i++;
-		} else if (b->blocks[i].fmt >= TILFMT_8BIT &&
-			   b->blocks[i].fmt <= TILFMT_32BIT) {
-			/* other 2D reservations */
-			reserve_blocks(n,
-					 b->blocks[i].fmt,
-					 b->blocks[i].dim.area.width,
-					 b->blocks[i].dim.area.height,
-					 0, /* align */
-					 0, /* offs */
-					 0, /* gid */
-					 pid);
-		} else {
-			return -EINVAL;
-		}
-	}
-	return 0;
-}
-EXPORT_SYMBOL(tiler_reservex);
-
-s32 tiler_reserve(u32 n, struct tiler_buf_info *b)
-{
-	return tiler_reservex(n, b, current->tgid);
-}
-EXPORT_SYMBOL(tiler_reserve);
 
 static void __exit tiler_exit(void)
 {
