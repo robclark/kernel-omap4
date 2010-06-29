@@ -47,6 +47,14 @@ enum tiler_fmt {
 	TILFMT_MAX     = 3,
 };
 
+struct tiler_block_t {
+	u32 phys;			/* system space (L3) tiler addr */
+	u32 width;			/* width */
+	u32 height;			/* height */
+	u32 key;			/* secret key */
+	u32 id;				/* unique block ID */
+};
+
 struct area {
 	u16 width;
 	u16 height;
@@ -82,46 +90,39 @@ struct tiler_view_orient {
 	u8 y_invert;
 };
 
-/* utility functions */
-static inline u32 tilfmt_bpp(enum tiler_fmt fmt)
-{
-	return  fmt == TILFMT_8BIT ? 1 :
-		fmt == TILFMT_16BIT ? 2 :
-		fmt == TILFMT_32BIT ? 4 : 0;
-}
-
 /**
  * Reserves a 1D or 2D TILER block area and memory for the
  * current process with group ID 0.
  *
- * @param fmt		TILER bit mode
- * @param width		block width
- * @param height	block height (must be 1 for 1D)
- * @param sys_addr	pointer where system space (L3) address
- *			will be stored.
+ * @param blk	pointer to tiler block data.  This must be set up ('phys' member
+ *		must be 0) with the tiler block information. 'height' must be 1
+ *		for 1D block.
+ * @param fmt	TILER block format
+ * @param align	block alignment (default: PAGE_SIZE)
+ * @param offs	block offset
  *
  * @return error status
  */
-s32 tiler_alloc(enum tiler_fmt fmt, u32 width, u32 height, u32 *sys_addr);
+s32 tiler_alloc(struct tiler_block_t *blk, enum tiler_fmt fmt, u32 align,
+		u32 offs);
 
 /**
- * Reserves a 1D or 2D TILER block area and memory with extended
- * arguments.
+ * Reserves a 1D or 2D TILER block area and memory for a set process and group
+ * ID.
  *
- * @param fmt		TILER bit mode
- * @param width		block width
- * @param height	block height (must be 1 for 1D)
- * @param align		block alignment (default: PAGE_SIZE)
- * @param offs		block offset
- * @param gid		group ID
- * @param pid		process ID
- * @param sys_addr	pointer where system space (L3) address
- *			will be stored.
+ * @param blk	pointer to tiler block data.  This must be set up ('phys' member
+ *		must be 0) with the tiler block information. 'height' must be 1
+ *		for 1D block.
+ * @param fmt	TILER bit mode
+ * @param align	block alignment (default: PAGE_SIZE)
+ * @param offs	block offset
+ * @param gid	group ID
+ * @param pid	process ID
  *
  * @return error status
  */
-s32 tiler_allocx(enum tiler_fmt fmt, u32 width, u32 height,
-			u32 align, u32 offs, u32 gid, pid_t pid, u32 *sys_addr);
+s32 tiler_allocx(struct tiler_block_t *blk, enum tiler_fmt fmt, u32 align,
+		u32 offs, u32 gid, pid_t pid);
 
 /**
  * Maps an existing buffer to a 1D or 2D TILER area for the
@@ -129,48 +130,53 @@ s32 tiler_allocx(enum tiler_fmt fmt, u32 width, u32 height,
  *
  * Currently, only 1D area mapping is supported.
  *
+ * NOTE: alignment is always PAGE_SIZE and offset is 0 as full pages are mapped
+ * into tiler container.
+ *
+ * @param blk		pointer to tiler block data.  This must be set up
+ *		('phys' member must be 0) with the tiler block information.
+ *		'height' must be 1 for 1D block.
  * @param fmt		TILER bit mode
- * @param width		block width
- * @param height	block height (must be 1 for 1D)
- * @param sys_addr	pointer where system space (L3) address
- *			will be stored.
  * @param usr_addr	user space address of existing buffer.
  *
  * @return error status
  */
-s32 tiler_map(enum tiler_fmt fmt, u32 width, u32 height, u32 *sys_addr,
-								u32 usr_addr);
+s32 tiler_map(struct tiler_block_t *blk, enum tiler_fmt fmt, u32 usr_addr);
 
 /**
- * Maps an existing buffer to a 1D or 2D TILER area with
- * extended arguments.
+ * Maps an existing buffer to a 1D or 2D TILER area for a set process and group
+ * ID.
  *
  * Currently, only 1D area mapping is supported.
  *
- * NOTE: alignment is always PAGE_SIZE and offset is 0
+ * NOTE: alignment is always PAGE_SIZE and offset is 0 as full pages are mapped
+ * into tiler container.
  *
+ * @param blk		pointer to tiler block data.  This must be set up
+ *		('phys' member must be 0) with the tiler block information.
+ *		'height' must be 1 for 1D block.
  * @param fmt		TILER bit mode
- * @param width		block width
- * @param height	block height (must be 1 for 1D)
  * @param gid		group ID
  * @param pid		process ID
- * @param sys_addr	pointer where system space (L3) address
- *			will be stored.
  * @param usr_addr	user space address of existing buffer.
  *
  * @return error status
  */
-s32 tiler_mapx(enum tiler_fmt fmt, u32 width, u32 height,
-			u32 gid, pid_t pid, u32 *sys_addr, u32 usr_addr);
+s32 tiler_mapx(struct tiler_block_t *blk, enum tiler_fmt fmt,
+		u32 gid, pid_t pid, u32 usr_addr);
 
 /**
- * Free TILER memory.
+ * Frees TILER memory.  Since there may be multiple references for the same area
+ * if duplicated by tiler_dup, the area is only actually freed if all references
+ * have been freed.
  *
- * @param sys_addr system space (L3) address.
+ * @param blk	pointer to a tiler block data as filled by tiler_alloc,
+ *		tiler_map or tiler_dup.  'phys' member will be set to 0 on
+ *		success.
  *
  * @return an error status.
  */
-s32 tiler_free(u32 sys_addr);
+s32 tiler_free(struct tiler_block_t *blk);
 
 /**
  * Reserves tiler area for n identical set of blocks (buffer)

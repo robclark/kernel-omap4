@@ -92,13 +92,13 @@ struct area_info {
 
 struct mem_info {
 	struct list_head global;	/* reserved / global blocks */
-	u32 sys_addr;          /* system space (L3) tiler addr */
-	u32 num_pg;            /* number of pages in page-list */
-	u32 usr;               /* user space address */
-	u32 *pg_ptr;           /* list of mapped struct page pointers */
+	struct tiler_block_t blk;	/* block info */
+	u32 num_pg;			/* number of pages in page-list */
+	u32 usr;			/* user space address */
+	u32 *pg_ptr;			/* list of mapped struct page ptrs */
 	struct tcm_area area;
-	u32 *mem;              /* list of alloced phys addresses */
-	u32 refs;              /* number of times referenced */
+	u32 *mem;			/* list of alloced phys addresses */
+	u32 refs;			/* number of times referenced */
 	bool alloced;			/* still alloced */
 
 	struct list_head by_area;	/* blocks in the same area / 1D */
@@ -128,6 +128,48 @@ static struct tmm *tmm[TILER_FORMATS];
 #define TMM(fmt)        tmm[(fmt) - TILFMT_8BIT]
 #define TMM_SS(ssptr)   TMM(TILER_GET_ACC_MODE(ssptr))
 #define TMM_SET(fmt, i) tmm[(fmt) - TILFMT_8BIT] = i
+
+static const u32 tiler_bpps[4]    = { 1, 2, 4, 1 };
+static const u32 tiler_strides[4] = { 16384, 32768, 32768, 0 };
+
+static u32 is_tiler_addr(u32 addr)
+{
+	return addr >= TILVIEW_8BIT && addr < TILVIEW_END;
+}
+
+/* get tiler format */
+static inline u32 tiler_fmt(const struct tiler_block_t *b)
+{
+	if (!is_tiler_addr(b->phys))
+		BUG();
+	/* return TILER_GET_ACC_MODE(b->phys); */
+	return TILFMT_8BIT + (((b->phys - TILVIEW_8BIT) >> 27) & 3);
+}
+
+/* get tiler block bpp */
+static inline u32 tiler_bpp(const struct tiler_block_t *b)
+{
+	return tiler_bpps[tiler_fmt(b) - TILFMT_8BIT];
+}
+
+/* get tiler block virtual stride */
+static inline u32 tiler_vstride(const struct tiler_block_t *b)
+{
+	return PAGE_ALIGN((b->phys & ~PAGE_MASK) + tiler_bpp(b) * b->width);
+}
+
+/* get tiler block physical stride */
+static inline u32 tiler_pstride(const struct tiler_block_t *b)
+{
+	return tiler_strides[tiler_fmt(b) - TILFMT_8BIT] ? : tiler_vstride(b);
+}
+
+/* returns the virtual size of the block (for mmap) */
+static inline u32 tiler_size(const struct tiler_block_t *b)
+{
+	return b->height * tiler_vstride(b);
+}
+
 
 /* get process info, and increment refs for device tracking */
 static struct process_info *__get_pi(pid_t pid, bool kernel)
@@ -237,7 +279,7 @@ static s32 __analize_area(enum tiler_fmt fmt, u32 width, u32 height,
 	}
 
 	/* get the # of bytes per row in 1 slot */
-	bpp = tilfmt_bpp(fmt);
+	bpp = tiler_bpps[fmt - TILFMT_8BIT];
 	slot_row = slot_w * bpp;
 
 	/* how many slots are can be accessed via one physical page */
@@ -443,8 +485,8 @@ static s32 _m_free(struct mem_info *mi)
 		}
 		kfree(mi->pg_ptr);
 	} else if (mi->mem) {
-		tmm_free(TMM_SS(mi->sys_addr), mi->mem);
-		clear_pat(TMM_SS(mi->sys_addr), &mi->area);
+		tmm_free(TMM_SS(mi->blk.phys), mi->mem);
+		clear_pat(TMM_SS(mi->blk.phys), &mi->area);
 	}
 
 	/* safe deletion as list may not have been assigned */
@@ -530,7 +572,7 @@ static s32 register_buf(struct __buf_info *_b, struct process_info *pi)
 	/* find each block */
 	list_for_each_entry(mi, &blocks, global) {
 		for (i = 0; i < num; i++) {
-			if (!_b->mi[i] && mi->sys_addr == b->blocks[i].ssptr) {
+			if (!_b->mi[i] && mi->blk.phys == b->blocks[i].ssptr) {
 				_b->mi[i] = mi;
 
 				/* quit if found all*/
@@ -774,7 +816,7 @@ static struct mem_info *__get_area(enum tiler_fmt fmt, u32 width, u32 height,
 	gi->refs--;
 	mutex_unlock(&mtx);
 
-	mi->sys_addr = __get_alias_addr(fmt, mi->area.p0.x, mi->area.p0.y)
+	mi->blk.phys = __get_alias_addr(fmt, mi->area.p0.x, mi->area.p0.y)
 		+ in_offs;
 	return mi;
 }
@@ -783,7 +825,7 @@ static s32 tiler_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	struct __buf_info *_b = NULL;
 	struct tiler_buf_info *b = NULL;
-	s32 i = 0, j = 0, k = 0, m = 0, p = 0, bpp = 1;
+	s32 i = 0, j = 0, k = 0, m = 0, p = 0;
 	struct list_head *pos = NULL;
 	struct process_info *pi = filp->private_data;
 
@@ -805,36 +847,15 @@ static s32 tiler_mmap(struct file *filp, struct vm_area_struct *vma)
 	b = &_b->buf_info;
 
 	for (i = 0; i < b->num_blocks; i++) {
-		if (b->blocks[i].fmt >= TILFMT_8BIT &&
-					b->blocks[i].fmt <= TILFMT_32BIT) {
-			/* get line width */
-			bpp = (b->blocks[i].fmt == TILFMT_8BIT ? 1 :
-			       b->blocks[i].fmt == TILFMT_16BIT ? 2 : 4);
-			p = PAGE_ALIGN(b->blocks[i].dim.area.width * bpp);
-
-			for (j = 0; j < b->blocks[i].dim.area.height; j++) {
-				/* map each page of the line */
-				vma->vm_pgoff =
-					(b->blocks[i].ssptr + m) >> PAGE_SHIFT;
-				if (remap_pfn_range(vma, vma->vm_start + k,
-					(b->blocks[i].ssptr + m) >> PAGE_SHIFT,
-					p, vma->vm_page_prot))
-					return -EAGAIN;
-				k += p;
-				if (b->blocks[i].fmt == TILFMT_8BIT)
-					m += 64*TILER_WIDTH;
-				else
-					m += 2*64*TILER_WIDTH;
-			}
-			m = 0;
-		} else if (b->blocks[i].fmt == TILFMT_PAGE) {
-			vma->vm_pgoff = (b->blocks[i].ssptr) >> PAGE_SHIFT;
-			p = PAGE_ALIGN(b->blocks[i].dim.len);
+		p = tiler_vstride(&_b->mi[i]->blk);
+		for (m = j = 0; j < _b->mi[i]->blk.height; j++) {
+			/* map each page of the line */
+			vma->vm_pgoff = (b->blocks[i].ssptr + m) >> PAGE_SHIFT;
 			if (remap_pfn_range(vma, vma->vm_start + k,
-				(b->blocks[i].ssptr) >> PAGE_SHIFT, p,
-				vma->vm_page_prot))
-				return -EAGAIN;;
+					vma->vm_pgoff, p, vma->vm_page_prot))
+				return -EAGAIN;
 			k += p;
+			m += tiler_pstride(&_b->mi[i]->blk);
 		}
 	}
 	return 0;
@@ -874,8 +895,9 @@ static s32 refill_pat(struct tmm *tmm, struct tcm_area *area, u32 *ptr)
 	return res;
 }
 
-static s32 map_block(enum tiler_fmt fmt, u32 width, u32 height, u32 gid,
-			struct process_info *pi, u32 *sys_addr, u32 usr_addr)
+static s32 map_block(enum tiler_fmt fmt, u32 width, u32 height,
+		     u32 key, u32 gid, struct process_info *pi,
+		     struct mem_info **info, u32 usr_addr)
 {
 	u32 i = 0, tmp = -1, *mem = NULL;
 	u8 write = 0;
@@ -886,6 +908,8 @@ static s32 map_block(enum tiler_fmt fmt, u32 width, u32 height, u32 gid,
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma = NULL;
 	struct gid_info *gi = NULL;
+
+	*info = NULL;
 
 	/* we only support mapping a user buffer in page mode */
 	if (fmt != TILFMT_PAGE)
@@ -913,7 +937,8 @@ static s32 map_block(enum tiler_fmt fmt, u32 width, u32 height, u32 gid,
 		return -ENOMEM;
 	}
 
-	*sys_addr = mi->sys_addr;
+	mi->blk.width = width;
+	mi->blk.height = height;
 	mi->usr = usr_addr;
 
 	/* allocate pages */
@@ -979,6 +1004,7 @@ static s32 map_block(enum tiler_fmt fmt, u32 width, u32 height, u32 gid,
 		goto fault;
 
 	res = 0;
+	*info = mi;
 	goto done;
 fault:
 	up_read(&mm->mmap_sem);
@@ -992,19 +1018,32 @@ done:
 	return res;
 }
 
-s32 tiler_mapx(enum tiler_fmt fmt, u32 width, u32 height, u32 gid,
-		       pid_t pid, u32 *sys_addr, u32 usr_addr)
+s32 tiler_mapx(struct tiler_block_t *blk, enum tiler_fmt fmt, u32 gid,
+				pid_t pid, u32 usr_addr)
 {
-	return map_block(fmt, width, height, gid, __get_pi(pid, true),
-							sys_addr, usr_addr);
+	struct mem_info *mi;
+	struct process_info *pi;
+	s32 res;
+
+	if (!blk || blk->phys)
+		BUG();
+
+	pi = __get_pi(pid, true);
+	if (!pi)
+		return -ENOMEM;
+
+	res = map_block(fmt, blk->width, blk->height, blk->key, gid, pi, &mi,
+								usr_addr);
+	if (mi)
+		blk->phys = mi->blk.phys;
+	return res;
+
 }
 EXPORT_SYMBOL(tiler_mapx);
 
-s32 tiler_map(enum tiler_fmt fmt, u32 width, u32 height, u32 *sys_addr,
-								u32 usr_addr)
+s32 tiler_map(struct tiler_block_t *blk, enum tiler_fmt fmt, u32 usr_addr)
 {
-	return tiler_mapx(fmt, width, height, 0, current->tgid, sys_addr,
-								usr_addr);
+	return tiler_mapx(blk, fmt, 0, current->tgid, usr_addr);
 }
 EXPORT_SYMBOL(tiler_map);
 
@@ -1022,7 +1061,7 @@ s32 free_block(u32 sys_addr, struct process_info *pi)
 		/* currently we know if block is 1D or 2D by the address */
 		if (TILER_GET_ACC_MODE(sys_addr) == TILFMT_PAGE) {
 			list_for_each_entry(mi, &gi->onedim, by_area) {
-				if (mi->sys_addr == sys_addr) {
+				if (mi->blk.phys == sys_addr) {
 					_m_try_free(mi);
 					res = 0;
 					goto done;
@@ -1031,7 +1070,7 @@ s32 free_block(u32 sys_addr, struct process_info *pi)
 		} else {
 			list_for_each_entry(ai, &gi->areas, by_gid) {
 				list_for_each_entry(mi, &ai->blocks, by_area) {
-					if (mi->sys_addr == sys_addr) {
+					if (mi->blk.phys == sys_addr) {
 						_m_try_free(mi);
 						res = 0;
 						goto done;
@@ -1048,7 +1087,7 @@ done:
 	return res;
 }
 
-s32 tiler_free(u32 sys_addr)
+s32 free_block_global(u32 ssptr)
 {
 	struct mem_info *mi;
 	s32 res = -ENOENT;
@@ -1057,7 +1096,28 @@ s32 tiler_free(u32 sys_addr)
 
 	/* find block in global list and free it */
 	list_for_each_entry(mi, &blocks, global) {
-		if (mi->sys_addr == sys_addr) {
+		if (mi->blk.phys == ssptr) {
+			_m_try_free(mi);
+			res = 0;
+			break;
+		}
+	}
+	mutex_unlock(&mtx);
+
+	/* for debugging, we can set the PAT entries to DMM_LISA_MAP__0 */
+	return res;
+}
+
+s32 tiler_free(struct tiler_block_t *blk)
+{
+	struct mem_info *mi;
+	s32 res = -ENOENT;
+
+	mutex_lock(&mtx);
+
+	/* find block in global list and free it */
+	list_for_each_entry(mi, &blocks, global) {
+		if (mi->blk.phys == blk->phys) {
 			_m_try_free(mi);
 			res = 0;
 			break;
@@ -1070,54 +1130,47 @@ s32 tiler_free(u32 sys_addr)
 }
 EXPORT_SYMBOL(tiler_free);
 
-/* :TODO: Currently we do not track enough information from alloc to get back
-   the actual width and height of the container, so we must make a guess.  We
-   do not even have enough information to get the virtual stride of the buffer,
-   which is the real reason for this ioctl */
 s32 find_block(u32 sys_addr, struct tiler_block_info *blk)
 {
 	struct mem_info *i;
 	struct tcm_pt pt;
 
+	if (!is_tiler_addr(sys_addr))
+		return -EFAULT;
+
 	if (get_area(sys_addr, &pt))
 		return -EFAULT;
 
 	list_for_each_entry(i, &blocks, global) {
-		if (tcm_is_in(pt, i->area))
+		if (tiler_fmt(&i->blk) == TILER_GET_ACC_MODE(sys_addr) &&
+		    tcm_is_in(pt, i->area))
 			goto found;
 	}
-
-	blk->fmt = TILFMT_INVALID;
-	blk->dim.len = blk->stride = blk->ssptr = 0;
 	return -EFAULT;
 
 found:
 	blk->ptr = NULL;
-	blk->fmt = TILER_GET_ACC_MODE(sys_addr);
-	blk->ssptr = __get_alias_addr(blk->fmt, i->area.p0.x, i->area.p0.y);
+	blk->fmt = TILER_GET_ACC_MODE(i->blk.phys);
+	blk->ssptr = i->blk.phys;
 
 	if (blk->fmt == TILFMT_PAGE) {
-		blk->dim.len = tcm_sizeof(i->area) * TILER_PAGE;
+		blk->dim.len = i->blk.width;
 		blk->stride = 0;
+		blk->group_id = ((struct gid_info *) i->parent)->gid;
 	} else {
-		blk->stride = blk->dim.area.width =
-			tcm_awidth(i->area) * TILER_BLOCK_WIDTH;
-		blk->dim.area.height = tcm_aheight(i->area)
-							* TILER_BLOCK_HEIGHT;
-		if (blk->fmt != TILFMT_8BIT) {
-			blk->stride <<= 1;
-			blk->dim.area.height >>= 1;
-			if (blk->fmt == TILFMT_32BIT)
-				blk->dim.area.width >>= 1;
-		}
-		blk->stride = PAGE_ALIGN(blk->stride);
+		blk->stride = tiler_vstride(&i->blk);
+		blk->dim.area.width = i->blk.width;
+		blk->dim.area.height = i->blk.height;
+		blk->group_id = ((struct area_info *) i->parent)->gi->gid;
 	}
+	blk->offs = i->blk.phys & ~PAGE_MASK;
+	blk->align = 0;
 	return 0;
 }
 
 static s32 alloc_block(enum tiler_fmt fmt, u32 width, u32 height,
-			u32 align, u32 offs, u32 gid, struct process_info *pi,
-			u32 *sys_addr);
+		u32 align, u32 offs, u32 key, u32 gid, struct process_info *pi,
+		struct mem_info **info);
 
 static s32 tiler_ioctl(struct inode *ip, struct file *filp, u32 cmd,
 			unsigned long arg)
@@ -1126,12 +1179,12 @@ static s32 tiler_ioctl(struct inode *ip, struct file *filp, u32 cmd,
 	pmd_t *pmd = NULL;
 	pte_t *ptep = NULL, pte = 0x0;
 	s32 r = -1;
-	u32 til_addr = 0x0;
 	struct process_info *pi = filp->private_data;
 
 	struct __buf_info *_b = NULL;
 	struct tiler_buf_info buf_info = {0};
 	struct tiler_block_info block_info = {0};
+	struct mem_info *mi;
 
 	switch (cmd) {
 	case TILIOC_GBLK:
@@ -1142,7 +1195,9 @@ static s32 tiler_ioctl(struct inode *ip, struct file *filp, u32 cmd,
 		switch (block_info.fmt) {
 		case TILFMT_PAGE:
 			r = alloc_block(block_info.fmt, block_info.dim.len, 1,
-						0, 0, 0, pi, &til_addr);
+					block_info.align, block_info.offs,
+					block_info.key, block_info.group_id,
+					pi, &mi);
 			if (r)
 				return r;
 			break;
@@ -1152,7 +1207,9 @@ static s32 tiler_ioctl(struct inode *ip, struct file *filp, u32 cmd,
 			r = alloc_block(block_info.fmt,
 					block_info.dim.area.width,
 					block_info.dim.area.height,
-					0, 0, 0, pi, &til_addr);
+					block_info.align, block_info.offs,
+					block_info.key, block_info.group_id,
+					pi, &mi);
 			if (r)
 				return r;
 			break;
@@ -1160,7 +1217,10 @@ static s32 tiler_ioctl(struct inode *ip, struct file *filp, u32 cmd,
 			return -EINVAL;
 		}
 
-		block_info.ssptr = til_addr;
+		if (mi) {
+			block_info.stride = tiler_vstride(&mi->blk);
+			block_info.ssptr = mi->blk.phys;
+		}
 		if (copy_to_user((void __user *)arg, &block_info,
 					sizeof(block_info)))
 			return -EFAULT;
@@ -1173,7 +1233,7 @@ static s32 tiler_ioctl(struct inode *ip, struct file *filp, u32 cmd,
 
 		/* search current process first, then all processes */
 		free_block(block_info.ssptr, pi) ?
-			tiler_free(block_info.ssptr) : 0;
+			free_block_global(block_info.ssptr) : 0;
 
 		/* free always succeeds */
 		break;
@@ -1203,10 +1263,16 @@ static s32 tiler_ioctl(struct inode *ip, struct file *filp, u32 cmd,
 		if (!block_info.ptr)
 			return -EFAULT;
 
-		if (map_block(block_info.fmt, block_info.dim.len, 1, 0, pi,
-				&block_info.ssptr, (u32)block_info.ptr))
-			return -ENOMEM;
+		r = map_block(block_info.fmt, block_info.dim.len, 1,
+			      block_info.key, block_info.group_id, pi,
+			      &mi, (u32)block_info.ptr);
+		if (r)
+			return r;
 
+		if (mi) {
+			block_info.stride = tiler_vstride(&mi->blk);
+			block_info.ssptr = mi->blk.phys;
+		}
 		if (copy_to_user((void __user *)arg, &block_info,
 					sizeof(block_info)))
 			return -EFAULT;
@@ -1292,11 +1358,13 @@ static s32 tiler_ioctl(struct inode *ip, struct file *filp, u32 cmd,
 }
 
 s32 alloc_block(enum tiler_fmt fmt, u32 width, u32 height,
-		   u32 align, u32 offs, u32 gid, struct process_info *pi,
-		   u32 *sys_addr)
+		u32 align, u32 offs, u32 key, u32 gid, struct process_info *pi,
+		struct mem_info **info)
 {
 	struct mem_info *mi = NULL;
 	struct gid_info *gi = NULL;
+
+	*info = NULL;
 
 	/* only support up to page alignment */
 	if (align > PAGE_SIZE || offs > align || !pi)
@@ -1320,7 +1388,8 @@ s32 alloc_block(enum tiler_fmt fmt, u32 width, u32 height,
 		return -ENOMEM;
 	}
 
-	*sys_addr = mi->sys_addr;
+	mi->blk.width = width;
+	mi->blk.height = height;
 
 	/* allocate and map if mapping is supported */
 	if (tmm_can_map(TMM(fmt))) {
@@ -1334,6 +1403,7 @@ s32 alloc_block(enum tiler_fmt fmt, u32 width, u32 height,
 		if (refill_pat(TMM(fmt), &mi->area, mi->mem))
 			goto cleanup;
 	}
+	*info = mi;
 	return 0;
 
 cleanup:
@@ -1344,21 +1414,34 @@ cleanup:
 
 }
 
-s32 tiler_allocx(enum tiler_fmt fmt, u32 width, u32 height,
-		 u32 align, u32 offs, u32 gid, pid_t pid, u32 *sys_addr)
+s32 tiler_allocx(struct tiler_block_t *blk, enum tiler_fmt fmt,
+				u32 align, u32 offs, u32 gid, pid_t pid)
 {
-	return alloc_block(fmt, width, height, align, offs, gid,
-			      __get_pi(pid, true), sys_addr);
+	struct mem_info *mi;
+	struct process_info *pi;
+	s32 res;
+
+	if (!blk || blk->phys)
+		BUG();
+
+	pi = __get_pi(pid, true);
+	if (!pi)
+		return -ENOMEM;
+
+	res = alloc_block(fmt, blk->width, blk->height, align, offs, blk->key,
+								gid, pi, &mi);
+	if (mi)
+		blk->phys = mi->blk.phys;
+	return res;
 }
 EXPORT_SYMBOL(tiler_allocx);
 
-s32 tiler_alloc(enum tiler_fmt fmt, u32 width, u32 height, u32 *sys_addr)
+s32 tiler_alloc(struct tiler_block_t *blk, enum tiler_fmt fmt,
+		u32 align, u32 offs)
 {
-	return tiler_allocx(fmt, width, height, 0, 0,
-			    0, current->tgid, sys_addr);
+	return tiler_allocx(blk, fmt, align, offs, 0, current->tgid);
 }
 EXPORT_SYMBOL(tiler_alloc);
-
 
 static void reserve_nv12_blocks(u32 n, u32 width, u32 height,
 				  u32 align, u32 offs, u32 gid, pid_t pid)
