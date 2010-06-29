@@ -170,7 +170,6 @@ static inline u32 tiler_size(const struct tiler_block_t *b)
 	return b->height * tiler_vstride(b);
 }
 
-
 /* get process info, and increment refs for device tracking */
 static struct process_info *__get_pi(pid_t pid, bool kernel)
 {
@@ -557,6 +556,30 @@ static inline bool _m_try_free(struct mem_info *mi)
 	return _m_chk_ref(mi);
 }
 
+/* check if an id is used */
+static bool _m_id_in_use(u32 id)
+{
+	struct mem_info *mi;
+	list_for_each_entry(mi, &blocks, global)
+		if (mi->blk.id == id)
+			return 1;
+	return 0;
+}
+
+/* get an id */
+static u32 _m_get_id(void)
+{
+	static u32 id = 0x2d7ae;
+
+	/* ensure noone is using this id */
+	while (_m_id_in_use(id)) {
+		/* Galois LSFR: 32, 22, 2, 1 */
+		id = (id >> 1) ^ (u32)((0 - (id & 1u)) & 0x80200003u);
+	}
+
+	return id;
+}
+
 static s32 register_buf(struct __buf_info *_b, struct process_info *pi)
 {
 	struct mem_info *mi = NULL;
@@ -572,7 +595,8 @@ static s32 register_buf(struct __buf_info *_b, struct process_info *pi)
 	/* find each block */
 	list_for_each_entry(mi, &blocks, global) {
 		for (i = 0; i < num; i++) {
-			if (!_b->mi[i] && mi->blk.phys == b->blocks[i].ssptr) {
+			if (!_b->mi[i] && mi->blk.id == b->blocks[i].id &&
+			    mi->blk.key == b->blocks[i].key) {
 				_b->mi[i] = mi;
 
 				/* quit if found all*/
@@ -939,6 +963,10 @@ static s32 map_block(enum tiler_fmt fmt, u32 width, u32 height,
 
 	mi->blk.width = width;
 	mi->blk.height = height;
+	mi->blk.key = key;
+	mutex_lock(&mtx);
+	mi->blk.id = _m_get_id();
+	mutex_unlock(&mtx);
 	mi->usr = usr_addr;
 
 	/* allocate pages */
@@ -1047,7 +1075,7 @@ s32 tiler_map(struct tiler_block_t *blk, enum tiler_fmt fmt, u32 usr_addr)
 }
 EXPORT_SYMBOL(tiler_map);
 
-s32 free_block(u32 sys_addr, struct process_info *pi)
+s32 free_block(u32 key, u32 id, struct process_info *pi)
 {
 	struct gid_info *gi = NULL;
 	struct area_info *ai = NULL;
@@ -1058,19 +1086,11 @@ s32 free_block(u32 sys_addr, struct process_info *pi)
 
 	/* find block in process list and free it */
 	list_for_each_entry(gi, &pi->groups, by_pid) {
-		/* currently we know if block is 1D or 2D by the address */
-		if (TILER_GET_ACC_MODE(sys_addr) == TILFMT_PAGE) {
-			list_for_each_entry(mi, &gi->onedim, by_area) {
-				if (mi->blk.phys == sys_addr) {
-					_m_try_free(mi);
-					res = 0;
-					goto done;
-				}
-			}
-		} else {
+		{
 			list_for_each_entry(ai, &gi->areas, by_gid) {
 				list_for_each_entry(mi, &ai->blocks, by_area) {
-					if (mi->blk.phys == sys_addr) {
+					if (mi->blk.key == key &&
+					    mi->blk.id == id) {
 						_m_try_free(mi);
 						res = 0;
 						goto done;
@@ -1087,7 +1107,7 @@ done:
 	return res;
 }
 
-s32 free_block_global(u32 ssptr)
+static s32 free_block_global(u32 key, u32 id)
 {
 	struct mem_info *mi;
 	s32 res = -ENOENT;
@@ -1096,7 +1116,7 @@ s32 free_block_global(u32 ssptr)
 
 	/* find block in global list and free it */
 	list_for_each_entry(mi, &blocks, global) {
-		if (mi->blk.phys == ssptr) {
+		if (mi->blk.key == key && mi->blk.id == id) {
 			_m_try_free(mi);
 			res = 0;
 			break;
@@ -1110,23 +1130,7 @@ s32 free_block_global(u32 ssptr)
 
 s32 tiler_free(struct tiler_block_t *blk)
 {
-	struct mem_info *mi;
-	s32 res = -ENOENT;
-
-	mutex_lock(&mtx);
-
-	/* find block in global list and free it */
-	list_for_each_entry(mi, &blocks, global) {
-		if (mi->blk.phys == blk->phys) {
-			_m_try_free(mi);
-			res = 0;
-			break;
-		}
-	}
-	mutex_unlock(&mtx);
-
-	/* for debugging, we can set the PAT entries to DMM_LISA_MAP__0 */
-	return res;
+	return free_block_global(blk->key, blk->id);
 }
 EXPORT_SYMBOL(tiler_free);
 
@@ -1163,6 +1167,8 @@ found:
 		blk->dim.area.height = i->blk.height;
 		blk->group_id = ((struct area_info *) i->parent)->gi->gid;
 	}
+	blk->id = i->blk.id;
+	blk->key = i->blk.key;
 	blk->offs = i->blk.phys & ~PAGE_MASK;
 	blk->align = 0;
 	return 0;
@@ -1218,6 +1224,7 @@ static s32 tiler_ioctl(struct inode *ip, struct file *filp, u32 cmd,
 		}
 
 		if (mi) {
+			block_info.id = mi->blk.id;
 			block_info.stride = tiler_vstride(&mi->blk);
 			block_info.ssptr = mi->blk.phys;
 		}
@@ -1232,8 +1239,8 @@ static s32 tiler_ioctl(struct inode *ip, struct file *filp, u32 cmd,
 			return -EFAULT;
 
 		/* search current process first, then all processes */
-		free_block(block_info.ssptr, pi) ?
-			free_block_global(block_info.ssptr) : 0;
+		free_block(block_info.key, block_info.id, pi) ?
+			free_block_global(block_info.key, block_info.id) : 0;
 
 		/* free always succeeds */
 		break;
@@ -1270,6 +1277,7 @@ static s32 tiler_ioctl(struct inode *ip, struct file *filp, u32 cmd,
 			return r;
 
 		if (mi) {
+			block_info.id = mi->blk.id;
 			block_info.stride = tiler_vstride(&mi->blk);
 			block_info.ssptr = mi->blk.phys;
 		}
@@ -1390,6 +1398,10 @@ s32 alloc_block(enum tiler_fmt fmt, u32 width, u32 height,
 
 	mi->blk.width = width;
 	mi->blk.height = height;
+	mi->blk.key = key;
+	mutex_lock(&mtx);
+	mi->blk.id = _m_get_id();
+	mutex_unlock(&mtx);
 
 	/* allocate and map if mapping is supported */
 	if (tmm_can_map(TMM(fmt))) {
