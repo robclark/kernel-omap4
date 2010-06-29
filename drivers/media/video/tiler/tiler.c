@@ -871,19 +871,97 @@ static struct mem_info *__get_area(enum tiler_fmt fmt, u32 width, u32 height,
 	return mi;
 }
 
+s32 tiler_mmap_blk(struct tiler_block_t *blk, u32 offs, u32 size,
+				struct vm_area_struct *vma, u32 voffs)
+{
+	u32 v, p;
+	u32 len;	/* area to map */
+
+	/* don't allow mremap */
+	vma->vm_flags |= VM_DONTEXPAND | VM_RESERVED;
+
+	/* mapping must fit into vma */
+	if (vma->vm_start > vma->vm_start + voffs ||
+	    vma->vm_start + voffs > vma->vm_start + voffs + size ||
+	    vma->vm_start + voffs + size > vma->vm_end)
+		BUG();
+
+	/* mapping must fit into block */
+	if (offs > offs + size ||
+	    offs + size > tiler_size(blk))
+		BUG();
+
+	v = tiler_vstride(blk);
+	p = tiler_pstride(blk);
+
+	/* remap block portion */
+	len = v - (offs % v);	/* initial area to map */
+	while (size) {
+		if (len > size)
+			len = size;
+
+		vma->vm_pgoff = (blk->phys + offs) >> PAGE_SHIFT;
+		if (remap_pfn_range(vma, vma->vm_start + voffs, vma->vm_pgoff,
+				    len, vma->vm_page_prot))
+			return -EAGAIN;
+		voffs += len;
+		offs += len + p - v;
+		size -= len;
+		len = v;	/* subsequent area to map */
+	}
+	return 0;
+}
+EXPORT_SYMBOL(tiler_mmap_blk);
+
+s32 tiler_ioremap_blk(struct tiler_block_t *blk, u32 offs, u32 size,
+				u32 addr, u32 mtype)
+{
+	u32 v, p;
+	u32 len;		/* area to map */
+	const struct mem_type *type = get_mem_type(mtype);
+
+	/* mapping must fit into address space */
+	if (addr > addr + size)
+		BUG();
+
+	/* mapping must fit into block */
+	if (offs > offs + size ||
+	    offs + size > tiler_size(blk))
+		BUG();
+
+	v = tiler_vstride(blk);
+	p = tiler_pstride(blk);
+
+	/* move offset and address to end */
+	offs += blk->phys + size;
+	addr += size;
+
+	len = v - (offs % v);	/* initial area to map */
+	while (size) {
+		while (len && size) {
+			if (ioremap_page(addr - size, offs - size, type))
+				return -EAGAIN;
+			len  -= PAGE_SIZE;
+			size -= PAGE_SIZE;
+		}
+
+		offs += p - v;
+		len = v;	/* subsequent area to map */
+	}
+	return 0;
+}
+EXPORT_SYMBOL(tiler_ioremap_blk);
+
 static s32 tiler_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	struct __buf_info *_b = NULL;
 	struct tiler_buf_info *b = NULL;
-	s32 i = 0, j = 0, k = 0, m = 0, p = 0;
+	u32 i, map_offs, map_size, blk_offs, blk_size, mapped_size;
 	struct process_info *pi = filp->private_data;
 	u32 offs = vma->vm_pgoff << PAGE_SHIFT;
 	u32 size = vma->vm_end - vma->vm_start;
 
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-
-	/* don't allow mremap */
-	vma->vm_flags |= VM_DONTEXPAND | VM_RESERVED;
 
 	mutex_lock(&mtx);
 	list_for_each_entry(_b, &pi->bufs, by_pid) {
@@ -897,17 +975,19 @@ static s32 tiler_mmap(struct file *filp, struct vm_area_struct *vma)
 	if (!b)
 		return -ENXIO;
 
-	for (i = 0; i < b->num_blocks; i++) {
-		p = tiler_vstride(&_b->mi[i]->blk);
-		for (m = j = 0; j < _b->mi[i]->blk.height; j++) {
-			/* map each page of the line */
-			vma->vm_pgoff = (b->blocks[i].ssptr + m) >> PAGE_SHIFT;
-			if (remap_pfn_range(vma, vma->vm_start + k,
-					vma->vm_pgoff, p, vma->vm_page_prot))
-				return -EAGAIN;
-			k += p;
-			m += tiler_pstride(&_b->mi[i]->blk);
-		}
+	/* mmap relevant blocks */
+	blk_offs = _b->buf_info.offset;
+	mapped_size = 0;
+	for (i = 0; i < b->num_blocks; i++, blk_offs += blk_size) {
+		blk_size = tiler_size(&_b->mi[i]->blk);
+		if (offs >= blk_offs + blk_size || offs + size < blk_offs)
+			continue;
+		map_offs = max(offs, blk_offs) - blk_offs;
+		map_size = min(size - mapped_size, blk_size);
+		if (tiler_mmap_blk(&_b->mi[i]->blk, map_offs, map_size, vma,
+				   mapped_size))
+			return -EAGAIN;
+		mapped_size += map_size;
 	}
 	return 0;
 }

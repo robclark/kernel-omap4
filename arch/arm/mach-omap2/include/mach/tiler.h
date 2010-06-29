@@ -26,6 +26,8 @@
 
 #define TILER_MAX_NUM_BLOCKS 16
 
+#include <linux/mm.h>
+
 #define TILIOC_GBLK  _IOWR('z', 100, struct tiler_block_info)
 #define TILIOC_FBLK   _IOW('z', 101, struct tiler_block_info)
 #define TILIOC_GSSP  _IOWR('z', 102, u32)
@@ -123,6 +125,36 @@ s32 tiler_alloc(struct tiler_block_t *blk, enum tiler_fmt fmt, u32 align,
  */
 s32 tiler_allocx(struct tiler_block_t *blk, enum tiler_fmt fmt, u32 align,
 		u32 offs, u32 gid, pid_t pid);
+
+/**
+ * Mmaps a portion of a tiler block to a virtual address.  Use this method in
+ * your driver's mmap function to potentially combine multiple tiler blocks as
+ * one virtual buffer.
+ *
+ * @param blk		pointer to tiler block data
+ * @param offs		offset from where to map (must be page aligned)
+ * @param size		size of area to map (must be page aligned)
+ * @param addr		virtual address
+ *
+ * @return error status
+ */
+s32 tiler_mmap_blk(struct tiler_block_t *blk, u32 offs, u32 size,
+				struct vm_area_struct *vma, u32 voffs);
+
+/**
+ * Ioremaps a portion of a tiler block.  Use this method in your driver instead
+ * of ioremap to potentially combine multiple tiler blocks as one virtual
+ * buffer.
+ *
+ * @param blk		pointer to tiler block data
+ * @param offs		offset from where to map (must be page aligned)
+ * @param size		size of area to map (must be page aligned)
+ * @param addr		virtual address
+ *
+ * @return error status
+ */
+s32 tiler_ioremap_blk(struct tiler_block_t *blk, u32 offs, u32 size, u32 addr,
+		      u32 mtype);
 
 /**
  * Maps an existing buffer to a 1D or 2D TILER area for the
