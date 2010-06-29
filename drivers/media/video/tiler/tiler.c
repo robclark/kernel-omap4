@@ -32,6 +32,7 @@
 #include <linux/pagemap.h>         /* page_cache_release() */
 #include <linux/slab.h>
 
+#include <asm/mach/map.h>              /* for ioremap_page */
 #include <mach/tiler.h>
 #include <mach/dmm.h>
 #include "../dmm/tmm.h"
@@ -117,7 +118,6 @@ static s32 tiler_major;
 static s32 tiler_minor;
 static struct tiler_dev *tiler_device;
 static struct class *tilerdev_class;
-static u32 id;
 static struct mutex mtx;
 static struct tcm *tcm[TILER_FORMATS];
 static struct tmm *tmm[TILER_FORMATS];
@@ -566,6 +566,17 @@ static bool _m_id_in_use(u32 id)
 	return 0;
 }
 
+/* check if an offset is used */
+static bool _m_offs_in_use(u32 offs, u32 length, struct process_info *pi)
+{
+	struct __buf_info *_b;
+	list_for_each_entry(_b, &pi->bufs, by_pid)
+		if (_b->buf_info.offset < offs + length &&
+		    _b->buf_info.offset + _b->buf_info.length > offs)
+			return 1;
+	return 0;
+}
+
 /* get an id */
 static u32 _m_get_id(void)
 {
@@ -578,6 +589,21 @@ static u32 _m_get_id(void)
 	}
 
 	return id;
+}
+
+/* get an offset */
+static u32 _m_get_offs(struct process_info *pi, u32 length)
+{
+	static u32 offs = 0xda7a;
+
+	/* ensure no-one is using this offset */
+	while ((offs << PAGE_SHIFT) + length < length ||
+	       _m_offs_in_use(offs << PAGE_SHIFT, length, pi)) {
+		/* Galois LSF: 20, 17 */
+		offs = (offs >> 1) ^ (u32)((0 - (offs & 1u)) & 0x90000);
+	}
+
+	return offs << PAGE_SHIFT;
 }
 
 static s32 register_buf(struct __buf_info *_b, struct process_info *pi)
@@ -593,12 +619,13 @@ static s32 register_buf(struct __buf_info *_b, struct process_info *pi)
 	mutex_lock(&mtx);
 
 	/* find each block */
+	b->length = 0;
 	list_for_each_entry(mi, &blocks, global) {
 		for (i = 0; i < num; i++) {
 			if (!_b->mi[i] && mi->blk.id == b->blocks[i].id &&
 			    mi->blk.key == b->blocks[i].key) {
 				_b->mi[i] = mi;
-
+				b->length += tiler_size(&mi->blk);
 				/* quit if found all*/
 				if (!--remain)
 					break;
@@ -609,8 +636,7 @@ static s32 register_buf(struct __buf_info *_b, struct process_info *pi)
 
 	/* if found all, register buffer */
 	if (!remain) {
-		b->offset = id;
-		id += 0x1000;
+		b->offset = _m_get_offs(pi, b->length);
 
 		list_add(&_b->by_pid, &pi->bufs);
 
@@ -850,8 +876,9 @@ static s32 tiler_mmap(struct file *filp, struct vm_area_struct *vma)
 	struct __buf_info *_b = NULL;
 	struct tiler_buf_info *b = NULL;
 	s32 i = 0, j = 0, k = 0, m = 0, p = 0;
-	struct list_head *pos = NULL;
 	struct process_info *pi = filp->private_data;
+	u32 offs = vma->vm_pgoff << PAGE_SHIFT;
+	u32 size = vma->vm_end - vma->vm_start;
 
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 
@@ -859,16 +886,16 @@ static s32 tiler_mmap(struct file *filp, struct vm_area_struct *vma)
 	vma->vm_flags |= VM_DONTEXPAND | VM_RESERVED;
 
 	mutex_lock(&mtx);
-	list_for_each(pos, &pi->bufs) {
-		_b = list_entry(pos, struct __buf_info, by_pid);
-		if ((vma->vm_pgoff << PAGE_SHIFT) == _b->buf_info.offset)
+	list_for_each_entry(_b, &pi->bufs, by_pid) {
+		if (offs >= _b->buf_info.offset &&
+		    offs + size <= _b->buf_info.offset + _b->buf_info.length) {
+			b = &_b->buf_info;
 			break;
+		}
 	}
 	mutex_unlock(&mtx);
-	if (!_b)
+	if (!b)
 		return -ENXIO;
-
-	b = &_b->buf_info;
 
 	for (i = 0; i < b->num_blocks; i++) {
 		p = tiler_vstride(&_b->mi[i]->blk);
@@ -1654,7 +1681,6 @@ static s32 __init tiler_init(void)
 	INIT_LIST_HEAD(&procs);
 	INIT_LIST_HEAD(&orphan_areas);
 	INIT_LIST_HEAD(&orphan_onedim);
-	id = 0xda7a000;
 
 error:
 	/* TODO: error handling for device registration */
