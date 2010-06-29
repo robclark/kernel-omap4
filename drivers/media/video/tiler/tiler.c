@@ -42,6 +42,29 @@
 
 #include <linux/syscalls.h>
 
+static bool security = true;
+static bool ssptr_id = true;
+static bool ssptr_lookup = true;
+static bool offset_lookup = true;
+static uint default_align = PAGE_SIZE;
+static uint granularity = 128;
+
+module_param(ssptr_id, bool, 0644);
+MODULE_PARM_DESC(ssptr_id, "Use ssptr as block ID");
+module_param_named(align, default_align, uint, 0644);
+MODULE_PARM_DESC(align, "Default block ssptr alignment");
+module_param_named(grain, granularity, uint, 0644);
+MODULE_PARM_DESC(grain, "Granularity (bytes)");
+module_param(ssptr_lookup, bool, 0644);
+MODULE_PARM_DESC(ssptr_lookup,
+	"Allow looking up a block by ssptr - This is a security risk");
+module_param(offset_lookup, bool, 0644);
+MODULE_PARM_DESC(offset_lookup,
+	"Allow looking up a buffer by offset - This is a security risk");
+module_param(security, bool, 0644);
+MODULE_PARM_DESC(security,
+	"Separate allocations by different processes into different pages");
+
 struct tiler_dev {
 	struct cdev cdev;
 };
@@ -176,6 +199,12 @@ static struct process_info *__get_pi(pid_t pid, bool kernel)
 {
 	struct process_info *pi;
 
+	/* treat all processes as the same, kernel processes are still treated
+	   differently so not to free kernel allocated areas when a user process
+	   closes the tiler driver */
+	if (!security)
+		pid = 0;
+
 	/* find process context */
 	mutex_lock(&mtx);
 	list_for_each_entry(pi, &procs, list) {
@@ -286,8 +315,8 @@ static s32 __analize_area(enum tiler_fmt fmt, u32 width, u32 height,
 	*band = PAGE_SIZE / slot_row;
 
 	/* minimum alignment is at least 1 slot.  Use default if needed */
-	min_align = slot_row;
-	*align = ALIGN(*align ? : PAGE_SIZE, min_align);
+	min_align = MAX(slot_row, granularity);
+	*align = ALIGN(*align ? : default_align, min_align);
 
 	/* offset must be multiple of bpp */
 	if (*offs & (bpp - 1))
@@ -1072,9 +1101,14 @@ static s32 map_block(enum tiler_fmt fmt, u32 width, u32 height,
 	mi->blk.width = width;
 	mi->blk.height = height;
 	mi->blk.key = key;
-	mutex_lock(&mtx);
-	mi->blk.id = _m_get_id();
-	mutex_unlock(&mtx);
+	if (ssptr_id) {
+		mi->blk.id = mi->blk.phys;
+	} else {
+		mutex_lock(&mtx);
+		mi->blk.id = _m_get_id();
+		mutex_unlock(&mtx);
+	}
+
 	mi->usr = usr_addr;
 
 	/* allocate pages */
@@ -1194,7 +1228,21 @@ s32 free_block(u32 key, u32 id, struct process_info *pi)
 
 	/* find block in process list and free it */
 	list_for_each_entry(gi, &pi->groups, by_pid) {
-		{
+		/* is id is ssptr, we know if block is 1D or 2D by the address,
+		   so we optimize lookup */
+		if (!ssptr_id ||
+		    TILER_GET_ACC_MODE(id) == TILFMT_PAGE) {
+			list_for_each_entry(mi, &gi->onedim, by_area) {
+				if (mi->blk.key == key && mi->blk.id == id) {
+					_m_try_free(mi);
+					res = 0;
+					goto done;
+				}
+			}
+		}
+
+		if (!ssptr_id ||
+		    TILER_GET_ACC_MODE(id) != TILFMT_PAGE) {
 			list_for_each_entry(ai, &gi->areas, by_gid) {
 				list_for_each_entry(mi, &ai->blocks, by_area) {
 					if (mi->blk.key == key &&
@@ -1397,7 +1445,7 @@ static void reserve_nv12(u32 n, u32 width, u32 height, u32 align, u32 offs,
 
 	/* Check input parameters for correctness, and support */
 	if (!width || !height || !n ||
-	    offs >= (align ? : PAGE_SIZE) || offs & 1 ||
+	    offs >= (align ? : default_align) || offs & 1 ||
 	    align >= PAGE_SIZE || TCM(TILFMT_8BIT) != TCM(TILFMT_16BIT) ||
 	    n > TILER_WIDTH * TILER_HEIGHT / 2)
 		return;
@@ -1482,7 +1530,7 @@ static void reserve_blocks(u32 n, enum tiler_fmt fmt, u32 width, u32 height,
 
 	/* Check input parameters for correctness, and support */
 	if (!width || !height || !n ||
-	    align > PAGE_SIZE || offs >= (align ? : PAGE_SIZE) ||
+	    align > PAGE_SIZE || offs >= (align ? : default_align) ||
 	    fmt < TILFMT_8BIT || fmt > TILFMT_32BIT)
 		return;
 
@@ -1698,6 +1746,9 @@ static s32 tiler_ioctl(struct inode *ip, struct file *filp, u32 cmd,
 			return -EFAULT;
 		break;
 	case TILIOC_QBUF:
+		if (!offset_lookup)
+			return -EPERM;
+
 		if (copy_from_user(&buf_info, (void __user *)arg,
 					sizeof(buf_info)))
 			return -EFAULT;
@@ -1785,6 +1836,9 @@ static s32 tiler_ioctl(struct inode *ip, struct file *filp, u32 cmd,
 		unreserve_blocks(pi, arg);
 		break;
 	case TILIOC_QBLK:
+		if (!ssptr_lookup)
+			return -EPERM;
+
 		if (copy_from_user(&block_info, (void __user *)arg,
 					sizeof(block_info)))
 			return -EFAULT;
@@ -1812,7 +1866,7 @@ s32 alloc_block(enum tiler_fmt fmt, u32 width, u32 height,
 	*info = NULL;
 
 	/* only support up to page alignment */
-	if (align > PAGE_SIZE || offs > align || !pi)
+	if (align > PAGE_SIZE || offs >= (align ? : default_align) || !pi)
 		return -EINVAL;
 
 	/* get group context */
@@ -1836,9 +1890,13 @@ s32 alloc_block(enum tiler_fmt fmt, u32 width, u32 height,
 	mi->blk.width = width;
 	mi->blk.height = height;
 	mi->blk.key = key;
-	mutex_lock(&mtx);
-	mi->blk.id = _m_get_id();
-	mutex_unlock(&mtx);
+	if (ssptr_id) {
+		mi->blk.id = mi->blk.phys;
+	} else {
+		mutex_lock(&mtx);
+		mi->blk.id = _m_get_id();
+		mutex_unlock(&mtx);
+	}
 
 	/* allocate and map if mapping is supported */
 	if (tmm_can_map(TMM(fmt))) {
@@ -1972,6 +2030,13 @@ static s32 __init tiler_init(void)
 	struct tcm_pt div_pt;
 	struct tcm *sita = NULL;
 	struct tmm *tmm_pat = NULL;
+
+	/* check module parameters for correctness */
+	if (default_align > PAGE_SIZE ||
+	    default_align & (default_align - 1) ||
+	    granularity < 1 || granularity > PAGE_SIZE ||
+	    granularity & (granularity - 1))
+		return -EINVAL;
 
 	/* Allocate tiler container manager (we share 1 on OMAP4) */
 	div_pt.x = TILER_WIDTH;   /* hardcoded default */
