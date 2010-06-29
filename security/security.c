@@ -22,6 +22,18 @@
 static __initdata char chosen_lsm[SECURITY_NAME_MAX + 1] =
 	CONFIG_DEFAULT_SECURITY;
 
+#if CONFIG_SECURITY_YAMA
+extern int yama_ptrace_access_check(struct task_struct *child,
+				    unsigned int mode);
+extern int yama_path_link(struct dentry *old_dentry, struct path *new_dir,
+			  struct dentry *new_dentry);
+extern int yama_inode_follow_link(struct dentry *dentry,
+				  struct nameidata *nameidata);
+extern void yama_task_free(struct task_struct *task);
+extern int yama_task_prctl(int option, unsigned long arg2, unsigned long arg3,
+			   unsigned long arg4, unsigned long arg5);
+#endif
+
 /* things that live in capability.c */
 extern void __init security_fixup_ops(struct security_operations *ops);
 
@@ -129,6 +141,12 @@ int __init register_security(struct security_operations *ops)
 
 int security_ptrace_access_check(struct task_struct *child, unsigned int mode)
 {
+#if CONFIG_SECURITY_YAMA
+	int rc;
+	rc = yama_ptrace_access_check(child, mode);
+	if (rc || security_ops->ptrace_access_check == yama_ptrace_access_check)
+		return rc;
+#endif
 	return security_ops->ptrace_access_check(child, mode);
 }
 
@@ -387,6 +405,11 @@ int security_path_link(struct dentry *old_dentry, struct path *new_dir,
 {
 	if (unlikely(IS_PRIVATE(old_dentry->d_inode)))
 		return 0;
+#if CONFIG_SECURITY_YAMA
+	int rc = yama_path_link(old_dentry, new_dir, new_dentry);
+	if (rc || security_ops->path_link == yama_path_link)
+		return rc;
+#endif
 	return security_ops->path_link(old_dentry, new_dir, new_dentry);
 }
 
@@ -502,6 +525,11 @@ int security_inode_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
 	if (unlikely(IS_PRIVATE(dentry->d_inode)))
 		return 0;
+#if CONFIG_SECURITY_YAMA
+	int rc = yama_inode_follow_link(dentry, nd);
+	if (rc || security_ops->inode_follow_link == yama_inode_follow_link)
+		return rc;
+#endif
 	return security_ops->inode_follow_link(dentry, nd);
 }
 
@@ -697,6 +725,11 @@ int security_task_create(unsigned long clone_flags)
 
 void security_task_free(struct task_struct *task)
 {
+#if CONFIG_SECURITY_YAMA
+	yama_task_free(task);
+	if (security_ops->task_free == yama_task_free)
+		return;
+#endif
 	security_ops->task_free(task);
 }
 
@@ -812,6 +845,12 @@ int security_task_wait(struct task_struct *p)
 int security_task_prctl(int option, unsigned long arg2, unsigned long arg3,
 			 unsigned long arg4, unsigned long arg5)
 {
+#if CONFIG_SECURITY_YAMA
+	int rc;
+	rc = yama_task_prctl(option, arg2, arg3, arg4, arg5);
+	if (rc != -ENOSYS || security_ops->task_prctl == yama_task_prctl)
+		return rc;
+#endif
 	return security_ops->task_prctl(option, arg2, arg3, arg4, arg5);
 }
 

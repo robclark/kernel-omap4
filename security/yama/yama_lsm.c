@@ -98,7 +98,7 @@ static void yama_ptracer_del(struct task_struct *tracer,
  * yama_task_free - check for task_pid to remove from exception list
  * @task: task being removed
  */
-static void yama_task_free(struct task_struct *task)
+void yama_task_free(struct task_struct *task)
 {
 	yama_ptracer_del(task, task);
 }
@@ -114,7 +114,7 @@ static void yama_task_free(struct task_struct *task)
  * Return 0 on success, -ve on error.  -ENOSYS is returned when Yama
  * does not handle the given option.
  */
-static int yama_task_prctl(int option, unsigned long arg2, unsigned long arg3,
+int yama_task_prctl(int option, unsigned long arg2, unsigned long arg3,
 			   unsigned long arg4, unsigned long arg5)
 {
 	int rc;
@@ -216,7 +216,7 @@ static int ptracer_exception_found(struct task_struct *tracer,
  *
  * Returns 0 if following the ptrace is allowed, -ve on error.
  */
-static int yama_ptrace_access_check(struct task_struct *child,
+int yama_ptrace_access_check(struct task_struct *child,
 				    unsigned int mode)
 {
 	int rc;
@@ -264,7 +264,7 @@ static int yama_ptrace_access_check(struct task_struct *child,
  *
  * Returns 0 if following the symlink is allowed, -ve on error.
  */
-static int yama_inode_follow_link(struct dentry *dentry,
+int yama_inode_follow_link(struct dentry *dentry,
 				  struct nameidata *nameidata)
 {
 	int rc = 0;
@@ -319,7 +319,7 @@ static int yama_inode_follow_link(struct dentry *dentry,
  *
  * Returns 0 if successful, -ve on error.
  */
-static int yama_path_link(struct dentry *old_dentry, struct path *new_dir,
+int yama_path_link(struct dentry *old_dentry, struct path *new_dir,
 			  struct dentry *new_dentry)
 {
 	int rc = 0;
@@ -400,18 +400,18 @@ static struct ctl_table yama_sysctl_table[] = {
 
 static __init int yama_init(void)
 {
-	if (!security_module_enable(&yama_ops))
-		return 0;
-
 	printk(KERN_INFO "Yama: becoming mindful.\n");
-
-	if (register_security(&yama_ops))
-		panic("Yama: kernel registration failed.\n");
 
 #ifdef CONFIG_SYSCTL
 	if (!register_sysctl_paths(yama_sysctl_path, yama_sysctl_table))
 		panic("Yama: sysctl registration failed.\n");
 #endif
+
+	if (!security_module_enable(&yama_ops))
+		return 0;
+
+	if (register_security(&yama_ops))
+		panic("Yama: kernel registration failed.\n");
 
 	return 0;
 }
