@@ -40,6 +40,9 @@
 #define TILIOC_PRBLK  _IOW('z', 109, struct tiler_block_info)
 #define TILIOC_URBLK  _IOW('z', 110, u32)
 
+/* return true if addr is in the tiler container */
+bool is_tiler_addr(u32 addr);
+
 enum tiler_fmt {
 	TILFMT_MIN     = -2,
 	TILFMT_INVALID = -2,
@@ -59,6 +62,27 @@ struct tiler_block_t {
 	u32 key;			/* secret key */
 	u32 id;				/* unique block ID */
 };
+
+/* get tiler block format */
+enum tiler_fmt tiler_fmt(const struct tiler_block_t *b);
+
+/* get tiler block bytes-per-pixel */
+u32 tiler_bpp(const struct tiler_block_t *b);
+
+/* get tiler block physical stride */
+u32 tiler_pstride(const struct tiler_block_t *b);
+
+/* get tiler block virtual stride */
+static inline u32 tiler_vstride(const struct tiler_block_t *b)
+{
+	return PAGE_ALIGN((b->phys & ~PAGE_MASK) + tiler_bpp(b) * b->width);
+}
+
+/* returns the virtual size of the block (for mmap) */
+static inline u32 tiler_size(const struct tiler_block_t *b)
+{
+	return b->height * tiler_vstride(b);
+}
 
 struct area {
 	u16 width;
@@ -208,10 +232,8 @@ s32 tiler_mapx(struct tiler_block_t *blk, enum tiler_fmt fmt,
  * @param blk	pointer to a tiler block data as filled by tiler_alloc,
  *		tiler_map or tiler_dup.  'phys' member will be set to 0 on
  *		success.
- *
- * @return an error status.
  */
-s32 tiler_free(struct tiler_block_t *blk);
+void tiler_free(struct tiler_block_t *blk);
 
 /**
  * Reserves tiler area for n identical blocks for the current

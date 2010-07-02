@@ -18,6 +18,8 @@
 #include <linux/module.h>
 #include <mach/tiler.h>
 #include "tiler-def.h"
+#include <mach/dmm.h> /* TEMP */
+#include "tcm.h"
 
 #define DMM_SHIFT_PER_X_8 0
 #define DMM_SHIFT_PER_Y_8 0
@@ -62,6 +64,45 @@
 	(DMM_TILER_THE(CONT_WIDTH) << DMM_SHIFT_PER_Y_##N)
 #define DMM_TILER_STRIDE_90_(N) \
 	(DMM_TILER_THE(CONT_HEIGHT) << DMM_SHIFT_PER_X_##N)
+
+/*
+ * TILER Memory model query method
+ */
+bool is_tiler_addr(u32 addr)
+{
+	return addr >= TILVIEW_8BIT && addr < TILVIEW_END;
+}
+
+/*
+ * TILER block query method
+ */
+
+static const u32 tiler_bpps[TILER_FORMATS]    = { 1, 2, 4, 1 };
+static const u32 tiler_strides[TILER_FORMATS] = { 16384, 32768, 32768, 0 };
+
+u32 tiler_bpp(const struct tiler_block_t *b)
+{
+	enum tiler_fmt fmt = tiler_fmt(b);
+	BUG_ON(fmt == TILFMT_INVALID);
+
+	return tiler_bpps[fmt - TILFMT_8BIT];
+}
+
+u32 tiler_pstride(const struct tiler_block_t *b)
+{
+	enum tiler_fmt fmt = tiler_fmt(b);
+	BUG_ON(fmt == TILFMT_INVALID);
+
+	return tiler_strides[fmt - TILFMT_8BIT] ? : tiler_vstride(b);
+}
+
+enum tiler_fmt tiler_fmt(const struct tiler_block_t *b)
+{
+	if (!is_tiler_addr(b->phys))
+		return TILFMT_INVALID;
+
+	return TILER_GET_ACC_MODE(b->phys);
+}
 
 void tiler_get_natural_xy(u32 tsptr, u32 *x, u32 *y)
 {
@@ -155,7 +196,7 @@ u32 tiler_get_address(struct tiler_view_orient orient,
 	return (u32)
 		TIL_ADDR((tmp << alignment), (orient.rotate_90 ? 1 : 0),
 			(orient.y_invert ? 1 : 0), (orient.x_invert ? 1 : 0),
-			(fmt - 1));
+			fmt);
 }
 
 u32 tiler_reorient_addr(u32 tsptr, struct tiler_view_orient orient)

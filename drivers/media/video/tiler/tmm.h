@@ -24,11 +24,11 @@ struct tmm {
 	void *pvt;
 
 	/* function table */
-	u32 *(*get)    (struct tmm *tmm, s32 num_pages);
-	void (*free)   (struct tmm *tmm, u32 *pages);
-	s32  (*map)    (struct tmm *tmm, struct pat_area area, u32 page_pa);
-	void (*clear)  (struct tmm *tmm, struct pat_area area);
-	void (*deinit) (struct tmm *tmm);
+	u32 *(*get)	(struct tmm *tmm, s32 num_pages);
+	void (*free)	(struct tmm *tmm, u32 *pages);
+	s32  (*map)	(struct tmm *tmm, struct pat_area area, u32 page_pa);
+	void (*clear)	(struct tmm *tmm, struct pat_area area);
+	void (*deinit)	(struct tmm *tmm);
 };
 
 /**

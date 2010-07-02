@@ -16,17 +16,31 @@
 
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <mach/tiler.h>
 #include "tiler-def.h"
+#include "_tiler.h"
 
 /* we want to find the most effective packing for the smallest area */
+
+/* we have two algorithms for packing nv12 blocks */
+
+/* we want to find the most effective packing for the smallest area */
+
+static inline u32 nv12_eff(u16 n, u16 w, u16 area, u16 n_need)
+{
+	/* rank by total area needed first */
+	return 0x10000000 - DIV_ROUND_UP(n_need, n) * area * 32 +
+		/* then by efficiency */
+		1024 * n * ((w * 3 + 1) >> 1) / area;
+}
 
 /* This method is used for both 2D and NV12 packing */
 
 /* return maximum buffers that can be packed next to each other */
 /* o(ffset), w(idth), e(ff_width), b(and), n(um blocks), area( needed) */
 /* assumptions: w > 0, o < a <= e */
-u32 tiler_best2pack(u16 o, u16 w, u16 e, u16 b, u16 *n, u16 *area)
+static u32 tiler_best2pack(u16 o, u16 w, u16 e, u16 b, u16 *n, u16 *area)
 {
 	u16 m = 0, max_n = *n;		/* m is mostly n - 1 */
 	u32 eff, best_eff = 0;		/* best values */
@@ -61,7 +75,7 @@ u32 tiler_best2pack(u16 o, u16 w, u16 e, u16 b, u16 *n, u16 *area)
 
 /* nv12 packing algorithm 1: pack 8 and 16 bit block into separate areas */
 /* assumptions: w > 0, o < a, 2 <= a */
-u16 nv12_separate(u16 o, u16 w, u16 a, u16 n, u16 *area)
+static u16 nv12_separate(u16 o, u16 w, u16 a, u16 n, u16 *area)
 {
 	tiler_best2pack(o, w, ALIGN(w, a), 64, &n, area);
 	tiler_best2pack(o / 2, (w + 1) / 2, ALIGN(w, a) / 2, 32, &n, area);
@@ -196,7 +210,7 @@ static int nv12_D(u16 o, u16 w, u16 a, u16 *area, u16 n, u8 *p)
 
 /* nv12 packing algorithm 2: pack 8 and 16 bit block into same areas */
 /* assumptions: w > 0, o < a, 2 <= a, packing has at least MAX_ANY * 2 bytes */
-u16 nv12_together(u16 o, u16 w, u16 a, u16 n, u16 *area, u8 *packing)
+static u16 nv12_together(u16 o, u16 w, u16 a, u16 n, u16 *area, u8 *packing)
 {
 	u16 n_best, n2, a_, o_, w_;
 
@@ -283,4 +297,151 @@ u16 nv12_together(u16 o, u16 w, u16 a, u16 n, u16 *area, u8 *packing)
 		memcpy(packing, p_best, n_best * 2 * sizeof(*pack_A));
 
 	return n_best;
+}
+
+/* can_together: 8-bit and 16-bit views are in the same container */
+void reserve_nv12(u32 n, u32 width, u32 height, u32 align, u32 offs,
+			 u32 gid, struct process_info *pi, bool can_together)
+{
+	/* adjust alignment to at least 128 bytes (16-bit slot width) */
+	u16 w, h, band, a = MAX(128, align), o = offs, eff_w;
+	struct gid_info *gi;
+	int res = 0, res2, i;
+	u16 n_t, n_s, area_t, area_s;
+	u8 packing[2 * 21];
+	struct list_head reserved = LIST_HEAD_INIT(reserved);
+
+	/* Check input parameters for correctness, and support */
+	if (!width || !height || !n ||
+	    offs >= align || offs & 1 ||
+	    align >= PAGE_SIZE ||
+	    n > TILER_WIDTH * TILER_HEIGHT / 2)
+		return;
+
+	/* calculate dimensions, band, offs and alignment in slots */
+	if (__analize_area(TILFMT_8BIT, width, height, &w, &h, &band, &a, &o,
+									NULL))
+		return;
+
+	/* get group context */
+	gi = get_gi(pi, gid);
+	if (!gi)
+		return;
+
+	eff_w = ALIGN(w, a);
+
+	for (i = 0; i < n && res >= 0; i += res) {
+		/* check packing separately vs together */
+		n_s = nv12_separate(o, w, a, n - i, &area_s);
+		if (can_together)
+			n_t = nv12_together(o, w, a, n - i, &area_t, packing);
+		else
+			n_t = 0;
+
+		/* pack based on better efficiency */
+		res = -1;
+		if (!can_together ||
+			nv12_eff(n_s, w, area_s, n - i) >
+			nv12_eff(n_t, w, area_t, n - i)) {
+
+			/* reserve blocks separately into a temporary list,
+			   so that we can free them if unsuccessful */
+			res = reserve_2d(TILFMT_8BIT, n_s, w, h, band, a, o, gi,
+					 &reserved);
+
+			/* only reserve 16-bit blocks if 8-bit was successful,
+			   as we will try to match 16-bit areas to an already
+			   reserved 8-bit area, and there is no guarantee that
+			   an unreserved 8-bit area will match the offset of
+			   a singly reserved 16-bit area. */
+			res2 = (res < 0 ? res :
+				reserve_2d(TILFMT_16BIT, n_s, (w + 1) / 2, h,
+				band / 2, a / 2, o / 2, gi, &reserved));
+			if (res2 < 0 || res != res2) {
+				/* clean up */
+				release_blocks(&reserved);
+				res = -1;
+			} else {
+				/* add list to reserved */
+				add_reserved_blocks(&reserved, gi);
+			}
+		}
+
+		/* if separate packing failed, still try to pack together */
+		if (res < 0 && can_together && n_t) {
+			/* pack together */
+			res = pack_nv12(n_t, area_t, w, h, gi, packing);
+		}
+	}
+
+	release_gi(gi);
+}
+
+/* reserve 2d blocks (if standard allocator is inefficient) */
+void reserve_blocks(u32 n, enum tiler_fmt fmt, u32 width, u32 height,
+			   u32 align, u32 offs, u32 gid,
+			   struct process_info *pi)
+{
+	u32 til_width, bpp, bpt, res = 0, i;
+	u16 o = offs, a = align, band, w, h, e, n_try;
+	struct gid_info *gi;
+
+	/* Check input parameters for correctness, and support */
+	if (!width || !height || !n ||
+	    align > PAGE_SIZE || offs >= align ||
+	    fmt < TILFMT_8BIT || fmt > TILFMT_32BIT)
+		return;
+
+	/* tiler page width in pixels, bytes per pixel, tiler page in bytes */
+	til_width = fmt == TILFMT_32BIT ? 32 : 64;
+	bpp = 1 << (fmt - TILFMT_8BIT);
+	bpt = til_width * bpp;
+
+	/* check offset.  Also, if block is less than half the mapping window,
+	   the default allocation is sufficient.  Also check for basic area
+	   info. */
+	if (width * bpp * 2 <= PAGE_SIZE ||
+	    __analize_area(fmt, width, height, &w, &h, &band, &a, &o, NULL))
+		return;
+
+	/* get group id */
+	gi = get_gi(pi, gid);
+	if (!gi)
+		return;
+
+	/* effective width of a buffer */
+	e = ALIGN(w, a);
+
+	for (i = 0; i < n && res >= 0; i += res) {
+		/* blocks to allocate in one area */
+		n_try = MIN(n - i, TILER_WIDTH);
+		tiler_best2pack(offs, w, e, band, &n_try, NULL);
+
+		res = -1;
+		while (n_try > 1) {
+			res = reserve_2d(fmt, n_try, w, h, band, a, o, gi,
+					 &gi->reserved);
+			if (res >= 0)
+				break;
+
+			/* reduce n if failed to allocate area */
+			n_try--;
+		}
+	}
+	/* keep reserved blocks even if failed to reserve all */
+
+	release_gi(gi);
+}
+
+void unreserve_blocks(struct process_info *pi, u32 gid)
+{
+	struct gid_info *gi;
+
+	gi = get_gi(pi, gid);
+	if (!gi)
+		return;
+
+	release_blocks(&gi->reserved);
+
+	release_gi(gi);
 }
