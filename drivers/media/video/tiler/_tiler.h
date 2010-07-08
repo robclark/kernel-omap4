@@ -59,26 +59,36 @@ struct tiler_ops {
 	s32 (*map) (enum tiler_fmt fmt, u32 width, u32 height,
 			u32 key, u32 gid, struct process_info *pi,
 			struct mem_info **info, u32 usr_addr);
+	void (*reserve_nv12) (u32 n, u32 width, u32 height, u32 align, u32 offs,
+			u32 gid, struct process_info *pi, bool can_together);
+	void (*reserve) (u32 n, enum tiler_fmt fmt, u32 width, u32 height,
+			u32 align, u32 offs, u32 gid, struct process_info *pi);
+	void (*unreserve) (u32 gid, struct process_info *pi);
 
+	/* block access operations */
 	struct mem_info * (*lock) (u32 key, u32 id, struct gid_info *gi);
+	struct mem_info * (*lock_by_ssptr) (u32 sys_addr);
+	void (*describe) (struct mem_info *i, struct tiler_block_info *blk);
 	void (*unlock_free) (struct mem_info *mi, bool free);
 
-	struct mem_info * (*get_by_ssptr) (u32 sys_addr);
-	void (*describe) (struct mem_info *i, struct tiler_block_info *blk);
-
-	void (*add_reserved) (struct list_head *reserved, struct gid_info *gi);
-	void (*release) (struct list_head *reserved);
-
+	s32 (*lay_2d) (enum tiler_fmt fmt, u16 n, u16 w, u16 h, u16 band,
+				u16 align, u16 offs, struct gid_info *gi,
+				struct list_head *pos);
+	s32 (*lay_nv12) (int n, u16 w, u16 w1, u16 h, struct gid_info *gi,
+									u8 *p);
 	/* group operations */
 	struct gid_info * (*get_gi) (struct process_info *pi, u32 gid);
 	void (*release_gi) (struct gid_info *gi);
 	void (*destroy_group) (struct gid_info *pi);
 
+	/* group access operations */
+	void (*add_reserved) (struct list_head *reserved, struct gid_info *gi);
+	void (*release) (struct list_head *reserved);
 
+	/* area operations */
 	s32 (*analize) (enum tiler_fmt fmt, u32 width, u32 height,
 				  u16 *x_area, u16 *y_area, u16 *band,
 				  u16 *align, u16 *offs, u16 *in_offs);
-
 
 	/* process operations */
 	void (*cleanup) (void);
@@ -88,19 +98,9 @@ struct tiler_ops {
 	u32 (*addr) (struct tiler_view_orient orient, enum tiler_fmt fmt,
 			u32 x, u32 y);
 
-	/* reservation operations */
-	void (*reserve_nv12) (u32 n, u32 width, u32 height, u32 align, u32 offs,
-			u32 gid, struct process_info *pi, bool can_together);
-	void (*reserve) (u32 n, enum tiler_fmt fmt, u32 width, u32 height,
-			u32 align, u32 offs, u32 gid, struct process_info *pi);
-	void (*unreserve) (u32 gid, struct process_info *pi);
-
-	s32 (*lay_2d) (enum tiler_fmt fmt, u16 n, u16 w, u16 h, u16 band,
-				u16 align, u16 offs, struct gid_info *gi,
-				struct list_head *pos);
-	s32 (*lay_nv12) (int n, u16 w, u16 w1, u16 h, struct gid_info *gi,
-									u8 *p);
+	/* additional info */
 	const struct file_operations *fops;
+	bool nv12_packed;
 };
 
 void tiler_iface_init(struct tiler_ops *tiler);

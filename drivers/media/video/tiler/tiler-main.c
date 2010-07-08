@@ -817,8 +817,10 @@ static struct mem_info *find_block_by_ssptr(u32 sys_addr)
 	mutex_lock(&mtx);
 	list_for_each_entry(i, &blocks, global) {
 		if (tiler_fmt(i->blk.phys) == TILER_GET_ACC_MODE(sys_addr) &&
-		    tcm_is_in(pt, i->area))
+		    tcm_is_in(pt, i->area)) {
+			i->refs++;
 			goto found;
+		}
 	}
 	i = NULL;
 
@@ -1129,7 +1131,7 @@ static s32 __init tiler_init(void)
 	tiler.lay_2d = lay_2d;
 	tiler.lay_nv12 = lay_nv12;
 	tiler.destroy_group = destroy_group;
-	tiler.get_by_ssptr = find_block_by_ssptr;
+	tiler.lock_by_ssptr = find_block_by_ssptr;
 	tiler.describe = fill_block_info;
 	tiler.get_gi = get_gi;
 	tiler.release_gi = release_gi;
@@ -1163,6 +1165,8 @@ static s32 __init tiler_init(void)
 	TMM_SET(TILFMT_16BIT, tmm_pat);
 	TMM_SET(TILFMT_32BIT, tmm_pat);
 	TMM_SET(TILFMT_PAGE, tmm_pat);
+
+	tiler.nv12_packed = TCM(TILFMT_8BIT) == TCM(TILFMT_16BIT);
 
 	tiler_device = kmalloc(sizeof(*tiler_device), GFP_KERNEL);
 	if (!tiler_device || !sita || !tmm_pat) {

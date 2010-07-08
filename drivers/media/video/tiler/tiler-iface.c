@@ -115,6 +115,7 @@ static s32 _m_register_buf(struct __buf_info *_b, struct process_info *pi)
 			return -EACCES;
 		}
 		_b->mi[i] = mi;
+		ops->describe(mi, b->blocks + i);
 		b->length += tiler_size(&mi->blk);
 	}
 
@@ -124,17 +125,6 @@ static s32 _m_register_buf(struct __buf_info *_b, struct process_info *pi)
 	list_add(&_b->by_pid, &pi->bufs);
 
 	return 0;
-}
-
-static s32 register_buf(struct __buf_info *_b, struct process_info *pi)
-{
-	s32 r;
-
-	mutex_lock(&mtx);
-	r = _m_register_buf(_b, pi);
-	mutex_unlock(&mtx);
-
-	return r;
 }
 
 /* unregister a buffer */
@@ -296,7 +286,7 @@ static s32 tiler_ioctl(struct inode *ip, struct file *filp, u32 cmd,
 	struct __buf_info *_b = NULL;
 	struct tiler_buf_info buf_info = {0};
 	struct tiler_block_info block_info = {0};
-	struct mem_info *mi;
+	struct mem_info *mi = NULL;
 
 	switch (cmd) {
 	case TILIOC_GBLK:
@@ -411,21 +401,23 @@ static s32 tiler_ioctl(struct inode *ip, struct file *filp, u32 cmd,
 			return -EFAULT;
 
 		mutex_lock(&mtx);
+		r = -ENOENT;
 		list_for_each_entry(_b, &pi->bufs, by_pid) {
 			if (buf_info.offset == _b->buf_info.offset) {
-				if (copy_to_user((void __user *)arg,
-					&_b->buf_info,
-					sizeof(_b->buf_info))) {
-					mutex_unlock(&mtx);
-					return -EFAULT;
-				} else {
-					mutex_unlock(&mtx);
-					return 0;
-				}
+				memcpy(&buf_info, &_b->buf_info,
+					sizeof(buf_info));
+				r = 0;
+				break;
 			}
 		}
 		mutex_unlock(&mtx);
-		return -EFAULT;
+
+		if (r)
+			return r;
+
+		if (copy_to_user((void __user *)arg, &_b->buf_info,
+						sizeof(_b->buf_info)))
+			return -EFAULT;
 		break;
 #endif
 	case TILIOC_RBUF:
@@ -440,14 +432,19 @@ static s32 tiler_ioctl(struct inode *ip, struct file *filp, u32 cmd,
 			kfree(_b); return -EFAULT;
 		}
 
-		r = register_buf(_b, pi);
+		mutex_lock(&mtx);
+		r = _m_register_buf(_b, pi);
+		mutex_unlock(&mtx);
+
 		if (r) {
 			kfree(_b); return -EACCES;
 		}
 
 		if (copy_to_user((void __user *)arg, &_b->buf_info,
 					sizeof(_b->buf_info))) {
+			mutex_lock(&mtx);
 			_m_unregister_buf(_b);
+			mutex_unlock(&mtx);
 			return -EFAULT;
 		}
 		break;
@@ -456,17 +453,18 @@ static s32 tiler_ioctl(struct inode *ip, struct file *filp, u32 cmd,
 					sizeof(buf_info)))
 			return -EFAULT;
 
+		r = -EFAULT;
 		mutex_lock(&mtx);
 		/* buffer registration is per process */
 		list_for_each_entry(_b, &pi->bufs, by_pid) {
 			if (buf_info.offset == _b->buf_info.offset) {
 				_m_unregister_buf(_b);
-				mutex_unlock(&mtx);
-				return 0;
+				r = 0;
+				break;
 			}
 		}
 		mutex_unlock(&mtx);
-		return -EFAULT;
+		return r;
 		break;
 	case TILIOC_PRBLK:
 		if (copy_from_user(&block_info, (void __user *)arg,
@@ -475,45 +473,55 @@ static s32 tiler_ioctl(struct inode *ip, struct file *filp, u32 cmd,
 
 		if (block_info.fmt == TILFMT_8AND16) {
 			ops->reserve_nv12(block_info.key,
+					  block_info.dim.area.width,
+					  block_info.dim.area.height,
+					  block_info.align,
+					  block_info.offs,
+					  block_info.group_id, pi,
+					  ops->nv12_packed);
+		} else {
+			ops->reserve(block_info.key,
+				     block_info.fmt,
 				     block_info.dim.area.width,
 				     block_info.dim.area.height,
 				     block_info.align,
 				     block_info.offs,
-				     block_info.group_id, pi,
-				     true /* :TODO: get can_together */);
-		} else {
-			ops->reserve(block_info.key,
-				       block_info.fmt,
-				       block_info.dim.area.width,
-				       block_info.dim.area.height,
-				       block_info.align,
-				       block_info.offs,
-				       block_info.group_id, pi);
+				     block_info.group_id, pi);
 		}
 		break;
 	case TILIOC_URBLK:
 		ops->unreserve(arg, pi);
 		break;
-#ifndef CONFIG_TILER_SECURE
 	case TILIOC_QBLK:
-		if (!ssptr_lookup)
-			return -EPERM;
-
 		if (copy_from_user(&block_info, (void __user *)arg,
 					sizeof(block_info)))
 			return -EFAULT;
 
-		mi = ops->get_by_ssptr(block_info.ssptr);
+		if (block_info.id) {
+			/* look up by id if specified */
+			mutex_lock(&mtx);
+			mi = _m_lock_block(block_info.key, block_info.id, pi);
+			mutex_unlock(&mtx);
+		} else
+#ifndef CONFIG_TILER_SECURE
+		if (ssptr_lookup) {
+			/* otherwise, look up by ssptr if allowed */
+			mi = ops->lock_by_ssptr(block_info.ssptr);
+		} else
+#endif
+			return -EPERM;
+
 		if (mi)
 			ops->describe(mi, &block_info);
-		else
+		ops->unlock_free(mi, false);
+
+		if (!mi)
 			return -EFAULT;
 
 		if (copy_to_user((void __user *)arg, &block_info,
 			sizeof(block_info)))
 			return -EFAULT;
 		break;
-#endif
 	default:
 		return -EINVAL;
 	}
@@ -598,7 +606,7 @@ s32 tiler_reservex_nv12(u32 n, u32 width, u32 height, u32 align, u32 offs,
 
 	if (pi)
 		ops->reserve_nv12(n, width, height, align, offs, gid, pi,
-			     true /* :TODO: get can_together */);
+							ops->nv12_packed);
 	return 0;
 }
 EXPORT_SYMBOL(tiler_reservex_nv12);
