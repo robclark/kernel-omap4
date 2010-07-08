@@ -78,9 +78,9 @@ static s32 check_fit_r_and_b(struct tcm *tcm, u16 w, u16 h, u16 left_x,
 static s32 check_fit_r_one_dim(struct tcm *tcm, u16 x, u16 y, u32 num_pages,
 			       u16 *busy_x, u16 *busy_y);
 
-static void select_candidate(struct tcm *tcm, u16 w, u16 h,
-			struct list_head *maybes, struct tcm_area *field,
-			s32 criteria, struct tcm_area *area);
+static s32 update_candidate(struct tcm *tcm, u16 x0, u16 y0, u16 w, u16 h,
+			     struct tcm_area *field, s32 criteria,
+			     struct score *best);
 
 static void get_nearness_factor(struct tcm_area *field,
 		       struct tcm_area *candidate, struct nearness_factor *nf);
@@ -104,33 +104,6 @@ static s32 move_right(struct tcm *tcm, u16 x, u16 y, u32 num_pages,
 /*********************************************
  *	Utility Methods
  *********************************************/
-
-/* TODO: check if element allocation succeeded */
-
-/* insert a given area at the end of a given list */
-static
-struct area_spec *insert_element(struct list_head *head, struct tcm_area *area)
-{
-	struct area_spec *elem;
-
-	elem = kmalloc(sizeof(*elem), GFP_KERNEL);
-	if (elem) {
-		elem->area = *area;
-		list_add_tail(&elem->list, head);
-	}
-	return elem;
-}
-
-static
-void clean_list(struct list_head *head)
-{
-	struct area_spec *elem = NULL, *elem_ = NULL;
-
-	list_for_each_entry_safe(elem, elem_, head, list) {
-		list_del(&elem->list);
-		kfree(elem);
-	}
-}
 
 #if 0
 static
@@ -389,12 +362,11 @@ static s32 sita_free(struct tcm *tcm, struct tcm_area *area)
 static s32 scan_r2l_t2b(struct tcm *tcm, u16 w, u16 h, u16 stride,
 		 struct tcm_area *field, struct tcm_area *area)
 {
-	s32 xx = 0, yy = 0;
+	s32 xx = 0, yy = 0, done = 0;
 	s16 start_x = -1, end_x = -1, start_y = -1, end_y = -1;
 	s16 found_x = -1, found_y = -1;
-	LIST_HEAD(maybes);
-	struct tcm_area candidate = {0};
 	struct sita_pvt *pvt = (struct sita_pvt *)tcm->pvt;
+	struct score best = {{0}, {0}, {0}, 0};
 
 	PA(2, "scan_r2l_t2b:", field);
 
@@ -427,7 +399,7 @@ static s32 scan_r2l_t2b(struct tcm *tcm, u16 w, u16 h, u16 stride,
 	 * given a start x = 0 is a valid value  so if we have a end_x = 255,
 	 * 255th element is also checked
 	 */
-	for (yy = start_y; yy <= end_y; yy++) {
+	for (yy = start_y; yy <= end_y && !done; yy++) {
 		for (xx = start_x; xx >= end_x; xx -= stride) {
 			if (!pvt->map[xx][yy]) {
 				if (check_fit_r_and_b(tcm, w, h, xx, yy)) {
@@ -436,8 +408,11 @@ static s32 scan_r2l_t2b(struct tcm *tcm, u16 w, u16 h, u16 stride,
 					found_y = yy;
 					/* Insert this candidate, it is just a
 						co-ordinate, reusing Area */
-					assign(&candidate, xx, yy, 0, 0);
-					insert_element(&maybes, &candidate);
+					done = update_candidate(tcm, xx, yy, w,
+						h, field, CR_R2L_T2B, &best);
+					if (done)
+						break;
+
 #ifdef X_SCAN_LIMITER
 					/* change upper x bound */
 					end_x = xx + 1;
@@ -463,12 +438,10 @@ static s32 scan_r2l_t2b(struct tcm *tcm, u16 w, u16 h, u16 stride,
 #endif
 	}
 
-	if (list_empty(&maybes))
+	if (!best.a.tcm)
 		return -ENOSPC;
 
-	select_candidate(tcm, w, h, &maybes, field, CR_R2L_T2B, area);
-	/* dump_list_entries(maybes); */
-	clean_list(&maybes);
+	assign(area, best.a.p0.x, best.a.p0.y, best.a.p1.x, best.a.p1.y);
 	return 0;
 }
 
@@ -493,12 +466,11 @@ static s32 scan_r2l_b2t(struct tcm *tcm, u16 w, u16 h, u16 stride,
 	/* TODO: Should I check scan area?
 	 * Might have to take it as input during initialization
 	 */
-	s32 xx = 0, yy = 0;
+	s32 xx = 0, yy = 0, done = 0;
 	s16 start_x = -1, end_x = -1, start_y = -1, end_y = -1;
 	s16 found_x = -1, found_y = -1;
-	LIST_HEAD(maybes);
-	struct tcm_area candidate = {0};
 	struct sita_pvt *pvt = (struct sita_pvt *)tcm->pvt;
+	struct score best = {{0}, {0}, {0}, 0};
 
 	PA(2, "scan_r2l_b2t:", field);
 
@@ -531,7 +503,7 @@ static s32 scan_r2l_b2t(struct tcm *tcm, u16 w, u16 h, u16 stride,
 	 * given a start x = 0 is a valid value  so if we have a end_x = 255,
 	 * 255th element is also checked
 	 */
-	for (yy = start_y; yy >= end_y; yy--) {
+	for (yy = start_y; yy >= end_y && !done; yy--) {
 		for (xx = start_x; xx >= end_x; xx -= stride) {
 			if (!pvt->map[xx][yy]) {
 				if (check_fit_r_and_b(tcm, w, h, xx, yy)) {
@@ -540,8 +512,10 @@ static s32 scan_r2l_b2t(struct tcm *tcm, u16 w, u16 h, u16 stride,
 					found_y = yy;
 					/* Insert this candidate, it is just a
 						co-ordinate, reusing Area */
-					assign(&candidate, xx, yy, 0, 0);
-					insert_element(&maybes, &candidate);
+					done = update_candidate(tcm, xx, yy, w,
+						h, field, CR_R2L_B2T, &best);
+					if (done)
+						break;
 #ifdef X_SCAN_LIMITER
 					/* change upper x bound */
 					end_x = xx + 1;
@@ -568,12 +542,10 @@ static s32 scan_r2l_b2t(struct tcm *tcm, u16 w, u16 h, u16 stride,
 #endif
 	}
 
-	if (list_empty(&maybes))
+	if (!best.a.tcm)
 		return -ENOSPC;
 
-	select_candidate(tcm, w, h, &maybes, field, CR_R2L_B2T, area);
-	/* dump_list_entries(maybes); */
-	clean_list(&maybes);
+	assign(area, best.a.p0.x, best.a.p0.y, best.a.p1.x, best.a.p1.y);
 	return 0;
 }
 #endif
@@ -595,12 +567,11 @@ static s32 scan_r2l_b2t(struct tcm *tcm, u16 w, u16 h, u16 stride,
 s32 scan_l2r_t2b(struct tcm *tcm, u16 w, u16 h, u16 stride,
 		 struct tcm_area *field, struct tcm_area *area)
 {
-	s32 xx = 0, yy = 0;
+	s32 xx = 0, yy = 0, done = 0;
 	s16 start_x = -1, end_x = -1, start_y = -1, end_y = -1;
 	s16 found_x = -1, found_y = -1;
-	LIST_HEAD(maybes);
-	struct tcm_area candidate = {0};
 	struct sita_pvt *pvt = (struct sita_pvt *)tcm->pvt;
+	struct score best = {{0}, {0}, {0}, 0};
 
 	PA(2, "scan_l2r_t2b:", field);
 
@@ -635,7 +606,7 @@ s32 scan_l2r_t2b(struct tcm *tcm, u16 w, u16 h, u16 stride,
 	 * given a start x = 0 is a valid value  so if we have a end_x = 255,
 	 * 255th element is also checked
 	 */
-	for (yy = start_y; yy <= end_y; yy++) {
+	for (yy = start_y; yy <= end_y && !done; yy++) {
 		for (xx = start_x; xx <= end_x; xx += stride) {
 			/* if NOT occupied */
 			if (!pvt->map[xx][yy]) {
@@ -645,8 +616,10 @@ s32 scan_l2r_t2b(struct tcm *tcm, u16 w, u16 h, u16 stride,
 					found_y = yy;
 					/* Insert this candidate, it is just a
 						co-ordinate, reusing Area */
-					assign(&candidate, xx, yy, 0, 0);
-					insert_element(&maybes, &candidate);
+					done = update_candidate(tcm, xx, yy, w,
+						h, field, CR_L2R_T2B, &best);
+					if (done)
+						break;
 #ifdef X_SCAN_LIMITER
 					/* change upper x bound */
 					end_x = xx - 1;
@@ -671,12 +644,10 @@ s32 scan_l2r_t2b(struct tcm *tcm, u16 w, u16 h, u16 stride,
 #endif
 	}
 
-	if (list_empty(&maybes))
+	if (!best.a.tcm)
 		return -ENOSPC;
 
-	select_candidate(tcm, w, h, &maybes, field, CR_L2R_T2B, area);
-	/* dump_list_entries(maybes); */
-	clean_list(&maybes);
+	assign(area, best.a.p0.x, best.a.p0.y, best.a.p1.x, best.a.p1.y);
 	return 0;
 }
 
@@ -698,12 +669,11 @@ s32 scan_l2r_t2b(struct tcm *tcm, u16 w, u16 h, u16 stride,
 static s32 scan_l2r_b2t(struct tcm *tcm, u16 w, u16 h, u16 stride,
 			struct tcm_area *field, struct tcm_area *area)
 {
-	s32 xx = 0, yy = 0;
+	s32 xx = 0, yy = 0, done = 0;
 	s16 start_x = -1, end_x = -1, start_y = -1, end_y = -1;
 	s16 found_x = -1, found_y = -1;
-	LIST_HEAD(maybes);
-	struct tcm_area candidate = {0};
 	struct sita_pvt *pvt = (struct sita_pvt *)tcm->pvt;
+	struct score best = {{0}, {0}, {0}, 0};
 
 	PA(2, "scan_l2r_b2t:", field);
 
@@ -738,7 +708,7 @@ static s32 scan_l2r_b2t(struct tcm *tcm, u16 w, u16 h, u16 stride,
 	 * given a start x = 0 is a valid value  so if we have a end_x = 255,
 	 * 255th element is also checked
 	 */
-	for (yy = start_y; yy >= end_y; yy--) {
+	for (yy = start_y; yy >= end_y && !done; yy--) {
 		for (xx = start_x; xx <= end_x; xx += stride) {
 			/* if NOT occupied */
 			if (!pvt->map[xx][yy]) {
@@ -748,8 +718,11 @@ static s32 scan_l2r_b2t(struct tcm *tcm, u16 w, u16 h, u16 stride,
 					found_y = yy;
 					/* Insert this candidate, it is just a
 					 co-ordinate, reusing Area */
-					assign(&candidate, xx, yy, 0, 0);
-					insert_element(&maybes, &candidate);
+					done = update_candidate(tcm, xx, yy, w,
+						h, field, CR_L2R_B2T, &best));
+					if (done)
+						break;
+
 #ifdef X_SCAN_LIMITER
 					/* change upper x bound */
 					end_x = xx - 1;
@@ -775,12 +748,10 @@ static s32 scan_l2r_b2t(struct tcm *tcm, u16 w, u16 h, u16 stride,
 #endif
 	}
 
-	if (list_empty(&maybes))
+	if (!best.a.tcm)
 		return -ENOSPC;
 
-	select_candidate(tcm, w, h, &maybes, field, CR_L2R_B2T, area);
-	/* dump_list_entries(maybes); */
-	clean_list(&maybes);
+	assign(area, best.a.p0.x, best.a.p0.y, best.a.p1.x, best.a.p1.y);
 	return 0;
 }
 #endif
@@ -1062,100 +1033,73 @@ static void fill_1d_area(struct tcm *tcm, struct tcm_area *area,
 	pvt->map[x][y] = parent;
 }
 
-static void select_candidate(struct tcm *tcm, u16 w, u16 h,
-		     struct list_head *maybes,
-		     struct tcm_area *field, s32 criteria,
-		     struct tcm_area *area)
+static s32 update_candidate(struct tcm *tcm, u16 x0, u16 y0, u16 w, u16 h,
+			    struct tcm_area *field, s32 criteria,
+			    struct score *best)
 {
-	/* bookkeeping the best match and the one evaluated */
-	struct area_spec *best = NULL;
-	struct nearness_factor best_factor = {0};
-	struct neighbour_stats best_stats = {0};
-	u16 win_neighs = 0;
+	struct score me;	/* score for area */
 
-	/* bookkeeping the current one being evaluated */
-	struct area_spec *elem = NULL;
-	struct nearness_factor factor = {0};
-	struct neighbour_stats stats = {0};
-	u16 neighs = 0;
+	/*
+	 * If first found is enabled then we stop looking
+	 * NOTE: For Horizontal bias we always give the first found, because our
+	 * scan is Horizontal-raster-based and the first candidate will always
+	 * have the Horizontal bias.
+	 */
+	bool first = criteria & (CR_FIRST_FOUND | CR_BIAS_HORIZONTAL);
 
-	bool better; /* whether current is better */
+	assign(&me.a, x0, y0, x0 + w - 1, y0 + h - 1);
 
-	/* we default to the 1st candidate */
-	best = list_first_entry(maybes, struct area_spec, list);
-
-	/*i f there is only one candidate then that is the selection*/
-
-	/* If first found is enabled then we just provide bluntly the first
-	found candidate
-	  * NOTE: For Horizontal bias we just give the first found, because our
-	  * scan is Horizontal raster based and the first candidate will always
-	  * be the same as if selecting the Horizontal one.
-	  */
-	if (list_is_singular(maybes) ||
-	    criteria & CR_FIRST_FOUND || criteria & CR_BIAS_HORIZONTAL)
-		/* Note: Sure we could have done this in the previous function,
-		but just wanted this to be cleaner so having
-		  * one place where the selection is made. Here I am returning
-		  the first one
-		  */
-		goto done;
-
-	/* lets calculate for the first candidate and assign him the best and
-	replace with the one who has better credentials w/ to the criteria */
-
-	get_busy_neigh_stats(tcm, w, h, &best->area, &best_stats);
-	win_neighs = BOUNDARY(&best_stats) +
-			   OCCUPIED(&best_stats);
-	get_nearness_factor(field, &best->area, &best_factor);
-
-	list_for_each_entry(elem, maybes->next, list) {
-		better = false;
-
-		/* calculate required statistics */
-		get_busy_neigh_stats(tcm, w, h, &elem->area, &stats);
-		get_nearness_factor(field, &elem->area, &factor);
-		neighs =  BOUNDARY(&stats) + OCCUPIED(&stats);
-
-		/* see if this are is better than the best so far */
-
-		/* neighbor check */
-		if ((criteria & CR_MAX_NEIGHS) &&
-			neighs > win_neighs)
-			better = true;
-
-		/* vertical bias check */
-		if ((criteria & CR_BIAS_VERTICAL) &&
-		/*
-		 * NOTE: not checking if lengths are same, because that does not
-		 * find new shoulders on the same row after a fit
-		 */
-			INCL_LEN_MOD(elem->area.p0.y, field->p0.y) >
-			INCL_LEN_MOD(best->area.p0.y, field->p0.y))
-			better = true;
-
-		/* diagonal balance check */
-		if ((criteria & CR_DIAGONAL_BALANCE) &&
-			win_neighs <= neighs &&
-			(win_neighs < neighs ||
-			 /* this implies that neighs and occupied match */
-			 OCCUPIED(&best_stats) < OCCUPIED(&stats) ||
-			 (OCCUPIED(&best_stats) == OCCUPIED(&stats) &&
-			  /* check the nearness factor */
-			  best_factor.x + best_factor.y > factor.x + factor.y)))
-			better = true;
-
-		if (better) {
-			best = elem;
-			best_factor = factor;
-			best_stats = stats;
-			win_neighs = neighs;
-		}
+	/* calculate score for current candidate */
+	if (!first) {
+		get_busy_neigh_stats(tcm, w, h, &me.a, &me.n);
+		me.neighs = BOUNDARY(&me.n) + OCCUPIED(&me.n);
+		get_nearness_factor(field, &me.a, &me.f);
 	}
 
-done:
-	assign(area, best->area.p0.x, best->area.p0.y,
-	       best->area.p0.x + w - 1, best->area.p0.y + h - 1);
+	/* the 1st candidate is always the best */
+	if (!best->a.tcm)
+		goto better;
+
+	/*****  TEMP *****/
+	if (first)
+		return 0;
+
+	/* see if this are is better than the best so far */
+
+	/* neighbor check */
+	if ((criteria & CR_MAX_NEIGHS) &&
+		me.neighs > best->neighs)
+		goto better;
+
+	/* vertical bias check */
+	if ((criteria & CR_BIAS_VERTICAL) &&
+	/*
+	 * NOTE: not checking if lengths are same, because that does not
+	 * find new shoulders on the same row after a fit
+	 */
+		INCL_LEN_MOD(me.a.p0.y, field->p0.y) >
+		INCL_LEN_MOD(best->a.p0.y, field->p0.y))
+		goto better;
+
+	/* diagonal balance check */
+	if ((criteria & CR_DIAGONAL_BALANCE) &&
+		best->neighs <= me.neighs &&
+		(best->neighs < me.neighs ||
+		 /* this implies that neighs and occupied match */
+		 OCCUPIED(&best->n) < OCCUPIED(&me.n) ||
+		 (OCCUPIED(&best->n) == OCCUPIED(&me.n) &&
+		  /* check the nearness factor */
+		  best->f.x + best->f.y > me.f.x + me.f.y)))
+		goto better;
+
+	/* not better, keep going */
+	return 0;
+
+better:
+	/* save current area as best */
+	memcpy(best, &me, sizeof(me));
+	best->a.tcm = tcm;
+	return first;
 }
 
 /* get the nearness factor of an area in a search field */

@@ -73,6 +73,14 @@ struct neighbour_stats {
 	u16 bottom_occupied;
 };
 
+struct score {
+	struct nearness_factor f;
+	struct neighbour_stats n;
+	struct tcm_area        a;
+	u16    neighs;
+};
+
+
 struct sita_pvt {
 	u16 width;
 	u16 height;
