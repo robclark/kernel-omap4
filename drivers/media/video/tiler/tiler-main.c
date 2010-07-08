@@ -78,13 +78,6 @@ static struct mutex mtx;
 static struct tcm *tcm[TILER_FORMATS];
 static struct tmm *tmm[TILER_FORMATS];
 
-#define TCM(fmt)        tcm[(fmt) - TILFMT_8BIT]
-#define TCM_SS(ssptr)   TCM(tiler_fmt(ssptr))
-#define TCM_SET(fmt, i) tcm[(fmt) - TILFMT_8BIT] = i
-#define TMM(fmt)        tmm[(fmt) - TILFMT_8BIT]
-#define TMM_SS(ssptr)   TMM(tiler_fmt(ssptr))
-#define TMM_SET(fmt, i) tmm[(fmt) - TILFMT_8BIT] = i
-
 /*
  *  TMM connectors
  *  ==========================================================================
@@ -483,7 +476,7 @@ static s32 lay_2d(enum tiler_fmt fmt, u16 n, u16 w, u16 h, u16 band,
 	/* calculate dimensions, band, offs and alignment in slots */
 	/* reserve an area */
 	ai = area_new_m(ALIGN(w_res + offs, max(band, align)), h,
-			max(band, align), TCM(fmt), gi);
+			max(band, align), tcm[fmt], gi);
 	if (!ai)
 		return -ENOMEM;
 
@@ -570,8 +563,8 @@ static s32 _m_free(struct mem_info *mi)
 		}
 		kfree(mi->pg_ptr);
 	} else if (mi->mem) {
-		tmm_free(TMM_SS(mi->blk.phys), mi->mem);
-		clear_pat(TMM_SS(mi->blk.phys), &mi->area);
+		tmm_free(tmm[tiler_fmt(mi->blk.phys)], mi->mem);
+		clear_pat(tmm[tiler_fmt(mi->blk.phys)], &mi->area);
 	}
 
 	/* safe deletion as list may not have been assigned */
@@ -868,7 +861,7 @@ static struct mem_info *__get_area(enum tiler_fmt fmt, u32 width, u32 height,
 			return NULL;
 		memset(mi, 0x0, sizeof(*mi));
 
-		if (tcm_reserve_1d(TCM(fmt), x * y, &mi->area)) {
+		if (tcm_reserve_1d(tcm[fmt], x * y, &mi->area)) {
 			kfree(mi);
 			return NULL;
 		}
@@ -877,7 +870,7 @@ static struct mem_info *__get_area(enum tiler_fmt fmt, u32 width, u32 height,
 		mi->parent = gi;
 		list_add(&mi->by_area, &gi->onedim);
 	} else {
-		mi = get_2d_area(x, y, align, offs, band, gi, TCM(fmt));
+		mi = get_2d_area(x, y, align, offs, band, gi, tcm[fmt]);
 		if (!mi)
 			return NULL;
 
@@ -939,10 +932,10 @@ static s32 alloc_block(enum tiler_fmt fmt, u32 width, u32 height,
 	}
 
 	/* allocate and map if mapping is supported */
-	if (tmm_can_map(TMM(fmt))) {
+	if (tmm_can_map(tmm[fmt])) {
 		mi->num_pg = tcm_sizeof(mi->area);
 
-		mi->mem = tmm_get(TMM(fmt), mi->num_pg);
+		mi->mem = tmm_get(tmm[fmt], mi->num_pg);
 		if (!mi->mem)
 			goto cleanup;
 
@@ -950,7 +943,7 @@ static s32 alloc_block(enum tiler_fmt fmt, u32 width, u32 height,
 		wmb();
 
 		/* program PAT */
-		if (refill_pat(TMM(fmt), &mi->area, mi->mem))
+		if (refill_pat(tmm[fmt], &mi->area, mi->mem))
 			goto cleanup;
 	}
 	*info = mi;
@@ -985,7 +978,7 @@ static s32 map_block(enum tiler_fmt fmt, u32 width, u32 height,
 		return -EPERM;
 
 	/* check if mapping is supported by tmm */
-	if (!tmm_can_map(TMM(fmt)))
+	if (!tmm_can_map(tmm[fmt]))
 		return -EPERM;
 
 	/* get group context */
@@ -1081,7 +1074,7 @@ static s32 map_block(enum tiler_fmt fmt, u32 width, u32 height,
 	/* Ensure the data reaches to main memory before PAT refill */
 	wmb();
 
-	if (refill_pat(TMM(fmt), &mi->area, mem))
+	if (refill_pat(tmm[fmt], &mi->area, mem))
 		goto fault;
 
 	res = 0;
@@ -1143,19 +1136,19 @@ static s32 __init tiler_init(void)
 	div_pt.y = (3 * tiler.height) / 4;
 	sita = sita_init(tiler.width, tiler.height, (void *)&div_pt);
 
-	TCM_SET(TILFMT_8BIT, sita);
-	TCM_SET(TILFMT_16BIT, sita);
-	TCM_SET(TILFMT_32BIT, sita);
-	TCM_SET(TILFMT_PAGE, sita);
+	tcm[TILFMT_8BIT]  = sita;
+	tcm[TILFMT_16BIT] = sita;
+	tcm[TILFMT_32BIT] = sita;
+	tcm[TILFMT_PAGE]  = sita;
 
 	/* Allocate tiler memory manager (must have 1 unique TMM per TCM ) */
 	tmm_pat = tmm_pat_init(0);
-	TMM_SET(TILFMT_8BIT, tmm_pat);
-	TMM_SET(TILFMT_16BIT, tmm_pat);
-	TMM_SET(TILFMT_32BIT, tmm_pat);
-	TMM_SET(TILFMT_PAGE, tmm_pat);
+	tmm[TILFMT_8BIT]  = tmm_pat;
+	tmm[TILFMT_16BIT] = tmm_pat;
+	tmm[TILFMT_32BIT] = tmm_pat;
+	tmm[TILFMT_PAGE]  = tmm_pat;
 
-	tiler.nv12_packed = TCM(TILFMT_8BIT) == TCM(TILFMT_16BIT);
+	tiler.nv12_packed = tcm[TILFMT_8BIT] == tcm[TILFMT_16BIT];
 
 	tiler_device = kmalloc(sizeof(*tiler_device), GFP_KERNEL);
 	if (!tiler_device || !sita || !tmm_pat) {
@@ -1226,16 +1219,16 @@ static void __exit tiler_exit(void)
 	mutex_unlock(&mtx);
 
 	/* close containers only once */
-	for (i = TILFMT_8BIT; i <= TILFMT_MAX; i++) {
+	for (i = TILFMT_MIN; i <= TILFMT_MAX; i++) {
 		/* remove identical containers (tmm is unique per tcm) */
 		for (j = i + 1; j <= TILFMT_MAX; j++)
-			if (TCM(i) == TCM(j)) {
-				TCM_SET(j, NULL);
-				TMM_SET(j, NULL);
+			if (tcm[i] == tcm[j]) {
+				tcm[j] = NULL;
+				tmm[j] = NULL;
 			}
 
-		tcm_deinit(TCM(i));
-		tmm_deinit(TMM(i));
+		tcm_deinit(tcm[i]);
+		tmm_deinit(tmm[i]);
 	}
 
 	mutex_destroy(&mtx);

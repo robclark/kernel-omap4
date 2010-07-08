@@ -61,8 +61,8 @@ static struct tiler_geom geom[TILER_FORMATS] = {
 
 #define MASK(bits) ((1 << (bits)) - 1)
 
-#define TILER_GET_ACC_MODE(x) ((enum tiler_fmt) (TILFMT_8BIT + \
-((x >> DMM_ACC_MODE_SHIFT) & DMM_ACC_MODE_MASK)))
+#define TILER_GET_ACC_MODE(x)	((enum tiler_fmt) \
+		((x >> DMM_ACC_MODE_SHIFT) & DMM_ACC_MODE_MASK))
 #define DMM_IS_X_INVERTED(x)	((x >> DMM_X_INVERT_SHIFT) & 1)
 #define DMM_IS_Y_INVERTED(x)	((x >> DMM_Y_INVERT_SHIFT) & 1)
 #define DMM_IS_ROTATED(x)	((x >> DMM_ROTATION_SHIFT) & 1)
@@ -99,7 +99,7 @@ u32 tiler_bpp(const struct tiler_block_t *b)
 	BUG_ON(fmt == TILFMT_INVALID);
 
 	/* return modified bpp */
-	return geom[fmt - TILFMT_8BIT].bpp_m;
+	return geom[fmt].bpp_m;
 }
 EXPORT_SYMBOL(tiler_bpp);
 
