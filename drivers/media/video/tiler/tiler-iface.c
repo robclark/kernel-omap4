@@ -459,11 +459,17 @@ static s32 tiler_ioctl(struct inode *ip, struct file *filp, u32 cmd,
 		list_for_each_entry(_b, &pi->bufs, by_pid) {
 			if (buf_info.offset == _b->buf_info.offset) {
 				_m_unregister_buf(_b);
+				buf_info.length = _b->buf_info.length;
 				r = 0;
 				break;
 			}
 		}
 		mutex_unlock(&mtx);
+
+		if (copy_to_user((void __user *)arg, &buf_info,
+					sizeof(_b->buf_info)))
+			return -EFAULT;
+
 		return r;
 		break;
 	case TILIOC_PRBLK:

@@ -28,7 +28,7 @@
 #define TILIOC_UMBLK  _IOW('z', 104, struct tiler_block_info)
 #define TILIOC_QBUF  _IOWR('z', 105, struct tiler_buf_info)
 #define TILIOC_RBUF  _IOWR('z', 106, struct tiler_buf_info)
-#define TILIOC_URBUF  _IOW('z', 107, struct tiler_buf_info)
+#define TILIOC_URBUF _IOWR('z', 107, struct tiler_buf_info)
 #define TILIOC_QBLK  _IOWR('z', 108, struct tiler_block_info)
 #define TILIOC_PRBLK  _IOW('z', 109, struct tiler_block_info)
 #define TILIOC_URBLK  _IOW('z', 110, u32)
