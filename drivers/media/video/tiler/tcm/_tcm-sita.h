@@ -76,7 +76,6 @@ struct neighbour_stats {
 struct sita_pvt {
 	u16 width;
 	u16 height;
-	struct list_head res;	/* all allocations */
 	struct mutex mtx;
 	struct tcm_pt div_pt;	/* divider point splitting container */
 	/* container slots - simply pointers to parent area */

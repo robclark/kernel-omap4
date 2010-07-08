@@ -122,30 +122,6 @@ struct area_spec *insert_element(struct list_head *head, struct tcm_area *area)
 }
 
 static
-s32 rem_element_with_match(struct list_head *head,
-			   struct tcm_area *area, u16 *is2d)
-{
-	struct area_spec *elem = NULL;
-
-	/*If the area to be removed matchs the list head itself,
-	we need to put the next one as list head */
-	list_for_each_entry(elem, head, list) {
-		if (elem->area.p0.x == area->p0.x
-			&& elem->area.p0.y == area->p0.y
-			&& elem->area.p1.x == area->p1.x
-			&& elem->area.p1.y == area->p1.y) {
-
-			*is2d = elem->area.is2d;
-			list_del(&elem->list);
-
-			kfree(elem);
-			return 0;
-		}
-	}
-	return -ENOENT;
-}
-
-static
 void clean_list(struct list_head *head)
 {
 	struct area_spec *elem = NULL, *elem_ = NULL;
@@ -214,7 +190,6 @@ struct tcm *sita_init(u16 width, u16 height, struct tcm_pt *attr)
 	tcm->deinit = sita_deinit;
 	tcm->pvt = (void *)pvt;
 
-	INIT_LIST_HEAD(&pvt->res);
 	pvt->height = height;
 	pvt->width = width;
 
@@ -320,12 +295,13 @@ static s32 sita_reserve_1d(struct tcm *tcm, u32 num_pages,
 				   &field, area);
 	/* There is not much to select, we pretty much give the first one
 	   which accomodates */
-	if (!ret) {
-		/* inserting into tiler container */
+	if (!ret)
+		/* update map */
 		fill_1d_area(tcm, area, area);
-		/* updating the list of allocations */
-		insert_element(&pvt->res, area);
-	}
+	else
+		/* otherwise, invalidate area */
+		area->tcm = NULL;
+
 	mutex_unlock(&(pvt->mtx));
 	return ret;
 }
@@ -355,47 +331,45 @@ static s32 sita_reserve_2d(struct tcm *tcm, u16 h, u16 w, u8 align,
 
 	mutex_lock(&(pvt->mtx));
 	ret = scan_areas_and_find_fit(tcm, w, h, stride, area);
-	if (!ret) {
+	if (!ret)
+		/* update map */
 		fill_2d_area(tcm, area, area);
-		insert_element(&(pvt->res), area);
-	}
+	else
+		/* otherwise, invalidate area */
+		area->tcm = NULL;
+
 	mutex_unlock(&(pvt->mtx));
 	return ret;
 }
 
 /**
- * @description: unreserve 2d or 1D allocations if previously allocated
+ * @description: unreserve a previously allocated 2d or 1D allocation
  *
  * @input:'area' specification: for 2D this should contain
  * TL Corner and BR Corner of the 2D area, or for 1D allocation this should
  * contain the start and end Tiles
  *
- * @return 0 on success, non-0 error value on failure. On success
- * the to_be_removed_area is removed from g_allocation_list and the
- * corresponding tiles are marked 'NOT_OCCUPIED'
- *
+ * The tiles corresponding to the area are marked 'NOT_OCCUPIED'
  */
 static s32 sita_free(struct tcm *tcm, struct tcm_area *area)
 {
-	s32 ret = 0;
 	struct sita_pvt *pvt = (struct sita_pvt *)tcm->pvt;
-	u16 is2d;
 
 	mutex_lock(&(pvt->mtx));
-	/*First we check if the given Area is aleast valid in our list*/
-	ret = rem_element_with_match(&(pvt->res), area, &is2d);
 
-	/* If we found a positive match & removed the area details from list
-	 * then we clear the contents of the associated tiles in the global
-	 * container*/
-	if (!ret) {
-		if (is2d)
-			fill_2d_area(tcm, area, NULL);
-		else
-			fill_1d_area(tcm, area, NULL);
-	}
+	/* check that this is in fact an existing area */
+	BUG_ON(pvt->map[area->p0.x][area->p0.y] != area ||
+		pvt->map[area->p1.x][area->p1.y] != area);
+
+	/* Clear the contents of the associated tiles in the map */
+	if (area->is2d)
+		fill_2d_area(tcm, area, NULL);
+	else
+		fill_1d_area(tcm, area, NULL);
+
 	mutex_unlock(&(pvt->mtx));
-	return ret;
+
+	return 0;
 }
 
 /**
