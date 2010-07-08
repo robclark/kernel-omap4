@@ -98,7 +98,7 @@ static s32 _m_register_buf(struct __buf_info *_b, struct process_info *pi)
 {
 	struct mem_info *mi = NULL;
 	struct tiler_buf_info *b = &_b->buf_info;
-	u32 i, num = b->num_blocks;
+	u32 i, num = b->num_blocks, offs;
 
 	/* check validity */
 	if (num > TILER_MAX_NUM_BLOCKS)
@@ -120,7 +120,9 @@ static s32 _m_register_buf(struct __buf_info *_b, struct process_info *pi)
 	}
 
 	/* if found all, register buffer */
-	b->offset = _m_get_offs(pi, b->length);
+	offs = _b->mi[0]->blk.phys & ~PAGE_MASK;
+	b->offset = _m_get_offs(pi, b->length) + offs;
+	b->length -= offs;
 
 	list_add(&_b->by_pid, &pi->bufs);
 
@@ -247,8 +249,9 @@ static s32 tiler_mmap(struct file *filp, struct vm_area_struct *vma)
 
 	mutex_lock(&mtx);
 	list_for_each_entry(_b, &pi->bufs, by_pid) {
-		if (offs >= _b->buf_info.offset &&
-		    offs + size <= _b->buf_info.offset + _b->buf_info.length) {
+		if (offs >= (_b->buf_info.offset & PAGE_MASK) &&
+		    offs + size <= PAGE_ALIGN(_b->buf_info.offset +
+						_b->buf_info.length)) {
 			b = &_b->buf_info;
 			break;
 		}
