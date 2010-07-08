@@ -524,9 +524,10 @@ static s32 tiler_ioctl(struct inode *ip, struct file *filp, u32 cmd,
 #endif
 			return -EPERM;
 
-		if (mi)
+		if (mi) {
 			ops->describe(mi, &block_info);
-		ops->unlock_free(mi, false);
+			ops->unlock_free(mi, false);
+		}
 
 		if (!mi)
 			return -EFAULT;

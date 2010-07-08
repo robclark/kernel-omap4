@@ -285,7 +285,8 @@ static s32 __analize_area(enum tiler_fmt fmt, u32 width, u32 height,
 	if (fmt == TILFMT_PAGE) {
 		/* adjust size to accomodate offset, only do page alignment */
 		*align = PAGE_SIZE;
-		width += *offs & (PAGE_SIZE - 1);
+		*in_offs = *offs & ~PAGE_MASK;
+		width += *in_offs;
 
 		/* for 1D area keep the height (1), width is in tiler slots */
 		*x_area = DIV_ROUND_UP(width, tiler.page);
