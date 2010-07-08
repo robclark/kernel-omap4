@@ -49,8 +49,6 @@ struct tcm {
 			  struct tcm_area *area);
 	s32 (*reserve_1d)(struct tcm *tcm, u32 slots, struct tcm_area *area);
 	s32 (*free)      (struct tcm *tcm, struct tcm_area *area);
-	s32 (*get_parent)(struct tcm *tcm, struct tcm_pt *pt,
-			  struct tcm_area *area);
 	void (*deinit)   (struct tcm *tcm);
 };
 
@@ -196,37 +194,6 @@ static inline s32 tcm_free(struct tcm_area *area)
 		if (res == 0)
 			area->tcm = NULL;
 	}
-
-	return res;
-}
-
-
-/**
- * Retrieves the parent area (1D or 2D) for a given co-ordinate in the
- * container.
- *
- * @author Ravi Ramachandra (3/1/2010)
- *
- * @param tcm		Pointer to container manager.
- * @param pt		Pointer to the coordinates of a slot in the container.
- * @param area		Pointer to where the reserved area should be stored.
- *
- * @return 0 on success.  Non-0 error code on failure.  Also,
- *	   the tcm field of the area will be set to NULL on
- *	   failure.  Some error codes: -ENODEV: invalid manager,
- *	   -EINVAL: invalid area, -ENOENT: coordinate is not part of any
- *	   active area.
- */
-static inline s32 tcm_get_parent(struct tcm *tcm, struct tcm_pt *pt,
-				 struct tcm_area *area)
-{
-	s32 res = (tcm  == NULL ? -ENODEV :
-		   area == NULL ? -EINVAL :
-		   (pt->x >= tcm->width || pt->y >= tcm->height) ? -ENOENT :
-		   tcm->get_parent(tcm, pt, area));
-
-	if (area)
-		area->tcm = res ? NULL : tcm;
 
 	return res;
 }

@@ -45,8 +45,6 @@ static s32 sita_reserve_2d(struct tcm *tcm, u16 h, u16 w, u8 align,
 static s32 sita_reserve_1d(struct tcm *tcm, u32 slots, struct tcm_area
 		    *area);
 static s32 sita_free(struct tcm *tcm, struct tcm_area *to_be_removed_area);
-static s32 sita_get_parent(struct tcm *tcm, struct tcm_pt *pt,
-			struct tcm_area *area);
 static void sita_deinit(struct tcm *tcm);
 
 /*********************************************
@@ -213,7 +211,6 @@ struct tcm *sita_init(u16 width, u16 height, struct tcm_pt *attr)
 	tcm->width = width;
 	tcm->reserve_2d = sita_reserve_2d;
 	tcm->reserve_1d = sita_reserve_1d;
-	tcm->get_parent = sita_get_parent;
 	tcm->free = sita_free;
 	tcm->deinit = sita_deinit;
 	tcm->pvt = (void *)pvt;
@@ -1294,36 +1291,6 @@ static s32 get_busy_neigh_stats(struct tcm *tcm, u16 width, u16 height,
 	}
 
 	return 0;
-}
-
-/**
-	@description: Retrieves the parent area of the page at p0.x, p0.y if
-	occupied
-	@input:co-ordinates of the page (p0.x, p0.y) whoes parent area
-	is required
-	@return 0 on success, non-0 error value on failure. On success
-
-	parent will contain co-ordinates (TL & BR corner) of the parent
-	area
-*/
-static s32 sita_get_parent(struct tcm *tcm, struct tcm_pt *pt,
-		    struct tcm_area *parent)
-{
-	struct sita_pvt *pvt = (struct sita_pvt *)tcm->pvt;
-	s32 res = 0;
-
-	mutex_lock(&(pvt->mtx));
-
-	if (pvt->map[pt->x][pt->y].busy) {
-		*parent = pvt->map[pt->x][pt->y].parent;
-	} else {
-		memset(parent, 0, sizeof(*parent));
-		res = -ENOENT;
-	}
-
-	mutex_unlock(&(pvt->mtx));
-
-	return res;
 }
 
 static s32 move_left(struct tcm *tcm, u16 x, u16 y, u32 num_pages,
