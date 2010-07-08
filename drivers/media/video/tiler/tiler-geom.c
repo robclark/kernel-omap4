@@ -139,7 +139,7 @@ static void tiler_get_natural_xy(u32 tsptr, u32 *x, u32 *y)
 		break;
 	}
 
-	if (DMM_GET_ROTATED(tsptr)) {
+	if (DMM_IS_ROTATED(tsptr)) {
 		*x = offset >> y_bits;
 		*y = offset & DMM_TILER_MASK(y_bits);
 	} else {
@@ -147,9 +147,9 @@ static void tiler_get_natural_xy(u32 tsptr, u32 *x, u32 *y)
 		*y = offset >> x_bits;
 	}
 
-	if (DMM_GET_X_INVERTED(tsptr))
+	if (DMM_IS_X_INVERTED(tsptr))
 		*x ^= DMM_TILER_MASK(x_bits);
-	if (DMM_GET_Y_INVERTED(tsptr))
+	if (DMM_IS_Y_INVERTED(tsptr))
 		*y ^= DMM_TILER_MASK(y_bits);
 }
 
@@ -234,9 +234,9 @@ u32 tiler_reorient_topleft(u32 tsptr, struct tiler_view_orient orient,
 
 	tiler_get_natural_xy(tsptr, &x, &y);
 
-	if (DMM_GET_X_INVERTED(tsptr))
+	if (DMM_IS_X_INVERTED(tsptr))
 		x -= width - 1;
-	if (DMM_GET_Y_INVERTED(tsptr))
+	if (DMM_IS_Y_INVERTED(tsptr))
 		y -= height - 1;
 
 	if (orient.x_invert)
@@ -256,13 +256,13 @@ u32 tiler_stride(u32 tsptr)
 
 	switch (fmt) {
 	case TILFMT_8BIT:
-		return DMM_GET_ROTATED(tsptr) ?
+		return DMM_IS_ROTATED(tsptr) ?
 			DMM_TILER_STRIDE_90_(8) : DMM_TILER_STRIDE_0_(8);
 	case TILFMT_16BIT:
-		return DMM_GET_ROTATED(tsptr) ?
+		return DMM_IS_ROTATED(tsptr) ?
 			DMM_TILER_STRIDE_90_(16) : DMM_TILER_STRIDE_0_(16);
 	case TILFMT_32BIT:
-		return DMM_GET_ROTATED(tsptr) ?
+		return DMM_IS_ROTATED(tsptr) ?
 			DMM_TILER_STRIDE_90_(32) : DMM_TILER_STRIDE_0_(32);
 	default:
 		return 0;

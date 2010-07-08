@@ -37,27 +37,17 @@
 #define TILVIEW_PAGE	(TILVIEW_32BIT + 0x08000000u)
 #define TILVIEW_END	(TILVIEW_PAGE  + 0x08000000u)
 
-#define TILER_ACC_MODE_SHIFT  (27)
-#define DMM_ACC_MODE_SHIFT  (27)
-
-#define TIL_ALIAS_ADDR(x, access_mode)\
-((void *)(TILER_ALIAS_BASE | (u32)x | (access_mode << TILER_ACC_MODE_SHIFT)))
-
 #define TIL_ADDR(x, r, yi, xi, a)\
 ((void *)((u32)x | (r << DMM_ROTATION_SHIFT) |\
 (yi << DMM_Y_INVERT_SHIFT) | (xi << DMM_X_INVERT_SHIFT) |\
-(a << DMM_ACC_MODE_SHIFT)))
+(a << TILER_ACC_MODE_SHIFT)))
 
-#define TILER_ALIAS_VIEW_CLEAR    (~0xE0000000)
-
-#define DMM_X_INVERT_SHIFT        (29)
-#define DMM_GET_X_INVERTED(x) ((((u32)x & (1<<DMM_X_INVERT_SHIFT)) > 0) ? 1 : 0)
-#define DMM_Y_INVERT_SHIFT        (30)
-#define DMM_GET_Y_INVERTED(x) ((((u32)x & (1<<DMM_Y_INVERT_SHIFT)) > 0) ? 1 : 0)
-
-#define DMM_ROTATION_SHIFT        (31)
-#define DMM_GET_ROTATED(x)\
-((((u32)x & ((u32)1<<DMM_ROTATION_SHIFT)) > 0) ? 1 : 0)
+#define DMM_X_INVERT_SHIFT	(29)
+#define DMM_IS_X_INVERTED(x)	((x >> DMM_X_INVERT_SHIFT) & 1)
+#define DMM_Y_INVERT_SHIFT	(30)
+#define DMM_IS_Y_INVERTED(x)	((x >> DMM_Y_INVERT_SHIFT) & 1)
+#define DMM_ROTATION_SHIFT	(31)
+#define DMM_IS_ROTATED(x)	((x >> DMM_ROTATION_SHIFT) & 1)
 
 #define DMM_ALIAS_VIEW_CLEAR    (~0xE0000000)
 
@@ -78,89 +68,5 @@
 
 #define DMM_PAGE_DIMM_X_MODE_32    (DMM_TILE_DIMM_X_MODE_32*2)
 #define DMM_PAGE_DIMM_Y_MODE_32    (DMM_TILE_DIMM_Y_MODE_32*2)
-
-#define DMM_HOR_X_ADDRSHIFT_8            (0)
-#define DMM_HOR_X_ADDRMASK_8            (0x3FFF)
-#define DMM_HOR_X_COOR_GET_8(x)\
-	(((unsigned long)x >> DMM_HOR_X_ADDRSHIFT_8) & DMM_HOR_X_ADDRMASK_8)
-#define DMM_HOR_X_PAGE_COOR_GET_8(x)\
-				(DMM_HOR_X_COOR_GET_8(x)/DMM_PAGE_DIMM_X_MODE_8)
-
-#define DMM_HOR_Y_ADDRSHIFT_8            (14)
-#define DMM_HOR_Y_ADDRMASK_8            (0x1FFF)
-#define DMM_HOR_Y_COOR_GET_8(x)\
-	(((unsigned long)x >> DMM_HOR_Y_ADDRSHIFT_8) & DMM_HOR_Y_ADDRMASK_8)
-#define DMM_HOR_Y_PAGE_COOR_GET_8(x)\
-				(DMM_HOR_Y_COOR_GET_8(x)/DMM_PAGE_DIMM_Y_MODE_8)
-
-#define DMM_HOR_X_ADDRSHIFT_16            (1)
-#define DMM_HOR_X_ADDRMASK_16            (0x7FFE)
-#define DMM_HOR_X_COOR_GET_16(x)        (((unsigned long)x >> \
-				DMM_HOR_X_ADDRSHIFT_16) & DMM_HOR_X_ADDRMASK_16)
-#define DMM_HOR_X_PAGE_COOR_GET_16(x)    (DMM_HOR_X_COOR_GET_16(x) /           \
-				DMM_PAGE_DIMM_X_MODE_16)
-
-#define DMM_HOR_Y_ADDRSHIFT_16            (15)
-#define DMM_HOR_Y_ADDRMASK_16            (0xFFF)
-#define DMM_HOR_Y_COOR_GET_16(x)        (((unsigned long)x >>                  \
-				DMM_HOR_Y_ADDRSHIFT_16) & DMM_HOR_Y_ADDRMASK_16)
-#define DMM_HOR_Y_PAGE_COOR_GET_16(x)    (DMM_HOR_Y_COOR_GET_16(x) /           \
-				DMM_PAGE_DIMM_Y_MODE_16)
-
-#define DMM_HOR_X_ADDRSHIFT_32            (2)
-#define DMM_HOR_X_ADDRMASK_32            (0x7FFC)
-#define DMM_HOR_X_COOR_GET_32(x)        (((unsigned long)x >>                  \
-				DMM_HOR_X_ADDRSHIFT_32) & DMM_HOR_X_ADDRMASK_32)
-#define DMM_HOR_X_PAGE_COOR_GET_32(x)    (DMM_HOR_X_COOR_GET_32(x) /           \
-				DMM_PAGE_DIMM_X_MODE_32)
-
-#define DMM_HOR_Y_ADDRSHIFT_32            (15)
-#define DMM_HOR_Y_ADDRMASK_32            (0xFFF)
-#define DMM_HOR_Y_COOR_GET_32(x)        (((unsigned long)x >>                  \
-				DMM_HOR_Y_ADDRSHIFT_32) & DMM_HOR_Y_ADDRMASK_32)
-#define DMM_HOR_Y_PAGE_COOR_GET_32(x)    (DMM_HOR_Y_COOR_GET_32(x) /           \
-				DMM_PAGE_DIMM_Y_MODE_32)
-
-#define DMM_VER_X_ADDRSHIFT_8            (14)
-#define DMM_VER_X_ADDRMASK_8            (0x1FFF)
-#define DMM_VER_X_COOR_GET_8(x)\
-	(((unsigned long)x >> DMM_VER_X_ADDRSHIFT_8) & DMM_VER_X_ADDRMASK_8)
-#define DMM_VER_X_PAGE_COOR_GET_8(x)\
-				(DMM_VER_X_COOR_GET_8(x)/DMM_PAGE_DIMM_X_MODE_8)
-
-#define DMM_VER_Y_ADDRSHIFT_8            (0)
-#define DMM_VER_Y_ADDRMASK_8            (0x3FFF)
-#define DMM_VER_Y_COOR_GET_8(x)\
-	(((unsigned long)x >> DMM_VER_Y_ADDRSHIFT_8) & DMM_VER_Y_ADDRMASK_8)
-#define DMM_VER_Y_PAGE_COOR_GET_8(x)\
-				(DMM_VER_Y_COOR_GET_8(x)/DMM_PAGE_DIMM_Y_MODE_8)
-
-#define DMM_VER_X_ADDRSHIFT_16            (14)
-#define DMM_VER_X_ADDRMASK_16            (0x1FFF)
-#define DMM_VER_X_COOR_GET_16(x)        (((unsigned long)x >>                  \
-				DMM_VER_X_ADDRSHIFT_16) & DMM_VER_X_ADDRMASK_16)
-#define DMM_VER_X_PAGE_COOR_GET_16(x)    (DMM_VER_X_COOR_GET_16(x) /           \
-				DMM_PAGE_DIMM_X_MODE_16)
-
-#define DMM_VER_Y_ADDRSHIFT_16            (0)
-#define DMM_VER_Y_ADDRMASK_16            (0x3FFF)
-#define DMM_VER_Y_COOR_GET_16(x)        (((unsigned long)x >>                  \
-				DMM_VER_Y_ADDRSHIFT_16) & DMM_VER_Y_ADDRMASK_16)
-#define DMM_VER_Y_PAGE_COOR_GET_16(x)    (DMM_VER_Y_COOR_GET_16(x) /           \
-				DMM_PAGE_DIMM_Y_MODE_16)
-
-#define DMM_VER_X_ADDRSHIFT_32            (15)
-#define DMM_VER_X_ADDRMASK_32            (0xFFF)
-#define DMM_VER_X_COOR_GET_32(x)        (((unsigned long)x >>                  \
-				DMM_VER_X_ADDRSHIFT_32) & DMM_VER_X_ADDRMASK_32)
-#define DMM_VER_X_PAGE_COOR_GET_32(x)    (DMM_VER_X_COOR_GET_32(x) /           \
-				DMM_PAGE_DIMM_X_MODE_32)
-
-#define DMM_VER_Y_ADDRSHIFT_32            (0)
-#define DMM_VER_Y_ADDRMASK_32            (0x7FFF)
-#define DMM_VER_Y_COOR_GET_32(x)        (((unsigned long)x >>                  \
-				DMM_VER_Y_ADDRSHIFT_32) & DMM_VER_Y_ADDRMASK_32)
-#define DMM_VER_Y_PAGE_COOR_GET_32(x)    (DMM_VER_Y_COOR_GET_32(x) /           \
-				DMM_PAGE_DIMM_Y_MODE_32)
 
 #endif
