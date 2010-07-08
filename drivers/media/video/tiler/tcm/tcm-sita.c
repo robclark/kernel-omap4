@@ -90,10 +90,10 @@ static s32 get_busy_neigh_stats(struct tcm *tcm, u16 width, u16 height,
 			struct neighbour_stats *neighbour_stat);
 
 static void fill_1d_area(struct tcm *tcm,
-			struct tcm_area *area, struct slot slot);
+			struct tcm_area *area, struct tcm_area *parent);
 
 static void fill_2d_area(struct tcm *tcm,
-		       struct tcm_area *area, struct slot slot);
+		       struct tcm_area *area, struct tcm_area *parent);
 
 static s32 move_left(struct tcm *tcm, u16 x, u16 y, u32 num_pages,
 		     u16 *xx, u16 *yy);
@@ -191,7 +191,6 @@ struct tcm *sita_init(u16 width, u16 height, struct tcm_pt *attr)
 {
 	struct tcm *tcm = NULL;
 	struct sita_pvt *pvt = NULL;
-	struct slot init_tile = {0};
 	struct tcm_area area = {0};
 	s32 i = 0;
 
@@ -254,7 +253,7 @@ struct tcm *sita_init(u16 width, u16 height, struct tcm_pt *attr)
 	area.p1.y = height - 1;
 
 	mutex_lock(&(pvt->mtx));
-	fill_2d_area(tcm, &area, init_tile);
+	fill_2d_area(tcm, &area, NULL);
 	mutex_unlock(&(pvt->mtx));
 	return tcm;
 
@@ -266,7 +265,6 @@ error:
 
 static void sita_deinit(struct tcm *tcm)
 {
-	struct slot init_tile = {0};
 	struct sita_pvt *pvt = NULL;
 	struct tcm_area area = {0};
 	s32 i = 0;
@@ -277,7 +275,7 @@ static void sita_deinit(struct tcm *tcm)
 		area.p1.y = pvt->height - 1;
 
 		mutex_lock(&(pvt->mtx));
-		fill_2d_area(tcm, &area, init_tile);
+		fill_2d_area(tcm, &area, NULL);
 		mutex_unlock(&(pvt->mtx));
 
 		mutex_destroy(&(pvt->mtx));
@@ -306,7 +304,6 @@ static s32 sita_reserve_1d(struct tcm *tcm, u32 num_pages,
 {
 	s32 ret = 0;
 	struct tcm_area field = {0};
-	struct slot slot = {0};
 	struct sita_pvt *pvt = (struct sita_pvt *)tcm->pvt;
 
 	area->is2d = false;
@@ -324,10 +321,8 @@ static s32 sita_reserve_1d(struct tcm *tcm, u32 num_pages,
 	/* There is not much to select, we pretty much give the first one
 	   which accomodates */
 	if (!ret) {
-		slot.busy = true;
-		slot.parent = *area;
 		/* inserting into tiler container */
-		fill_1d_area(tcm, area, slot);
+		fill_1d_area(tcm, area, area);
 		/* updating the list of allocations */
 		insert_element(&pvt->res, area);
 	}
@@ -351,7 +346,6 @@ static s32 sita_reserve_2d(struct tcm *tcm, u16 h, u16 w, u8 align,
 	struct sita_pvt *pvt = (struct sita_pvt *)tcm->pvt;
 	/* we only support 1, 32 and 64 as alignment */
 	u16 stride = align <= 1 ? 1 : align <= 32 ? 32 : 64;
-	struct slot slot = {0};
 
 	area->is2d = true;
 
@@ -362,10 +356,7 @@ static s32 sita_reserve_2d(struct tcm *tcm, u16 h, u16 w, u8 align,
 	mutex_lock(&(pvt->mtx));
 	ret = scan_areas_and_find_fit(tcm, w, h, stride, area);
 	if (!ret) {
-		slot.busy = true;
-		slot.parent = *area;
-
-		fill_2d_area(tcm, area, slot);
+		fill_2d_area(tcm, area, area);
 		insert_element(&(pvt->res), area);
 	}
 	mutex_unlock(&(pvt->mtx));
@@ -387,11 +378,9 @@ static s32 sita_reserve_2d(struct tcm *tcm, u16 h, u16 w, u8 align,
 static s32 sita_free(struct tcm *tcm, struct tcm_area *area)
 {
 	s32 ret = 0;
-	struct slot slot = {0};
 	struct sita_pvt *pvt = (struct sita_pvt *)tcm->pvt;
 	u16 is2d;
 
-	slot.busy = false;
 	mutex_lock(&(pvt->mtx));
 	/*First we check if the given Area is aleast valid in our list*/
 	ret = rem_element_with_match(&(pvt->res), area, &is2d);
@@ -401,9 +390,9 @@ static s32 sita_free(struct tcm *tcm, struct tcm_area *area)
 	 * container*/
 	if (!ret) {
 		if (is2d)
-			fill_2d_area(tcm, area, slot);
+			fill_2d_area(tcm, area, NULL);
 		else
-			fill_1d_area(tcm, area, slot);
+			fill_1d_area(tcm, area, NULL);
 	}
 	mutex_unlock(&(pvt->mtx));
 	return ret;
@@ -466,7 +455,7 @@ static s32 scan_r2l_t2b(struct tcm *tcm, u16 w, u16 h, u16 stride,
 	 */
 	for (yy = start_y; yy <= end_y; yy++) {
 		for (xx = start_x; xx >= end_x; xx -= stride) {
-			if (!pvt->map[xx][yy].busy) {
+			if (!pvt->map[xx][yy]) {
 				if (check_fit_r_and_b(tcm, w, h, xx, yy)) {
 					P3("found shoulder: %d,%d", xx, yy);
 					found_x = xx;
@@ -485,8 +474,8 @@ static s32 scan_r2l_t2b(struct tcm *tcm, u16 w, u16 h, u16 stride,
 				/* Optimization required only for Non Aligned,
 				Aligned anyways skip by 32/64 tiles at a time */
 				if (stride == 1 &&
-				    pvt->map[xx][yy].parent.is2d) {
-					xx = pvt->map[xx][yy].parent.p0.x;
+				    pvt->map[xx][yy]->is2d) {
+					xx = pvt->map[xx][yy]->p0.x;
 					P3("moving to: %d,%d", xx, yy);
 				}
 			}
@@ -570,7 +559,7 @@ static s32 scan_r2l_b2t(struct tcm *tcm, u16 w, u16 h, u16 stride,
 	 */
 	for (yy = start_y; yy >= end_y; yy--) {
 		for (xx = start_x; xx >= end_x; xx -= stride) {
-			if (!pvt->map[xx][yy].busy) {
+			if (!pvt->map[xx][yy]) {
 				if (check_fit_r_and_b(tcm, w, h, xx, yy)) {
 					P3("found shoulder: %d,%d", xx, yy);
 					found_x = xx;
@@ -589,8 +578,8 @@ static s32 scan_r2l_b2t(struct tcm *tcm, u16 w, u16 h, u16 stride,
 				/* Optimization required only for Non Aligned,
 				Aligned anyways skip by 32/64 tiles at a time */
 				if (stride == 1 &&
-				    pvt->map[xx][yy].parent.is2d) {
-					xx = pvt->map[xx][yy].parent.p0.x;
+				    pvt->map[xx][yy]->is2d) {
+					xx = pvt->map[xx][yy]->p0.x;
 					P3("moving to: %d,%d", xx, yy);
 				}
 			}
@@ -675,7 +664,7 @@ s32 scan_l2r_t2b(struct tcm *tcm, u16 w, u16 h, u16 stride,
 	for (yy = start_y; yy <= end_y; yy++) {
 		for (xx = start_x; xx <= end_x; xx += stride) {
 			/* if NOT occupied */
-			if (!pvt->map[xx][yy].busy) {
+			if (!pvt->map[xx][yy]) {
 				if (check_fit_r_and_b(tcm, w, h, xx, yy)) {
 					P3("found shoulder: %d,%d", xx, yy);
 					found_x = xx;
@@ -694,8 +683,8 @@ s32 scan_l2r_t2b(struct tcm *tcm, u16 w, u16 h, u16 stride,
 				/* Optimization required only for Non Aligned,
 				Aligned anyways skip by 32/64 tiles at a time */
 				if (stride == 1 &&
-				    pvt->map[xx][yy].parent.is2d) {
-					xx = pvt->map[xx][yy].parent.p1.x;
+				    pvt->map[xx][yy]->is2d) {
+					xx = pvt->map[xx][yy]->p1.x;
 					P3("moving to: %d,%d", xx, yy);
 				}
 			}
@@ -778,7 +767,7 @@ static s32 scan_l2r_b2t(struct tcm *tcm, u16 w, u16 h, u16 stride,
 	for (yy = start_y; yy >= end_y; yy--) {
 		for (xx = start_x; xx <= end_x; xx += stride) {
 			/* if NOT occupied */
-			if (!pvt->map[xx][yy].busy) {
+			if (!pvt->map[xx][yy]) {
 				if (check_fit_r_and_b(tcm, w, h, xx, yy)) {
 					P3("found shoulder: %d,%d", xx, yy);
 					found_x = xx;
@@ -797,8 +786,8 @@ static s32 scan_l2r_b2t(struct tcm *tcm, u16 w, u16 h, u16 stride,
 				/* Optimization required only for Non Aligned,
 				Aligned anyways skip by 32/64 tiles at a time */
 				if (stride == 1 &&
-				    pvt->map[xx][yy].parent.is2d) {
-					xx = pvt->map[xx][yy].parent.p1.x;
+				    pvt->map[xx][yy]->is2d) {
+					xx = pvt->map[xx][yy]->p1.x;
 					P3("moving to: %d,%d", xx, yy);
 				}
 			}
@@ -878,7 +867,7 @@ static s32 scan_r2l_b2t_one_dim(struct tcm *tcm, u32 num_pages,
 		x = left_x;
 		y = left_y;
 
-		if (!pvt->map[x][y].busy) {
+		if (!pvt->map[x][y]) {
 			ret = move_left(tcm, x, y, num_pages - 1,
 					&left_x, &left_y);
 			if (ret)
@@ -900,12 +889,12 @@ static s32 scan_r2l_b2t_one_dim(struct tcm *tcm, u32 num_pages,
 		}
 
 		/* now the tile is occupied, skip busy region */
-		if (pvt->map[x][y].parent.is2d) {
-			busy_x = pvt->map[x][y].parent.p0.x;
+		if (pvt->map[x][y]->is2d) {
+			busy_x = pvt->map[x][y]->p0.x;
 			busy_y = y;
 		} else {
-			busy_x = pvt->map[x][y].parent.p0.x;
-			busy_y = pvt->map[x][y].parent.p0.y;
+			busy_x = pvt->map[x][y]->p0.x;
+			busy_y = pvt->map[x][y]->p0.y;
 		}
 		x = busy_x;
 		y = busy_y;
@@ -1015,7 +1004,7 @@ static s32 check_fit_r_and_b(struct tcm *tcm, u16 w, u16 h, u16 left_x,
 
 	for (yy = top_y; yy < top_y + h; yy++) {
 		for (xx = left_x; xx < left_x + w; xx++) {
-			if (pvt->map[xx][yy].busy)
+			if (pvt->map[xx][yy])
 				return false;
 		}
 	}
@@ -1033,15 +1022,15 @@ static s32 check_fit_r_one_dim(struct tcm *tcm, u16 x, u16 y, u32 num_pages,
 
 	P2("checking fit for %d pages from %d,%d", num_pages, x, y);
 	while (i < num_pages) {
-		if (pvt->map[x][y].busy) {
+		if (pvt->map[x][y]) {
 			/* go to the start of the blocking allocation
 			   to avoid unecessary checking */
-			if (pvt->map[x][y].parent.is2d) {
-				*busy_x = pvt->map[x][y].parent.p0.x;
+			if (pvt->map[x][y]->is2d) {
+				*busy_x = pvt->map[x][y]->p0.x;
 				*busy_y = y;
 			} else {
-				*busy_x = pvt->map[x][y].parent.p0.x;
-				*busy_y = pvt->map[x][y].parent.p0.y;
+				*busy_x = pvt->map[x][y]->p0.x;
+				*busy_y = pvt->map[x][y]->p0.y;
 			}
 			/* TODO: Could also move left in case of 2D */
 			P2("after busy slot at: %d,%d", *busy_x, *busy_y);
@@ -1066,7 +1055,7 @@ static s32 check_fit_r_one_dim(struct tcm *tcm, u16 x, u16 y, u32 num_pages,
 }
 
 static void fill_2d_area(struct tcm *tcm, struct tcm_area *area,
-			struct slot slot)
+			struct tcm_area *parent)
 {
 	s32 x, y;
 	struct sita_pvt *pvt = (struct sita_pvt *)tcm->pvt;
@@ -1074,12 +1063,12 @@ static void fill_2d_area(struct tcm *tcm, struct tcm_area *area,
 	PA(2, "fill 2d area", area);
 	for (x = area->p0.x; x <= area->p1.x; ++x)
 		for (y = area->p0.y; y <= area->p1.y; ++y)
-			pvt->map[x][y] = slot;
+			pvt->map[x][y] = parent;
 }
 
 /* area should be a valid area */
 static void fill_1d_area(struct tcm *tcm, struct tcm_area *area,
-			struct slot slot)
+			struct tcm_area *parent)
 {
 	u16 x = 0, y = 0;
 	struct sita_pvt *pvt = (struct sita_pvt *)tcm->pvt;
@@ -1089,14 +1078,14 @@ static void fill_1d_area(struct tcm *tcm, struct tcm_area *area,
 	y = area->p0.y;
 
 	while (!(x == area->p1.x && y == area->p1.y)) {
-		pvt->map[x++][y] = slot;
+		pvt->map[x++][y] = parent;
 		if (x == pvt->width) {
 			x = 0;
 			y++;
 		}
 	}
 	/* set the last slot */
-	pvt->map[x][y] = slot;
+	pvt->map[x][y] = parent;
 }
 
 static void select_candidate(struct tcm *tcm, u16 w, u16 h,
@@ -1267,12 +1256,12 @@ static s32 get_busy_neigh_stats(struct tcm *tcm, u16 width, u16 height,
 	for (xx = top_edge.p0.x; xx <= top_edge.p1.x; xx++) {
 		if (top_edge.p0.y - 1 < 0)
 			neighbour_stat->top_boundary++;
-		else if (pvt->map[xx][top_edge.p0.y - 1].busy)
+		else if (pvt->map[xx][top_edge.p0.y - 1])
 			neighbour_stat->top_occupied++;
 
 		if (bottom_edge.p0.y + 1 > pvt->height - 1)
 			neighbour_stat->bottom_boundary++;
-		else if (pvt->map[xx][bottom_edge.p0.y+1].busy)
+		else if (pvt->map[xx][bottom_edge.p0.y+1])
 			neighbour_stat->bottom_occupied++;
 	}
 
@@ -1280,12 +1269,12 @@ static s32 get_busy_neigh_stats(struct tcm *tcm, u16 width, u16 height,
 	for (yy = left_edge.p0.y; yy <= left_edge.p1.y; ++yy) {
 		if (left_edge.p0.x - 1 < 0)
 			neighbour_stat->left_boundary++;
-		else if (pvt->map[left_edge.p0.x - 1][yy].busy)
+		else if (pvt->map[left_edge.p0.x - 1][yy])
 			neighbour_stat->left_occupied++;
 
 		if (right_edge.p0.x + 1 > pvt->width - 1)
 			neighbour_stat->right_boundary++;
-		else if (pvt->map[right_edge.p0.x + 1][yy].busy)
+		else if (pvt->map[right_edge.p0.x + 1][yy])
 			neighbour_stat->right_occupied++;
 
 	}
