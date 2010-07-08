@@ -21,6 +21,13 @@
 #include "tiler-def.h"
 #include "_tiler.h"
 
+static struct tiler_ops *ops;
+
+/* TILER is designed so that a (w * h) * 8bit area is twice as wide as a
+   (w/2 * h/2) * 16bit area.  Since having pairs of such 8-bit and 16-bit
+   blocks is a common usecase for TILER, we optimize packing these into a
+   TILER area */
+
 /* we want to find the most effective packing for the smallest area */
 
 /* we have two algorithms for packing nv12 blocks */
@@ -300,7 +307,7 @@ static u16 nv12_together(u16 o, u16 w, u16 a, u16 n, u16 *area, u8 *packing)
 }
 
 /* can_together: 8-bit and 16-bit views are in the same container */
-void reserve_nv12(u32 n, u32 width, u32 height, u32 align, u32 offs,
+static void reserve_nv12(u32 n, u32 width, u32 height, u32 align, u32 offs,
 			 u32 gid, struct process_info *pi, bool can_together)
 {
 	/* adjust alignment to at least 128 bytes (16-bit slot width) */
@@ -319,12 +326,12 @@ void reserve_nv12(u32 n, u32 width, u32 height, u32 align, u32 offs,
 		return;
 
 	/* calculate dimensions, band, offs and alignment in slots */
-	if (__analize_area(TILFMT_8BIT, width, height, &w, &h, &band, &a, &o,
+	if (ops->analize(TILFMT_8BIT, width, height, &w, &h, &band, &a, &o,
 									NULL))
 		return;
 
 	/* get group context */
-	gi = get_gi(pi, gid);
+	gi = ops->get_gi(pi, gid);
 	if (!gi)
 		return;
 
@@ -346,8 +353,8 @@ void reserve_nv12(u32 n, u32 width, u32 height, u32 align, u32 offs,
 
 			/* reserve blocks separately into a temporary list,
 			   so that we can free them if unsuccessful */
-			res = reserve_2d(TILFMT_8BIT, n_s, w, h, band, a, o, gi,
-					 &reserved);
+			res = ops->lay_2d(TILFMT_8BIT, n_s, w, h, band, a, o,
+						gi, &reserved);
 
 			/* only reserve 16-bit blocks if 8-bit was successful,
 			   as we will try to match 16-bit areas to an already
@@ -355,30 +362,30 @@ void reserve_nv12(u32 n, u32 width, u32 height, u32 align, u32 offs,
 			   an unreserved 8-bit area will match the offset of
 			   a singly reserved 16-bit area. */
 			res2 = (res < 0 ? res :
-				reserve_2d(TILFMT_16BIT, n_s, (w + 1) / 2, h,
+				ops->lay_2d(TILFMT_16BIT, n_s, (w + 1) / 2, h,
 				band / 2, a / 2, o / 2, gi, &reserved));
 			if (res2 < 0 || res != res2) {
 				/* clean up */
-				release_blocks(&reserved);
+				ops->release(&reserved);
 				res = -1;
 			} else {
 				/* add list to reserved */
-				add_reserved_blocks(&reserved, gi);
+				ops->add_reserved(&reserved, gi);
 			}
 		}
 
 		/* if separate packing failed, still try to pack together */
 		if (res < 0 && can_together && n_t) {
 			/* pack together */
-			res = pack_nv12(n_t, area_t, w, h, gi, packing);
+			res = ops->lay_nv12(n_t, area_t, w, h, gi, packing);
 		}
 	}
 
-	release_gi(gi);
+	ops->release_gi(gi);
 }
 
 /* reserve 2d blocks (if standard allocator is inefficient) */
-void reserve_blocks(u32 n, enum tiler_fmt fmt, u32 width, u32 height,
+static void reserve_blocks(u32 n, enum tiler_fmt fmt, u32 width, u32 height,
 			   u32 align, u32 offs, u32 gid,
 			   struct process_info *pi)
 {
@@ -401,11 +408,11 @@ void reserve_blocks(u32 n, enum tiler_fmt fmt, u32 width, u32 height,
 	   the default allocation is sufficient.  Also check for basic area
 	   info. */
 	if (width * bpp * 2 <= PAGE_SIZE ||
-	    __analize_area(fmt, width, height, &w, &h, &band, &a, &o, NULL))
+	    ops->analize(fmt, width, height, &w, &h, &band, &a, &o, NULL))
 		return;
 
 	/* get group id */
-	gi = get_gi(pi, gid);
+	gi = ops->get_gi(pi, gid);
 	if (!gi)
 		return;
 
@@ -419,8 +426,8 @@ void reserve_blocks(u32 n, enum tiler_fmt fmt, u32 width, u32 height,
 
 		res = -1;
 		while (n_try > 1) {
-			res = reserve_2d(fmt, n_try, w, h, band, a, o, gi,
-					 &gi->reserved);
+			res = ops->lay_2d(fmt, n_try, w, h, band, a, o,
+						gi, &gi->reserved);
 			if (res >= 0)
 				break;
 
@@ -430,18 +437,27 @@ void reserve_blocks(u32 n, enum tiler_fmt fmt, u32 width, u32 height,
 	}
 	/* keep reserved blocks even if failed to reserve all */
 
-	release_gi(gi);
+	ops->release_gi(gi);
 }
 
-void unreserve_blocks(struct process_info *pi, u32 gid)
+static void unreserve_blocks(u32 gid, struct process_info *pi)
 {
 	struct gid_info *gi;
 
-	gi = get_gi(pi, gid);
+	gi = ops->get_gi(pi, gid);
 	if (!gi)
 		return;
 
-	release_blocks(&gi->reserved);
+	ops->release(&gi->reserved);
 
-	release_gi(gi);
+	ops->release_gi(gi);
+}
+
+void tiler_reserve_init(struct tiler_ops *tiler)
+{
+	ops = tiler;
+
+	ops->reserve_nv12 = reserve_nv12;
+	ops->reserve = reserve_blocks;
+	ops->unreserve = unreserve_blocks;
 }

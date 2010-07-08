@@ -4,8 +4,6 @@
 #include <linux/kernel.h>
 #include "tcm.h"
 
-extern const struct file_operations tiler_fops;
-
 /* per process (thread group) info */
 struct process_info {
 	struct list_head list;		/* other processes */
@@ -52,51 +50,61 @@ struct mem_info {
 	void *parent;			/* area info for 2D, else group info */
 };
 
-/* tiler-main.c */
-struct mem_info *find_n_lock(u32 key, u32 id, struct gid_info *gi);
-s32 alloc_block(enum tiler_fmt fmt, u32 width, u32 height,
-		u32 align, u32 offs, u32 key, u32 gid, struct process_info *pi,
-		struct mem_info **info);
-s32 map_block(enum tiler_fmt fmt, u32 width, u32 height,
-		     u32 key, u32 gid, struct process_info *pi,
-		     struct mem_info **info, u32 usr_addr);
+struct tiler_ops {
+	/* block operations */
+	s32 (*alloc) (enum tiler_fmt fmt, u32 width, u32 height,
+			u32 align, u32 offs, u32 key,
+			u32 gid, struct process_info *pi,
+			struct mem_info **info);
+	s32 (*map) (enum tiler_fmt fmt, u32 width, u32 height,
+			u32 key, u32 gid, struct process_info *pi,
+			struct mem_info **info, u32 usr_addr);
 
-void destroy_group(struct gid_info *pi);
+	struct mem_info * (*lock) (u32 key, u32 id, struct gid_info *gi);
+	void (*unlock_free) (struct mem_info *mi, bool free);
 
-struct mem_info *find_block_by_ssptr(u32 sys_addr);
-void fill_block_info(struct mem_info *i, struct tiler_block_info *blk);
+	struct mem_info * (*get_by_ssptr) (u32 sys_addr);
+	void (*describe) (struct mem_info *i, struct tiler_block_info *blk);
 
-void unlock_n_free(struct mem_info *mi, bool free);
+	void (*add_reserved) (struct list_head *reserved, struct gid_info *gi);
+	void (*release) (struct list_head *reserved);
 
-s32 __analize_area(enum tiler_fmt fmt, u32 width, u32 height,
-			  u16 *x_area, u16 *y_area, u16 *band,
-			  u16 *align, u16 *offs, u16 *in_offs);
+	/* group operations */
+	struct gid_info * (*get_gi) (struct process_info *pi, u32 gid);
+	void (*release_gi) (struct gid_info *gi);
+	void (*destroy_group) (struct gid_info *pi);
 
-struct gid_info *get_gi(struct process_info *pi, u32 gid);
-void release_gi(struct gid_info *gi);
 
-void add_reserved_blocks(struct list_head *reserved, struct gid_info *gi);
-void release_blocks(struct list_head *reserved);
+	s32 (*analize) (enum tiler_fmt fmt, u32 width, u32 height,
+				  u16 *x_area, u16 *y_area, u16 *band,
+				  u16 *align, u16 *offs, u16 *in_offs);
 
-/* tiler-reserve.c */
-void reserve_nv12(u32 n, u32 width, u32 height, u32 align, u32 offs,
-			 u32 gid, struct process_info *pi, bool can_together);
-void reserve_blocks(u32 n, enum tiler_fmt fmt, u32 width, u32 height,
-			   u32 align, u32 offs, u32 gid,
-			   struct process_info *pi);
-void unreserve_blocks(struct process_info *pi, u32 gid);
 
-s32 reserve_2d(enum tiler_fmt fmt, u16 n, u16 w, u16 h, u16 band,
-		      u16 align, u16 offs, struct gid_info *gi,
-		      struct list_head *pos);
-s32 pack_nv12(int n, u16 w, u16 w1, u16 h, struct gid_info *gi,
-		     u8 *p);
-void destroy_processes(void);
-void tiler_proc_init(void);
-/*** __get_area */
-u32 tiler_get_address(struct tiler_view_orient orient,
-			enum tiler_fmt fmt, u32 x, u32 y);
-/*** find block */
-void tiler_get_natural_xy(u32 tsptr, u32 *x, u32 *y);
+	/* process operations */
+	void (*cleanup) (void);
+
+	/* geometry operations */
+	void (*xy) (u32 tsptr, u32 *x, u32 *y);
+	u32 (*addr) (struct tiler_view_orient orient, enum tiler_fmt fmt,
+			u32 x, u32 y);
+
+	/* reservation operations */
+	void (*reserve_nv12) (u32 n, u32 width, u32 height, u32 align, u32 offs,
+			u32 gid, struct process_info *pi, bool can_together);
+	void (*reserve) (u32 n, enum tiler_fmt fmt, u32 width, u32 height,
+			u32 align, u32 offs, u32 gid, struct process_info *pi);
+	void (*unreserve) (u32 gid, struct process_info *pi);
+
+	s32 (*lay_2d) (enum tiler_fmt fmt, u16 n, u16 w, u16 h, u16 band,
+				u16 align, u16 offs, struct gid_info *gi,
+				struct list_head *pos);
+	s32 (*lay_nv12) (int n, u16 w, u16 w1, u16 h, struct gid_info *gi,
+									u8 *p);
+	const struct file_operations *fops;
+};
+
+void tiler_iface_init(struct tiler_ops *tiler);
+void tiler_geom_init(struct tiler_ops *tiler);
+void tiler_reserve_init(struct tiler_ops *tiler);
 
 #endif

@@ -50,6 +50,8 @@ MODULE_PARM_DESC(align, "Default block ssptr alignment");
 module_param_named(grain, granularity, uint, 0644);
 MODULE_PARM_DESC(grain, "Granularity (bytes)");
 
+struct tiler_ops tiler;
+
 struct tiler_dev {
 	struct cdev cdev;
 };
@@ -224,7 +226,7 @@ static void _m_try_free_group(struct gid_info *gi)
 
 /* --- external versions --- */
 
-struct gid_info *get_gi(struct process_info *pi, u32 gid)
+static struct gid_info *get_gi(struct process_info *pi, u32 gid)
 {
 	struct gid_info *gi;
 	mutex_lock(&mtx);
@@ -233,7 +235,7 @@ struct gid_info *get_gi(struct process_info *pi, u32 gid)
 	return gi;
 }
 
-void release_gi(struct gid_info *gi)
+static void release_gi(struct gid_info *gi)
 {
 	mutex_lock(&mtx);
 	gi->refs--;
@@ -280,7 +282,7 @@ static inline void _m_area_free(struct area_info *ai)
 	}
 }
 
-s32 __analize_area(enum tiler_fmt fmt, u32 width, u32 height,
+static s32 __analize_area(enum tiler_fmt fmt, u32 width, u32 height,
 			  u16 *x_area, u16 *y_area, u16 *band,
 			  u16 *align, u16 *offs, u16 *in_offs)
 {
@@ -478,9 +480,9 @@ done:
 	return mi;
 }
 
-/* layout reserved 2d areas in a larger area */
+/* layout reserved 2d blocks in a larger area */
 /* NOTE: band, w, h, a(lign), o(ffs) is in slots */
-s32 reserve_2d(enum tiler_fmt fmt, u16 n, u16 w, u16 h, u16 band,
+static s32 lay_2d(enum tiler_fmt fmt, u16 n, u16 w, u16 h, u16 band,
 		      u16 align, u16 offs, struct gid_info *gi,
 		      struct list_head *pos)
 {
@@ -515,13 +517,11 @@ s32 reserve_2d(enum tiler_fmt fmt, u16 n, u16 w, u16 h, u16 band,
 	return n;
 }
 
-/* reserve nv12 blocks if standard allocator is inefficient */
-/* TILER is designed so that a (w * h) * 8bit area is twice as wide as a
-   (w/2 * h/2) * 16bit area.  Since having pairs of such 8-bit and 16-bit
-   blocks is a common usecase for TILER, we optimize packing these into a
-   TILER area */
-s32 pack_nv12(int n, u16 w, u16 w1, u16 h, struct gid_info *gi,
-		     u8 *p)
+/* layout reserved nv12 blocks in a larger area */
+/* NOTE: area w(idth), w1 (8-bit block width), h(eight) are in slots */
+/* p is a pointer to a packing description, which is a list of offsets in
+   the area for consecutive 8-bit and 16-bit blocks */
+static s32 lay_nv12(int n, u16 w, u16 w1, u16 h, struct gid_info *gi, u8 *p)
 {
 	u16 wh = (w1 + 1) >> 1, width, x0;
 	int m;
@@ -657,7 +657,7 @@ static inline bool _m_try_free(struct mem_info *mi)
 /* --- external methods --- */
 
 /* find a block by key/id and lock it */
-struct mem_info *
+static struct mem_info *
 find_n_lock(u32 key, u32 id, struct gid_info *gi) {
 	struct area_info *ai = NULL;
 	struct mem_info *mi = NULL;
@@ -705,7 +705,7 @@ done:
 }
 
 /* unlock a block, and optionally free it */
-void unlock_n_free(struct mem_info *mi, bool free)
+static void unlock_n_free(struct mem_info *mi, bool free)
 {
 	mutex_lock(&mtx);
 
@@ -725,7 +725,7 @@ void unlock_n_free(struct mem_info *mi, bool free)
  *
  * (must have mutex)
  */
-void destroy_group(struct gid_info *gi)
+static void destroy_group(struct gid_info *gi)
 {
 	struct area_info *ai, *ai_;
 	struct mem_info *mi, *mi_;
@@ -775,7 +775,7 @@ void destroy_group(struct gid_info *gi)
 }
 
 /* release (reserved) blocks */
-void release_blocks(struct list_head *reserved)
+static void release_blocks(struct list_head *reserved)
 {
 	struct mem_info *mi, *mi_;
 
@@ -790,7 +790,7 @@ void release_blocks(struct list_head *reserved)
 }
 
 /* add reserved blocks to a group */
-void add_reserved_blocks(struct list_head *reserved, struct gid_info *gi)
+static void add_reserved_blocks(struct list_head *reserved, struct gid_info *gi)
 {
 	mutex_lock(&mtx);
 	list_splice_init(reserved, &gi->reserved);
@@ -798,28 +798,25 @@ void add_reserved_blocks(struct list_head *reserved, struct gid_info *gi)
 }
 
 /* find a block by ssptr */
-struct mem_info *find_block_by_ssptr(u32 sys_addr)
+static struct mem_info *find_block_by_ssptr(u32 sys_addr)
 {
 	struct mem_info *i;
 	struct tcm_pt pt;
 	u32 x, y;
 	enum tiler_fmt fmt;
-	struct tiler_block_t blk = {0};
 
-	if (!is_tiler_addr(sys_addr))
+	fmt = tiler_fmt(sys_addr);
+	if (fmt == TILFMT_INVALID)
 		return NULL;
 
-	blk.phys = sys_addr;
-	fmt = tiler_fmt(&blk);
-
 	/* convert x & y pixel coordinates to slot coordinates */
-	tiler_get_natural_xy(sys_addr, &x, &y);
+	tiler.xy(sys_addr, &x, &y);
 	pt.x = x / (fmt == TILFMT_PAGE ? 1 : fmt == TILFMT_32BIT ? 32 : 64);
 	pt.y = y / (fmt == TILFMT_PAGE ? 1 : fmt == TILFMT_8BIT ? 64 : 32);
 
 	mutex_lock(&mtx);
 	list_for_each_entry(i, &blocks, global) {
-		if (tiler_fmt(&i->blk) == TILER_GET_ACC_MODE(sys_addr) &&
+		if (tiler_fmt(i->blk.phys) == TILER_GET_ACC_MODE(sys_addr) &&
 		    tcm_is_in(pt, i->area))
 			goto found;
 	}
@@ -831,7 +828,7 @@ found:
 }
 
 /* find a block by ssptr */
-void fill_block_info(struct mem_info *i, struct tiler_block_info *blk)
+static void fill_block_info(struct mem_info *i, struct tiler_block_info *blk)
 {
 	blk->ptr = NULL;
 	blk->fmt = TILER_GET_ACC_MODE(i->blk.phys);
@@ -899,7 +896,7 @@ static struct mem_info *__get_area(enum tiler_fmt fmt, u32 width, u32 height,
 	gi->refs--;
 	mutex_unlock(&mtx);
 
-	mi->blk.phys = tiler_get_address(orient, fmt,
+	mi->blk.phys = tiler.addr(orient, fmt,
 		mi->area.p0.x * (fmt == TILFMT_PAGE ? 1 :
 				 fmt == TILFMT_32BIT ? 32 : 64),
 		mi->area.p0.y * (fmt == TILFMT_PAGE ? 1 :
@@ -908,7 +905,7 @@ static struct mem_info *__get_area(enum tiler_fmt fmt, u32 width, u32 height,
 	return mi;
 }
 
-s32 alloc_block(enum tiler_fmt fmt, u32 width, u32 height,
+static s32 alloc_block(enum tiler_fmt fmt, u32 width, u32 height,
 		u32 align, u32 offs, u32 key, u32 gid, struct process_info *pi,
 		struct mem_info **info)
 {
@@ -976,7 +973,7 @@ cleanup:
 
 }
 
-s32 map_block(enum tiler_fmt fmt, u32 width, u32 height,
+static s32 map_block(enum tiler_fmt fmt, u32 width, u32 height,
 		     u32 key, u32 gid, struct process_info *pi,
 		     struct mem_info **info, u32 usr_addr)
 {
@@ -1125,6 +1122,24 @@ static s32 __init tiler_init(void)
 	struct tcm *sita = NULL;
 	struct tmm *tmm_pat = NULL;
 
+	tiler.alloc = alloc_block;
+	tiler.map = map_block;
+	tiler.lock = find_n_lock;
+	tiler.unlock_free = unlock_n_free;
+	tiler.lay_2d = lay_2d;
+	tiler.lay_nv12 = lay_nv12;
+	tiler.destroy_group = destroy_group;
+	tiler.get_by_ssptr = find_block_by_ssptr;
+	tiler.describe = fill_block_info;
+	tiler.get_gi = get_gi;
+	tiler.release_gi = release_gi;
+	tiler.release = release_blocks;
+	tiler.add_reserved = add_reserved_blocks;
+	tiler.analize = __analize_area;
+	tiler_geom_init(&tiler);
+	tiler_reserve_init(&tiler);
+	tiler_iface_init(&tiler);
+
 	/* check module parameters for correctness */
 	if (default_align > PAGE_SIZE ||
 	    default_align & (default_align - 1) ||
@@ -1164,9 +1179,9 @@ static s32 __init tiler_init(void)
 		tiler_major = MAJOR(dev);
 	}
 
-	cdev_init(&tiler_device->cdev, &tiler_fops);
+	cdev_init(&tiler_device->cdev, tiler.fops);
 	tiler_device->cdev.owner = THIS_MODULE;
-	tiler_device->cdev.ops   = &tiler_fops;
+	tiler_device->cdev.ops   = tiler.fops;
 
 	r = cdev_add(&tiler_device->cdev, dev, 1);
 	if (r)
@@ -1187,7 +1202,6 @@ static s32 __init tiler_init(void)
 
 	mutex_init(&mtx);
 	INIT_LIST_HEAD(&blocks);
-	tiler_proc_init();
 	INIT_LIST_HEAD(&orphan_areas);
 	INIT_LIST_HEAD(&orphan_onedim);
 
@@ -1209,7 +1223,7 @@ static void __exit tiler_exit(void)
 	mutex_lock(&mtx);
 
 	/* free all process data */
-	destroy_processes();
+	tiler.cleanup();
 
 	/* all lists should have cleared */
 	BUG_ON(!list_empty(&blocks));

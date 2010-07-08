@@ -28,6 +28,7 @@ MODULE_PARM_DESC(offset_lookup,
 
 static struct mutex mtx;
 static struct list_head procs;
+static struct tiler_ops *ops;
 
 /*
  *  Buffer handling methods
@@ -81,14 +82,14 @@ _m_lock_block(u32 key, u32 id, struct process_info *pi) {
 	if (pi) {
 		/* find block in process list and free it */
 		list_for_each_entry(gi, &pi->groups, by_pid) {
-			mi = find_n_lock(key, id, gi);
+			mi = ops->lock(key, id, gi);
 			if (mi)
 				return mi;
 		}
 	}
 
 	/* if not found or no process_info given, find block in global list */
-	return find_n_lock(key, id, NULL);
+	return ops->lock(key, id, NULL);
 }
 
 /* register a buffer */
@@ -110,7 +111,7 @@ static s32 _m_register_buf(struct __buf_info *_b, struct process_info *pi)
 		if (!mi) {
 			/* unlock any blocks already found */
 			while (i--)
-				unlock_n_free(_b->mi[i], false);
+				ops->unlock_free(_b->mi[i], false);
 			return -EACCES;
 		}
 		_b->mi[i] = mi;
@@ -125,6 +126,17 @@ static s32 _m_register_buf(struct __buf_info *_b, struct process_info *pi)
 	return 0;
 }
 
+static s32 register_buf(struct __buf_info *_b, struct process_info *pi)
+{
+	s32 r;
+
+	mutex_lock(&mtx);
+	r = _m_register_buf(_b, pi);
+	mutex_unlock(&mtx);
+
+	return r;
+}
+
 /* unregister a buffer */
 /* must have mutex */
 static void _m_unregister_buf(struct __buf_info *_b)
@@ -136,7 +148,7 @@ static void _m_unregister_buf(struct __buf_info *_b)
 
 	/* no longer using the blocks */
 	for (i = 0; i < _b->buf_info.num_blocks; i++)
-		unlock_n_free(_b->mi[i], false);
+		ops->unlock_free(_b->mi[i], false);
 
 	kfree(_b);
 }
@@ -206,7 +218,7 @@ void _m_free_process_info(struct process_info *pi)
 
 	/* free all allocated blocks, and remove unreferenced ones */
 	list_for_each_entry_safe(gi, gi_, &pi->groups, by_pid) {
-		destroy_group(gi);
+		ops->destroy_group(gi);
 	}
 
 	BUG_ON(!list_empty(&pi->groups));
@@ -214,7 +226,7 @@ void _m_free_process_info(struct process_info *pi)
 	kfree(pi);
 }
 
-void destroy_processes(void)
+static void destroy_processes(void)
 {
 	struct process_info *pi, *pi_;
 
@@ -225,17 +237,6 @@ void destroy_processes(void)
 	BUG_ON(!list_empty(&procs));
 
 	mutex_unlock(&mtx);
-}
-
-void tiler_proc_init(void)
-{
-#ifdef CONFIG_TILER_SECURE
-	security = true;
-	offset_lookup = ssptr_lookup = false;
-#endif
-
-	mutex_init(&mtx);
-	INIT_LIST_HEAD(&procs);
 }
 
 /*
@@ -305,7 +306,7 @@ static s32 tiler_ioctl(struct inode *ip, struct file *filp, u32 cmd,
 
 		switch (block_info.fmt) {
 		case TILFMT_PAGE:
-			r = alloc_block(block_info.fmt, block_info.dim.len, 1,
+			r = ops->alloc(block_info.fmt, block_info.dim.len, 1,
 					block_info.align, block_info.offs,
 					block_info.key, block_info.group_id,
 					pi, &mi);
@@ -315,7 +316,7 @@ static s32 tiler_ioctl(struct inode *ip, struct file *filp, u32 cmd,
 		case TILFMT_8BIT:
 		case TILFMT_16BIT:
 		case TILFMT_32BIT:
-			r = alloc_block(block_info.fmt,
+			r = ops->alloc(block_info.fmt,
 					block_info.dim.area.width,
 					block_info.dim.area.height,
 					block_info.align, block_info.offs,
@@ -350,7 +351,7 @@ static s32 tiler_ioctl(struct inode *ip, struct file *filp, u32 cmd,
 		mi = _m_lock_block(block_info.key, block_info.id, pi);
 		mutex_unlock(&mtx);
 		if (mi) {
-			unlock_n_free(mi, true);
+			ops->unlock_free(mi, true);
 			r = 0;
 		}
 		r = -EACCES;
@@ -383,7 +384,7 @@ static s32 tiler_ioctl(struct inode *ip, struct file *filp, u32 cmd,
 		if (!block_info.ptr)
 			return -EFAULT;
 
-		r = map_block(block_info.fmt, block_info.dim.len, 1,
+		r = ops->map(block_info.fmt, block_info.dim.len, 1,
 			      block_info.key, block_info.group_id, pi,
 			      &mi, (u32)block_info.ptr);
 		if (r)
@@ -439,9 +440,7 @@ static s32 tiler_ioctl(struct inode *ip, struct file *filp, u32 cmd,
 			kfree(_b); return -EFAULT;
 		}
 
-		mutex_lock(&mtx);
-		r = _m_register_buf(_b, pi);
-		mutex_unlock(&mtx);
+		r = register_buf(_b, pi);
 		if (r) {
 			kfree(_b); return -EACCES;
 		}
@@ -475,7 +474,7 @@ static s32 tiler_ioctl(struct inode *ip, struct file *filp, u32 cmd,
 			return -EFAULT;
 
 		if (block_info.fmt == TILFMT_8AND16) {
-			reserve_nv12(block_info.key,
+			ops->reserve_nv12(block_info.key,
 				     block_info.dim.area.width,
 				     block_info.dim.area.height,
 				     block_info.align,
@@ -483,7 +482,7 @@ static s32 tiler_ioctl(struct inode *ip, struct file *filp, u32 cmd,
 				     block_info.group_id, pi,
 				     true /* :TODO: get can_together */);
 		} else {
-			reserve_blocks(block_info.key,
+			ops->reserve(block_info.key,
 				       block_info.fmt,
 				       block_info.dim.area.width,
 				       block_info.dim.area.height,
@@ -493,7 +492,7 @@ static s32 tiler_ioctl(struct inode *ip, struct file *filp, u32 cmd,
 		}
 		break;
 	case TILIOC_URBLK:
-		unreserve_blocks(pi, arg);
+		ops->unreserve(arg, pi);
 		break;
 #ifndef CONFIG_TILER_SECURE
 	case TILIOC_QBLK:
@@ -504,9 +503,9 @@ static s32 tiler_ioctl(struct inode *ip, struct file *filp, u32 cmd,
 					sizeof(block_info)))
 			return -EFAULT;
 
-		mi = find_block_by_ssptr(block_info.ssptr);
+		mi = ops->get_by_ssptr(block_info.ssptr);
 		if (mi)
-			fill_block_info(mi, &block_info);
+			ops->describe(mi, &block_info);
 		else
 			return -EFAULT;
 
@@ -552,6 +551,21 @@ const struct file_operations tiler_fops = {
 	.mmap    = tiler_mmap,
 };
 
+void tiler_iface_init(struct tiler_ops *tiler)
+{
+	ops = tiler;
+	ops->cleanup = destroy_processes;
+	ops->fops = &tiler_fops;
+
+#ifdef CONFIG_TILER_SECURE
+	security = true;
+	offset_lookup = ssptr_lookup = false;
+#endif
+
+	mutex_init(&mtx);
+	INIT_LIST_HEAD(&procs);
+}
+
 /*
  *  Kernel APIs
  *  ==========================================================================
@@ -563,7 +577,7 @@ s32 tiler_reservex(u32 n, enum tiler_fmt fmt, u32 width, u32 height,
 	struct process_info *pi = __get_pi(pid, true);
 
 	if (pi)
-		reserve_blocks(n, fmt, width, height, align, offs, gid, pi);
+		ops->reserve(n, fmt, width, height, align, offs, gid, pi);
 	return 0;
 }
 EXPORT_SYMBOL(tiler_reservex);
@@ -583,7 +597,7 @@ s32 tiler_reservex_nv12(u32 n, u32 width, u32 height, u32 align, u32 offs,
 	struct process_info *pi = __get_pi(pid, true);
 
 	if (pi)
-		reserve_nv12(n, width, height, align, offs, gid, pi,
+		ops->reserve_nv12(n, width, height, align, offs, gid, pi,
 			     true /* :TODO: get can_together */);
 	return 0;
 }
@@ -610,7 +624,7 @@ s32 tiler_allocx(struct tiler_block_t *blk, enum tiler_fmt fmt,
 	if (!pi)
 		return -ENOMEM;
 
-	res = alloc_block(fmt, blk->width, blk->height, align, offs, blk->key,
+	res = ops->alloc(fmt, blk->width, blk->height, align, offs, blk->key,
 								gid, pi, &mi);
 	if (mi)
 		blk->phys = mi->blk.phys;
@@ -639,7 +653,7 @@ s32 tiler_mapx(struct tiler_block_t *blk, enum tiler_fmt fmt, u32 gid,
 	if (!pi)
 		return -ENOMEM;
 
-	res = map_block(fmt, blk->width, blk->height, blk->key, gid, pi, &mi,
+	res = ops->map(fmt, blk->width, blk->height, blk->key, gid, pi, &mi,
 								usr_addr);
 	if (mi)
 		blk->phys = mi->blk.phys;
@@ -738,8 +752,8 @@ EXPORT_SYMBOL(tiler_ioremap_blk);
 void tiler_free(struct tiler_block_t *blk)
 {
 	/* find block */
-	struct mem_info *mi = find_n_lock(blk->key, blk->id, NULL);
+	struct mem_info *mi = ops->lock(blk->key, blk->id, NULL);
 	if (mi)
-		unlock_n_free(mi, true);
+		ops->unlock_free(mi, true);
 }
 EXPORT_SYMBOL(tiler_free);

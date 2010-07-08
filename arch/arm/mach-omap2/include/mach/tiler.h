@@ -40,8 +40,8 @@
 #define TILIOC_PRBLK  _IOW('z', 109, struct tiler_block_info)
 #define TILIOC_URBLK  _IOW('z', 110, u32)
 
-/* return true if addr is in the tiler container */
-bool is_tiler_addr(u32 addr);
+/* return true if physical address is in the tiler container */
+bool is_tiler_addr(u32 phys);
 
 enum tiler_fmt {
 	TILFMT_MIN     = -2,
@@ -63,8 +63,8 @@ struct tiler_block_t {
 	u32 id;				/* unique block ID */
 };
 
-/* get tiler block format */
-enum tiler_fmt tiler_fmt(const struct tiler_block_t *b);
+/* get tiler format for a physical address */
+enum tiler_fmt tiler_fmt(u32 phys);
 
 /* get tiler block bytes-per-pixel */
 u32 tiler_bpp(const struct tiler_block_t *b);

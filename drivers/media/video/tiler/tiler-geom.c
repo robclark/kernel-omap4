@@ -20,6 +20,7 @@
 #include "tiler-def.h"
 #include <mach/dmm.h> /* TEMP */
 #include "tcm.h"
+#include "_tiler.h"
 
 #define DMM_SHIFT_PER_X_8 0
 #define DMM_SHIFT_PER_Y_8 0
@@ -68,9 +69,9 @@
 /*
  * TILER Memory model query method
  */
-bool is_tiler_addr(u32 addr)
+bool is_tiler_addr(u32 phys)
 {
-	return addr >= TILVIEW_8BIT && addr < TILVIEW_END;
+	return phys >= TILVIEW_8BIT && phys < TILVIEW_END;
 }
 
 /*
@@ -82,29 +83,32 @@ static const u32 tiler_strides[TILER_FORMATS] = { 16384, 32768, 32768, 0 };
 
 u32 tiler_bpp(const struct tiler_block_t *b)
 {
-	enum tiler_fmt fmt = tiler_fmt(b);
+	enum tiler_fmt fmt = tiler_fmt(b->phys);
 	BUG_ON(fmt == TILFMT_INVALID);
 
 	return tiler_bpps[fmt - TILFMT_8BIT];
 }
+EXPORT_SYMBOL(tiler_bpp);
 
 u32 tiler_pstride(const struct tiler_block_t *b)
 {
-	enum tiler_fmt fmt = tiler_fmt(b);
+	enum tiler_fmt fmt = tiler_fmt(b->phys);
 	BUG_ON(fmt == TILFMT_INVALID);
 
 	return tiler_strides[fmt - TILFMT_8BIT] ? : tiler_vstride(b);
 }
+EXPORT_SYMBOL(tiler_pstride);
 
-enum tiler_fmt tiler_fmt(const struct tiler_block_t *b)
+enum tiler_fmt tiler_fmt(u32 phys)
 {
-	if (!is_tiler_addr(b->phys))
+	if (!is_tiler_addr(phys))
 		return TILFMT_INVALID;
 
-	return TILER_GET_ACC_MODE(b->phys);
+	return TILER_GET_ACC_MODE(phys);
 }
+EXPORT_SYMBOL(tiler_fmt);
 
-void tiler_get_natural_xy(u32 tsptr, u32 *x, u32 *y)
+static void tiler_get_natural_xy(u32 tsptr, u32 *x, u32 *y)
 {
 	u32 x_bits, y_bits, offset;
 	enum tiler_fmt fmt;
@@ -149,7 +153,7 @@ void tiler_get_natural_xy(u32 tsptr, u32 *x, u32 *y)
 		*y ^= DMM_TILER_MASK(y_bits);
 }
 
-u32 tiler_get_address(struct tiler_view_orient orient,
+static u32 tiler_get_address(struct tiler_view_orient orient,
 			enum tiler_fmt fmt, u32 x, u32 y)
 {
 	u32 x_bits, y_bits, tmp, x_mask, y_mask, alignment;
@@ -197,6 +201,12 @@ u32 tiler_get_address(struct tiler_view_orient orient,
 		TIL_ADDR((tmp << alignment), (orient.rotate_90 ? 1 : 0),
 			(orient.y_invert ? 1 : 0), (orient.x_invert ? 1 : 0),
 			fmt);
+}
+
+void tiler_geom_init(struct tiler_ops *tiler)
+{
+	tiler->xy = tiler_get_natural_xy;
+	tiler->addr = tiler_get_address;
 }
 
 u32 tiler_reorient_addr(u32 tsptr, struct tiler_view_orient orient)
