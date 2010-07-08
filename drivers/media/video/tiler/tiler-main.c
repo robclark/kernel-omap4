@@ -825,7 +825,7 @@ static void fill_block_info(struct mem_info *i, struct tiler_block_info *blk)
 	blk->id = i->blk.id;
 	blk->key = i->blk.key;
 	blk->offs = i->blk.phys & ~PAGE_MASK;
-	blk->align = 0;
+	blk->align = PAGE_SIZE;
 }
 
 /*

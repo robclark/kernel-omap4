@@ -325,6 +325,8 @@ static s32 tiler_ioctl(struct inode *ip, struct file *filp, u32 cmd,
 		if (mi) {
 			block_info.id = mi->blk.id;
 			block_info.stride = tiler_vstride(&mi->blk);
+			block_info.offs = mi->blk.phys & ~PAGE_MASK;
+			block_info.align = PAGE_SIZE;
 #ifdef CONFIG_TILER_EXPOSE_SSPTR
 			block_info.ssptr = mi->blk.phys;
 #endif
@@ -386,6 +388,8 @@ static s32 tiler_ioctl(struct inode *ip, struct file *filp, u32 cmd,
 		if (mi) {
 			block_info.id = mi->blk.id;
 			block_info.stride = tiler_vstride(&mi->blk);
+			block_info.offs = mi->blk.phys & ~PAGE_MASK;
+			block_info.align = PAGE_SIZE;
 #ifdef CONFIG_TILER_EXPOSE_SSPTR
 			block_info.ssptr = mi->blk.phys;
 #endif
