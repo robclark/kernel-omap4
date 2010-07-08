@@ -22,6 +22,8 @@
 #include "_tiler.h"
 
 static struct tiler_ops *ops;
+static int band_8;	/* 8-bit band in slots */
+static int band_16;	/* 16-bit band in slots */
 
 /* TILER is designed so that a (w * h) * 8bit area is twice as wide as a
    (w/2 * h/2) * 16bit area.  Since having pairs of such 8-bit and 16-bit
@@ -60,7 +62,7 @@ static u32 tiler_best2pack(u16 o, u16 w, u16 e, u16 b, u16 *n, u16 *area)
 	 * == align(o + (n-1) * e + w, b) - trim((o + (n-1) * e, b) for all n
 	 */
 	while (m < max_n &&
-	       o + m * e + w <= TILER_WIDTH &&
+	       o + m * e + w <= ops->width &&
 	       stride == ALIGN(ar - o - m * e, b)) {
 		/* get efficiency */
 		m++;
@@ -84,8 +86,8 @@ static u32 tiler_best2pack(u16 o, u16 w, u16 e, u16 b, u16 *n, u16 *area)
 /* assumptions: w > 0, o < a, 2 <= a */
 static u16 nv12_separate(u16 o, u16 w, u16 a, u16 n, u16 *area)
 {
-	tiler_best2pack(o, w, ALIGN(w, a), 64, &n, area);
-	tiler_best2pack(o / 2, (w + 1) / 2, ALIGN(w, a) / 2, 32, &n, area);
+	tiler_best2pack(o, w, ALIGN(w, a), band_8, &n, area);
+	tiler_best2pack(o / 2, (w + 1) / 2, ALIGN(w, a) / 2, band_16, &n, area);
 	*area *= 3;
 	return n;
 }
@@ -104,7 +106,7 @@ static u16 nv12_separate(u16 o, u16 w, u16 a, u16 n, u16 *area)
 static int nv12_A(u16 o, u16 w, u16 a, u16 *area, u16 n, u8 *p)
 {
 	u16 x = o, u, l, m = 0;
-	*area = 64;
+	*area = band_8;
 
 	while (x + w < *area && m < n) {
 		/* current 8bit upper bound (a) is next 8bit lower bound (B) */
@@ -149,7 +151,7 @@ static int nv12_B(u16 o, u16 w, u16 a, u16 *area, u16 n, u8 *p)
 	u16 o2 = o1 + (a >> 2);			/* 2nd half offset */
 	u16 e2 = e1 + (a >> 2);			/* 2nd half end offset */
 	u16 m = 0;
-	*area = 64;
+	*area = band_8;
 
 	/* ensure 16-bit blocks don't overlap 8-bit blocks */
 
@@ -171,7 +173,7 @@ static int nv12_C(u16 o, u16 w, u16 a, u16 *area, u16 n, u8 *p)
 {
 	int m = 0;
 	u16 o2, e = ALIGN(w, a), i = 0, j = 0;
-	*area = 64;
+	*area = band_8;
 	o2 = *area - (a - (o + w) % a) % a;	/* end of last possible block */
 
 	m = (min(o2 - 2 * o, 2 * o2 - o - *area) / 3 - w) / e + 1;
@@ -191,11 +193,11 @@ static int nv12_C(u16 o, u16 w, u16 a, u16 *area, u16 n, u8 *p)
 static int nv12_D(u16 o, u16 w, u16 a, u16 *area, u16 n, u8 *p)
 {
 	u16 o1, w1 = (w + 1) >> 1, d;
-	*area = ALIGN(o + w, 64);
+	*area = ALIGN(o + w, band_8);
 
 	for (d = 0; n > 0 && d + o + w <= *area; d += a) {
 		/* fit 16-bit before 8-bit */
-		o1 = ((o + d) % 64) >> 1;
+		o1 = ((o + d) % band_8) >> 1;
 		if (o1 + w1 <= o + d) {
 			*p++ = o + d;
 			*p++ = o1;
@@ -203,7 +205,7 @@ static int nv12_D(u16 o, u16 w, u16 a, u16 *area, u16 n, u8 *p)
 		}
 
 		/* fit 16-bit after 8-bit */
-		o1 += ALIGN(d + o + w - o1, 32);
+		o1 += ALIGN(d + o + w - o1, band_16);
 		if (o1 + w1 <= *area) {
 			*p++ = o;
 			*p++ = o1;
@@ -310,19 +312,21 @@ static u16 nv12_together(u16 o, u16 w, u16 a, u16 n, u16 *area, u8 *packing)
 static void reserve_nv12(u32 n, u32 width, u32 height, u32 align, u32 offs,
 			 u32 gid, struct process_info *pi, bool can_together)
 {
-	/* adjust alignment to at least 128 bytes (16-bit slot width) */
-	u16 w, h, band, a = MAX(128, align), o = offs, eff_w;
+	u16 w, h, band, a = align, o = offs, eff_w;
 	struct gid_info *gi;
 	int res = 0, res2, i;
 	u16 n_t, n_s, area_t, area_s;
 	u8 packing[2 * 21];
 	struct list_head reserved = LIST_HEAD_INIT(reserved);
 
+	/* adjust alignment to the largest slot width (128 bytes) */
+	a = MAX(PAGE_SIZE / MIN(band_8, band_16), a);
+
 	/* Check input parameters for correctness, and support */
 	if (!width || !height || !n ||
 	    offs >= align || offs & 1 ||
 	    align >= PAGE_SIZE ||
-	    n > TILER_WIDTH * TILER_HEIGHT / 2)
+	    n > ops->width * ops->height / 2)
 		return;
 
 	/* calculate dimensions, band, offs and alignment in slots */
@@ -389,9 +393,10 @@ static void reserve_blocks(u32 n, enum tiler_fmt fmt, u32 width, u32 height,
 			   u32 align, u32 offs, u32 gid,
 			   struct process_info *pi)
 {
-	u32 til_width, bpp, bpt, res = 0, i;
+	u32 bpt, res = 0, i;
 	u16 o = offs, a = align, band, w, h, e, n_try;
 	struct gid_info *gi;
+	const struct tiler_geom *g;
 
 	/* Check input parameters for correctness, and support */
 	if (!width || !height || !n ||
@@ -400,14 +405,13 @@ static void reserve_blocks(u32 n, enum tiler_fmt fmt, u32 width, u32 height,
 		return;
 
 	/* tiler page width in pixels, bytes per pixel, tiler page in bytes */
-	til_width = fmt == TILFMT_32BIT ? 32 : 64;
-	bpp = 1 << (fmt - TILFMT_8BIT);
-	bpt = til_width * bpp;
+	g = ops->geom(fmt);
+	bpt = g->slot_w * g->bpp;
 
 	/* check offset.  Also, if block is less than half the mapping window,
 	   the default allocation is sufficient.  Also check for basic area
 	   info. */
-	if (width * bpp * 2 <= PAGE_SIZE ||
+	if (width * g->bpp * 2 <= PAGE_SIZE ||
 	    ops->analize(fmt, width, height, &w, &h, &band, &a, &o, NULL))
 		return;
 
@@ -421,7 +425,7 @@ static void reserve_blocks(u32 n, enum tiler_fmt fmt, u32 width, u32 height,
 
 	for (i = 0; i < n && res >= 0; i += res) {
 		/* blocks to allocate in one area */
-		n_try = MIN(n - i, TILER_WIDTH);
+		n_try = MIN(n - i, ops->width);
 		tiler_best2pack(offs, w, e, band, &n_try, NULL);
 
 		res = -1;
@@ -460,4 +464,8 @@ void tiler_reserve_init(struct tiler_ops *tiler)
 	ops->reserve_nv12 = reserve_nv12;
 	ops->reserve = reserve_blocks;
 	ops->unreserve = unreserve_blocks;
+
+	band_8 = PAGE_SIZE / ops->geom(TILFMT_8BIT)->slot_w;
+	band_16 = PAGE_SIZE / ops->geom(TILFMT_16BIT)->slot_w
+		/ ops->geom(TILFMT_16BIT)->bpp;
 }

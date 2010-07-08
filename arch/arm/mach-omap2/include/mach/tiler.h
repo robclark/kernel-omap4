@@ -17,13 +17,6 @@
 #ifndef TILER_H
 #define TILER_H
 
-#define TILER_PAGE 0x1000
-#define TILER_WIDTH    256
-#define TILER_HEIGHT   128
-#define TILER_BLOCK_WIDTH  64
-#define TILER_BLOCK_HEIGHT 64
-#define TILER_LENGTH (TILER_WIDTH * TILER_HEIGHT * TILER_PAGE)
-
 #define TILER_MAX_NUM_BLOCKS 16
 
 #include <linux/mm.h>
@@ -114,9 +107,9 @@ struct tiler_buf_info {
 };
 
 struct tiler_view_orient {
-	u8 rotate_90;
-	u8 x_invert;
-	u8 y_invert;
+	u32 x_invert;
+	u32 y_invert;
+	u32 rotate_90;
 };
 
 /**
@@ -310,12 +303,11 @@ s32 tiler_reservex_nv12(u32 n, u32 width, u32 height, u32 align, u32 offs,
 
 u32 tiler_reorient_addr(u32 tsptr, struct tiler_view_orient orient);
 
+u32 tiler_offset_addr(u32 tsptr, u32 x, u32 y);
+
 u32 tiler_get_natural_addr(void *sys_ptr);
 
-u32 tiler_reorient_topleft(u32 tsptr, struct tiler_view_orient orient,
-				u32 width, u32 height);
-
-u32 tiler_stride(u32 tsptr);
+u32 tiler_topleft(u32 tsptr, u32 width, u32 height);
 
 void tiler_rotate_view(struct tiler_view_orient *orient, u32 rotation);
 

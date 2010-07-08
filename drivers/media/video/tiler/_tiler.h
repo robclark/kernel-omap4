@@ -50,6 +50,15 @@ struct mem_info {
 	void *parent;			/* area info for 2D, else group info */
 };
 
+struct tiler_geom {
+	u32 x_shft;	/* unused X-bits (as part of bpp) */
+	u32 y_shft;	/* unused Y-bits (as part of bpp) */
+	u32 bpp;	/* bytes per pixel */
+	u32 slot_w;	/* width of each slot (in pixels) */
+	u32 slot_h;	/* height of each slot (in pixels) */
+	u32 bpp_m;	/* modified bytes per pixel (=1 for page mode) */
+};
+
 struct tiler_ops {
 	/* block operations */
 	s32 (*alloc) (enum tiler_fmt fmt, u32 width, u32 height,
@@ -97,10 +106,15 @@ struct tiler_ops {
 	void (*xy) (u32 tsptr, u32 *x, u32 *y);
 	u32 (*addr) (struct tiler_view_orient orient, enum tiler_fmt fmt,
 			u32 x, u32 y);
+	const struct tiler_geom * (*geom) (enum tiler_fmt fmt);
 
 	/* additional info */
 	const struct file_operations *fops;
-	bool nv12_packed;
+
+	bool nv12_packed;	/* whether NV12 is packed into same container */
+	u32 page;		/* page size */
+	u32 width;		/* container width */
+	u32 height;		/* container height */
 };
 
 void tiler_iface_init(struct tiler_ops *tiler);

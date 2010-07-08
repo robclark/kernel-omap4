@@ -79,10 +79,10 @@ static struct tcm *tcm[TILER_FORMATS];
 static struct tmm *tmm[TILER_FORMATS];
 
 #define TCM(fmt)        tcm[(fmt) - TILFMT_8BIT]
-#define TCM_SS(ssptr)   TCM(TILER_GET_ACC_MODE(ssptr))
+#define TCM_SS(ssptr)   TCM(tiler_fmt(ssptr))
 #define TCM_SET(fmt, i) tcm[(fmt) - TILFMT_8BIT] = i
 #define TMM(fmt)        tmm[(fmt) - TILFMT_8BIT]
-#define TMM_SS(ssptr)   TMM(TILER_GET_ACC_MODE(ssptr))
+#define TMM_SS(ssptr)   TMM(tiler_fmt(ssptr))
 #define TMM_SET(fmt, i) tmm[(fmt) - TILFMT_8BIT] = i
 
 /*
@@ -290,46 +290,33 @@ static s32 __analize_area(enum tiler_fmt fmt, u32 width, u32 height,
 	/* output: x_area, y_area, band, align, offs in slots */
 
 	/* slot width, height, and row size */
-	u32 slot_w, slot_h, slot_row, bpp, min_align;
+	u32 slot_row, min_align;
+	const struct tiler_geom *g;
 
 	/* align must be 2 power */
 	if (*align & (*align - 1))
 		return -1;
 
-	switch (fmt) {
-	case TILFMT_8BIT:
-		slot_w = DMM_PAGE_DIMM_X_MODE_8;
-		slot_h = DMM_PAGE_DIMM_Y_MODE_8;
-		bpp = 1;
-		break;
-	case TILFMT_16BIT:
-		slot_w = DMM_PAGE_DIMM_X_MODE_16;
-		slot_h = DMM_PAGE_DIMM_Y_MODE_16;
-		bpp = 2;
-		break;
-	case TILFMT_32BIT:
-		slot_w = DMM_PAGE_DIMM_X_MODE_32;
-		slot_h = DMM_PAGE_DIMM_Y_MODE_32;
-		bpp = 4;
-		break;
-	case TILFMT_PAGE:
+	if (fmt == TILFMT_PAGE) {
 		/* adjust size to accomodate offset, only do page alignment */
 		*align = PAGE_SIZE;
 		width += *offs & (PAGE_SIZE - 1);
 
 		/* for 1D area keep the height (1), width is in tiler slots */
-		*x_area = DIV_ROUND_UP(width, TILER_PAGE);
+		*x_area = DIV_ROUND_UP(width, tiler.page);
 		*y_area = *band = 1;
 
-		if (*x_area * *y_area > TILER_WIDTH * TILER_HEIGHT)
+		if (*x_area * *y_area > tiler.width * tiler.height)
 			return -1;
 		return 0;
-	default:
-		return -EINVAL;
 	}
 
+	g = tiler.geom(fmt);
+	if (!g)
+		return -EINVAL;
+
 	/* get the # of bytes per row in 1 slot */
-	slot_row = slot_w * bpp;
+	slot_row = g->slot_w * g->bpp;
 
 	/* how many slots are can be accessed via one physical page */
 	*band = PAGE_SIZE / slot_row;
@@ -339,26 +326,26 @@ static s32 __analize_area(enum tiler_fmt fmt, u32 width, u32 height,
 	*align = ALIGN(*align ? : default_align, min_align);
 
 	/* offset must be multiple of bpp */
-	if (*offs & (bpp - 1) || *offs >= *align)
+	if (*offs & (g->bpp - 1) || *offs >= *align)
 		return -EINVAL;
 
 	/* round down the offset to the nearest slot size, and increase width
 	   to allow space for having the correct offset */
-	width += (*offs & (min_align - 1)) / bpp;
+	width += (*offs & (min_align - 1)) / g->bpp;
 	if (in_offs)
 		*in_offs = *offs & (min_align - 1);
 	*offs &= ~(min_align - 1);
 
 	/* expand width to block size */
-	width = ALIGN(width, min_align / bpp);
+	width = ALIGN(width, min_align / g->bpp);
 
 	/* adjust to slots */
-	*x_area = DIV_ROUND_UP(width, slot_w);
-	*y_area = DIV_ROUND_UP(height, slot_h);
+	*x_area = DIV_ROUND_UP(width, g->slot_w);
+	*y_area = DIV_ROUND_UP(height, g->slot_h);
 	*align /= slot_row;
 	*offs /= slot_row;
 
-	if (*x_area > TILER_WIDTH || *y_area > TILER_HEIGHT)
+	if (*x_area > tiler.width || *y_area > tiler.height)
 		return -1;
 	return 0x0;
 }
@@ -525,13 +512,14 @@ static s32 lay_nv12(int n, u16 w, u16 w1, u16 h, struct gid_info *gi, u8 *p)
 {
 	u16 wh = (w1 + 1) >> 1, width, x0;
 	int m;
+	int a = PAGE_SIZE / tiler.geom(TILFMT_8BIT)->slot_w;
 
 	struct mem_info *mi = NULL;
 	struct area_info *ai = NULL;
 	struct list_head *pos;
 
 	/* reserve area */
-	ai = area_new_m(w, h, 64, TILFMT_8BIT, gi);
+	ai = area_new_m(w, h, a, TILFMT_8BIT, gi);
 	if (!ai)
 		return -ENOMEM;
 
@@ -674,7 +662,7 @@ find_n_lock(u32 key, u32 id, struct gid_info *gi) {
 		/* is id is ssptr, we know if block is 1D or 2D by the address,
 		   so we optimize lookup */
 		if (!ssptr_id ||
-		    TILER_GET_ACC_MODE(id) == TILFMT_PAGE) {
+		    tiler_fmt(id) == TILFMT_PAGE) {
 			list_for_each_entry(mi, &gi->onedim, by_area) {
 				if (mi->blk.key == key && mi->blk.id == id)
 					goto done;
@@ -682,7 +670,7 @@ find_n_lock(u32 key, u32 id, struct gid_info *gi) {
 		}
 
 		if (!ssptr_id ||
-		    TILER_GET_ACC_MODE(id) != TILFMT_PAGE) {
+		    tiler_fmt(id) != TILFMT_PAGE) {
 			list_for_each_entry(ai, &gi->areas, by_gid) {
 				list_for_each_entry(mi, &ai->blocks, by_area) {
 					if (mi->blk.key == key &&
@@ -804,19 +792,22 @@ static struct mem_info *find_block_by_ssptr(u32 sys_addr)
 	struct tcm_pt pt;
 	u32 x, y;
 	enum tiler_fmt fmt;
+	const struct tiler_geom *g;
 
 	fmt = tiler_fmt(sys_addr);
 	if (fmt == TILFMT_INVALID)
 		return NULL;
 
+	g = tiler.geom(fmt);
+
 	/* convert x & y pixel coordinates to slot coordinates */
 	tiler.xy(sys_addr, &x, &y);
-	pt.x = x / (fmt == TILFMT_PAGE ? 1 : fmt == TILFMT_32BIT ? 32 : 64);
-	pt.y = y / (fmt == TILFMT_PAGE ? 1 : fmt == TILFMT_8BIT ? 64 : 32);
+	pt.x = x / g->slot_w;
+	pt.y = y / g->slot_h;
 
 	mutex_lock(&mtx);
 	list_for_each_entry(i, &blocks, global) {
-		if (tiler_fmt(i->blk.phys) == TILER_GET_ACC_MODE(sys_addr) &&
+		if (tiler_fmt(i->blk.phys) == tiler_fmt(sys_addr) &&
 		    tcm_is_in(pt, i->area)) {
 			i->refs++;
 			goto found;
@@ -833,7 +824,7 @@ found:
 static void fill_block_info(struct mem_info *i, struct tiler_block_info *blk)
 {
 	blk->ptr = NULL;
-	blk->fmt = TILER_GET_ACC_MODE(i->blk.phys);
+	blk->fmt = tiler_fmt(i->blk.phys);
 	blk->ssptr = i->blk.phys;
 
 	if (blk->fmt == TILFMT_PAGE) {
@@ -863,6 +854,7 @@ static struct mem_info *__get_area(enum tiler_fmt fmt, u32 width, u32 height,
 	u16 x, y, band, in_offs = 0;
 	struct mem_info *mi = NULL;
 	struct tiler_view_orient orient = {0};
+	const struct tiler_geom *g = tiler.geom(fmt);
 
 	/* calculate dimensions, band, offs and alignment in slots */
 	if (__analize_area(fmt, width, height, &x, &y, &band, &align, &offs,
@@ -899,10 +891,7 @@ static struct mem_info *__get_area(enum tiler_fmt fmt, u32 width, u32 height,
 	mutex_unlock(&mtx);
 
 	mi->blk.phys = tiler.addr(orient, fmt,
-		mi->area.p0.x * (fmt == TILFMT_PAGE ? 1 :
-				 fmt == TILFMT_32BIT ? 32 : 64),
-		mi->area.p0.y * (fmt == TILFMT_PAGE ? 1 :
-				 fmt == TILFMT_8BIT ? 64 : 32))
+		mi->area.p0.x * g->slot_w, mi->area.p0.y * g->slot_h)
 		+ TILER_ALIAS_BASE + in_offs;
 	return mi;
 }
@@ -1150,9 +1139,9 @@ static s32 __init tiler_init(void)
 		return -EINVAL;
 
 	/* Allocate tiler container manager (we share 1 on OMAP4) */
-	div_pt.x = TILER_WIDTH;   /* hardcoded default */
-	div_pt.y = (3 * TILER_HEIGHT) / 4;
-	sita = sita_init(TILER_WIDTH, TILER_HEIGHT, (void *)&div_pt);
+	div_pt.x = tiler.width;   /* hardcoded default */
+	div_pt.y = (3 * tiler.height) / 4;
+	sita = sita_init(tiler.width, tiler.height, (void *)&div_pt);
 
 	TCM_SET(TILFMT_8BIT, sita);
 	TCM_SET(TILFMT_16BIT, sita);
