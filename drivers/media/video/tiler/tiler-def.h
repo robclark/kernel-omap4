@@ -21,6 +21,5 @@
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 
 #define TILER_FORMATS		(TILFMT_MAX - TILFMT_MIN + 1)
-#define TILER_ALIAS_BASE	0x60000000u
 
 #endif

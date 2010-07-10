@@ -103,9 +103,8 @@ struct tiler_ops {
 	void (*cleanup) (void);
 
 	/* geometry operations */
-	void (*xy) (u32 tsptr, u32 *x, u32 *y);
-	u32 (*addr) (struct tiler_view_orient orient, enum tiler_fmt fmt,
-			u32 x, u32 y);
+	void (*xy) (u32 ssptr, u32 *x, u32 *y);
+	u32 (*addr) (enum tiler_fmt fmt, u32 x, u32 y);
 	const struct tiler_geom * (*geom) (enum tiler_fmt fmt);
 
 	/* additional info */

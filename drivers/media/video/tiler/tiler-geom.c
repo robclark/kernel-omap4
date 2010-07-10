@@ -1,18 +1,18 @@
 /*
- * tiler_rot.c
- *
- * TILER driver support functions for TI OMAP processors.
- *
- * Copyright (C) 2009-2010 Texas Instruments, Inc.
- *
- * This package is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * THIS PACKAGE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
- * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- */
+* tiler_rot.c
+*
+* TILER driver support functions for TI OMAP processors.
+*
+* Copyright (C) 2009-2010 Texas Instruments, Inc.
+*
+* This package is free software; you can redistribute it and/or modify
+* it under the terms of the GNU General Public License version 2 as
+* published by the Free Software Foundation.
+*
+* THIS PACKAGE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+* IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+* WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+*/
 
 #include <linux/init.h>
 #include <linux/module.h>
@@ -24,6 +24,9 @@
 
 #define SLOT_WIDTH_BITS		6
 #define SLOT_HEIGHT_BITS	6
+
+#define CONT_WIDTH_BITS		14
+#define CONT_HEIGHT_BITS	13
 
 static struct tiler_geom geom[TILER_FORMATS] = {
 	{
@@ -44,13 +47,11 @@ static struct tiler_geom geom[TILER_FORMATS] = {
 	},
 };
 
-#define DMM_ROTATION_SHIFT	31
-#define DMM_Y_INVERT_SHIFT	30
-#define DMM_X_INVERT_SHIFT	29
-#define DMM_ACC_MODE_SHIFT	27
-#define DMM_ACC_MODE_MASK	3
-#define CONT_WIDTH_BITS		14
-#define CONT_HEIGHT_BITS	13
+#define MASK_XY_FLIP		(1 << 31)
+#define MASK_Y_INVERT		(1 << 30)
+#define MASK_X_INVERT		(1 << 29)
+#define SHIFT_ACC_MODE		27
+#define MASK_ACC_MODE		3
 
 #define TILER_PAGE		(1 << (SLOT_WIDTH_BITS + SLOT_HEIGHT_BITS))
 #define TILER_WIDTH		(1 << (CONT_WIDTH_BITS - SLOT_WIDTH_BITS))
@@ -61,37 +62,31 @@ static struct tiler_geom geom[TILER_FORMATS] = {
 
 #define MASK(bits) ((1 << (bits)) - 1)
 
-#define TILER_GET_ACC_MODE(x)	((enum tiler_fmt) \
-		((x >> DMM_ACC_MODE_SHIFT) & DMM_ACC_MODE_MASK))
-#define DMM_IS_X_INVERTED(x)	((x >> DMM_X_INVERT_SHIFT) & 1)
-#define DMM_IS_Y_INVERTED(x)	((x >> DMM_Y_INVERT_SHIFT) & 1)
-#define DMM_IS_ROTATED(x)	((x >> DMM_ROTATION_SHIFT) & 1)
+#define TILER_FMT(x)	((enum tiler_fmt) \
+		((x >> SHIFT_ACC_MODE) & MASK_ACC_MODE))
 
-#define DMM_ALIAS_VIEW_CLEAR	(~((1 << DMM_X_INVERT_SHIFT) | \
-		(1 << DMM_Y_INVERT_SHIFT) | (1 << DMM_ROTATION_SHIFT)))
+#define MASK_VIEW		(MASK_X_INVERT | MASK_Y_INVERT | MASK_XY_FLIP)
 
-#define TILVIEW_8BIT	TILER_ALIAS_BASE
+#define TILVIEW_8BIT	0x60000000u
 #define TILVIEW_16BIT	(TILVIEW_8BIT  + VIEW_SIZE)
 #define TILVIEW_32BIT	(TILVIEW_16BIT + VIEW_SIZE)
 #define TILVIEW_PAGE	(TILVIEW_32BIT + VIEW_SIZE)
 #define TILVIEW_END	(TILVIEW_PAGE  + VIEW_SIZE)
 
-#define TIL_ADDR(x, r, yi, xi, a)\
-	((u32) x | (((r) ? 1 : 0) << DMM_ROTATION_SHIFT) | \
-	(((yi) ? 1 : 0) << DMM_Y_INVERT_SHIFT) | \
-	(((xi) ? 1 : 0) << DMM_X_INVERT_SHIFT) | ((a) << DMM_ACC_MODE_SHIFT))
+#define TIL_ADDR(x, orient, a)\
+	((u32) (x) | (orient) | ((a) << SHIFT_ACC_MODE))
 
 /*
- * TILER Memory model query method
- */
+* TILER Memory model query method
+*/
 bool is_tiler_addr(u32 phys)
 {
 	return phys >= TILVIEW_8BIT && phys < TILVIEW_END;
 }
 
 /*
- * TILER block query method
- */
+* TILER block query method
+*/
 
 u32 tiler_bpp(const struct tiler_block_t *b)
 {
@@ -103,14 +98,16 @@ u32 tiler_bpp(const struct tiler_block_t *b)
 }
 EXPORT_SYMBOL(tiler_bpp);
 
-static inline u32 tiler_stride(enum tiler_fmt fmt, bool rotated)
+static inline s32 tiler_stride(u32 tsptr)
 {
+	enum tiler_fmt fmt = TILER_FMT(tsptr);
+
 	if (fmt == TILFMT_PAGE)
 		return 0;
-
-	return rotated ?
-		1 << (CONT_HEIGHT_BITS + geom[fmt].x_shft) :
-		1 << (CONT_WIDTH_BITS + geom[fmt].y_shft);
+	else if (tsptr & MASK_XY_FLIP)
+		return 1 << (CONT_HEIGHT_BITS + geom[fmt].x_shft);
+	else
+		return 1 << (CONT_WIDTH_BITS + geom[fmt].y_shft);
 }
 
 u32 tiler_pstride(const struct tiler_block_t *b)
@@ -122,7 +119,7 @@ u32 tiler_pstride(const struct tiler_block_t *b)
 	if (fmt == TILFMT_PAGE)
 		return tiler_vstride(b);
 
-	return tiler_stride(fmt, 0);
+	return tiler_stride(b->phys & ~MASK_VIEW);
 }
 EXPORT_SYMBOL(tiler_pstride);
 
@@ -131,7 +128,7 @@ enum tiler_fmt tiler_fmt(u32 phys)
 	if (!is_tiler_addr(phys))
 		return TILFMT_INVALID;
 
-	return TILER_GET_ACC_MODE(phys);
+	return TILER_FMT(phys);
 }
 EXPORT_SYMBOL(tiler_fmt);
 
@@ -147,13 +144,13 @@ static void tiler_get_natural_xy(u32 tsptr, u32 *x, u32 *y)
 	u32 x_bits, y_bits, offset;
 	enum tiler_fmt fmt;
 
-	fmt = TILER_GET_ACC_MODE(tsptr);
+	fmt = TILER_FMT(tsptr);
 
 	x_bits = CONT_WIDTH_BITS - geom[fmt].x_shft;
 	y_bits = CONT_HEIGHT_BITS - geom[fmt].y_shft;
 	offset = (tsptr & VIEW_MASK) >> (geom[fmt].x_shft + geom[fmt].y_shft);
 
-	if (DMM_IS_ROTATED(tsptr)) {
+	if (tsptr & MASK_XY_FLIP) {
 		*x = offset >> y_bits;
 		*y = offset & MASK(y_bits);
 	} else {
@@ -161,14 +158,13 @@ static void tiler_get_natural_xy(u32 tsptr, u32 *x, u32 *y)
 		*y = offset >> x_bits;
 	}
 
-	if (DMM_IS_X_INVERTED(tsptr))
+	if (tsptr & MASK_X_INVERT)
 		*x ^= MASK(x_bits);
-	if (DMM_IS_Y_INVERTED(tsptr))
+	if (tsptr & MASK_Y_INVERT)
 		*y ^= MASK(y_bits);
 }
 
-static u32 tiler_get_address(struct tiler_view_orient orient,
-			enum tiler_fmt fmt, u32 x, u32 y)
+static u32 tiler_get_address(u32 orient, enum tiler_fmt fmt, u32 x, u32 y)
 {
 	u32 x_bits, y_bits, tmp, x_mask, y_mask, alignment;
 
@@ -181,90 +177,154 @@ static u32 tiler_get_address(struct tiler_view_orient orient,
 	if (x < 0 || x > x_mask || y < 0 || y > y_mask)
 		return 0;
 
-	if (orient.x_invert)
+	if (orient & MASK_X_INVERT)
 		x ^= x_mask;
-	if (orient.y_invert)
+	if (orient & MASK_Y_INVERT)
 		y ^= y_mask;
 
-	if (orient.rotate_90)
+	if (orient & MASK_XY_FLIP)
 		tmp = ((x << y_bits) + y);
 	else
 		tmp = ((y << x_bits) + x);
 
-	return TIL_ADDR((tmp << alignment), orient.rotate_90,
-			orient.y_invert, orient.x_invert, fmt);
+	return TIL_ADDR((tmp << alignment), orient, fmt);
 }
 
-u32 tiler_reorient_addr(u32 tsptr, struct tiler_view_orient orient)
+void tilview_get(struct tiler_view_t *view, struct tiler_block_t *blk)
+{
+	view->tsptr = blk->phys & ~MASK_VIEW;
+	view->bpp = tiler_bpp(blk);
+	view->width = blk->width;
+	view->height = blk->height;
+	view->h_inc = view->bpp;
+	view->v_inc = tiler_stride(view->tsptr);
+}
+EXPORT_SYMBOL(tilview_get);
+
+s32 tilview_crop(struct tiler_view_t *view, u32 left, u32 top, u32 width,
+								u32 height)
+{
+	/* check for valid crop */
+	if (left + width < left || left + width > view->width ||
+	    top + height < top || top + height > view->height)
+		return -EINVAL;
+
+	view->tsptr += left * view->h_inc + top * view->v_inc;
+	view->width = width;
+	view->height = height;
+	return 0;
+}
+EXPORT_SYMBOL(tilview_crop);
+
+/* adjust view orientation after top-left has been adjusted */
+static void reorient(struct tiler_view_t *view, u32 orient)
 {
 	u32 x, y;
 
-	tiler_get_natural_xy(tsptr, &x, &y);
-	return tiler_get_address(orient, TILER_GET_ACC_MODE(tsptr), x, y);
+	tiler_get_natural_xy(view->tsptr, &x, &y);
+	view->tsptr = tiler_get_address(orient,
+					TILER_FMT(view->tsptr), x, y);
+	view->v_inc = tiler_stride(view->tsptr);
 }
-EXPORT_SYMBOL(tiler_reorient_addr);
 
-u32 tiler_get_natural_addr(void *sys_ptr)
+s32 tilview_rotate(struct tiler_view_t *view, s32 rotation)
 {
-	return (u32)sys_ptr & DMM_ALIAS_VIEW_CLEAR;
-}
-EXPORT_SYMBOL(tiler_get_natural_addr);
+	u32 orient;
 
-u32 tiler_topleft(u32 tsptr, u32 width, u32 height)
-{
-	u32 x, y;
-	enum tiler_fmt fmt = TILER_GET_ACC_MODE(tsptr);
-	struct tiler_view_orient orient;
-	orient.x_invert = DMM_IS_X_INVERTED(tsptr);
-	orient.y_invert = DMM_IS_Y_INVERTED(tsptr);
-	orient.rotate_90 = DMM_IS_ROTATED(tsptr);
+	if (rotation % 90)
+		return -EINVAL;
 
-	tiler_get_natural_xy(tsptr, &x, &y);
-
-	if (DMM_IS_X_INVERTED(tsptr))
-		x += width - 1;
-	if (DMM_IS_Y_INVERTED(tsptr))
-		y += height - 1;
-
-
-	return tiler_get_address(orient, fmt, x, y);
-}
-EXPORT_SYMBOL(tiler_topleft);
-
-u32 tiler_offset_addr(u32 tsptr, u32 x, u32 y)
-{
-	enum tiler_fmt fmt = TILER_GET_ACC_MODE(tsptr);
-	bool rotated = DMM_IS_ROTATED(tsptr);
-
-	return tsptr + x * geom[fmt].bpp_m + y * tiler_stride(fmt, rotated);
-}
-EXPORT_SYMBOL(tiler_offset_addr);
-
-void tiler_rotate_view(struct tiler_view_orient *orient, u32 rotation)
-{
+	/* normalize rotation to quarters */
 	rotation = (rotation / 90) & 3;
+	if (!rotation)
+		return 0; /* nothing to do */
 
+	/* PAGE mode view cannot be rotated */
+	if (TILER_FMT(view->tsptr) == TILFMT_PAGE)
+		return -EPERM;
+
+	/*
+	 * first adjust top-left corner. NOTE: it rotates counter-clockwise:
+	 * 0 < 3
+	 * v   ^
+	 * 1 > 2
+	 */
+	if (rotation < 3)
+		view->tsptr += (view->height - 1) * view->v_inc;
+	if (rotation > 1)
+		view->tsptr += (view->width - 1) * view->h_inc;
+
+	/* then rotate view itself */
+	orient = view->tsptr & MASK_VIEW;
+
+	/* rotate first 2 quarters */
 	if (rotation & 2) {
-		orient->x_invert = !orient->x_invert;
-		orient->y_invert = !orient->y_invert;
+		orient ^= MASK_X_INVERT;
+		orient ^= MASK_Y_INVERT;
 	}
 
+	/* rotate last quarter */
 	if (rotation & 1) {
-		if (orient->rotate_90)
-			orient->y_invert = !orient->y_invert;
-		else
-			orient->x_invert = !orient->x_invert;
-		orient->rotate_90 = !orient->rotate_90;
+		orient ^= (orient & MASK_XY_FLIP) ?
+			MASK_Y_INVERT : MASK_X_INVERT;
+
+		/* swap x & y */
+		orient ^= MASK_XY_FLIP;
+		swap(view->height, view->width);
 	}
+
+	/* finally reorient view */
+	reorient(view, orient);
+	return 0;
 }
-EXPORT_SYMBOL(tiler_rotate_view);
+EXPORT_SYMBOL(tilview_rotate);
+
+s32 tilview_flip(struct tiler_view_t *view, bool flip_x, bool flip_y)
+{
+	u32 orient;
+	orient = view->tsptr & MASK_VIEW;
+
+	if (!flip_x && !flip_y)
+		return 0; /* nothing to do */
+
+	/* PAGE mode view cannot be flipped */
+	if (TILER_FMT(view->tsptr) == TILFMT_PAGE)
+		return -EPERM;
+
+	/* adjust top-left corner */
+	if (flip_x) {
+		orient ^= MASK_X_INVERT;
+		view->tsptr += (view->width - 1) * view->h_inc;
+	}
+	if (flip_y) {
+		orient ^= MASK_Y_INVERT;
+		view->tsptr += (view->height - 1) * view->v_inc;
+	}
+
+	/* finally reorient view */
+	reorient(view, orient);
+	return 0;
+}
+EXPORT_SYMBOL(tilview_flip);
+
+/* return the alias address for a coordinate */
+static inline u32 alias_address(enum tiler_fmt fmt, u32 x, u32 y)
+{
+	return tiler_get_address(0, fmt, x, y) + TILVIEW_8BIT;
+}
+
+/* get the coordinates for an alias address */
+static inline void alias_xy(u32 ssptr, u32 *x, u32 *y)
+{
+	tiler_get_natural_xy(ssptr & ~MASK_VIEW, x, y);
+}
 
 void tiler_geom_init(struct tiler_ops *tiler)
 {
 	struct tiler_geom *g;
 
-	tiler->xy = tiler_get_natural_xy;
-	tiler->addr = tiler_get_address;
+	tiler->xy = alias_xy;
+	tiler->addr = alias_address;
 	tiler->geom = get_geom;
 
 	tiler->page   = TILER_PAGE;

@@ -21,17 +21,9 @@
 
 #include <linux/mm.h>
 
-#define TILIOC_GBLK  _IOWR('z', 100, struct tiler_block_info)
-#define TILIOC_FBLK   _IOW('z', 101, struct tiler_block_info)
-#define TILIOC_GSSP  _IOWR('z', 102, u32)
-#define TILIOC_MBLK  _IOWR('z', 103, struct tiler_block_info)
-#define TILIOC_UMBLK  _IOW('z', 104, struct tiler_block_info)
-#define TILIOC_QBUF  _IOWR('z', 105, struct tiler_buf_info)
-#define TILIOC_RBUF  _IOWR('z', 106, struct tiler_buf_info)
-#define TILIOC_URBUF _IOWR('z', 107, struct tiler_buf_info)
-#define TILIOC_QBLK  _IOWR('z', 108, struct tiler_block_info)
-#define TILIOC_PRBLK  _IOW('z', 109, struct tiler_block_info)
-#define TILIOC_URBLK  _IOW('z', 110, u32)
+/*
+ * ----------------------------- API Definitions -----------------------------
+ */
 
 /* return true if physical address is in the tiler container */
 bool is_tiler_addr(u32 phys);
@@ -56,6 +48,15 @@ struct tiler_block_t {
 	u32 id;				/* unique block ID */
 };
 
+struct tiler_view_t {
+	u32 tsptr;			/* tiler space addr */
+	u32 width;			/* width */
+	u32 height;			/* height */
+	u32 bpp;			/* bytes per pixel */
+	s32 h_inc;			/* horizontal increment */
+	s32 v_inc;			/* vertical increment */
+};
+
 /* get tiler format for a physical address */
 enum tiler_fmt tiler_fmt(u32 phys);
 
@@ -76,41 +77,6 @@ static inline u32 tiler_size(const struct tiler_block_t *b)
 {
 	return b->height * tiler_vstride(b);
 }
-
-struct area {
-	u16 width;
-	u16 height;
-};
-
-struct tiler_block_info {
-	enum tiler_fmt fmt;
-	union {
-		struct area area;
-		u32 len;
-	} dim;
-	u32 stride;
-	void *ptr;
-	u32 id;
-	u32 key;
-	u32 group_id;
-	/* alignment requirements for ssptr: ssptr & (align - 1) == offs */
-	u32 align;
-	u32 offs;
-	u32 ssptr;
-};
-
-struct tiler_buf_info {
-	u32 num_blocks;
-	struct tiler_block_info blocks[TILER_MAX_NUM_BLOCKS];
-	u32 offset;
-	u32 length;	/* also used as number of buffers for reservation */
-};
-
-struct tiler_view_orient {
-	u32 x_invert;
-	u32 y_invert;
-	u32 rotate_90;
-};
 
 /**
  * Reserves a 1D or 2D TILER block area and memory for the
@@ -301,15 +267,99 @@ s32 tiler_reserve_nv12(u32 n, u32 width, u32 height, u32 align, u32 offs);
 s32 tiler_reservex_nv12(u32 n, u32 width, u32 height, u32 align, u32 offs,
 							u32 gid, pid_t pid);
 
-u32 tiler_reorient_addr(u32 tsptr, struct tiler_view_orient orient);
+/**
+ * Obtains the view information for a tiler block
+ *
+ * @param view		Pointer to a view where the information will be stored
+ * @param blk		Pointer to an existing allocated tiler block
+ */
+void tilview_get(struct tiler_view_t *view, struct tiler_block_t *blk);
 
-u32 tiler_offset_addr(u32 tsptr, u32 x, u32 y);
+/**
+ * Crops a tiler view to a rectangular portion. Crop area must be fully within
+ * the orginal tiler view: 0 <= left <= left + width <= view->width, also:
+ * 0 <= top <= top + height <= view->height.
+ *
+ * @param view		Pointer to tiler view to be cropped
+ * @param left		x of top-left corner
+ * @param top		y of top-left corner
+ * @param width		crop width
+ * @param height	crop height
+ *
+ * @return error status.  The view will be reduced to the crop region if the
+ *	   crop region is correct.  Otherwise, no modifications are made.
+ */
+s32 tilview_crop(struct tiler_view_t *view, u32 left, u32 top, u32 width,
+								u32 height);
 
-u32 tiler_get_natural_addr(void *sys_ptr);
+/**
+ * Rotates a tiler view clockwise by a specified degree.
+ *
+ * @param view		Pointer to tiler view to be cropped
+ * @param rotate	Degree of rotation (clockwise).  Must be a multiple of
+ *			90.
+ * @return error status.  View is not modified on error; otherwise, it is
+ *	   updated in place.
+ */
+s32 tilview_rotate(struct tiler_view_t *view, s32 rotation);
 
-u32 tiler_topleft(u32 tsptr, u32 width, u32 height);
+/**
+ * Mirrors a tiler view horizontally and/or vertically.
+ *
+ * @param view		Pointer to tiler view to be cropped
+ * @param flip_x	Mirror horizontally (left-to-right)
+ * @param flip_y	Mirror vertically (top-to-bottom)
+ *
+ * @return error status.  View is not modified on error; otherwise, it is
+ *	   updated in place.
+ */
+s32 tilview_flip(struct tiler_view_t *view, bool flip_x, bool flip_y);
 
-void tiler_rotate_view(struct tiler_view_orient *orient, u32 rotation);
+/*
+ * ---------------------------- IOCTL Definitions ----------------------------
+ */
+
+#define TILIOC_GBLK  _IOWR('z', 100, struct tiler_block_info)
+#define TILIOC_FBLK   _IOW('z', 101, struct tiler_block_info)
+#define TILIOC_GSSP  _IOWR('z', 102, u32)
+#define TILIOC_MBLK  _IOWR('z', 103, struct tiler_block_info)
+#define TILIOC_UMBLK  _IOW('z', 104, struct tiler_block_info)
+#define TILIOC_QBUF  _IOWR('z', 105, struct tiler_buf_info)
+#define TILIOC_RBUF  _IOWR('z', 106, struct tiler_buf_info)
+#define TILIOC_URBUF _IOWR('z', 107, struct tiler_buf_info)
+#define TILIOC_QBLK  _IOWR('z', 108, struct tiler_block_info)
+#define TILIOC_PRBLK  _IOW('z', 109, struct tiler_block_info)
+#define TILIOC_URBLK  _IOW('z', 110, u32)
+
+struct area {
+	u16 width;
+	u16 height;
+};
+
+struct tiler_block_info {
+	enum tiler_fmt fmt;
+	union {
+		struct area area;
+		u32 len;
+	} dim;
+	u32 stride;
+	void *ptr;
+	u32 id;
+	u32 key;
+	u32 group_id;
+	/* alignment requirements for ssptr: ssptr & (align - 1) == offs */
+	u32 align;
+	u32 offs;
+	u32 ssptr;
+};
+
+struct tiler_buf_info {
+	u32 num_blocks;
+	struct tiler_block_info blocks[TILER_MAX_NUM_BLOCKS];
+	u32 offset;
+	u32 length;	/* also used as number of buffers for reservation */
+};
+
 
 #endif
 

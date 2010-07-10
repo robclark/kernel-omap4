@@ -839,7 +839,6 @@ static struct mem_info *__get_area(enum tiler_fmt fmt, u32 width, u32 height,
 {
 	u16 x, y, band, in_offs = 0;
 	struct mem_info *mi = NULL;
-	struct tiler_view_orient orient = {0};
 	const struct tiler_geom *g = tiler.geom(fmt);
 
 	/* calculate dimensions, band, offs and alignment in slots */
@@ -876,9 +875,9 @@ static struct mem_info *__get_area(enum tiler_fmt fmt, u32 width, u32 height,
 	gi->refs--;
 	mutex_unlock(&mtx);
 
-	mi->blk.phys = tiler.addr(orient, fmt,
+	mi->blk.phys = tiler.addr(fmt,
 		mi->area.p0.x * g->slot_w, mi->area.p0.y * g->slot_h)
-		+ TILER_ALIAS_BASE + in_offs;
+		+ in_offs;
 	return mi;
 }
 
