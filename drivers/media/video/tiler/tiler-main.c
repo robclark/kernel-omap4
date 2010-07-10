@@ -1,5 +1,5 @@
 /*
- * tiler.c
+ * tiler-main.c
  *
  * TILER driver support functions for TI OMAP processors.
  *
@@ -29,13 +29,10 @@
 #include <linux/pagemap.h>         /* page_cache_release() */
 #include <linux/slab.h>
 
-#include <mach/tiler.h>
 #include <mach/dmm.h>
 #include "tmm.h"
-#include "tcm.h"
-#include "tiler-def.h"
-#include "tcm/tcm-sita.h"	/* Algo Specific header */
 #include "_tiler.h"
+#include "tcm/tcm-sita.h"	/* Algo Specific header */
 
 #include <linux/syscalls.h>
 

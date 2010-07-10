@@ -1,5 +1,5 @@
 /*
- * tmm_pat.c
+ * tmm-pat.c
  *
  * DMM driver support functions for TI OMAP processors.
  *

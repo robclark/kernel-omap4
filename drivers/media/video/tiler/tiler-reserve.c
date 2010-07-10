@@ -1,7 +1,7 @@
 /*
- * tiler_pack.c
+ * tiler-reserve.c
  *
- * TILER driver support functions for TI OMAP processors.
+ * TILER driver area reservation functions for TI OMAP processors.
  *
  * Copyright (C) 2009-2010 Texas Instruments, Inc.
  *
@@ -17,8 +17,6 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <mach/tiler.h>
-#include "tiler-def.h"
 #include "_tiler.h"
 
 static struct tiler_ops *ops;

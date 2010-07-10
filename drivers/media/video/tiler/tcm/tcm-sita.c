@@ -1,5 +1,5 @@
 /*
- * tcm_sita.c
+ * tcm-sita.c
  *
  * Author: Ravi Ramachandra <r.ramachandra@ti.com>
  *

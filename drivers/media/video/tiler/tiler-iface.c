@@ -1,3 +1,19 @@
+/*
+ * tiler-iface.c
+ *
+ * TILER driver interace functions for TI OMAP processors.
+ *
+ * Copyright (C) 2009-2010 Texas Instruments, Inc.
+ *
+ * This package is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ * THIS PACKAGE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+ * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+ */
+
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/fs.h>		/* fops */
@@ -8,8 +24,6 @@
 #include <linux/mm_types.h>
 #include <asm/mach/map.h>              /* for ioremap_page */
 
-#include <mach/tiler.h>
-#include <mach/dmm.h>   /* TEMP */
 #include "_tiler.h"
 
 static bool security = CONFIG_TILER_SECURITY;
