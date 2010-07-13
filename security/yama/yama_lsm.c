@@ -199,11 +199,19 @@ static int ptracer_exception_found(struct task_struct *tracer,
 	struct task_struct *parent = NULL;
 
 	spin_lock(&ptracer_relations_lock);
+
+	rcu_read_lock();
+	read_lock(&tasklist_lock);
+	if (!thread_group_leader(tracee))
+		tracee = tracee->group_leader;
 	list_for_each_entry(relation, &ptracer_relations, node)
 		if (relation->tracee == tracee) {
 			parent = relation->tracer;
 			break;
 		}
+	read_unlock(&tasklist_lock);
+	rcu_read_unlock();
+
 	if (task_is_descendant(parent, tracer))
 		rc = 1;
 	spin_unlock(&ptracer_relations_lock);
