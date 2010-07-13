@@ -285,9 +285,13 @@ int yama_inode_follow_link(struct dentry *dentry,
 	if (!protected_sticky_symlinks)
 		return 0;
 
+	/* if inode isn't a symlink, don't try to evaluate blocking it */
+	inode = dentry->d_inode;
+	if (!S_ISLNK(inode->i_mode))
+		return 0;
+
 	/* owner and follower match? */
 	cred = current_cred();
-	inode = dentry->d_inode;
 	if (cred->fsuid == inode->i_uid)
 		return 0;
 
