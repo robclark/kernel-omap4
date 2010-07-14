@@ -89,11 +89,8 @@ static s32 get_busy_neigh_stats(struct tcm *tcm, u16 width, u16 height,
 			struct tcm_area *top_left_corner,
 			struct neighbour_stats *neighbour_stat);
 
-static void fill_1d_area(struct tcm *tcm,
+static void fill_area(struct tcm *tcm,
 			struct tcm_area *area, struct tcm_area *parent);
-
-static void fill_2d_area(struct tcm *tcm,
-		       struct tcm_area *area, struct tcm_area *parent);
 
 static s32 move_left(struct tcm *tcm, u16 x, u16 y, u32 num_pages,
 		     u16 *xx, u16 *yy);
@@ -201,7 +198,7 @@ struct tcm *sita_init(u16 width, u16 height, struct tcm_pt *attr)
 	area.p1.y = height - 1;
 
 	mutex_lock(&(pvt->mtx));
-	fill_2d_area(tcm, &area, NULL);
+	fill_area(tcm, &area, NULL);
 	mutex_unlock(&(pvt->mtx));
 	return tcm;
 
@@ -223,7 +220,7 @@ static void sita_deinit(struct tcm *tcm)
 		area.p1.y = pvt->height - 1;
 
 		mutex_lock(&(pvt->mtx));
-		fill_2d_area(tcm, &area, NULL);
+		fill_area(tcm, &area, NULL);
 		mutex_unlock(&(pvt->mtx));
 
 		mutex_destroy(&(pvt->mtx));
@@ -264,13 +261,10 @@ static s32 sita_reserve_1d(struct tcm *tcm, u32 num_pages,
 	/* Scanning entire container */
 	assign(&field, pvt->width - 1, pvt->height - 1, 0, 0);
 #endif
-	ret = scan_r2l_b2t_one_dim(tcm, num_pages,
-				   &field, area);
-	/* There is not much to select, we pretty much give the first one
-	   which accomodates */
+	ret = scan_r2l_b2t_one_dim(tcm, num_pages, &field, area);
 	if (!ret)
 		/* update map */
-		fill_1d_area(tcm, area, area);
+		fill_area(tcm, area, area);
 	else
 		/* otherwise, invalidate area */
 		area->tcm = NULL;
@@ -306,7 +300,7 @@ static s32 sita_reserve_2d(struct tcm *tcm, u16 h, u16 w, u8 align,
 	ret = scan_areas_and_find_fit(tcm, w, h, stride, area);
 	if (!ret)
 		/* update map */
-		fill_2d_area(tcm, area, area);
+		fill_area(tcm, area, area);
 	else
 		/* otherwise, invalidate area */
 		area->tcm = NULL;
@@ -335,10 +329,7 @@ static s32 sita_free(struct tcm *tcm, struct tcm_area *area)
 		pvt->map[area->p1.x][area->p1.y] != area);
 
 	/* Clear the contents of the associated tiles in the map */
-	if (area->is2d)
-		fill_2d_area(tcm, area, NULL);
-	else
-		fill_1d_area(tcm, area, NULL);
+	fill_area(tcm, area, NULL);
 
 	mutex_unlock(&(pvt->mtx));
 
@@ -999,38 +990,23 @@ static s32 check_fit_r_one_dim(struct tcm *tcm, u16 x, u16 y, u32 num_pages,
 	return true;
 }
 
-static void fill_2d_area(struct tcm *tcm, struct tcm_area *area,
+static void fill_area(struct tcm *tcm, struct tcm_area *area,
 			struct tcm_area *parent)
 {
 	s32 x, y;
 	struct sita_pvt *pvt = (struct sita_pvt *)tcm->pvt;
+	struct tcm_area a, a_;
 
-	PA(2, "fill 2d area", area);
-	for (x = area->p0.x; x <= area->p1.x; ++x)
-		for (y = area->p0.y; y <= area->p1.y; ++y)
-			pvt->map[x][y] = parent;
-}
+	/* set area's tcm; otherwise, enumerator considers it invalid */
+	area->tcm = tcm;
 
-/* area should be a valid area */
-static void fill_1d_area(struct tcm *tcm, struct tcm_area *area,
-			struct tcm_area *parent)
-{
-	u16 x = 0, y = 0;
-	struct sita_pvt *pvt = (struct sita_pvt *)tcm->pvt;
+	tcm_for_each_slice(a, *area, a_) {
+		PA(2, "fill 2d area", &a);
+		for (x = a.p0.x; x <= a.p1.x; ++x)
+			for (y = a.p0.y; y <= a.p1.y; ++y)
+				pvt->map[x][y] = parent;
 
-	PA(2, "fill 1d area", area);
-	x = area->p0.x;
-	y = area->p0.y;
-
-	while (!(x == area->p1.x && y == area->p1.y)) {
-		pvt->map[x++][y] = parent;
-		if (x == pvt->width) {
-			x = 0;
-			y++;
-		}
 	}
-	/* set the last slot */
-	pvt->map[x][y] = parent;
 }
 
 static s32 update_candidate(struct tcm *tcm, u16 x0, u16 y0, u16 w, u16 h,
