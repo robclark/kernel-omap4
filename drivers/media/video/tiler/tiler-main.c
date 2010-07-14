@@ -275,6 +275,10 @@ static s32 __analize_area(enum tiler_fmt fmt, u32 width, u32 height,
 	u32 slot_row, min_align;
 	const struct tiler_geom *g;
 
+	/* width and height must be positive */
+	if (!width || !height)
+		return -1;
+
 	/* align must be 2 power */
 	if (*align & (*align - 1))
 		return -1;
@@ -294,6 +298,7 @@ static s32 __analize_area(enum tiler_fmt fmt, u32 width, u32 height,
 		return 0;
 	}
 
+	/* format must be valid */
 	g = tiler.geom(fmt);
 	if (!g)
 		return -EINVAL;
