@@ -186,6 +186,19 @@ static u32 tiler_get_address(u32 orient, enum tiler_fmt fmt, u32 x, u32 y)
 	return TIL_ADDR((tmp << alignment), orient, fmt);
 }
 
+void tilview_create(struct tiler_view_t *view, u32 phys, u32 width, u32 height)
+{
+	BUG_ON(!is_tiler_addr(phys));
+
+	view->tsptr = phys & ~MASK_VIEW;
+	view->bpp = geom[TILER_FMT(phys)].bpp_m;
+	view->width = width;
+	view->height = height;
+	view->h_inc = view->bpp;
+	view->v_inc = tiler_stride(view->tsptr);
+}
+EXPORT_SYMBOL(tilview_create);
+
 void tilview_get(struct tiler_view_t *view, struct tiler_block_t *blk)
 {
 	view->tsptr = blk->phys & ~MASK_VIEW;

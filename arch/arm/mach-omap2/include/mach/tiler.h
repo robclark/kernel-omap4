@@ -268,6 +268,20 @@ s32 tiler_reservex_nv12(u32 n, u32 width, u32 height, u32 align, u32 offs,
 							u32 gid, pid_t pid);
 
 /**
+ * Create a view based on a tiler address and width and height
+ *
+ * This method should only be used as a last resort, if tilview object cannot
+ * be passed because of incoherence with other view 2D objects that must be
+ * supported.
+ *
+ * @param view		Pointer to a view where the information will be stored
+ * @param ssptr		MUST BE a tiler address
+ * @param width		view width
+ * @param height	view height
+ */
+void tilview_create(struct tiler_view_t *view, u32 phys, u32 width, u32 height);
+
+/**
  * Obtains the view information for a tiler block
  *
  * @param view		Pointer to a view where the information will be stored
