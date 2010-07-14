@@ -662,8 +662,10 @@ s32 tiler_allocx(struct tiler_block_t *blk, enum tiler_fmt fmt,
 
 	res = ops->alloc(fmt, blk->width, blk->height, align, offs, blk->key,
 								gid, pi, &mi);
-	if (mi)
+	if (mi) {
 		blk->phys = mi->blk.phys;
+		blk->id = mi->blk.id;
+	}
 	return res;
 }
 EXPORT_SYMBOL(tiler_allocx);
@@ -691,8 +693,10 @@ s32 tiler_mapx(struct tiler_block_t *blk, enum tiler_fmt fmt, u32 gid,
 
 	res = ops->map(fmt, blk->width, blk->height, blk->key, gid, pi, &mi,
 								usr_addr);
-	if (mi)
+	if (mi) {
 		blk->phys = mi->blk.phys;
+		blk->id = mi->blk.id;
+	}
 	return res;
 
 }
@@ -791,5 +795,6 @@ void tiler_free(struct tiler_block_t *blk)
 	struct mem_info *mi = ops->lock(blk->key, blk->id, NULL);
 	if (mi)
 		ops->unlock_free(mi, true);
+	blk->phys = blk->id = 0;
 }
 EXPORT_SYMBOL(tiler_free);
