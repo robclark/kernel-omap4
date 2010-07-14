@@ -825,6 +825,22 @@ static void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 	/* Filter out anything that depends on CPUID levels we don't have */
 	filter_cpuid_features(c, true);
 
+#ifdef CONFIG_X86_32
+	/*
+	 *  emulation of NX with segment limits unfortunately means
+	 *  we have to disable the fast system calls, due to the way that
+	 *  sysexit clears the segment limits on return.
+	 *  If we have either disabled exec-shield on the boot command line,
+	 *  or we have NX, then we don't need to do this.
+	 */
+	if (exec_shield != 0) {
+#ifdef CONFIG_X86_PAE
+		if (!test_cpu_cap(c, X86_FEATURE_NX))
+#endif
+			clear_cpu_cap(c, X86_FEATURE_SEP);
+	}
+#endif
+
 	/* If the model name is still unset, do table lookup. */
 	if (!c->x86_model_id[0]) {
 		const char *p;

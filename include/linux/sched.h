@@ -100,6 +100,9 @@ struct bio_list;
 struct fs_struct;
 struct perf_event_context;
 
+extern int exec_shield;
+extern int print_fatal_signals;
+
 /*
  * List of flags we want to share for kernel threads,
  * if only because they are not used by them anyway.

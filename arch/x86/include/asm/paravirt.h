@@ -289,6 +289,12 @@ static inline void set_ldt(const void *addr, unsigned entries)
 {
 	PVOP_VCALL2(pv_cpu_ops.set_ldt, addr, entries);
 }
+#ifdef CONFIG_X86_32
+static inline void load_user_cs_desc(unsigned int cpu, struct mm_struct *mm)
+{
+	PVOP_VCALL2(pv_cpu_ops.load_user_cs_desc, cpu, mm);
+}
+#endif /*CONFIG_X86_32*/
 static inline void store_gdt(struct desc_ptr *dtr)
 {
 	PVOP_VCALL1(pv_cpu_ops.store_gdt, dtr);

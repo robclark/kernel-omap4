@@ -46,6 +46,18 @@
 #define arch_rebalance_pgtables(addr, len)		(addr)
 #endif
 
+/* No sane architecture will #define these to anything else */
+#ifndef arch_add_exec_range
+#define arch_add_exec_range(mm, limit)	do { ; } while (0)
+#endif
+#ifndef arch_flush_exec_range
+#define arch_flush_exec_range(mm)	do { ; } while (0)
+#endif
+#ifndef arch_remove_exec_range
+#define arch_remove_exec_range(mm, limit)	do { ; } while (0)
+#endif
+
+
 static void unmap_region(struct mm_struct *mm,
 		struct vm_area_struct *vma, struct vm_area_struct *prev,
 		unsigned long start, unsigned long end);
@@ -400,6 +412,9 @@ __vma_link_list(struct mm_struct *mm, struct vm_area_struct *vma,
 {
 	struct vm_area_struct *next;
 
+	if (vma->vm_flags & VM_EXEC)
+		arch_add_exec_range(mm, vma->vm_end);
+
 	vma->vm_prev = prev;
 	if (prev) {
 		next = prev->vm_next;
@@ -507,6 +522,8 @@ __vma_unlink(struct mm_struct *mm, struct vm_area_struct *vma,
 	rb_erase(&vma->vm_rb, &mm->mm_rb);
 	if (mm->mmap_cache == vma)
 		mm->mmap_cache = prev;
+	if (vma->vm_flags & VM_EXEC)
+		arch_remove_exec_range(mm, vma->vm_end);
 }
 
 /*
@@ -824,6 +841,8 @@ struct vm_area_struct *vma_merge(struct mm_struct *mm,
 		} else					/* cases 2, 5, 7 */
 			err = vma_adjust(prev, prev->vm_start,
 				end, prev->vm_pgoff, NULL);
+		if (prev->vm_flags & VM_EXEC)
+			arch_add_exec_range(mm, prev->vm_end);
 		if (err)
 			return NULL;
 		khugepaged_enter_vma_merge(prev);
@@ -2008,10 +2027,14 @@ static int __split_vma(struct mm_struct * mm, struct vm_area_struct * vma,
 	if (new->vm_ops && new->vm_ops->open)
 		new->vm_ops->open(new);
 
-	if (new_below)
+	if (new_below) {
+		unsigned long old_end = vma->vm_end;
+
 		err = vma_adjust(vma, addr, vma->vm_end, vma->vm_pgoff +
 			((addr - new->vm_start) >> PAGE_SHIFT), new);
-	else
+		if (vma->vm_flags & VM_EXEC)
+			arch_remove_exec_range(mm, old_end);
+	} else
 		err = vma_adjust(vma, vma->vm_start, addr, vma->vm_pgoff, new);
 
 	/* Success. */
@@ -2298,6 +2321,7 @@ void exit_mmap(struct mm_struct *mm)
 
 	free_pgtables(tlb, vma, FIRST_USER_ADDRESS, 0);
 	tlb_finish_mmu(tlb, 0, end);
+	arch_flush_exec_range(mm);
 
 	/*
 	 * Walk the list again, actually closing and freeing it,

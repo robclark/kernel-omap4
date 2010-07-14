@@ -118,6 +118,9 @@ struct pv_cpu_ops {
 	void (*store_gdt)(struct desc_ptr *);
 	void (*store_idt)(struct desc_ptr *);
 	void (*set_ldt)(const void *desc, unsigned entries);
+#ifdef CONFIG_X86_32
+	void (*load_user_cs_desc)(int cpu, struct mm_struct *mm);
+#endif
 	unsigned long (*store_tr)(void);
 	void (*load_tls)(struct thread_struct *t, unsigned int cpu);
 #ifdef CONFIG_X86_64

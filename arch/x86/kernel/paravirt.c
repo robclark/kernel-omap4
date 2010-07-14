@@ -345,6 +345,9 @@ struct pv_cpu_ops pv_cpu_ops = {
 	.read_tscp = native_read_tscp,
 	.load_tr_desc = native_load_tr_desc,
 	.set_ldt = native_set_ldt,
+#ifdef CONFIG_X86_32
+	.load_user_cs_desc = native_load_user_cs_desc,
+#endif /*CONFIG_X86_32*/
 	.load_gdt = native_load_gdt,
 	.load_idt = native_load_idt,
 	.store_gdt = native_store_gdt,

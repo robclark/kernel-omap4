@@ -25,8 +25,13 @@
 #include <linux/perf_event.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
+#include <asm/pgalloc.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
+
+#ifndef arch_remove_exec_range
+#define arch_remove_exec_range(mm, limit)      do { ; } while (0)
+#endif
 
 #ifndef pgprot_modify
 static inline pgprot_t pgprot_modify(pgprot_t oldprot, pgprot_t newprot)
@@ -148,7 +153,7 @@ mprotect_fixup(struct vm_area_struct *vma, struct vm_area_struct **pprev,
 	struct mm_struct *mm = vma->vm_mm;
 	unsigned long oldflags = vma->vm_flags;
 	long nrpages = (end - start) >> PAGE_SHIFT;
-	unsigned long charged = 0;
+	unsigned long charged = 0, old_end = vma->vm_end;
 	pgoff_t pgoff;
 	int error;
 	int dirty_accountable = 0;
@@ -212,6 +217,9 @@ success:
 		vma->vm_page_prot = vm_get_page_prot(newflags & ~VM_SHARED);
 		dirty_accountable = 1;
 	}
+
+	if (oldflags & VM_EXEC)
+		arch_remove_exec_range(current->mm, old_end);
 
 	mmu_notifier_invalidate_range_start(mm, start, end);
 	if (is_vm_hugetlb_page(vma))

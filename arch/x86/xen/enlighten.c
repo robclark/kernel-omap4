@@ -358,6 +358,24 @@ static void xen_set_ldt(const void *addr, unsigned entries)
 	xen_mc_issue(PARAVIRT_LAZY_CPU);
 }
 
+#ifdef CONFIG_X86_32
+static void xen_load_user_cs_desc(int cpu, struct mm_struct *mm)
+{
+	void *gdt;
+	xmaddr_t mgdt;
+	u64 descriptor;
+	struct desc_struct user_cs;
+
+	gdt = &get_cpu_gdt_table(cpu)[GDT_ENTRY_DEFAULT_USER_CS];
+	mgdt = virt_to_machine(gdt);
+
+	user_cs = mm->context.user_cs;
+	descriptor = (u64) user_cs.a | ((u64) user_cs.b) << 32;
+
+	HYPERVISOR_update_descriptor(mgdt.maddr, descriptor);
+}
+#endif /*CONFIG_X86_32*/
+
 static void xen_load_gdt(const struct desc_ptr *dtr)
 {
 	unsigned long va = dtr->address;
@@ -983,6 +1001,9 @@ static const struct pv_cpu_ops xen_cpu_ops __initdata = {
 
 	.load_tr_desc = paravirt_nop,
 	.set_ldt = xen_set_ldt,
+#ifdef CONFIG_X86_32
+	.load_user_cs_desc = xen_load_user_cs_desc,
+#endif /*CONFIG_X86_32*/
 	.load_gdt = xen_load_gdt,
 	.load_idt = xen_load_idt,
 	.load_tls = xen_load_tls,
