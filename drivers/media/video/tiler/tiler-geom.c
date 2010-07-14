@@ -275,7 +275,7 @@ s32 tilview_rotate(struct tiler_view_t *view, s32 rotation)
 	/* rotate last quarter */
 	if (rotation & 1) {
 		orient ^= (orient & MASK_XY_FLIP) ?
-			MASK_Y_INVERT : MASK_X_INVERT;
+			MASK_X_INVERT : MASK_Y_INVERT;
 
 		/* swap x & y */
 		orient ^= MASK_XY_FLIP;
