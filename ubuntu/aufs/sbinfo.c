@@ -29,6 +29,7 @@ void au_si_free(struct kobject *kobj)
 {
 	struct au_sbinfo *sbinfo;
 	struct super_block *sb;
+	char *locked __maybe_unused; /* debug only */
 
 	sbinfo = container_of(kobj, struct au_sbinfo, si_kobj);
 	AuDebugOn(!list_empty(&sbinfo->si_plink.head));
@@ -38,9 +39,16 @@ void au_si_free(struct kobject *kobj)
 	si_write_lock(sb);
 	au_xino_clr(sb);
 	au_br_free(sbinfo);
-	kfree(sbinfo->si_branch);
-	mutex_destroy(&sbinfo->si_xib_mtx);
 	si_write_unlock(sb);
+
+	AuDebugOn(radix_tree_gang_lookup
+		  (&sbinfo->au_si_pid.tree, (void **)&locked,
+		   /*first_index*/PID_MAX_DEFAULT - 1,
+		   /*max_items*/sizeof(locked)/sizeof(*locked)));
+
+	kfree(sbinfo->si_branch);
+	kfree(sbinfo->au_si_pid.bitmap);
+	mutex_destroy(&sbinfo->si_xib_mtx);
 	AuRwDestroy(&sbinfo->si_rwsem);
 
 	kfree(sbinfo);
@@ -56,10 +64,18 @@ int au_si_alloc(struct super_block *sb)
 	if (unlikely(!sbinfo))
 		goto out;
 
+	BUILD_BUG_ON(sizeof(unsigned long) !=
+		     sizeof(*sbinfo->au_si_pid.bitmap));
+	sbinfo->au_si_pid.bitmap = kcalloc(BITS_TO_LONGS(PID_MAX_DEFAULT),
+					sizeof(*sbinfo->au_si_pid.bitmap),
+					GFP_NOFS);
+	if (unlikely(!sbinfo->au_si_pid.bitmap))
+		goto out_sbinfo;
+
 	/* will be reallocated separately */
 	sbinfo->si_branch = kzalloc(sizeof(*sbinfo->si_branch), GFP_NOFS);
 	if (unlikely(!sbinfo->si_branch))
-		goto out_sbinfo;
+		goto out_pidmap;
 
 	err = sysaufs_si_init(sbinfo);
 	if (unlikely(err))
@@ -67,6 +83,9 @@ int au_si_alloc(struct super_block *sb)
 
 	au_nwt_init(&sbinfo->si_nowait);
 	au_rw_init_wlock(&sbinfo->si_rwsem);
+	spin_lock_init(&sbinfo->au_si_pid.tree_lock);
+	INIT_RADIX_TREE(&sbinfo->au_si_pid.tree, GFP_ATOMIC | __GFP_NOFAIL);
+
 	sbinfo->si_bend = -1;
 
 	sbinfo->si_wbr_copyup = AuWbrCopyup_Def;
@@ -92,11 +111,14 @@ int au_si_alloc(struct super_block *sb)
 	/* leave other members for sysaufs and si_mnt. */
 	sbinfo->si_sb = sb;
 	sb->s_fs_info = sbinfo;
+	si_pid_set(sb);
 	au_debug_sbinfo_init(sbinfo);
 	return 0; /* success */
 
  out_br:
 	kfree(sbinfo->si_branch);
+ out_pidmap:
+	kfree(sbinfo->au_si_pid.bitmap);
  out_sbinfo:
 	kfree(sbinfo);
  out:
@@ -199,4 +221,49 @@ void aufs_read_and_write_unlock2(struct dentry *d1, struct dentry *d2)
 {
 	di_write_unlock2(d1, d2);
 	si_read_unlock(d1->d_sb);
+}
+
+/* ---------------------------------------------------------------------- */
+
+int si_pid_test_slow(struct super_block *sb)
+{
+	void *p;
+
+	rcu_read_lock();
+	p = radix_tree_lookup(&au_sbi(sb)->au_si_pid.tree, current->pid);
+	rcu_read_unlock();
+
+	return (long)p;
+}
+
+void si_pid_set_slow(struct super_block *sb)
+{
+	int err;
+	struct au_sbinfo *sbinfo;
+
+	AuDebugOn(si_pid_test_slow(sb));
+
+	sbinfo = au_sbi(sb);
+	err = radix_tree_preload(GFP_NOFS | __GFP_NOFAIL);
+	AuDebugOn(err);
+	spin_lock(&sbinfo->au_si_pid.tree_lock);
+	err = radix_tree_insert(&sbinfo->au_si_pid.tree, current->pid,
+				(void *)1);
+	spin_unlock(&sbinfo->au_si_pid.tree_lock);
+	AuDebugOn(err);
+	radix_tree_preload_end();
+}
+
+void si_pid_clr_slow(struct super_block *sb)
+{
+	void *p;
+	struct au_sbinfo *sbinfo;
+
+	AuDebugOn(!si_pid_test_slow(sb));
+
+	sbinfo = au_sbi(sb);
+	spin_lock(&sbinfo->au_si_pid.tree_lock);
+	p = radix_tree_delete(&sbinfo->au_si_pid.tree, current->pid);
+	spin_unlock(&sbinfo->au_si_pid.tree_lock);
+	AuDebugOn(1 != (long)p);
 }

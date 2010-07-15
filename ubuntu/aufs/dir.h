@@ -115,12 +115,23 @@ long aufs_ioctl_dir(struct file *file, unsigned int cmd, unsigned long arg);
 #ifdef CONFIG_AUFS_RDU
 /* rdu.c */
 long au_rdu_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
+#ifdef CONFIG_COMPAT
+long au_rdu_compat_ioctl(struct file *file, unsigned int cmd,
+			 unsigned long arg);
+#endif
 #else
 static inline long au_rdu_ioctl(struct file *file, unsigned int cmd,
 				unsigned long arg)
 {
 	return -EINVAL;
 }
+#ifdef CONFIG_COMPAT
+static inline long au_rdu_compat_ioctl(struct file *file, unsigned int cmd,
+				       unsigned long arg)
+{
+	return -EINVAL;
+}
+#endif
 #endif
 
 #endif /* __KERNEL__ */

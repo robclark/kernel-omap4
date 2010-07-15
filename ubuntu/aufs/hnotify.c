@@ -598,13 +598,7 @@ int au_hnotify(struct inode *h_dir, struct au_hnotify *hnotify, u32 mask,
 
 	err = -ENOMEM;
 	/* iput() and kfree() will be called in au_hnotify() */
-	/*
-	 * inotify_mutex is already acquired and kmalloc/prune_icache may lock
-	 * iprune_mutex. strange.
-	 */
-	/* lockdep_off(); */
 	args = kmalloc(sizeof(*args) + len + 1, GFP_NOFS);
-	/* lockdep_on(); */
 	if (unlikely(!args)) {
 		AuErr1("no memory\n");
 		iput(dir);
@@ -626,9 +620,7 @@ int au_hnotify(struct inode *h_dir, struct au_hnotify *hnotify, u32 mask,
 		p[len] = 0;
 	}
 
-	/* lockdep_off(); */
 	err = au_wkq_nowait(au_hn_bh, args, dir->i_sb);
-	/* lockdep_on(); */
 	if (unlikely(err)) {
 		pr_err("wkq %d\n", err);
 		iput(args->h_child_inode);

@@ -124,3 +124,32 @@ long aufs_ioctl_nondir(struct file *file, unsigned int cmd, unsigned long arg)
 	AuTraceErr(err);
 	return err;
 }
+
+#ifdef CONFIG_COMPAT
+long aufs_compat_ioctl_dir(struct file *file, unsigned int cmd,
+			   unsigned long arg)
+{
+	long err;
+
+	switch (cmd) {
+	case AUFS_CTL_RDU:
+	case AUFS_CTL_RDU_INO:
+		err = au_rdu_compat_ioctl(file, cmd, arg);
+		break;
+
+	default:
+		err = aufs_ioctl_dir(file, cmd, arg);
+	}
+
+	AuTraceErr(err);
+	return err;
+}
+
+#if 0 /* unused yet */
+long aufs_compat_ioctl_nondir(struct file *file, unsigned int cmd,
+			      unsigned long arg)
+{
+	return aufs_ioctl_nondir(file, cmd, (unsigned long)compat_ptr(arg));
+}
+#endif
+#endif

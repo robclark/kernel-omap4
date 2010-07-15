@@ -621,7 +621,7 @@ static int aufs_mmap(struct file *file, struct vm_area_struct *vma)
 		.errp		= &err
 	};
 
-	wkq_err = au_wkq_wait(au_call_mmap_pre, &args);
+	wkq_err = au_wkq_wait_pre(au_call_mmap_pre, &args);
 	if (unlikely(wkq_err))
 		err = wkq_err;
 	if (unlikely(err))
@@ -686,11 +686,12 @@ static int aufs_fsync_nondir(struct file *file, int datasync)
 {
 	int err;
 	struct au_pin pin;
+	struct dentry *dentry;
 	struct inode *inode;
 	struct file *h_file;
 	struct super_block *sb;
-	struct dentry *dentry = file->f_dentry;
 
+	dentry = file->f_dentry;
 	inode = dentry->d_inode;
 	IMustLock(file->f_mapping->host);
 	if (inode != file->f_mapping->host) {
@@ -718,15 +719,13 @@ static int aufs_fsync_nondir(struct file *file, int datasync)
 	err = -EINVAL;
 	h_file = au_hf_top(file);
 	if (h_file->f_op && h_file->f_op->fsync) {
-		struct dentry *h_d;
 		struct mutex *h_mtx;
 
 		/*
 		 * no filemap_fdatawrite() since aufs file has no its own
 		 * mapping, but dir.
 		 */
-		h_d = h_file->f_dentry;
-		h_mtx = &h_d->d_inode->i_mutex;
+		h_mtx = &h_file->f_dentry->d_inode->i_mutex;
 		mutex_lock_nested(h_mtx, AuLsc_I_CHILD);
 		err = h_file->f_op->fsync(h_file, datasync);
 		if (!err)
@@ -867,6 +866,9 @@ const struct file_operations aufs_file_fop = {
 	.poll		= aufs_poll,
 #endif
 	.unlocked_ioctl	= aufs_ioctl_nondir,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= aufs_ioctl_nondir, /* same */
+#endif
 	.mmap		= aufs_mmap,
 	.open		= aufs_open_nondir,
 	.flush		= aufs_flush_nondir,

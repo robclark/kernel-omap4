@@ -259,7 +259,6 @@ static int aufs_flush_dir(struct file *file, fl_owner_t id)
 
 /* ---------------------------------------------------------------------- */
 
-#if 0
 static int au_do_fsync_dir_no_file(struct dentry *dentry, int datasync)
 {
 	int err;
@@ -293,8 +292,7 @@ static int au_do_fsync_dir_no_file(struct dentry *dentry, int datasync)
 		err = filemap_fdatawrite(h_inode->i_mapping);
 		AuDebugOn(!h_inode->i_fop);
 		if (!err && h_inode->i_fop->fsync)
-			err = h_inode->i_fop->fsync(NULL, h_path.dentry,
-						    datasync);
+			err = h_inode->i_fop->fsync(NULL, datasync);
 		if (!err)
 			err = filemap_fdatawrite(h_inode->i_mapping);
 		if (!err)
@@ -304,7 +302,6 @@ static int au_do_fsync_dir_no_file(struct dentry *dentry, int datasync)
 
 	return err;
 }
-#endif
 
 static int au_do_fsync_dir(struct file *file, int datasync)
 {
@@ -347,15 +344,10 @@ static int au_do_fsync_dir(struct file *file, int datasync)
 static int aufs_fsync_dir(struct file *file, int datasync)
 {
 	int err;
-	struct super_block *sb;
 	struct dentry *dentry;
+	struct super_block *sb;
 
-	if (!file) {
-		WARN_ON(1);
-		return -ENOTSUPP;
-	}
 	dentry = file->f_dentry;
-
 	IMustLock(dentry->d_inode);
 
 	err = 0;
@@ -363,12 +355,10 @@ static int aufs_fsync_dir(struct file *file, int datasync)
 	si_noflush_read_lock(sb);
 	if (file)
 		err = au_do_fsync_dir(file, datasync);
-/*
 	else {
 		di_write_lock_child(dentry);
 		err = au_do_fsync_dir_no_file(dentry, datasync);
 	}
-*/
 	au_cpup_attr_timesizes(dentry->d_inode);
 	di_write_unlock(dentry);
 	if (file)
@@ -414,9 +404,7 @@ static int aufs_readdir(struct file *file, void *dirent, filldir_t filldir)
 
 		di_read_unlock(dentry, AuLock_IR);
 		si_read_unlock(sb);
-		/* lockdep_off(); */
 		err = au_vdir_fill_de(file, dirent, filldir);
-		/* lockdep_on(); */
 		fsstack_copy_attr_atime(inode, h_inode);
 		fi_write_unlock(file);
 
@@ -640,6 +628,9 @@ const struct file_operations aufs_dir_fop = {
 	.read		= generic_read_dir,
 	.readdir	= aufs_readdir,
 	.unlocked_ioctl	= aufs_ioctl_dir,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= aufs_compat_ioctl_dir,
+#endif
 	.open		= aufs_open_dir,
 	.release	= aufs_release_dir,
 	.flush		= aufs_flush_dir,
