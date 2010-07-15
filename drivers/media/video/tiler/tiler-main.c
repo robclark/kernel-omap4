@@ -559,8 +559,8 @@ static s32 _m_free(struct mem_info *mi)
 		kfree(mi->pg_ptr);
 	} else if (mi->mem) {
 		tmm_free(tmm[tiler_fmt(mi->blk.phys)], mi->mem);
-		clear_pat(tmm[tiler_fmt(mi->blk.phys)], &mi->area);
 	}
+	clear_pat(tmm[tiler_fmt(mi->blk.phys)], &mi->area);
 
 	/* safe deletion as list may not have been assigned */
 	if (mi->global.next)
