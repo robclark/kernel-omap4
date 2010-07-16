@@ -26,9 +26,14 @@
 
 #include "tmm.h"
 
+static int param_set_mem(const char *val, struct kernel_param *kp);
+
 /* Memory limit to cache free pages. TILER will eventually use this much */
-static u32 cache_limit = (40 * 1024 * 1024);
-module_param_named(cache, cache_limit, uint, 0644);
+static u32 cache_limit = CONFIG_TILER_CACHE_LIMIT << 20;
+
+param_check_uint(cache, &cache_limit);
+module_param_call(cache, param_set_mem, param_get_uint, &cache_limit, 0644);
+__MODULE_PARM_TYPE(cache, "uint")
 MODULE_PARM_DESC(cache, "Cache free pages if total memory is under this limit");
 
 /* global state - statically initialized */
@@ -57,6 +62,26 @@ struct dmm_mem {
 	struct list_head fast_list;
 	struct dmm *dmm;
 };
+
+/* read mem values for a param */
+static int param_set_mem(const char *val, struct kernel_param *kp)
+{
+	u32 a;
+	char *p;
+
+	/* must specify memory */
+	if (!val)
+		return -EINVAL;
+
+	/* parse value */
+	a = memparse(val, &p);
+	if (p == val || *p)
+		return -EINVAL;
+
+	/* store parsed value */
+	*(uint *)kp->arg = a;
+	return 0;
+}
 
 /**
  *  Frees pages in a fast structure.  Moves pages to the free list if there
