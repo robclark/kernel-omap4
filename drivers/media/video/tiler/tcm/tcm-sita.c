@@ -120,19 +120,16 @@ struct tcm *sita_init(u16 width, u16 height, struct tcm_pt *attr)
 	tcm->deinit = sita_deinit;
 	tcm->pvt = (void *)pvt;
 
-	pvt->height = height;
-	pvt->width = width;
-
 	mutex_init(&(pvt->mtx));
 
 	/* Creating tam map */
-	pvt->map = kmalloc(sizeof(*pvt->map) * pvt->width, GFP_KERNEL);
+	pvt->map = kmalloc(sizeof(*pvt->map) * tcm->width, GFP_KERNEL);
 	if (!pvt->map)
 		goto error;
 
-	for (i = 0; i < pvt->width; i++) {
+	for (i = 0; i < tcm->width; i++) {
 		pvt->map[i] =
-			kmalloc(sizeof(**pvt->map) * pvt->height,
+			kmalloc(sizeof(**pvt->map) * tcm->height,
 								GFP_KERNEL);
 		if (pvt->map[i] == NULL) {
 			while (i--)
@@ -142,15 +139,15 @@ struct tcm *sita_init(u16 width, u16 height, struct tcm_pt *attr)
 		}
 	}
 
-	if (attr && attr->x <= pvt->width && attr->y <= pvt->height) {
+	if (attr && attr->x <= tcm->width && attr->y <= tcm->height) {
 		pvt->div_pt.x = attr->x;
 		pvt->div_pt.y = attr->y;
 
 	} else {
 		/* Defaulting to 3:1 ratio on width for 2D area split */
 		/* Defaulting to 3:1 ratio on height for 2D and 1D split */
-		pvt->div_pt.x = (pvt->width * 3) / 4;
-		pvt->div_pt.y = (pvt->height * 3) / 4;
+		pvt->div_pt.x = (tcm->width * 3) / 4;
+		pvt->div_pt.y = (tcm->height * 3) / 4;
 	}
 
 	mutex_lock(&(pvt->mtx));
@@ -171,8 +168,8 @@ static void sita_deinit(struct tcm *tcm)
 	struct tcm_area area = {0};
 	s32 i;
 
-	area.p1.x = pvt->width - 1;
-	area.p1.y = pvt->height - 1;
+	area.p1.x = tcm->width - 1;
+	area.p1.y = tcm->height - 1;
 
 	mutex_lock(&(pvt->mtx));
 	fill_area(tcm, &area, NULL);
@@ -180,7 +177,7 @@ static void sita_deinit(struct tcm *tcm)
 
 	mutex_destroy(&(pvt->mtx));
 
-	for (i = 0; i < pvt->height; i++)
+	for (i = 0; i < tcm->height; i++)
 		kfree(pvt->map[i]);
 	kfree(pvt->map);
 	kfree(pvt);
@@ -205,10 +202,10 @@ static s32 sita_reserve_1d(struct tcm *tcm, u32 num_slots,
 	mutex_lock(&(pvt->mtx));
 #ifdef RESTRICT_1D
 	/* scan within predefined 1D boundary */
-	assign(&field, pvt->width - 1, pvt->height - 1, 0, pvt->div_pt.y);
+	assign(&field, tcm->width - 1, tcm->height - 1, 0, pvt->div_pt.y);
 #else
 	/* Scanning entire container */
-	assign(&field, pvt->width - 1, pvt->height - 1, 0, 0);
+	assign(&field, tcm->width - 1, tcm->height - 1, 0, 0);
 #endif
 	ret = scan_r2l_b2t_one_dim(tcm, num_slots, &field, area);
 	if (!ret)
@@ -695,11 +692,11 @@ static s32 scan_r2l_b2t_one_dim(struct tcm *tcm, u32 num_slots,
 	 * Currently we only support full width 1D scan field, which makes sense
 	 * since 1D slot-ordering spans the full container width.
 	 */
-	if (pvt->width != field->p0.x - field->p1.x + 1)
+	if (tcm->width != field->p0.x - field->p1.x + 1)
 		return -EINVAL;
 
 	/* check if allocation would fit in scan area */
-	if (num_slots > pvt->width * LEN(field->p0.y, field->p1.y))
+	if (num_slots > tcm->width * LEN(field->p0.y, field->p1.y))
 		return -ENOSPC;
 
 	x = field->p0.x;
@@ -734,7 +731,7 @@ static s32 scan_r2l_b2t_one_dim(struct tcm *tcm, u32 num_slots,
 		/* move to the left */
 		if (x == 0)
 			y--;
-		x = (x ? : pvt->width) - 1;
+		x = (x ? : tcm->width) - 1;
 
 	}
 
@@ -770,18 +767,18 @@ static s32 scan_areas_and_find_fit(struct tcm *tcm, u16 w, u16 h, u16 align,
 
 		/* expand width and height if needed */
 		if (w > pvt->div_pt.x)
-			boundary_x = pvt->width - 1;
+			boundary_x = tcm->width - 1;
 		if (h > pvt->div_pt.y)
-			boundary_y = pvt->height - 1;
+			boundary_y = tcm->height - 1;
 
 		assign(&field, 0, 0, boundary_x, boundary_y);
 		ret = scan_l2r_t2b(tcm, w, h, align, &field, area);
 
 		/* scan whole container if failed, but do not scan 2x */
-		if (ret != 0 && (boundary_x != pvt->width - 1 ||
-				 boundary_y != pvt->height - 1)) {
+		if (ret != 0 && (boundary_x != tcm->width - 1 ||
+				 boundary_y != tcm->height - 1)) {
 			/* scan the entire container if nothing found */
-			assign(&field, 0, 0, pvt->width - 1, pvt->height - 1);
+			assign(&field, 0, 0, tcm->width - 1, tcm->height - 1);
 			ret = scan_l2r_t2b(tcm, w, h, align, &field, area);
 		}
 	} else if (align == 1) {
@@ -790,19 +787,19 @@ static s32 scan_areas_and_find_fit(struct tcm *tcm, u16 w, u16 h, u16 align,
 		boundary_y = pvt->div_pt.y - 1;
 
 		/* expand width and height if needed */
-		if (w > (pvt->width - pvt->div_pt.x))
+		if (w > (tcm->width - pvt->div_pt.x))
 			boundary_x = 0;
 		if (h > pvt->div_pt.y)
-			boundary_y = pvt->height - 1;
+			boundary_y = tcm->height - 1;
 
-		assign(&field, pvt->width - 1, 0, boundary_x, boundary_y);
+		assign(&field, tcm->width - 1, 0, boundary_x, boundary_y);
 		ret = scan_r2l_t2b(tcm, w, h, align, &field, area);
 
 		/* scan whole container if failed, but do not scan 2x */
 		if (ret != 0 && (boundary_x != 0 ||
-				 boundary_y != pvt->height - 1)) {
+				 boundary_y != tcm->height - 1)) {
 			/* scan the entire container if nothing found */
-			assign(&field, pvt->width - 1, 0, 0, pvt->height - 1);
+			assign(&field, tcm->width - 1, 0, 0, tcm->height - 1);
 			ret = scan_r2l_t2b(tcm, w, h, align, &field,
 					   area);
 		}
@@ -959,7 +956,7 @@ static void get_neighbor_stats(struct tcm *tcm, struct tcm_area *area,
 		else if (pvt->map[x][area->p0.y - 1])
 			stat->top_busy++;
 
-		if (area->p1.y == pvt->height - 1)
+		if (area->p1.y == tcm->height - 1)
 			stat->bottom_edge++;
 		else if (pvt->map[x][area->p1.y + 1])
 			stat->bottom_busy++;
@@ -972,7 +969,7 @@ static void get_neighbor_stats(struct tcm *tcm, struct tcm_area *area,
 		else if (pvt->map[area->p0.x - 1][y])
 			stat->left_busy++;
 
-		if (area->p1.x == pvt->width - 1)
+		if (area->p1.x == tcm->width - 1)
 			stat->right_edge++;
 		else if (pvt->map[area->p1.x + 1][y])
 			stat->right_busy++;

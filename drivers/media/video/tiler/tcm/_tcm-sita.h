@@ -68,8 +68,6 @@ struct score {
 };
 
 struct sita_pvt {
-	u16 width;		/* container width */
-	u16 height;		/* container height */
 	struct mutex mtx;
 	struct tcm_pt div_pt;	/* divider point splitting container */
 	struct tcm_area ***map;	/* pointers to the parent area for each slot */
