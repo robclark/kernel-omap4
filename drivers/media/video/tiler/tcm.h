@@ -4,6 +4,8 @@
  * TILER container manager specification and support functions for TI
  * processors.
  *
+ * Author: Lajos Molnar <molnar@ti.com>
+ *
  * Copyright (C) 2009-2010 Texas Instruments, Inc.
  *
  * This package is free software; you can redistribute it and/or modify
@@ -15,19 +17,18 @@
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#ifndef _TCM_H_
-#define _TCM_H_
-
-#include <linux/init.h>
-#include <linux/module.h>
+#ifndef TCM_H
+#define TCM_H
 
 struct tcm;
 
+/* point */
 struct tcm_pt {
 	u16 x;
 	u16 y;
 };
 
+/* 1d or 2d area */
 struct tcm_area {
 	bool is2d;		/* whether are is 1d or 2d */
 	struct tcm    *tcm;	/* parent */
@@ -90,8 +91,6 @@ struct tcm *name(u16 width, u16 height, typeof(attr_t) *attr);
 /**
  * Deinitialize tiler container manager.
  *
- * @author Ravi Ramachandra (3/1/2010)
- *
  * @param tcm	Pointer to container manager.
  *
  * @return 0 on success, non-0 error value on error.  The call
@@ -107,8 +106,6 @@ static inline void tcm_deinit(struct tcm *tcm)
 
 /**
  * Reserves a 2D area in the container.
- *
- * @author Ravi Ramachandra (3/1/2010)
  *
  * @param tcm		Pointer to container manager.
  * @param height	Height(in pages) of area to be reserved.
@@ -129,21 +126,23 @@ static inline s32 tcm_reserve_2d(struct tcm *tcm, u16 width, u16 height,
 				 u16 align, struct tcm_area *area)
 {
 	/* perform rudimentary error checking */
-	s32 res = (tcm  == NULL ? -ENODEV :
-		   area == NULL ? -EINVAL :
-		   (height > tcm->height || width > tcm->width) ? -ENOMEM :
-		   tcm->reserve_2d(tcm, height, width, align, area));
+	s32 res = tcm  == NULL ? -ENODEV :
+		(area == NULL || width == 0 || height == 0 ||
+		 /* align must be a 2 power */
+		 align & (align - 1)) ? -EINVAL :
+		(height > tcm->height || width > tcm->width) ? -ENOMEM : 0;
 
-	if (area)
+	if (!res) {
+		area->is2d = true;
+		res = tcm->reserve_2d(tcm, height, width, align, area);
 		area->tcm = res ? NULL : tcm;
+	}
 
 	return res;
 }
 
 /**
  * Reserves a 1D area in the container.
- *
- * @author Ravi Ramachandra (3/1/2010)
  *
  * @param tcm		Pointer to container manager.
  * @param slots		Number of (contiguous) slots to reserve.
@@ -159,21 +158,21 @@ static inline s32 tcm_reserve_1d(struct tcm *tcm, u32 slots,
 				 struct tcm_area *area)
 {
 	/* perform rudimentary error checking */
-	s32 res = (tcm  == NULL ? -ENODEV :
-		   area == NULL ? -EINVAL :
-		   slots > (tcm->width * (u32) tcm->height) ? -ENOMEM :
-		   tcm->reserve_1d(tcm, slots, area));
+	s32 res = tcm  == NULL ? -ENODEV :
+		(area == NULL || slots == 0) ? -EINVAL :
+		slots > (tcm->width * (u32) tcm->height) ? -ENOMEM : 0;
 
-	if (area)
+	if (!res) {
+		area->is2d = false;
+		res = tcm->reserve_1d(tcm, slots, area);
 		area->tcm = res ? NULL : tcm;
+	}
 
 	return res;
 }
 
 /**
  * Free a previously reserved area from the container.
- *
- * @author Ravi Ramachandra (3/1/2010)
  *
  * @param area	Pointer to area reserved by a prior call to
  *		tcm_reserve_1d or tcm_reserve_2d call, whether
@@ -209,8 +208,6 @@ static inline s32 tcm_free(struct tcm_area *area)
  * fit in a 2D slice, its tcm pointer is set to NULL to mark that it is no
  * longer a valid area.
  *
- * @author Lajos Molnar (3/17/2010)
- *
  * @param parent	Pointer to a VALID parent area that will get modified
  * @param slice		Pointer to the slice area that will get modified
  */
@@ -234,16 +231,10 @@ static inline void tcm_slice(struct tcm_area *parent, struct tcm_area *slice)
 	}
 }
 
-/**
- * Verifies if a tcm area is logically valid.
- *
- * @param area		Pointer to tcm area
- *
- * @return TRUE if area is logically valid, FALSE otherwise.
- */
+/* Verify if a tcm area is logically valid */
 static inline bool tcm_area_is_valid(struct tcm_area *area)
 {
-	return (area && area->tcm &&
+	return area && area->tcm &&
 		/* coordinate bounds */
 		area->p1.x < area->tcm->width &&
 		area->p1.y < area->tcm->height &&
@@ -255,8 +246,7 @@ static inline bool tcm_area_is_valid(struct tcm_area *area)
 		  area->p1.x + area->p1.y * area->tcm->width) ||
 		 /* 2D coordinate relationship */
 		 (area->is2d &&
-		  area->p0.x <= area->p1.x))
-	       );
+		  area->p0.x <= area->p1.x));
 }
 
 /* see if a coordinate is within an area */
@@ -316,4 +306,4 @@ static inline u16 __tcm_sizeof(struct tcm_area *area)
 	     tcm_slice(&safe, &var); \
 	     var.tcm; tcm_slice(&safe, &var))
 
-#endif /* _TCM_H_ */
+#endif
