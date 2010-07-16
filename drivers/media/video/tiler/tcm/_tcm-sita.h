@@ -16,78 +16,63 @@
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#ifndef _TCM_SITA_H_
-#define _TCM_SITA_H_
+#ifndef _TCM_SITA_H
+#define _TCM_SITA_H
 
 #include "../tcm.h"
 
-#define TL_CORNER       0
-#define TR_CORNER       1
-#define BL_CORNER       3
-#define BR_CORNER       4
+/* length between two coordinates */
+#define LEN(a, b) ((a) > (b) ? (a) - (b) + 1 : (b) - (a) + 1)
 
-/*Provide inclusive length between co-ordinates */
-#define INCL_LEN(high, low)		((high) - (low) + 1)
-#define INCL_LEN_MOD(start, end)   ((start) > (end) ? (start) - (end) + 1 : \
-		(end) - (start) + 1)
+#define BOUNDARY(stat) ((stat)->top_edge + (stat)->bottom_edge + \
+				(stat)->left_edge + (stat)->right_edge)
+#define OCCUPIED(stat) ((stat)->top_busy + (stat)->bottom_busy + \
+				(stat)->left_busy + (stat)->right_busy)
 
-#define BOUNDARY(stat) ((stat)->top_boundary + (stat)->bottom_boundary + \
-				(stat)->left_boundary + (stat)->right_boundary)
-#define OCCUPIED(stat) ((stat)->top_occupied + (stat)->bottom_occupied + \
-				(stat)->left_occupied + (stat)->right_occupied)
-
-enum Criteria {
-	CR_MAX_NEIGHS       = 0x01,
-	CR_FIRST_FOUND      = 0x10,
-	CR_BIAS_HORIZONTAL  = 0x20,
-	CR_BIAS_VERTICAL    = 0x40,
-	CR_DIAGONAL_BALANCE = 0x80
+enum criteria {
+	CR_MAX_NEIGHS		= 0x01,
+	CR_FIRST_FOUND		= 0x10,
+	CR_BIAS_HORIZONTAL	= 0x20,
+	CR_BIAS_VERTICAL	= 0x40,
+	CR_DIAGONAL_BALANCE	= 0x80
 };
 
+/* nearness to the beginning of the search field from 0 to 1000 */
 struct nearness_factor {
 	s32 x;
 	s32 y;
 };
 
 /*
- * Area info kept
+ * Statistics on neighboring cells in each direction.  Edge is the container
+ * boundary.  Busy refers to the number of naighbors that are occupied by a
+ * tile.
  */
-struct area_spec {
-	struct tcm_area area;
-	struct list_head list;
+struct neighbor_stats {
+	u16 left_edge;
+	u16 left_busy;
+	u16 top_edge;
+	u16 top_busy;
+	u16 right_edge;
+	u16 right_busy;
+	u16 bottom_edge;
+	u16 bottom_busy;
 };
 
-/*
- * Everything is a rectangle with four sides and on
- * each side you could have a boundary or another Tile.
- * The tile could be Occupied or Not. These info is stored
- */
-struct neighbour_stats {
-	u16 left_boundary;
-	u16 left_occupied;
-	u16 top_boundary;
-	u16 top_occupied;
-	u16 right_boundary;
-	u16 right_occupied;
-	u16 bottom_boundary;
-	u16 bottom_occupied;
-};
-
+/* structure to keep the score of a potential allocation */
 struct score {
-	struct nearness_factor f;
-	struct neighbour_stats n;
-	struct tcm_area        a;
-	u16    neighs;
+	struct nearness_factor	f;
+	struct neighbor_stats	n;
+	struct tcm_area		a;
+	u16    neighs;		/* number of busy neighbors */
 };
-
 
 struct sita_pvt {
-	u16 width;
-	u16 height;
+	u16 width;		/* container width */
+	u16 height;		/* container height */
 	struct mutex mtx;
 	struct tcm_pt div_pt;	/* divider point splitting container */
-	/* container slots - simply pointers to parent area */
-	struct tcm_area ***map;
+	struct tcm_area ***map;	/* pointers to the parent area for each slot */
 };
 
-#endif /* _TCM_SITA_H_ */
+#endif
