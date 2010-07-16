@@ -3,6 +3,8 @@
  *
  * DMM driver support functions for TI OMAP processors.
  *
+ * Author: Lajos Molnar <molnar@ti.com>, David Sin <dsin@ti.com>
+ *
  * Copyright (C) 2009-2010 Texas Instruments, Inc.
  *
  * This package is free software; you can redistribute it and/or modify
@@ -24,246 +26,195 @@
 
 #include "tmm.h"
 
-/**
- * Number of pages to allocate when
- * refilling the free page stack.
- */
-#define MAX 16
-#define DMM_PAGE 0x1000
+/* Memory limit to cache free pages. TILER will eventually use this much */
+static u32 cache_limit = (40 * 1024 * 1024);
+module_param_named(cache, cache_limit, uint, 0644);
+MODULE_PARM_DESC(cache, "Cache free pages if total memory is under this limit");
 
-/* Max pages in free page stack */
-#define PAGE_CAP (256 * 40)
+/* global state - statically initialized */
+static LIST_HEAD(free_list);	/* page cache: list of free pages */
+static u32 total_mem;		/* total memory allocated (free & used) */
+static u32 refs;		/* number of tmm_pat instances */
+static DEFINE_MUTEX(mtx);	/* global mutex */
 
-/* Number of pages currently allocated */
-static unsigned long count;
-
-/**
-  * Used to keep track of mem per
-  * dmm_get_pages call.
-  */
-struct fast {
-	struct list_head list;
-	struct mem **mem;
-	u32 *pa;
-	u32 num;
-};
-
-/**
- * Used to keep track of the page struct ptrs
- * and physical addresses of each page.
- */
+/* The page struct pointer and physical address of each page.*/
 struct mem {
 	struct list_head list;
-	struct page *pg;
-	u32 pa;
+	struct page *pg;	/* page struct */
+	u32 pa;			/* physical address */
 };
 
-/**
- * TMM PAT private structure
- */
+/* Used to keep track of mem per tmm_pat_get_pages call */
+struct fast {
+	struct list_head list;
+	struct mem **mem;	/* array of page info */
+	u32 *pa;		/* array of physical addresses */
+	u32 num;		/* number of pages */
+};
+
+/* TMM PAT private structure */
 struct dmm_mem {
-	struct fast fast_list;
-	struct mem free_list;
-	struct mem used_list;
-	struct mutex mtx;
+	struct list_head fast_list;
 	struct dmm *dmm;
 };
 
-static void dmm_free_fast_list(struct fast *fast)
+/**
+ *  Frees pages in a fast structure.  Moves pages to the free list if there
+ *  are	less pages used	than max_to_keep.  Otherwise, it frees the pages
+ */
+static void free_fast(struct fast *f)
 {
-	struct list_head *pos = NULL, *q = NULL;
-	struct fast *f = NULL;
 	s32 i = 0;
 
 	/* mutex is locked */
-	list_for_each_safe(pos, q, &fast->list) {
-		f = list_entry(pos, struct fast, list);
-		for (i = 0; i < f->num; i++)
+	for (i = 0; i < f->num; i++) {
+		if (total_mem < cache_limit) {
+			/* cache free page if under the limit */
+			list_add(&f->mem[i]->list, &free_list);
+		} else {
+			/* otherwise, free */
+			total_mem -= PAGE_SIZE;
 			__free_page(f->mem[i]->pg);
-		kfree(f->pa);
-		kfree(f->mem);
-		list_del(pos);
-		kfree(f);
-	}
-}
-
-static u32 fill_page_stack(struct mem *mem, struct mutex *mtx)
-{
-	s32 i = 0;
-	struct mem *m = NULL;
-
-	for (i = 0; i < MAX; i++) {
-		m = kmalloc(sizeof(*m), GFP_KERNEL);
-		if (!m)
-			return -ENOMEM;
-		memset(m, 0x0, sizeof(*m));
-
-		m->pg = alloc_page(GFP_KERNEL | GFP_DMA);
-		if (!m->pg) {
-			kfree(m);
-			return -ENOMEM;
 		}
-
-		m->pa = page_to_phys(m->pg);
-
-		/**
-		 * Note: we need to flush the cache
-		 * entry for each page we allocate.
-		*/
-		dmac_flush_range((void *)page_address(m->pg),
-					(void *)page_address(m->pg) + DMM_PAGE);
-		outer_flush_range(m->pa, m->pa + DMM_PAGE);
-
-		mutex_lock(mtx);
-		count++;
-		list_add(&m->list, &mem->list);
-		mutex_unlock(mtx);
 	}
-	return 0x0;
+	kfree(f->pa);
+	kfree(f->mem);
+	/* remove only if element was added */
+	if (f->list.next)
+		list_del(&f->list);
+	kfree(f);
 }
 
-static void dmm_free_page_stack(struct mem *mem)
+/* allocate and flush a page */
+static struct mem *alloc_mem(void)
 {
-	struct list_head *pos = NULL, *q = NULL;
-	struct mem *m = NULL;
+	struct mem *m = kmalloc(sizeof(*m), GFP_KERNEL);
+	if (!m)
+		return NULL;
+	memset(m, 0, sizeof(*m));
+
+	m->pg = alloc_page(GFP_KERNEL | GFP_DMA);
+	if (!m->pg) {
+		kfree(m);
+		return NULL;
+	}
+
+	m->pa = page_to_phys(m->pg);
+
+	/* flush the cache entry for each page we allocate. */
+	dmac_flush_range(page_address(m->pg),
+				page_address(m->pg) + PAGE_SIZE);
+	outer_flush_range(m->pa, m->pa + PAGE_SIZE);
+
+	return m;
+}
+
+static void free_page_cache(void)
+{
+	struct mem *m, *m_;
 
 	/* mutex is locked */
-	list_for_each_safe(pos, q, &mem->list) {
-		m = list_entry(pos, struct mem, list);
+	list_for_each_entry_safe(m, m_, &free_list, list) {
 		__free_page(m->pg);
-		list_del(pos);
+		total_mem -= PAGE_SIZE;
+		list_del(&m->list);
 		kfree(m);
 	}
 }
 
 static void tmm_pat_deinit(struct tmm *tmm)
 {
+	struct fast *f, *f_;
 	struct dmm_mem *pvt = (struct dmm_mem *) tmm->pvt;
 
-	mutex_lock(&pvt->mtx);
-	dmm_free_fast_list(&pvt->fast_list);
-	dmm_free_page_stack(&pvt->free_list);
-	dmm_free_page_stack(&pvt->used_list);
-	mutex_destroy(&pvt->mtx);
+	mutex_lock(&mtx);
+
+	/* free all outstanding used memory */
+	list_for_each_entry_safe(f, f_, &pvt->fast_list, list)
+		free_fast(f);
+
+	/* if this is the last tmm_pat, free all memory */
+	if (--refs == 0)
+		free_page_cache();
+
+	mutex_unlock(&mtx);
 }
 
-static u32 *tmm_pat_get_pages(struct tmm *tmm, s32 n)
+static u32 *tmm_pat_get_pages(struct tmm *tmm, u32 n)
 {
-	s32 i = 0;
-	struct list_head *pos = NULL, *q = NULL;
-	struct mem *m = NULL;
-	struct fast *f = NULL;
+	struct mem *m;
+	struct fast *f;
 	struct dmm_mem *pvt = (struct dmm_mem *) tmm->pvt;
-
-	if (n <= 0 || n > 0x8000)
-		return NULL;
-
-	if (list_empty_careful(&pvt->free_list.list))
-		if (fill_page_stack(&pvt->free_list, &pvt->mtx))
-			return NULL;
 
 	f = kmalloc(sizeof(*f), GFP_KERNEL);
 	if (!f)
 		return NULL;
-	memset(f, 0x0, sizeof(*f));
+	memset(f, 0, sizeof(*f));
 
 	/* array of mem struct pointers */
 	f->mem = kmalloc(n * sizeof(*f->mem), GFP_KERNEL);
-	if (!f->mem) {
-		kfree(f); return NULL;
-	}
-	memset(f->mem, 0x0, n * sizeof(*f->mem));
 
 	/* array of physical addresses */
 	f->pa = kmalloc(n * sizeof(*f->pa), GFP_KERNEL);
-	if (!f->pa) {
-		kfree(f->mem); kfree(f); return NULL;
-	}
-	memset(f->pa, 0x0, n * sizeof(*f->pa));
 
-	/*
-	 * store the number of mem structs so that we
-	 * know how many to free later.
-	 */
-	f->num = n;
+	/* no pages have been allocated yet (needed for cleanup) */
+	f->num = 0;
 
-	for (i = 0; i < n; i++) {
-		if (list_empty_careful(&pvt->free_list.list))
-			if (fill_page_stack(&pvt->free_list, &pvt->mtx))
+	if (!f->mem || !f->pa)
+		goto cleanup;
+
+	memset(f->mem, 0, n * sizeof(*f->mem));
+	memset(f->pa, 0, n * sizeof(*f->pa));
+
+	/* fill out fast struct mem array with free pages */
+	mutex_lock(&mtx);
+	while (f->num < n) {
+		/* if there is a free cached page use it */
+		if (!list_empty(&free_list)) {
+			/* unbind first element from list */
+			m = list_first_entry(&free_list, typeof(*m), list);
+			list_del(&m->list);
+		} else {
+			mutex_unlock(&mtx);
+
+			/**
+			 * Unlock mutex during allocation and cache flushing.
+			 */
+			m = alloc_mem();
+			if (!m)
 				goto cleanup;
 
-		mutex_lock(&pvt->mtx);
-		pos = NULL;
-		q = NULL;
-
-		/*
-		 * remove one mem struct from the free list and
-		 * add the address to the fast struct mem array
-		 */
-		list_for_each_safe(pos, q, &pvt->free_list.list) {
-			m = list_entry(pos, struct mem, list);
-			f->mem[i] = m;
-			list_del(pos);
-			break;
+			mutex_lock(&mtx);
+			total_mem += PAGE_SIZE;
 		}
-		mutex_unlock(&pvt->mtx);
 
-		if (m != NULL)
-			f->pa[i] = m->pa;
-		else
-			goto cleanup;
+		f->mem[f->num] = m;
+		f->pa[f->num++] = m->pa;
 	}
 
-	mutex_lock(&pvt->mtx);
-	list_add(&f->list, &pvt->fast_list.list);
-	mutex_unlock(&pvt->mtx);
+	list_add(&f->list, &pvt->fast_list);
+	mutex_unlock(&mtx);
+	return f->pa;
 
-	if (f != NULL)
-		return f->pa;
 cleanup:
-	for (; i > 0; i--) {
-		mutex_lock(&pvt->mtx);
-		list_add(&f->mem[i - 1]->list, &pvt->free_list.list);
-		mutex_unlock(&pvt->mtx);
-	}
-	kfree(f->pa);
-	kfree(f->mem);
-	kfree(f);
+	free_fast(f);
 	return NULL;
 }
 
-static void tmm_pat_free_pages(struct tmm *tmm, u32 *list)
+static void tmm_pat_free_pages(struct tmm *tmm, u32 *page_list)
 {
 	struct dmm_mem *pvt = (struct dmm_mem *) tmm->pvt;
-	struct list_head *pos = NULL, *q = NULL;
-	struct fast *f = NULL;
-	s32 i = 0;
+	struct fast *f, *f_;
 
-	mutex_lock(&pvt->mtx);
-	pos = NULL;
-	q = NULL;
-	list_for_each_safe(pos, q, &pvt->fast_list.list) {
-		f = list_entry(pos, struct fast, list);
-		if (f->pa[0] == list[0]) {
-			for (i = 0; i < f->num; i++) {
-				if (count < PAGE_CAP) {
-					list_add(
-					&((struct mem *)f->mem[i])->list,
-					&pvt->free_list.list);
-				} else {
-					__free_page(
-						((struct mem *)f->mem[i])->pg);
-					count--;
-				}
-			}
-			list_del(pos);
-			kfree(f->pa);
-			kfree(f->mem);
-			kfree(f);
+	mutex_lock(&mtx);
+	/* find fast struct based on 1st page */
+	list_for_each_entry_safe(f, f_, &pvt->fast_list, list) {
+		if (f->pa[0] == page_list[0]) {
+			free_fast(f);
 			break;
 		}
 	}
-	mutex_unlock(&pvt->mtx);
+	mutex_unlock(&mtx);
 }
 
 static s32 tmm_pat_map(struct tmm *tmm, struct pat_area area, u32 page_pa)
@@ -298,15 +249,12 @@ struct tmm *tmm_pat_init(u32 pat_id)
 	if (pvt) {
 		/* private data */
 		pvt->dmm = dmm;
-		INIT_LIST_HEAD(&pvt->free_list.list);
-		INIT_LIST_HEAD(&pvt->used_list.list);
-		INIT_LIST_HEAD(&pvt->fast_list.list);
-		mutex_init(&pvt->mtx);
+		INIT_LIST_HEAD(&pvt->fast_list);
 
-		count = 0;
-		if (list_empty_careful(&pvt->free_list.list))
-			if (fill_page_stack(&pvt->free_list, &pvt->mtx))
-				goto error;
+		/* increate tmm_pat references */
+		mutex_lock(&mtx);
+		refs++;
+		mutex_unlock(&mtx);
 
 		/* public data */
 		tmm->pvt = pvt;
@@ -319,7 +267,6 @@ struct tmm *tmm_pat_init(u32 pat_id)
 		return tmm;
 	}
 
-error:
 	kfree(pvt);
 	kfree(tmm);
 	dmm_pat_release(dmm);
