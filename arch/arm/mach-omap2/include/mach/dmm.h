@@ -3,6 +3,8 @@
  *
  * DMM driver support functions for TI OMAP processors.
  *
+ * Author: David Sin <davidsin@ti.com>
+ *
  * Copyright (C) 2009-2010 Texas Instruments, Inc.
  *
  * This package is free software; you can redistribute it and/or modify
