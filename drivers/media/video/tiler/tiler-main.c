@@ -1,7 +1,10 @@
 /*
  * tiler-main.c
  *
- * TILER driver support functions for TI OMAP processors.
+ * TILER driver main support functions for TI TILER hardware block.
+ *
+ * Authors: Lajos Molnar <molnar@ti.com>
+ *          David Sin <davidsin@ti.com>
  *
  * Copyright (C) 2009-2010 Texas Instruments, Inc.
  *
@@ -16,38 +19,38 @@
 
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/cdev.h>            /* struct cdev */
-#include <linux/kdev_t.h>          /* MKDEV() */
-#include <linux/fs.h>              /* register_chrdev_region() */
-#include <linux/device.h>          /* struct class */
-#include <linux/platform_device.h> /* platform_device() */
-#include <linux/err.h>             /* IS_ERR() */
-/* #include <linux/sched.h> */
+#include <linux/cdev.h>			/* struct cdev */
+#include <linux/kdev_t.h>		/* MKDEV() */
+#include <linux/fs.h>			/* register_chrdev_region() */
+#include <linux/device.h>		/* struct class */
+#include <linux/platform_device.h>	/* platform_device() */
+#include <linux/err.h>			/* IS_ERR() */
 #include <linux/errno.h>
 #include <linux/mutex.h>
-#include <linux/dma-mapping.h>
-#include <linux/pagemap.h>         /* page_cache_release() */
+#include <linux/dma-mapping.h>		/* dma_alloc_coherent */
+#include <linux/pagemap.h>		/* page_cache_release() */
 #include <linux/slab.h>
 
 #include <mach/dmm.h>
 #include "tmm.h"
 #include "_tiler.h"
-#include "tcm/tcm-sita.h"	/* Algo Specific header */
-
-#include <linux/syscalls.h>
+#include "tcm/tcm-sita.h"		/* TCM algorithm */
 
 static bool ssptr_id = CONFIG_TILER_SSPTR_ID;
 static uint default_align = CONFIG_TILER_ALIGNMENT;
 static uint granularity = CONFIG_TILER_GRANULARITY;
 
-module_param(ssptr_id, bool, 0644);
+/*
+ * We can only change ssptr_id if there are no blocks allocated, so that
+ * pseudo-random ids and ssptrs do not potentially clash. For now make it
+ * read-only.
+ */
+module_param(ssptr_id, bool, 0444);
 MODULE_PARM_DESC(ssptr_id, "Use ssptr as block ID");
 module_param_named(align, default_align, uint, 0644);
 MODULE_PARM_DESC(align, "Default block ssptr alignment");
 module_param_named(grain, granularity, uint, 0644);
 MODULE_PARM_DESC(grain, "Granularity (bytes)");
-
-struct tiler_ops tiler;
 
 struct tiler_dev {
 	struct cdev cdev;
@@ -63,9 +66,11 @@ struct platform_driver tiler_driver_ldm = {
 	.remove = NULL,
 };
 
-static struct list_head blocks;
-static struct list_head orphan_areas;
-static struct list_head orphan_onedim;
+static struct tiler_ops tiler;		/* shared methods and variables */
+
+static struct list_head blocks;		/* all tiler blocks */
+static struct list_head orphan_areas;	/* orphaned 2D areas */
+static struct list_head orphan_onedim;	/* orphaned 1D areas */
 
 static s32 tiler_major;
 static s32 tiler_minor;
@@ -81,6 +86,7 @@ static dma_addr_t dmac_pa;
  *  TMM connectors
  *  ==========================================================================
  */
+/* wrapper around tmm_map */
 static s32 refill_pat(struct tmm *tmm, struct tcm_area *area, u32 *ptr)
 {
 	s32 res = 0;
@@ -105,6 +111,7 @@ static s32 refill_pat(struct tmm *tmm, struct tcm_area *area, u32 *ptr)
 	return res;
 }
 
+/* wrapper around tmm_clear */
 static void clear_pat(struct tmm *tmm, struct tcm_area *area)
 {
 	struct pat_area p_area = {0};
@@ -142,6 +149,8 @@ static u32 _m_get_id(void)
 
 	/* ensure noone is using this id */
 	while (_m_id_in_use(id)) {
+		/* generate a new pseudo-random ID */
+
 		/* Galois LSFR: 32, 22, 2, 1 */
 		id = (id >> 1) ^ (u32)((0 - (id & 1u)) & 0x80200003u);
 	}
@@ -154,10 +163,12 @@ static u32 _m_get_id(void)
  *  ==========================================================================
  */
 
-/* must have mutex */
+/* get or create new gid_info object */
 static struct gid_info *_m_get_gi(struct process_info *pi, u32 gid)
 {
 	struct gid_info *gi;
+
+	/* have mutex */
 
 	/* see if group already exist */
 	list_for_each_entry(gi, &pi->groups, by_pid) {
@@ -186,9 +197,10 @@ done:
 	return gi;
 }
 
-/* (must have mutex) */
+/* free gid_info object if empty */
 static void _m_try_free_group(struct gid_info *gi)
 {
+	/* have mutex */
 	if (gi && list_empty(&gi->areas) && list_empty(&gi->onedim) &&
 	    /* also ensure noone is still using this group */
 	    !gi->refs) {
@@ -277,11 +289,11 @@ static s32 __analize_area(enum tiler_fmt fmt, u32 width, u32 height,
 
 	/* width and height must be positive */
 	if (!width || !height)
-		return -1;
+		return -EINVAL;
 
 	/* align must be 2 power */
 	if (*align & (*align - 1))
-		return -1;
+		return -EINVAL;
 
 	if (fmt == TILFMT_PAGE) {
 		/* adjust size to accomodate offset, only do page alignment */
@@ -294,7 +306,7 @@ static s32 __analize_area(enum tiler_fmt fmt, u32 width, u32 height,
 		*y_area = *band = 1;
 
 		if (*x_area * *y_area > tiler.width * tiler.height)
-			return -1;
+			return -ENOMEM;
 		return 0;
 	}
 
@@ -312,6 +324,10 @@ static s32 __analize_area(enum tiler_fmt fmt, u32 width, u32 height,
 	/* minimum alignment is at least 1 slot.  Use default if needed */
 	min_align = max(slot_row, granularity);
 	*align = ALIGN(*align ? : default_align, min_align);
+
+	/* align must still be 2 power (in case default_align is wrong) */
+	if (*align & (*align - 1))
+		return -EAGAIN;
 
 	/* offset must be multiple of bpp */
 	if (*offs & (g->bpp - 1) || *offs >= *align)
@@ -334,8 +350,8 @@ static s32 __analize_area(enum tiler_fmt fmt, u32 width, u32 height,
 	*offs /= slot_row;
 
 	if (*x_area > tiler.width || *y_area > tiler.height)
-		return -1;
-	return 0x0;
+		return -ENOMEM;
+	return 0;
 }
 
 /**
@@ -811,13 +827,12 @@ found:
 /* find a block by ssptr */
 static void fill_block_info(struct mem_info *i, struct tiler_block_info *blk)
 {
-	blk->ptr = NULL;
 	blk->fmt = tiler_fmt(i->blk.phys);
+#ifdef CONFIG_TILER_EXPOSE_SSPTR
 	blk->ssptr = i->blk.phys;
-
+#endif
 	if (blk->fmt == TILFMT_PAGE) {
 		blk->dim.len = i->blk.width;
-		blk->stride = 0;
 		blk->group_id = ((struct gid_info *) i->parent)->gid;
 	} else {
 		blk->stride = tiler_vstride(&i->blk);
@@ -1248,7 +1263,7 @@ static void __exit tiler_exit(void)
 }
 
 MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("David Sin <davidsin@ti.com>");
 MODULE_AUTHOR("Lajos Molnar <molnar@ti.com>");
+MODULE_AUTHOR("David Sin <davidsin@ti.com>");
 module_init(tiler_init);
 module_exit(tiler_exit);

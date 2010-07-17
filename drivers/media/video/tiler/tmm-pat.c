@@ -1,7 +1,7 @@
 /*
  * tmm-pat.c
  *
- * DMM driver support functions for TI OMAP processors.
+ * DMM driver support functions for TI TILER hardware block.
  *
  * Author: Lajos Molnar <molnar@ti.com>, David Sin <dsin@ti.com>
  *

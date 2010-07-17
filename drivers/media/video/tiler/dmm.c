@@ -20,7 +20,6 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/platform_device.h> /* platform_device() */
-#include <linux/err.h>             /* IS_ERR() */
 #include <linux/io.h>              /* ioremap() */
 #include <linux/errno.h>
 #include <linux/slab.h>

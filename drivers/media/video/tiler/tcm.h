@@ -2,7 +2,7 @@
  * tcm.h
  *
  * TILER container manager specification and support functions for TI
- * processors.
+ * TILER driver.
  *
  * Author: Lajos Molnar <molnar@ti.com>
  *

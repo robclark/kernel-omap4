@@ -1,7 +1,7 @@
 /*
  * tmm.h
  *
- * TMM interface definition for TI TILER.
+ * TMM interface definition for TI TILER driver.
  *
  * Author: Lajos Molnar <molnar@ti.com>
  *
