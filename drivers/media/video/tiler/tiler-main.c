@@ -310,7 +310,7 @@ static s32 __analize_area(enum tiler_fmt fmt, u32 width, u32 height,
 	*band = PAGE_SIZE / slot_row;
 
 	/* minimum alignment is at least 1 slot.  Use default if needed */
-	min_align = MAX(slot_row, granularity);
+	min_align = max(slot_row, granularity);
 	*align = ALIGN(*align ? : default_align, min_align);
 
 	/* offset must be multiple of bpp */

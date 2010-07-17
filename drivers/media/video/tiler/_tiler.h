@@ -1,7 +1,9 @@
 /*
  * _tiler.h
  *
- * TILER driver internal shared definitions for TI OMAP processors.
+ * TI TILER driver internal shared definitions.
+ *
+ * Author: Lajos Molnar <molnar@ti.com>
  *
  * Copyright (C) 2009-2010 Texas Instruments, Inc.
  *
@@ -20,9 +22,6 @@
 #include <linux/kernel.h>
 #include <mach/tiler.h>
 #include "tcm.h"
-
-#define MIN(a, b) ((a) < (b) ? (a) : (b))
-#define MAX(a, b) ((a) > (b) ? (a) : (b))
 
 #define TILER_FORMATS		(TILFMT_MAX - TILFMT_MIN + 1)
 
@@ -48,6 +47,7 @@ struct gid_info {
 	struct process_info *pi;	/* parent */
 };
 
+/* info for an area reserved from a container */
 struct area_info {
 	struct list_head by_gid;	/* areas in this pid/gid */
 	struct list_head blocks;	/* blocks in this area */
@@ -57,6 +57,7 @@ struct area_info {
 	struct gid_info *gi;		/* link to parent, if still alive */
 };
 
+/* info for a block */
 struct mem_info {
 	struct list_head global;	/* reserved / global blocks */
 	struct tiler_block_t blk;	/* block info */
@@ -72,6 +73,7 @@ struct mem_info {
 	void *parent;			/* area info for 2D, else group info */
 };
 
+/* tiler geometry information */
 struct tiler_geom {
 	u32 x_shft;	/* unused X-bits (as part of bpp) */
 	u32 y_shft;	/* unused Y-bits (as part of bpp) */
@@ -81,6 +83,7 @@ struct tiler_geom {
 	u32 bpp_m;	/* modified bytes per pixel (=1 for page mode) */
 };
 
+/* methods and variables shared between source files */
 struct tiler_ops {
 	/* block operations */
 	s32 (*alloc) (enum tiler_fmt fmt, u32 width, u32 height,
@@ -93,7 +96,7 @@ struct tiler_ops {
 	void (*reserve_nv12) (u32 n, u32 width, u32 height, u32 align, u32 offs,
 					u32 gid, struct process_info *pi);
 	void (*reserve) (u32 n, enum tiler_fmt fmt, u32 width, u32 height,
-			u32 align, u32 offs, u32 gid, struct process_info *pi);
+			 u32 align, u32 offs, u32 gid, struct process_info *pi);
 	void (*unreserve) (u32 gid, struct process_info *pi);
 
 	/* block access operations */
@@ -103,8 +106,8 @@ struct tiler_ops {
 	void (*unlock_free) (struct mem_info *mi, bool free);
 
 	s32 (*lay_2d) (enum tiler_fmt fmt, u16 n, u16 w, u16 h, u16 band,
-				u16 align, u16 offs, struct gid_info *gi,
-				struct list_head *pos);
+			u16 align, u16 offs, struct gid_info *gi,
+			struct list_head *pos);
 	s32 (*lay_nv12) (int n, u16 w, u16 w1, u16 h, struct gid_info *gi,
 									u8 *p);
 	/* group operations */
@@ -118,8 +121,8 @@ struct tiler_ops {
 
 	/* area operations */
 	s32 (*analize) (enum tiler_fmt fmt, u32 width, u32 height,
-				  u16 *x_area, u16 *y_area, u16 *band,
-				  u16 *align, u16 *offs, u16 *in_offs);
+			u16 *x_area, u16 *y_area, u16 *band,
+			u16 *align, u16 *offs, u16 *in_offs);
 
 	/* process operations */
 	void (*cleanup) (void);
