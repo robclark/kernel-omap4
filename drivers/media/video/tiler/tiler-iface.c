@@ -504,8 +504,7 @@ static s32 tiler_ioctl(struct inode *ip, struct file *filp, u32 cmd,
 					  block_info.dim.area.height,
 					  block_info.align,
 					  block_info.offs,
-					  block_info.group_id, pi,
-					  ops->nv12_packed);
+					  block_info.group_id, pi);
 		} else {
 			ops->reserve(block_info.key,
 				     block_info.fmt,
@@ -633,8 +632,7 @@ s32 tiler_reservex_nv12(u32 n, u32 width, u32 height, u32 align, u32 offs,
 	struct process_info *pi = __get_pi(pid, true);
 
 	if (pi)
-		ops->reserve_nv12(n, width, height, align, offs, gid, pi,
-							ops->nv12_packed);
+		ops->reserve_nv12(n, width, height, align, offs, gid, pi);
 	return 0;
 }
 EXPORT_SYMBOL(tiler_reservex_nv12);
