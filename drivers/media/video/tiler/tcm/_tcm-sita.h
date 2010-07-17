@@ -24,11 +24,6 @@
 /* length between two coordinates */
 #define LEN(a, b) ((a) > (b) ? (a) - (b) + 1 : (b) - (a) + 1)
 
-#define BOUNDARY(stat) ((stat)->top_edge + (stat)->bottom_edge + \
-				(stat)->left_edge + (stat)->right_edge)
-#define OCCUPIED(stat) ((stat)->top_busy + (stat)->bottom_busy + \
-				(stat)->left_busy + (stat)->right_busy)
-
 enum criteria {
 	CR_MAX_NEIGHS		= 0x01,
 	CR_FIRST_FOUND		= 0x10,
@@ -44,19 +39,13 @@ struct nearness_factor {
 };
 
 /*
- * Statistics on neighboring cells in each direction.  Edge is the container
- * boundary.  Busy refers to the number of naighbors that are occupied by a
- * tile.
+ * Statistics on immediately neighboring slots.  Edge is the number of
+ * border segments that are also border segments of the scan field.  Busy
+ * refers to the number of neighbors that are occupied.
  */
 struct neighbor_stats {
-	u16 left_edge;
-	u16 left_busy;
-	u16 top_edge;
-	u16 top_busy;
-	u16 right_edge;
-	u16 right_busy;
-	u16 bottom_edge;
-	u16 bottom_busy;
+	u16 edge;
+	u16 busy;
 };
 
 /* structure to keep the score of a potential allocation */

@@ -72,7 +72,7 @@ static s32 scan_r2l_b2t_one_dim(struct tcm *tcm, u32 num_slots,
 /*********************************************
  *	Support Infrastructure Methods
  *********************************************/
-static s32 is_area_free(struct tcm *tcm, u16 left, u16 top, u16 w, u16 h);
+static s32 is_area_free(struct tcm_area ***map, u16 x0, u16 y0, u16 w, u16 h);
 
 static s32 update_candidate(struct tcm *tcm, u16 x0, u16 y0, u16 w, u16 h,
 			    struct tcm_area *field, s32 criteria,
@@ -295,10 +295,9 @@ static s32 sita_free(struct tcm *tcm, struct tcm_area *area)
 static s32 scan_r2l_t2b(struct tcm *tcm, u16 w, u16 h, u16 align,
 			struct tcm_area *field, struct tcm_area *area)
 {
-	s32 x = 0, y = 0, done = 0;
-	s16 start_x = -1, end_x = -1, start_y = -1, end_y = -1;
-	s16 found_x = -1, found_y = -1;
-	struct sita_pvt *pvt = (struct sita_pvt *)tcm->pvt;
+	s32 x, y;
+	s16 start_x, end_x, start_y, end_y, found_x = -1;
+	struct tcm_area ***map = ((struct sita_pvt *)tcm->pvt)->map;
 	struct score best = {{0}, {0}, {0}, 0};
 
 	PA(2, "scan_r2l_t2b:", field);
@@ -328,38 +327,30 @@ static s32 scan_r2l_t2b(struct tcm *tcm, u16 w, u16 h, u16 align,
 	P2("ali=%d x=%d..%d y=%d..%d", align, start_x, end_x, start_y, end_y);
 
 	/* scan field top-to-bottom, right-to-left */
-	for (y = start_y; y <= end_y && !done; y++) {
+	for (y = start_y; y <= end_y; y++) {
 		for (x = start_x; x >= end_x; x -= align) {
-			if (!pvt->map[x][y]) {
-				if (is_area_free(tcm, x, y, w, h)) {
-					P3("found shoulder: %d,%d", x, y);
-					found_x = x;
-					found_y = y;
+			if (is_area_free(map, x, y, w, h)) {
+				P3("found shoulder: %d,%d", x, y);
+				found_x = x;
 
-					/* update best candidate */
-					done = update_candidate(tcm, x, y, w,
-						h, field, CR_R2L_T2B, &best);
-					if (done)
-						break;
+				/* update best candidate */
+				if (update_candidate(tcm, x, y, w, h, field,
+							CR_R2L_T2B, &best))
+					goto done;
 
 #ifdef X_SCAN_LIMITER
-					/* change upper x bound */
-					end_x = x + 1;
+				/* change upper x bound */
+				end_x = x + 1;
 #endif
-					break;
-				}
-			} else {
+				break;
+			} else if (map[x][y] && map[x][y]->is2d) {
 				/* step over 2D areas */
-				if (pvt->map[x][y]->is2d) {
-					x = ALIGN(pvt->map[x][y]->p0.x - w + 1,
-									align);
-				}
+				x = ALIGN(map[x][y]->p0.x - w + 1, align);
+				P3("moving to: %d,%d", x, y);
 			}
 		}
-
-		/* if you find a free area shouldering the given scan area on
-		   then we can break */
 #ifdef Y_SCAN_LIMITER
+		/* break if you find a free area shouldering the scan field */
 		if (found_x == start_x)
 			break;
 #endif
@@ -367,7 +358,7 @@ static s32 scan_r2l_t2b(struct tcm *tcm, u16 w, u16 h, u16 align,
 
 	if (!best.a.tcm)
 		return -ENOSPC;
-
+done:
 	assign(area, best.a.p0.x, best.a.p0.y, best.a.p1.x, best.a.p1.y);
 	return 0;
 }
@@ -391,10 +382,9 @@ static s32 scan_r2l_b2t(struct tcm *tcm, u16 w, u16 h, u16 align,
 	/* TODO: Should I check scan area?
 	 * Might have to take it as input during initialization
 	 */
-	s32 x = 0, y = 0, done = 0;
-	s16 start_x = -1, end_x = -1, start_y = -1, end_y = -1;
-	s16 found_x = -1, found_y = -1;
-	struct sita_pvt *pvt = (struct sita_pvt *)tcm->pvt;
+	s32 x, y;
+	s16 start_x, end_x, start_y, end_y, found_x = -1;
+	struct tcm_area ***map = ((struct sita_pvt *)tcm->pvt)->map;
 	struct score best = {{0}, {0}, {0}, 0};
 
 	PA(2, "scan_r2l_b2t:", field);
@@ -424,39 +414,29 @@ static s32 scan_r2l_b2t(struct tcm *tcm, u16 w, u16 h, u16 align,
 	P2("ali=%d x=%d..%d y=%d..%d", align, start_x, end_x, start_y, end_y);
 
 	/* scan field bottom-to-top, right-to-left */
-	for (y = start_y; y >= end_y && !done; y--) {
+	for (y = start_y; y >= end_y; y--) {
 		for (x = start_x; x >= end_x; x -= align) {
-			if (!pvt->map[x][y]) {
-				if (is_area_free(tcm, x, y, w, h)) {
-					P3("found shoulder: %d,%d", x, y);
-					found_x = x;
-					found_y = y;
+			if (is_area_free(map, x, y, w, h)) {
+				P3("found shoulder: %d,%d", x, y);
+				found_x = x;
 
-					/* update best candidate */
-					done = update_candidate(tcm, x, y, w,
-						h, field, CR_R2L_B2T, &best);
-					if (done)
-						break;
+				/* update best candidate */
+				if (update_candidate(tcm, x, y, w, h, field,
+							CR_R2L_B2T, &best))
+					goto done;
 #ifdef X_SCAN_LIMITER
-					/* change upper x bound */
-					end_x = x + 1;
+				/* change upper x bound */
+				end_x = x + 1;
 #endif
-					break;
-				}
-			} else {
+				break;
+			} else if (map[x][y] && map[x][y]->is2d) {
 				/* step over 2D areas */
-				if (pvt->map[x][y]->is2d) {
-					x = ALIGN(pvt->map[x][y]->p0.x - w + 1,
-									align);
-					P3("moving to: %d,%d", x, y);
-				}
+				x = ALIGN(map[x][y]->p0.x - w + 1, align);
+				P3("moving to: %d,%d", x, y);
 			}
-
 		}
-
 #ifdef Y_SCAN_LIMITER
-		/* if you find a free area shouldering the given scan area on
-		   then we can break */
+		/* break if you find a free area shouldering the scan field */
 		if (found_x == start_x)
 			break;
 #endif
@@ -464,7 +444,7 @@ static s32 scan_r2l_b2t(struct tcm *tcm, u16 w, u16 h, u16 align,
 
 	if (!best.a.tcm)
 		return -ENOSPC;
-
+done:
 	assign(area, best.a.p0.x, best.a.p0.y, best.a.p1.x, best.a.p1.y);
 	return 0;
 }
@@ -485,10 +465,9 @@ static s32 scan_r2l_b2t(struct tcm *tcm, u16 w, u16 h, u16 align,
 static s32 scan_l2r_t2b(struct tcm *tcm, u16 w, u16 h, u16 align,
 			struct tcm_area *field, struct tcm_area *area)
 {
-	s32 x = 0, y = 0, done = 0;
-	s16 start_x = -1, end_x = -1, start_y = -1, end_y = -1;
-	s16 found_x = -1, found_y = -1;
-	struct sita_pvt *pvt = (struct sita_pvt *)tcm->pvt;
+	s32 x, y;
+	s16 start_x, end_x, start_y, end_y, found_x = -1;
+	struct tcm_area ***map = ((struct sita_pvt *)tcm->pvt)->map;
 	struct score best = {{0}, {0}, {0}, 0};
 
 	PA(2, "scan_l2r_t2b:", field);
@@ -520,38 +499,29 @@ static s32 scan_l2r_t2b(struct tcm *tcm, u16 w, u16 h, u16 align,
 	P2("ali=%d x=%d..%d y=%d..%d", align, start_x, end_x, start_y, end_y);
 
 	/* scan field top-to-bottom, left-to-right */
-	for (y = start_y; y <= end_y && !done; y++) {
+	for (y = start_y; y <= end_y; y++) {
 		for (x = start_x; x <= end_x; x += align) {
-			/* if NOT occupied */
-			if (!pvt->map[x][y]) {
-				if (is_area_free(tcm, x, y, w, h)) {
-					P3("found shoulder: %d,%d", x, y);
-					found_x = x;
-					found_y = y;
+			if (is_area_free(map, x, y, w, h)) {
+				P3("found shoulder: %d,%d", x, y);
+				found_x = x;
 
-					/* update best candidate */
-					done = update_candidate(tcm, x, y, w,
-						h, field, CR_L2R_T2B, &best);
-					if (done)
-						break;
+				/* update best candidate */
+				if (update_candidate(tcm, x, y, w, h, field,
+							CR_L2R_T2B, &best))
+					goto done;
 #ifdef X_SCAN_LIMITER
-					/* change upper x bound */
-					end_x = x - 1;
+				/* change upper x bound */
+				end_x = x - 1;
 #endif
-					break;
-				}
-			} else {
+				break;
+			} else if (map[x][y] && map[x][y]->is2d) {
 				/* step over 2D areas */
-				if (pvt->map[x][y]->is2d) {
-					x = ALIGN_DOWN(pvt->map[x][y]->p1.x,
-									align);
-					P3("moving to: %d,%d", x, y);
-				}
+				x = ALIGN_DOWN(map[x][y]->p1.x, align);
+				P3("moving to: %d,%d", x, y);
 			}
 		}
 #ifdef Y_SCAN_LIMITER
-		/* if you find a free area shouldering the given scan area on
-		   then we can break */
+		/* break if you find a free area shouldering the scan field */
 		if (found_x == start_x)
 			break;
 #endif
@@ -559,7 +529,7 @@ static s32 scan_l2r_t2b(struct tcm *tcm, u16 w, u16 h, u16 align,
 
 	if (!best.a.tcm)
 		return -ENOSPC;
-
+done:
 	assign(area, best.a.p0.x, best.a.p0.y, best.a.p1.x, best.a.p1.y);
 	return 0;
 }
@@ -580,10 +550,9 @@ static s32 scan_l2r_t2b(struct tcm *tcm, u16 w, u16 h, u16 align,
 static s32 scan_l2r_b2t(struct tcm *tcm, u16 w, u16 h, u16 align,
 			struct tcm_area *field, struct tcm_area *area)
 {
-	s32 x = 0, y = 0, done = 0;
-	s16 start_x = -1, end_x = -1, start_y = -1, end_y = -1;
-	s16 found_x = -1, found_y = -1;
-	struct sita_pvt *pvt = (struct sita_pvt *)tcm->pvt;
+	s32 x, y;
+	s16 start_x, end_x, start_y, end_y, found_x = -1;
+	struct tcm_area ***map = ((struct sita_pvt *)tcm->pvt)->map;
 	struct score best = {{0}, {0}, {0}, 0};
 
 	PA(2, "scan_l2r_b2t:", field);
@@ -615,40 +584,30 @@ static s32 scan_l2r_b2t(struct tcm *tcm, u16 w, u16 h, u16 align,
 	P2("ali=%d x=%d..%d y=%d..%d", align, start_x, end_x, start_y, end_y);
 
 	/* scan field bottom-to-top, left-to-right */
-	for (y = start_y; y >= end_y && !done; y--) {
+	for (y = start_y; y >= end_y; y--) {
 		for (x = start_x; x <= end_x; x += align) {
-			/* if NOT occupied */
-			if (!pvt->map[x][y]) {
-				if (is_area_free(tcm, x, y, w, h)) {
-					P3("found shoulder: %d,%d", x, y);
-					found_x = x;
-					found_y = y;
+			if (is_area_free(map, x, y, w, h)) {
+				P3("found shoulder: %d,%d", x, y);
+				found_x = x;
 
-					/* update best candidate */
-					done = update_candidate(tcm, x, y, w,
-						h, field, CR_L2R_B2T, &best));
-					if (done)
-						break;
-
+				/* update best candidate */
+				if (update_candidate(tcm, x, y, w, h, field,
+							CR_L2R_B2T, &best))
+					goto done;
 #ifdef X_SCAN_LIMITER
-					/* change upper x bound */
-					end_x = x - 1;
+				/* change upper x bound */
+				end_x = x - 1;
 #endif
-					break;
-				}
-			} else {
+				break;
+			} else if (map[x][y] && map[x][y]->is2d) {
 				/* step over 2D areas */
-				if (pvt->map[x][y]->is2d) {
-					x = ALIGN_DOWN(pvt->map[x][y]->p1.x,
-									align);
-					P3("moving to: %d,%d", x, y);
-				}
+				x = ALIGN_DOWN(map[x][y]->p1.x, align);
+				P3("moving to: %d,%d", x, y);
 			}
 		}
 
 #ifdef Y_SCAN_LIMITER
-		/* if you find a free area shouldering the given scan area on
-		   then we can break */
+		/* break if you find a free area shouldering the scan field */
 		if (found_x == start_x)
 			break;
 #endif
@@ -656,7 +615,7 @@ static s32 scan_l2r_b2t(struct tcm *tcm, u16 w, u16 h, u16 align,
 
 	if (!best.a.tcm)
 		return -ENOSPC;
-
+done:
 	assign(area, best.a.p0.x, best.a.p0.y, best.a.p1.x, best.a.p1.y);
 	return 0;
 }
@@ -809,14 +768,12 @@ static s32 scan_areas_and_find_fit(struct tcm *tcm, u16 w, u16 h, u16 align,
 }
 
 /* check if an entire area is free */
-static s32 is_area_free(struct tcm *tcm, u16 left, u16 top, u16 w, u16 h)
+static s32 is_area_free(struct tcm_area ***map, u16 x0, u16 y0, u16 w, u16 h)
 {
 	u16 x = 0, y = 0;
-	struct sita_pvt *pvt = (struct sita_pvt *)tcm->pvt;
-
-	for (y = top; y < top + h; y++) {
-		for (x = left; x < left + w; x++) {
-			if (pvt->map[x][y])
+	for (y = y0; y < y0 + h; y++) {
+		for (x = x0; x < x0 + w; x++) {
+			if (map[x][y])
 				return false;
 		}
 	}
@@ -874,7 +831,7 @@ static s32 update_candidate(struct tcm *tcm, u16 x0, u16 y0, u16 w, u16 h,
 	/* calculate score for current candidate */
 	if (!first) {
 		get_neighbor_stats(tcm, &me.a, &me.n);
-		me.neighs = BOUNDARY(&me.n) + OCCUPIED(&me.n);
+		me.neighs = me.n.edge + me.n.busy;
 		get_nearness_factor(field, &me.a, &me.f);
 	}
 
@@ -906,8 +863,8 @@ static s32 update_candidate(struct tcm *tcm, u16 x0, u16 y0, u16 w, u16 h,
 		best->neighs <= me.neighs &&
 		(best->neighs < me.neighs ||
 		 /* this implies that neighs and occupied match */
-		 OCCUPIED(&best->n) < OCCUPIED(&me.n) ||
-		 (OCCUPIED(&best->n) == OCCUPIED(&me.n) &&
+		 best->n.busy < me.n.busy ||
+		 (best->n.busy == me.n.busy &&
 		  /* check the nearness factor */
 		  best->f.x + best->f.y > me.f.x + me.f.y)))
 		goto better;
@@ -952,26 +909,26 @@ static void get_neighbor_stats(struct tcm *tcm, struct tcm_area *area,
 	/* process top & bottom edges */
 	for (x = area->p0.x; x <= area->p1.x; x++) {
 		if (area->p0.y == 0)
-			stat->top_edge++;
+			stat->edge++;
 		else if (pvt->map[x][area->p0.y - 1])
-			stat->top_busy++;
+			stat->busy++;
 
 		if (area->p1.y == tcm->height - 1)
-			stat->bottom_edge++;
+			stat->edge++;
 		else if (pvt->map[x][area->p1.y + 1])
-			stat->bottom_busy++;
+			stat->busy++;
 	}
 
 	/* process left & right edges */
 	for (y = area->p0.y; y <= area->p1.y; ++y) {
 		if (area->p0.x == 0)
-			stat->left_edge++;
+			stat->edge++;
 		else if (pvt->map[area->p0.x - 1][y])
-			stat->left_busy++;
+			stat->busy++;
 
 		if (area->p1.x == tcm->width - 1)
-			stat->right_edge++;
+			stat->edge++;
 		else if (pvt->map[area->p1.x + 1][y])
-			stat->right_busy++;
+			stat->busy++;
 	}
 }
