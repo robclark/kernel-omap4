@@ -1,7 +1,9 @@
 /*
  * tiler-geom.c
  *
- * TILER driver support functions for TI OMAP processors.
+ * TILER geometry functions for TI TILER hardware block.
+ *
+ * Author: Lajos Molnar <molnar@ti.com>
  *
  * Copyright (C) 2009-2010 Texas Instruments, Inc.
  *
@@ -14,13 +16,14 @@
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#include <linux/init.h>
 #include <linux/module.h>
 #include "_tiler.h"
 
+/* bits representing the same slot in DMM-TILER hw-block */
 #define SLOT_WIDTH_BITS		6
 #define SLOT_HEIGHT_BITS	6
 
+/* bits reserved to describe coordinates in DMM-TILER hw-block */
 #define CONT_WIDTH_BITS		14
 #define CONT_HEIGHT_BITS	13
 
@@ -43,12 +46,14 @@ static struct tiler_geom geom[TILER_FORMATS] = {
 	},
 };
 
+/* tiler space addressing bitfields */
 #define MASK_XY_FLIP		(1 << 31)
 #define MASK_Y_INVERT		(1 << 30)
 #define MASK_X_INVERT		(1 << 29)
 #define SHIFT_ACC_MODE		27
 #define MASK_ACC_MODE		3
 
+/* calculated constants */
 #define TILER_PAGE		(1 << (SLOT_WIDTH_BITS + SLOT_HEIGHT_BITS))
 #define TILER_WIDTH		(1 << (CONT_WIDTH_BITS - SLOT_WIDTH_BITS))
 #define TILER_HEIGHT		(1 << (CONT_HEIGHT_BITS - SLOT_HEIGHT_BITS))
@@ -63,37 +68,33 @@ static struct tiler_geom geom[TILER_FORMATS] = {
 
 #define MASK_VIEW		(MASK_X_INVERT | MASK_Y_INVERT | MASK_XY_FLIP)
 
+/* location of the various tiler views in physical address space */
 #define TILVIEW_8BIT	0x60000000u
 #define TILVIEW_16BIT	(TILVIEW_8BIT  + VIEW_SIZE)
 #define TILVIEW_32BIT	(TILVIEW_16BIT + VIEW_SIZE)
 #define TILVIEW_PAGE	(TILVIEW_32BIT + VIEW_SIZE)
 #define TILVIEW_END	(TILVIEW_PAGE  + VIEW_SIZE)
 
+/* create tsptr by adding view orientation and access mode */
 #define TIL_ADDR(x, orient, a)\
 	((u32) (x) | (orient) | ((a) << SHIFT_ACC_MODE))
 
-/*
-* TILER Memory model query method
-*/
 bool is_tiler_addr(u32 phys)
 {
 	return phys >= TILVIEW_8BIT && phys < TILVIEW_END;
 }
-
-/*
-* TILER block query method
-*/
+EXPORT_SYMBOL(is_tiler_addr);
 
 u32 tiler_bpp(const struct tiler_block_t *b)
 {
 	enum tiler_fmt fmt = tiler_fmt(b->phys);
 	BUG_ON(fmt == TILFMT_INVALID);
 
-	/* return modified bpp */
 	return geom[fmt].bpp_m;
 }
 EXPORT_SYMBOL(tiler_bpp);
 
+/* return the stride of a tiler-block in tiler space */
 static inline s32 tiler_stride(u32 tsptr)
 {
 	enum tiler_fmt fmt = TILER_FMT(tsptr);
@@ -128,6 +129,7 @@ enum tiler_fmt tiler_fmt(u32 phys)
 }
 EXPORT_SYMBOL(tiler_fmt);
 
+/* returns the tiler geometry information for a format */
 static const struct tiler_geom *get_geom(enum tiler_fmt fmt)
 {
 	if (fmt >= TILFMT_MIN && fmt <= TILFMT_MAX)
@@ -135,6 +137,12 @@ static const struct tiler_geom *get_geom(enum tiler_fmt fmt)
 	return NULL;
 }
 
+/**
+ * Returns the natural x and y coordinates for a pixel in tiler space address.
+ * That is, the coordinates for the same pixel in the natural (non-rotated,
+ * non-mirrored) view. This allows to uniquely identify a tiler pixel in any
+ * view orientation.
+ */
 static void tiler_get_natural_xy(u32 tsptr, u32 *x, u32 *y)
 {
 	u32 x_bits, y_bits, offset;
@@ -146,6 +154,7 @@ static void tiler_get_natural_xy(u32 tsptr, u32 *x, u32 *y)
 	y_bits = CONT_HEIGHT_BITS - geom[fmt].y_shft;
 	offset = (tsptr & VIEW_MASK) >> (geom[fmt].x_shft + geom[fmt].y_shft);
 
+	/* separate coordinate bitfields based on view orientation */
 	if (tsptr & MASK_XY_FLIP) {
 		*x = offset >> y_bits;
 		*y = offset & MASK(y_bits);
@@ -154,12 +163,14 @@ static void tiler_get_natural_xy(u32 tsptr, u32 *x, u32 *y)
 		*y = offset >> x_bits;
 	}
 
+	/* account for mirroring */
 	if (tsptr & MASK_X_INVERT)
 		*x ^= MASK(x_bits);
 	if (tsptr & MASK_Y_INVERT)
 		*y ^= MASK(y_bits);
 }
 
+/* calculate the tiler space address of a pixel in a view orientation */
 static u32 tiler_get_address(u32 orient, enum tiler_fmt fmt, u32 x, u32 y)
 {
 	u32 x_bits, y_bits, tmp, x_mask, y_mask, alignment;
@@ -168,16 +179,19 @@ static u32 tiler_get_address(u32 orient, enum tiler_fmt fmt, u32 x, u32 y)
 	y_bits = CONT_HEIGHT_BITS - geom[fmt].y_shft;
 	alignment = geom[fmt].x_shft + geom[fmt].y_shft;
 
+	/* validate coordinate */
 	x_mask = MASK(x_bits);
 	y_mask = MASK(y_bits);
 	if (x < 0 || x > x_mask || y < 0 || y > y_mask)
 		return 0;
 
+	/* account for mirroring */
 	if (orient & MASK_X_INVERT)
 		x ^= x_mask;
 	if (orient & MASK_Y_INVERT)
 		y ^= y_mask;
 
+	/* get coordinate address */
 	if (orient & MASK_XY_FLIP)
 		tmp = ((x << y_bits) + y);
 	else
@@ -225,7 +239,7 @@ s32 tilview_crop(struct tiler_view_t *view, u32 left, u32 top, u32 width,
 }
 EXPORT_SYMBOL(tilview_crop);
 
-/* adjust view orientation after top-left has been adjusted */
+/* calculate tilerspace address and stride after view orientation change */
 static void reorient(struct tiler_view_t *view, u32 orient)
 {
 	u32 x, y;
@@ -328,6 +342,7 @@ static inline void alias_xy(u32 ssptr, u32 *x, u32 *y)
 	tiler_get_natural_xy(ssptr & ~MASK_VIEW, x, y);
 }
 
+/* initialize shared geometric data */
 void tiler_geom_init(struct tiler_ops *tiler)
 {
 	struct tiler_geom *g;
