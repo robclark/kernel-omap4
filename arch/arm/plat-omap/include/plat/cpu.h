@@ -396,6 +396,62 @@ IS_OMAP_TYPE(3517, 0x3517)
 #define OMAP4430_REV_ES2_2	(OMAP443X_CLASS | (0x22 << 8))
 
 /*
+ * Silicon revisions
+ */
+#define OMAP_ES_1_0		0x00
+#define OMAP_ES_2_0		0x10
+#define OMAP_ES_2_1		0x20
+#define OMAP_ES_3_0		0x30
+#define OMAP_ES_3_1		0x40
+
+#define OMAP_REV_MASK		0x0000ff00
+#define OMAP_REV_BITS		((omap_rev() & OMAP_REV_MASK) >> 8)
+
+#define OMAP_REV_IS(revid)					\
+static inline u8 omap_rev_is_ ##revid (void)			\
+{								\
+	return (OMAP_REV_BITS == OMAP_ES_ ##revid) ? 1 : 0;	\
+}
+
+#define OMAP_REV_LT(revid)					\
+static inline u8 omap_rev_lt_ ##revid (void)			\
+{								\
+	return (OMAP_REV_BITS < OMAP_ES_ ##revid) ? 1 : 0;	\
+}
+
+#define OMAP_REV_LE(revid)					\
+static inline u8 omap_rev_le_ ##revid (void)			\
+{								\
+	return (OMAP_REV_BITS <= OMAP_ES_ ##revid) ? 1 : 0;	\
+}
+
+#define OMAP_REV_GT(revid)					\
+static inline u8 omap_rev_gt_ ##revid (void)			\
+{								\
+	return (OMAP_REV_BITS > OMAP_ES_ ##revid) ? 1 : 0;	\
+}
+
+#define OMAP_REV_GE(revid)					\
+static inline u8 omap_rev_ge_ ##revid (void)			\
+{								\
+	return (OMAP_REV_BITS >= OMAP_ES_ ##revid) ? 1 : 0;	\
+}
+
+#define OMAP_REV_FUNCTIONS(revid)	\
+	OMAP_REV_IS(revid)		\
+	OMAP_REV_LT(revid)		\
+	OMAP_REV_LE(revid)		\
+	OMAP_REV_GT(revid)		\
+	OMAP_REV_GE(revid)
+
+OMAP_REV_FUNCTIONS(1_0)
+OMAP_REV_FUNCTIONS(2_0)
+OMAP_REV_FUNCTIONS(2_1)
+OMAP_REV_FUNCTIONS(3_0)
+OMAP_REV_FUNCTIONS(3_1)
+
+/*
+
  * omap_chip bits
  *
  * CHIP_IS_OMAP{2420,2430,3430} indicate that a particular structure is
