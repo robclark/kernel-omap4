@@ -1357,6 +1357,10 @@ static void soc_remove_dai_link(struct snd_soc_card *card, int num)
 			if (err < 0)
 				printk(KERN_ERR "asoc: failed to remove %s\n", platform->name);
 		}
+
+		/* Make sure all DAPM widgets are freed */
+		snd_soc_dapm_free(&platform->dapm);
+
 		platform->probed = 0;
 		list_del(&platform->card_list);
 		module_put(platform->dev->driver->owner);
@@ -1512,9 +1516,14 @@ static int soc_probe_dai_link(struct snd_soc_card *card, int num)
 
 	/* config components */
 	codec_dai->codec = codec;
+	platform->card = card;
 	cpu_dai->platform = platform;
 	codec_dai->card = card;
 	cpu_dai->card = card;
+	codec->card = card;
+	platform->dapm.card = card;
+	rtd->card = card;
+	rtd->dev.parent = card->dev;
 
 	/* set default power off timeout */
 	rtd->pmdown_time = pmdown_time;
@@ -1529,6 +1538,9 @@ static int soc_probe_dai_link(struct snd_soc_card *card, int num)
 				return ret;
 			}
 		}
+		/* Make sure all DAPM widgets are instantiated */
+		snd_soc_dapm_new_widgets(&platform->dapm);
+
 		cpu_dai->probed = 1;
 		/* mark cpu_dai as probed and add to card cpu_dai list */
 		list_add(&cpu_dai->card_list, &card->dai_dev_list);
@@ -1558,6 +1570,7 @@ static int soc_probe_dai_link(struct snd_soc_card *card, int num)
 
 		platform->probed = 1;
 		list_add(&platform->card_list, &card->platform_dev_list);
+		INIT_LIST_HEAD(&platform->dapm.list);
 	}
 
 	/* probe the CODEC DAI */
@@ -2283,6 +2296,35 @@ int snd_soc_add_controls(struct snd_soc_codec *codec,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_soc_add_controls);
+
+/**
+ * snd_soc_add_platform_controls - add an array of controls to a platform.
+ * Convienience function to add a list of controls.
+ *
+ * @platform: platform to add controls to
+ * @controls: array of controls to add
+ * @num_controls: number of elements in the array
+ *
+ * Return 0 for success, else error.
+ */
+int snd_soc_add_platform_controls(struct snd_soc_platform *platform,
+	const struct snd_kcontrol_new *controls, int num_controls)
+{
+	struct snd_card *card = platform->card->snd_card;
+	int err, i;
+
+	for (i = 0; i < num_controls; i++) {
+		const struct snd_kcontrol_new *control = &controls[i];
+		err = snd_ctl_add(card, snd_soc_cnew(control, platform, NULL));
+		if (err < 0) {
+			dev_err(platform->dev, "Failed to add %s %d\n", control->name, err);
+			return err;
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_add_platform_controls);
 
 /**
  * snd_soc_info_enum_double - enumerated double mixer info callback
@@ -3376,6 +3418,9 @@ int snd_soc_register_platform(struct device *dev,
 		return -ENOMEM;
 	}
 
+	platform->dapm.bias_level = SND_SOC_BIAS_OFF;
+	platform->dapm.dev = dev;
+	platform->dapm.platform = platform;
 	platform->dev = dev;
 	platform->driver = platform_drv;
 

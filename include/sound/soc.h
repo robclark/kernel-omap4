@@ -235,6 +235,7 @@ struct snd_soc_codec_driver;
 struct soc_enum;
 struct snd_soc_jack;
 struct snd_soc_jack_pin;
+struct snd_soc_dapm_context;
 struct snd_soc_cache_ops;
 #include <sound/soc-dapm.h>
 
@@ -323,6 +324,8 @@ void snd_soc_free_ac97_codec(struct snd_soc_codec *codec);
 struct snd_kcontrol *snd_soc_cnew(const struct snd_kcontrol_new *_template,
 	void *data, char *long_name);
 int snd_soc_add_controls(struct snd_soc_codec *codec,
+	const struct snd_kcontrol_new *controls, int num_controls);
+int snd_soc_add_platform_controls(struct snd_soc_platform *platform,
 	const struct snd_kcontrol_new *controls, int num_controls);
 int snd_soc_info_enum_double(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_info *uinfo);
@@ -543,6 +546,10 @@ struct snd_soc_platform_driver {
 
 	/* platform stream ops */
 	struct snd_pcm_ops *ops;
+
+	/* platform DAPM IO TODO: refactor this */
+	unsigned int (*read)(struct snd_soc_platform *, unsigned int);
+	int (*write)(struct snd_soc_platform *, unsigned int, unsigned int);
 };
 
 struct snd_soc_platform {
@@ -557,6 +564,10 @@ struct snd_soc_platform {
 	struct snd_soc_card *card;
 	struct list_head list;
 	struct list_head card_list;
+	int num_dai;
+
+	/* dapm */
+	struct snd_soc_dapm_context dapm;
 };
 
 struct snd_soc_dai_link {
@@ -718,6 +729,18 @@ struct soc_enum {
 unsigned int snd_soc_read(struct snd_soc_codec *codec, unsigned int reg);
 unsigned int snd_soc_write(struct snd_soc_codec *codec,
 			   unsigned int reg, unsigned int val);
+/* platform DAPM IO - refactor */
+static inline unsigned int snd_soc_platform_read(struct snd_soc_platform *platform,
+					unsigned int reg)
+{
+	return platform->driver->read(platform, reg);
+}
+
+static inline unsigned int snd_soc_platform_write(struct snd_soc_platform *platform,
+					 unsigned int reg, unsigned int val)
+{
+	return platform->driver->write(platform, reg, val);
+}
 
 /* device driver data */
 
