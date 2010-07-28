@@ -121,7 +121,7 @@ static DEFINE_SPINLOCK(minor_lock);
 #define VDEV_IS_EXTENDED(dev) ((dev)&(EXTENDED))
 #define BLKIF_MINOR_EXT(dev) ((dev)&(~EXTENDED))
 
-#define DEV_NAME	"xvd"	/* name in /dev */
+#define DEV_NAME	"sd"	/* name in /dev */
 
 static int get_id_from_freelist(struct blkfront_info *info)
 {
