@@ -2904,6 +2904,12 @@ static int __init con_init(void)
 	struct vc_data *vc;
 	unsigned int currcons = 0, i;
 
+	if (screen_info.flags & VIDEO_FLAGS_HANDOFF) {
+		printk(KERN_INFO "vt handoff: grub requested handoff (vt#8)\n");
+		if (vt_handoff == -1)
+			vt_handoff = 8;
+	}
+
 	console_lock();
 
 	if (conswitchp)
