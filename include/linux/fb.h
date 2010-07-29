@@ -832,6 +832,7 @@ struct fb_tile_ops {
 struct fb_info {
 	int node;
 	int flags;
+	int ref_count;
 	struct mutex lock;		/* Lock for open/release/ioctl funcs */
 	struct mutex mm_lock;		/* Lock for fb_mmap and smem_* fields */
 	struct fb_var_screeninfo var;	/* Current var */
@@ -871,6 +872,7 @@ struct fb_info {
 	void *pseudo_palette;		/* Fake palette of 16 colors */ 
 #define FBINFO_STATE_RUNNING	0
 #define FBINFO_STATE_SUSPENDED	1
+#define FBINFO_STATE_REMOVED	2
 	u32 state;			/* Hardware state i.e suspend */
 	void *fbcon_par;                /* fbcon use-only private area */
 	/* From here on everything is device dependent */

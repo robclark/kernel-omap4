@@ -42,6 +42,8 @@
 
 #define FBPIXMAPSIZE	(1024 * 8)
 
+/* Protects the registered framebuffer list and count. */
+static DEFINE_SPINLOCK(registered_lock);
 struct fb_info *registered_fb[FB_MAX] __read_mostly;
 int num_registered_fb __read_mostly;
 
@@ -694,9 +696,7 @@ static ssize_t
 fb_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 {
 	unsigned long p = *ppos;
-	struct inode *inode = file->f_path.dentry->d_inode;
-	int fbidx = iminor(inode);
-	struct fb_info *info = registered_fb[fbidx];
+	struct fb_info *info = file->private_data;
 	u8 *buffer, *dst;
 	u8 __iomem *src;
 	int c, cnt = 0, err = 0;
@@ -705,19 +705,28 @@ fb_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	if (!info || ! info->screen_base)
 		return -ENODEV;
 
-	if (info->state != FBINFO_STATE_RUNNING)
-		return -EPERM;
+	if (!lock_fb_info(info))
+		return -ENODEV;
 
-	if (info->fbops->fb_read)
-		return info->fbops->fb_read(info, buf, count, ppos);
+	if (info->state != FBINFO_STATE_RUNNING) {
+		err = -EPERM;
+		goto out_fb_info;
+	}
+
+	if (info->fbops->fb_read) {
+		err = info->fbops->fb_read(info, buf, count, ppos);
+		goto out_fb_info;
+	}
 	
 	total_size = info->screen_size;
 
 	if (total_size == 0)
 		total_size = info->fix.smem_len;
 
-	if (p >= total_size)
-		return 0;
+	if (p >= total_size) {
+		err = 0;
+		goto out_fb_info;
+	}
 
 	if (count >= total_size)
 		count = total_size;
@@ -727,8 +736,10 @@ fb_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 
 	buffer = kmalloc((count > PAGE_SIZE) ? PAGE_SIZE : count,
 			 GFP_KERNEL);
-	if (!buffer)
-		return -ENOMEM;
+	if (!buffer) {
+		err = -ENOMEM;
+		goto out_fb_info;
+	}
 
 	src = (u8 __iomem *) (info->screen_base + p);
 
@@ -751,19 +762,21 @@ fb_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 		cnt += c;
 		count -= c;
 	}
+	if (!err)
+		err = cnt;
 
 	kfree(buffer);
+out_fb_info:
+	unlock_fb_info(info);
 
-	return (err) ? err : cnt;
+	return err;
 }
 
 static ssize_t
 fb_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 {
 	unsigned long p = *ppos;
-	struct inode *inode = file->f_path.dentry->d_inode;
-	int fbidx = iminor(inode);
-	struct fb_info *info = registered_fb[fbidx];
+	struct fb_info *info = file->private_data;
 	u8 *buffer, *src;
 	u8 __iomem *dst;
 	int c, cnt = 0, err = 0;
@@ -772,8 +785,13 @@ fb_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 	if (!info || !info->screen_base)
 		return -ENODEV;
 
-	if (info->state != FBINFO_STATE_RUNNING)
-		return -EPERM;
+	if (!lock_fb_info(info))
+		return -ENODEV;
+
+	if (info->state != FBINFO_STATE_RUNNING) {
+		err = -EPERM;
+		goto out_fb_info;
+	}
 
 	if (info->fbops->fb_write)
 		return info->fbops->fb_write(info, buf, count, ppos);
@@ -783,8 +801,10 @@ fb_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 	if (total_size == 0)
 		total_size = info->fix.smem_len;
 
-	if (p > total_size)
-		return -EFBIG;
+	if (p > total_size) {
+		err = -EFBIG;
+		goto out_fb_info;
+	}
 
 	if (count > total_size) {
 		err = -EFBIG;
@@ -800,8 +820,10 @@ fb_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 
 	buffer = kmalloc((count > PAGE_SIZE) ? PAGE_SIZE : count,
 			 GFP_KERNEL);
-	if (!buffer)
-		return -ENOMEM;
+	if (!buffer) {
+		err = -ENOMEM;
+		goto out_fb_info;
+	}
 
 	dst = (u8 __iomem *) (info->screen_base + p);
 
@@ -825,10 +847,14 @@ fb_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 		cnt += c;
 		count -= c;
 	}
+	if (cnt)
+		err = cnt;
 
 	kfree(buffer);
+out_fb_info:
+	unlock_fb_info(info);
 
-	return (cnt) ? cnt : err;
+	return err;
 }
 
 int
@@ -1303,8 +1329,7 @@ static long fb_compat_ioctl(struct file *file, unsigned int cmd,
 static int
 fb_mmap(struct file *file, struct vm_area_struct * vma)
 {
-	int fbidx = iminor(file->f_path.dentry->d_inode);
-	struct fb_info *info = registered_fb[fbidx];
+	struct fb_info * const info = file->private_data;
 	struct fb_ops *fb = info->fbops;
 	unsigned long off;
 	unsigned long start;
@@ -1316,6 +1341,11 @@ fb_mmap(struct file *file, struct vm_area_struct * vma)
 	if (!fb)
 		return -ENODEV;
 	mutex_lock(&info->mm_lock);
+	if (info->state == FBINFO_STATE_REMOVED) {
+		mutex_unlock(&info->mm_lock);
+		return -ENODEV;
+	}
+
 	if (fb->fb_mmap) {
 		int res;
 		res = fb->fb_mmap(info, vma);
@@ -1352,6 +1382,34 @@ fb_mmap(struct file *file, struct vm_area_struct * vma)
 	return 0;
 }
 
+static struct fb_info *get_framebuffer_info(int idx)
+__acquires(&registered_lock)
+__releases(&registered_lock)
+{
+	struct fb_info *fb_info;
+
+	spin_lock(&registered_lock);
+	fb_info = registered_fb[idx];
+	fb_info->ref_count++;
+	spin_unlock(&registered_lock);
+
+	return fb_info;
+}
+
+static void put_framebuffer_info(struct fb_info *fb_info)
+__acquires(&registered_lock)
+__releases(&registered_lock)
+{
+	int keep;
+
+	spin_lock(&registered_lock);
+	keep = --fb_info->ref_count;
+	spin_unlock(&registered_lock);
+	
+	if (!keep && fb_info->fbops->fb_destroy)
+		fb_info->fbops->fb_destroy(fb_info);
+}
+
 static int
 fb_open(struct inode *inode, struct file *file)
 __acquires(&info->lock)
@@ -1363,13 +1421,17 @@ __releases(&info->lock)
 
 	if (fbidx >= FB_MAX)
 		return -ENODEV;
-	info = registered_fb[fbidx];
+	info = get_framebuffer_info(fbidx);
 	if (!info)
 		request_module("fb%d", fbidx);
-	info = registered_fb[fbidx];
+	info = get_framebuffer_info(fbidx);
 	if (!info)
 		return -ENODEV;
 	mutex_lock(&info->lock);
+	if (info->state == FBINFO_STATE_REMOVED) {
+		res = -ENODEV;
+		goto out;
+	}
 	if (!try_module_get(info->fbops->owner)) {
 		res = -ENODEV;
 		goto out;
@@ -1386,6 +1448,8 @@ __releases(&info->lock)
 #endif
 out:
 	mutex_unlock(&info->lock);
+	if (res)
+		put_framebuffer_info(info);
 	return res;
 }
 
@@ -1401,6 +1465,7 @@ __releases(&info->lock)
 		info->fbops->fb_release(info,1);
 	module_put(info->fbops->owner);
 	mutex_unlock(&info->lock);
+	put_framebuffer_info(info);
 	return 0;
 }
 
@@ -1549,6 +1614,7 @@ register_framebuffer(struct fb_info *fb_info)
 	fb_info->node = i;
 	mutex_init(&fb_info->lock);
 	mutex_init(&fb_info->mm_lock);
+	fb_info->ref_count = 1;
 
 	fb_info->dev = device_create(fb_class, fb_info->device,
 				     MKDEV(FB_MAJOR, i), NULL, "fb%d", i);
@@ -1592,7 +1658,6 @@ register_framebuffer(struct fb_info *fb_info)
 	return 0;
 }
 
-
 /**
  *	unregister_framebuffer - releases a frame buffer device
  *	@fb_info: frame buffer info structure
@@ -1627,6 +1692,16 @@ unregister_framebuffer(struct fb_info *fb_info)
 		return -ENODEV;
 	event.info = fb_info;
 	ret = fb_notifier_call_chain(FB_EVENT_FB_UNBIND, &event);
+	if (!ret) {
+		mutex_lock(&fb_info->mm_lock);
+		/*
+		 * We must prevent any operations for this transition, we
+		 * already have info->lock so grab the info->mm_lock to hold
+		 * the remainder.
+		 */
+		fb_info->state = FBINFO_STATE_REMOVED;
+		mutex_unlock(&fb_info->mm_lock);
+	}
 	unlock_fb_info(fb_info);
 
 	if (ret) {
@@ -1646,8 +1721,7 @@ unregister_framebuffer(struct fb_info *fb_info)
 	fb_notifier_call_chain(FB_EVENT_FB_UNREGISTERED, &event);
 
 	/* this may free fb info */
-	if (fb_info->fbops->fb_destroy)
-		fb_info->fbops->fb_destroy(fb_info);
+	put_framebuffer_info(fb_info);
 done:
 	return ret;
 }
