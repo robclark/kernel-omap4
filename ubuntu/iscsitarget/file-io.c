@@ -232,7 +232,7 @@ static int fileio_attach(struct iet_volume *lu, char *args)
 	}
 
 	if (!lu->blk_shift)
-		lu->blk_shift = ilog2(IET_DEF_BLOCK_SIZE);
+		lu->blk_shift = blksize_bits(IET_DEF_BLOCK_SIZE);
 
 	lu->blk_cnt = inode->i_size >> lu->blk_shift;
 

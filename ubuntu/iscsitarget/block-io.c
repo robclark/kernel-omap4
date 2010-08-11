@@ -282,8 +282,8 @@ blockio_attach(struct iet_volume *volume, char *args)
 		/* see Documentation/ABI/testing/sysfs-block */
 		unsigned bsz = bdev_logical_block_size(bio_data->bdev);
 		if (!volume->blk_shift)
-			volume->blk_shift = ilog2(bsz);
-		else if (volume->blk_shift < ilog2(bsz)) {
+			volume->blk_shift = blksize_bits(bsz);
+		else if (volume->blk_shift < blksize_bits(bsz)) {
 			eprintk("Specified block size (%u) smaller than "
 				"device %s logical block size (%u)\n",
 				(1 << volume->blk_shift), bio_data->path, bsz);

@@ -19,6 +19,7 @@
 
 #include "iscsi_hdr.h"
 #include "iet_u.h"
+#include "compat.h"
 
 #define IET_SENSE_BUF_SIZE      18
 

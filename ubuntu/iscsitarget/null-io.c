@@ -78,7 +78,7 @@ static int nullio_attach(struct iet_volume *lu, char *args)
 	}
 
 	if (!lu->blk_shift)
-		lu->blk_shift = ilog2(IET_DEF_BLOCK_SIZE);
+		lu->blk_shift = blksize_bits(IET_DEF_BLOCK_SIZE);
 
 	/* defaults to 64 GiB */
 	if (!lu->blk_cnt)

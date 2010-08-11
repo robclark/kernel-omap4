@@ -1,7 +1,7 @@
 #ifndef _IET_U_H
 #define _IET_U_H
 
-#define IET_VERSION_STRING	"1.4.20.1"
+#define IET_VERSION_STRING	"1.4.20.2"
 
 /* The maximum length of 223 bytes in the RFC. */
 #define ISCSI_NAME_LEN	256

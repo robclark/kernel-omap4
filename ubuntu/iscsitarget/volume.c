@@ -6,7 +6,6 @@
 
 #include <linux/types.h>
 #include <linux/parser.h>
-#include <linux/log2.h>
 
 #include "iscsi.h"
 #include "iscsi_dbg.h"
@@ -187,7 +186,7 @@ static int parse_volume_params(struct iet_volume *volume, char *params)
 			blk_sz = simple_strtoull(argp, NULL, 10);
 			if (is_power_of_2(blk_sz) &&
 			    512 <= blk_sz && blk_sz <= IET_MAX_BLOCK_SIZE)
-				volume->blk_shift = ilog2(blk_sz);
+				volume->blk_shift = blksize_bits(blk_sz);
 			else {
 				eprintk("invalid BlockSize=%u\n", blk_sz);
 				err = -EINVAL;

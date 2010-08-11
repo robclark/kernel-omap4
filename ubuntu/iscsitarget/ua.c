@@ -108,7 +108,7 @@ void ua_establish_for_session(struct iscsi_session *sess, u32 lun,
 			      u8 asc, u8 ascq)
 {
 	struct list_head *l = &sess->ua_hash[ua_hashfn(lun)];
-	struct ua_entry *ua = kmem_cache_alloc(ua_cache, GFP_KERNEL);
+	struct ua_entry *ua = kmem_cache_alloc(ua_cache, GFP_ATOMIC);
 	struct ua_entry *e;
 
 	if (!ua) {
