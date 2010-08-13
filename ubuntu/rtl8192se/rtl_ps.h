@@ -26,6 +26,7 @@
 #define _RTL_PS_H
 
 #include <linux/types.h>
+#include "rtllib/rtllib.h"
 struct net_device;
 
 #define RT_CHECK_FOR_HANG_PERIOD 2
@@ -36,6 +37,10 @@ struct net_device;
 #define RT_ENABLE_ASPM(dev)             PlatformEnableASPM(dev)
 #define RT_ENTER_D3(dev, _bTempSetting) PlatformSetPMCSR(dev, 0x03, _bTempSetting)
 #define RT_LEAVE_D3(dev, _bTempSetting) PlatformSetPMCSR(dev, 0, _bTempSetting)
+
+#define RT_DISABLE_HOST_L0S(_PADAPTER)	PlatformDisableHostL0s(dev)
+
+void PlatformDisableHostL0s(struct net_device *dev);
 bool PlatformEnable92CEBackDoor(struct net_device *dev);
 void PlatformDisableASPM(struct net_device *dev);
 void PlatformEnableASPM(struct net_device *dev);

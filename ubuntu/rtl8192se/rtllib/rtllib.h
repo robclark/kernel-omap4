@@ -60,12 +60,8 @@
 #include "wapi_interface.h"
 #endif
 
-#ifndef RTK_DMP_PLATFORM
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20))
-#ifndef bool
-typedef enum{false = 0, true} bool;
-#endif
-#endif
+#ifndef IEEE80211_RADIOTAP_F_BADFCS
+#define IEEE80211_RADIOTAP_F_BADFCS	0x40	/* bad FCS */
 #endif
 
 #ifndef IW_MODE_MONITOR
@@ -388,6 +384,12 @@ typedef struct cb_desc {
 	u8 bdhcp;
 	u16 pkt_size;
 	u8 bIsSpecialDataFrame;
+
+	u8 DescPktType;
+
+	u8 bBTTxPacket;
+	u8 bIsBTProbRsp;
+	u8 bRxBTdata;
 }cb_desc, *pcb_desc;
                         
 /*--------------------------Define -------------------------------------------*/
@@ -495,6 +497,7 @@ typedef enum _HAL_DEF_VARIABLE{
 	HW_DEF_EFUSE_REPG_DATA, 
 	HW_DEF_GPIO,
 	HAL_DEF_PCI_SUPPORT_ASPM,		
+	HAL_DEF_PCI_SUUPORT_L1_BACKDOOR, 
 	HAL_DEF_THERMAL_VALUE,
       HAL_DEF_USB_IN_TOKEN_REV, 
 }HAL_DEF_VARIABLE;
@@ -568,6 +571,15 @@ typedef enum _HW_VARIABLES{
 	HW_VAR_STOP_SEND_BEACON,
 	HW_VAR_TSF_TIMER,			
 	HW_VAR_IO_CMD,
+	
+	HW_VAR_RF_RECOVERY,
+	HW_VAR_H2C_FW_UPDATE_GTK, 
+	HW_VAR_WF_MASK,	
+	HW_VAR_WF_CRC,	
+	HW_VAR_WF_IS_MAC_ADDR, 
+	HW_VAR_H2C_FW_OFFLOAD, 
+	HW_VAR_RESET_WFCRC, 
+
 	HW_VAR_HANDLE_FW_C2H,		
 	HW_VAR_DL_FW_RSVD_PAGE, 		
 	HW_VAR_AID,				
@@ -576,14 +588,20 @@ typedef enum _HW_VARIABLES{
 	HW_VAR_BCN_VALID,				
 	HW_VAR_FWLPS_RF_ON,			
 	HW_VAR_DUAL_TSF_RST,			
-        HW_VAR_H2C_FW_UPDATE_GTK, 
-        HW_VAR_WF_MASK,	
-	HW_VAR_WF_CRC,	
-	HW_VAR_WF_IS_MAC_ADDR, 
-	HW_VAR_H2C_FW_OFFLOAD, 
-	HW_VAR_RESET_WFCRC, 
 	HW_VAR_SWITCH_EPHY_WoWLAN, 
+	HW_VAR_INT_MIGRATION, 
+	HW_VAR_INT_AC, 
+        HW_VAR_RF_TIMING,          
+
+        HW_VAR_MRC,          
 }HW_VARIABLES;
+
+typedef enum _RT_OP_MODE{
+	RT_OP_MODE_AP,
+	RT_OP_MODE_INFRASTRUCTURE,
+	RT_OP_MODE_IBSS,
+	RT_OP_MODE_NO_LINK,
+}RT_OP_MODE, *PRT_OP_MODE;
 
 
 #define aSifsTime	 (((priv->rtllib->current_network.mode == IEEE_A)||(priv->rtllib->current_network.mode == IEEE_N_24G)||(priv->rtllib->current_network.mode == IEEE_N_5G))? 16 : 10)
@@ -738,6 +756,8 @@ static inline void msleep(unsigned int msecs)
 #define RTLLIB_MGMT_HDR_LEN 24
 #define RTLLIB_DATA_HDR3_LEN 24
 #define RTLLIB_DATA_HDR4_LEN 30
+
+#define RTLLIB_SKBBUFFER_SIZE 2500
 
 #define MIN_FRAG_THRESHOLD     256U
 #define MAX_FRAG_THRESHOLD     2346U
@@ -1071,6 +1091,12 @@ struct rtllib_snap_hdr {
         u8    oui[P80211_OUI_LEN];    /* organizational universal id */
 
 } __attribute__ ((packed));
+
+enum _REG_PREAMBLE_MODE{
+	PREAMBLE_LONG = 1,
+	PREAMBLE_AUTO = 2,
+	PREAMBLE_SHORT= 3,
+};
 
 #define SNAP_SIZE sizeof(struct rtllib_snap_hdr)
 
@@ -1966,9 +1992,7 @@ enum {WMM_all_frame, WMM_two_frame, WMM_four_frame, WMM_six_frame};
 #define MAX_SP_Len  (WMM_all_frame << 4)
 #define RTLLIB_QOS_TID 0x0f
 #define QOS_CTL_NOTCONTAIN_ACK (0x01 << 5)
-#ifdef ENABLE_AMSDU
 #define QOS_CTL_AMSDU_PRESENT (0x01 << 7)
-#endif
 
 #define RTLLIB_DTIM_MBCAST 4
 #define RTLLIB_DTIM_UCAST 2
@@ -2110,6 +2134,7 @@ struct rtllib_network {
 	bool ralink_cap_exist;
 	bool atheros_cap_exist;
 	bool cisco_cap_exist;
+	bool airgo_cap_exist;
 	bool unknown_cap_exist;
 	bool	berp_info_valid;
 	bool buseprotection;
@@ -2341,6 +2366,7 @@ typedef struct _RT_POWER_SAVE_CONTROL
 	bool				bLeisurePs;
 	u32				PowerProfile;
 	u8				LpsIdleCount;
+	u8				PowerMode;
 	u8				RegMaxLPSAwakeIntvl;
 	u8				LPSAwakeIntvl;
 
@@ -2355,6 +2381,8 @@ typedef struct _RT_POWER_SAVE_CONTROL
 	
 
 	bool				bGpioRfSw;
+
+	u8				RegAMDPciASPM;
 
 	u8				oWLANMode;
 	RT_PM_WOL_PATTERN_INFO		PmWoLPatternInfo[MAX_SUPPORT_WOL_PATTERN_NUM]; 
@@ -2404,7 +2432,7 @@ typedef	enum _FW_CMD_IO_TYPE{
 	FW_CMD_RA_REFRESH_N= 8,
 	FW_CMD_RA_REFRESH_BG= 9,
 	FW_CMD_RA_INIT= 10,
-	FW_CMD_IQK_ENABLE = 11, 
+	FW_CMD_IQK_INIT = 11, 
 	FW_CMD_TXPWR_TRACK_ENABLE = 12,	
 	FW_CMD_TXPWR_TRACK_DISABLE = 13,	
 	FW_CMD_TXPWR_TRACK_THERMAL = 14, 
@@ -2423,7 +2451,11 @@ typedef	enum _FW_CMD_IO_TYPE{
 	FW_CMD_CTRL_DM_BY_DRIVER = 27,
 	FW_CMD_CTRL_DM_BY_DRIVER_NEW = 28,
 	FW_CMD_PAPE_CONTROL = 29,
+#ifdef CONFIG_FW_SETCHAN
 	FW_CMD_CHAN_SET = 30,
+#else
+	FW_CMD_IQK_ENABLE = 30,
+#endif
 }FW_CMD_IO_TYPE,*PFW_CMD_IO_TYPE;
 
 #define RT_MAX_LD_SLOT_NUM	10
@@ -2441,12 +2473,12 @@ typedef struct _RT_LINK_DETECT_T{
 	u32				NumRxOkInPeriod;
 	u32				NumRxUnicastOkInPeriod;
 	bool				bBusyTraffic;
-
-#ifdef _RTL8192_EXT_PATCH_
+	bool				bHigherBusyTraffic; 
+	bool				bHigherBusyRxTraffic; 
 	u8				IdleCount;
+	u32				NumTxUnicastOkInPeriod;
 	u32				LastNumTxUnicast;
 	u32				LastNumRxUnicast;
-#endif	
 }RT_LINK_DETECT_T, *PRT_LINK_DETECT_T;
 
 #ifdef _RTL8192_EXT_PATCH_
@@ -2486,8 +2518,11 @@ typedef struct _rate_adaptive
 	u8				low2high_rssi_thresh_for_ra20M;
 	u32				low_rssi_thresh_for_ra20M;
 	u32				upper_rssi_threshold_ratr;
+	u32				MiddleUpperRSSIThresholdRATR;
 	u32				middle_rssi_threshold_ratr;
+	u32				MiddleLowRSSIThresholdRATR;
 	u32				low_rssi_threshold_ratr;
+	u32				UltraLowRSSIThresholdRATR;
 	u32				low_rssi_threshold_ratr_40M;
 	u32				low_rssi_threshold_ratr_20M;
 	u8				ping_rssi_enable;	
@@ -2784,6 +2819,26 @@ typedef struct _RT_INTEL_PROMISCUOUS_MODE_INFO {
      bool bFilterSourceStationFrame;
 } RT_INTEL_PROMISCUOUS_MODE_INFO, *PRT_INTEL_PROMISCUOUS_MODE_INFO;
 
+typedef struct _WIRELESS_SETTING_BEFORE_SCAN
+{
+	/*WirelessModeScanInProgress is designed for driver to keep the previous band(2.4G/5G)
+	   during scan. It is only meaningful for a/b/g device which require to switch band twice 
+	   during scan (either 2.4->5->2.4 or 5->2.4->5*/
+	WIRELESS_MODE		WirelessModeScanInProgress;	
+
+	/*WirelessMode is designed to keep the original wireless mode setting before scan*/
+	WIRELESS_MODE		WirelessMode;		
+
+	/*ChannelNumber is designd to keep the original channel number before scan*/
+	u8					ChannelNumber;
+
+	/*ChannelBandwidth is designed to keep the original channel bandwidth(20/40MHz) before scan*/
+	HT_CHANNEL_WIDTH	ChannelBandwidth;
+
+	/* Extension channel offset before scan. This is useful when channel bandwidth is 40MHz. */
+	HT_EXTCHNL_OFFSET	ExtChnlOffset;
+}WIRELESS_SETTING_BEFORE_SCAN, *PWIRELESS_SETTING_BEFORE_SCAN;
+
 
 /*************** DRIVER STATUS   *****/
 #define STATUS_SCANNING			0
@@ -2797,6 +2852,12 @@ enum {
 	USED		= 1,
 	HW_SEC 	= 2,
 	SW_SEC		= 3,
+};
+
+enum {
+	LPS_IS_WAKE = 0,
+	LPS_IS_SLEEP = 1,
+	LPS_WAIT_NULL_DATA_SEND =2,
 };
 
 struct rtllib_device {
@@ -2817,6 +2878,9 @@ struct rtllib_device {
 #endif
 	u8	CntAfterLink;
 
+	RT_OP_MODE 	OpMode;
+	WIRELESS_SETTING_BEFORE_SCAN	SettingBeforeScan;
+	
 	u8 VersionID;
 	/* The last AssocReq/Resp IEs */
 	u8 *assocreq_ies, *assocresp_ies;
@@ -2854,6 +2918,7 @@ struct rtllib_device {
 	atomic_t	AsocEntryNum;
 	u64	CurrTsf;
 	u64	TargetTsf;
+	u64	bdTstamp;
 	bool	Peer_bCurBW40M;
 #endif
 	PRT_HIGH_THROUGHPUT	pHTInfo;
@@ -3024,8 +3089,9 @@ struct rtllib_device {
 
 #ifdef _RTL8192_EXT_PATCH_
 	u8 backup_channel;
-	bool bUseProtection;
 #endif	
+	bool bUseProtection;
+
 	int rate;       /* current rate */
 	int basic_rate;
 	u32	currentRate;
@@ -3075,6 +3141,7 @@ struct rtllib_device {
 	short ssid_set;
 	
 	/* set on initialization */
+	u8  qos_support;
 	unsigned int wmm_acm;
 	
 	/* for discarding duplicated packets in IBSS */
@@ -3360,6 +3427,8 @@ struct rtllib_device {
 	u8   (*rtllib_ap_sec_type)(struct rtllib_device *ieee);
 	void (*HalUsbRxAggrHandler)(struct net_device *dev, bool Value);
 	void (*InitialGainHandler)(struct net_device *dev, u8 Operation);
+	int  (*softmac_process_bt_pkt)(struct sk_buff *skb, struct net_device *dev);
+	
 #ifdef _RTL8192_EXT_PATCH_
 	int (*set_key_for_AP)(struct rtllib_device *ieee);
 	void (*del_hwsec_cam_entry)(struct rtllib_device *ieee, u8 *addr); 
@@ -3427,6 +3496,7 @@ struct rtllib_device {
 	bool (*SetFwCmdHandler)(struct net_device *dev,	FW_CMD_IO_TYPE		FwCmdIO);
 	void (*UpdateHalRAMaskHandler)(struct net_device* dev, bool bMulticast, u8 macId, u8 MimoPs, u8 WirelessMode, u8 bCurTxBW40MHz,	u8 rssi_level);
 	void (*UpdateBeaconInterruptHandler)(struct net_device* dev, bool start);
+	void (*UpdateInterruptMaskHandler)(struct net_device* dev, u32 AddMSR, u32 RemoveMSR);
 	u16  (*rtl_11n_user_show_rates)(struct net_device *dev);
 	void (*ScanOperationBackupHandler)(struct net_device *dev, u8 Operation);
 	void (*LedControlHandler)(struct net_device * dev, LED_CTL_MODE LedAction);
@@ -3771,19 +3841,14 @@ extern void rtllib_EnableNetMonitorMode(struct net_device* dev, bool bInitState)
 extern void rtllib_DisableNetMonitorMode(struct net_device* dev, bool bInitState);
 extern void rtllib_EnableIntelPromiscuousMode(struct net_device* dev, bool bInitState);
 extern void rtllib_DisableIntelPromiscuousMode(struct net_device* dev, bool bInitState);
-#ifdef _RTL8192_EXT_PATCH_
 extern void rtllib_send_probe_requests(struct rtllib_device *ieee, u8 is_mesh);
-#else
-extern void rtllib_send_probe_requests(struct rtllib_device *ieee);
-#endif
-#ifdef _RTL8192_EXT_PATCH_
-extern void rtllib_softmac_start_protocol(struct rtllib_device *ieee,u8 mesh_flag);
+
 extern void rtllib_softmac_stop_protocol(struct rtllib_device *ieee, u8 mesh_flag, u8 shutdown);
+extern void rtllib_softmac_start_protocol(struct rtllib_device *ieee,u8 mesh_flag);
+
+#ifdef _RTL8192_EXT_PATCH_
 extern void rtllib_start_mesh_protocol(struct rtllib_device *ieee);
 extern void rtllib_stop_mesh_protocol(struct rtllib_device *ieee);
-#else
-extern void rtllib_softmac_start_protocol(struct rtllib_device *ieee);
-extern void rtllib_softmac_stop_protocol(struct rtllib_device *ieee, u8 shutdown);
 #endif
 extern void rtllib_reset_queue(struct rtllib_device *ieee);
 extern void rtllib_wake_queue(struct rtllib_device *ieee);
@@ -3793,11 +3858,8 @@ extern void rtllib_stop_all_queues(struct rtllib_device *ieee);
 extern struct sk_buff *rtllib_get_beacon(struct rtllib_device *ieee);
 extern void rtllib_start_send_beacons(struct rtllib_device *ieee);
 extern void rtllib_stop_send_beacons(struct rtllib_device *ieee);
-#ifdef _RTL8192_EXT_PATCH_
 extern int rtllib_wpa_supplicant_ioctl(struct rtllib_device *ieee, struct iw_point *p, u8 is_mesh);
-#else
-extern int rtllib_wpa_supplicant_ioctl(struct rtllib_device *ieee, struct iw_point *p);
-#endif
+
 extern void notify_wx_assoc_event(struct rtllib_device *ieee);
 extern void rtllib_ps_tx_ack(struct rtllib_device *ieee, short success);
 
@@ -3902,9 +3964,9 @@ extern void HTDebugHTInfo(u8*  InfoIE, u8* TitleString);
 void HTSetConnectBwMode(struct rtllib_device* ieee, HT_CHANNEL_WIDTH Bandwidth, HT_EXTCHNL_OFFSET    Offset);
 extern void HTUpdateDefaultSetting(struct rtllib_device* ieee);
 #ifdef _RTL8192_EXT_PATCH_
-extern void HTConstructCapabilityElement(struct rtllib_device* ieee, u8* posHTCap, u8* len, u8 isEncrypt, u8 bIsBcn);
+extern void HTConstructCapabilityElement(struct rtllib_device* ieee, u8* posHTCap, u8* len, u8 isEncrypt, u8 bIsBcn,bool bAssoc);
 #else
-extern void HTConstructCapabilityElement(struct rtllib_device* ieee, u8* posHTCap, u8* len, u8 isEncrypt);
+extern void HTConstructCapabilityElement(struct rtllib_device* ieee, u8* posHTCap, u8* len, u8 isEncrypt,bool bAssoc);
 #endif
 extern void HTConstructInfoElement(struct rtllib_device* ieee, u8* posHTInfo, u8* len, u8 isEncrypt);
 extern void HTConstructRT2RTAggElement(struct rtllib_device* ieee, u8* posRT2RTAgg, u8* len);
@@ -3999,6 +4061,16 @@ void rtllib_crypto_ccmp_exit(void);
 int rtllib_crypto_wep_init(void);
 void rtllib_crypto_wep_exit(void);
 #endif
+
+void rtllib_MgntDisconnectIBSS(struct rtllib_device* rtllib);
+void rtllib_MlmeDisassociateRequest(struct rtllib_device* rtllib, u8* asSta,u8	asRsn);
+void rtllib_MgntDisconnectAP(struct rtllib_device* rtllib,	u8 asRsn);
+bool rtllib_MgntDisconnect(struct rtllib_device* rtllib,u8 asRsn);
+
+
+void enqueue_mgmt(struct rtllib_device *ieee, struct sk_buff *skb);
+void rtllib_start_scan(struct rtllib_device *ieee);
+void constructWMMIE(u8* wmmie, u8* wmm_len,u8 oui_subtype);
 /* For the function is more related to hardware setting, it's better to use the  
  * ieee handler to refer to it.
  */
@@ -4012,7 +4084,7 @@ extern int rtllib_parse_info_param(struct rtllib_device *ieee,
 		struct rtllib_rx_stats *stats);
 
 void rtllib_indicate_packets(struct rtllib_device *ieee, struct rtllib_rxb** prxbIndicateArray,u8  index);
-#if defined(RTL8192U) || defined(RTL8192SU) || defined(RTL8192SE)
+#if defined(RTL8192U) || defined(RTL8192SU) || defined(RTL8192SE) || defined(RTL8192CE)
 extern void IbssAgeFunction(struct rtllib_device *ieee);
 extern struct sta_info *GetStaInfo(struct rtllib_device *ieee, u8 *addr);
 extern void DelStaInfoList(struct rtllib_device *ieee);

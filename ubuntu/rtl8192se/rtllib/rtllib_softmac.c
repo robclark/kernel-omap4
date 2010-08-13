@@ -279,11 +279,17 @@ inline void softmac_mgmt_xmit(struct sk_buff *skb, struct rtllib_device *ieee)
 	
 	/* called with 2nd param 0, no mgmt lock required */
 	rtllib_sta_wakeup(ieee,0);
-	
-	tcb_desc->queue_index = MGNT_QUEUE;
-#ifdef RTL8192CE
-	tcb_desc->queue_index = MGNT_QUEUE;
+
+	if(header->frame_ctl == RTLLIB_STYPE_BEACON) {
+#if defined(RTL8192CE) && defined(_RTL8192_EXT_PATCH_)
+		if((ieee->iw_mode == IW_MODE_MESH) && !ieee->only_mesh)
+			tcb_desc->queue_index = MGNT_QUEUE;
+	else
 #endif
+			tcb_desc->queue_index = BEACON_QUEUE;	
+	} else {
+		tcb_desc->queue_index = MGNT_QUEUE;
+	}
 
 	if(ieee->disable_mgnt_queue)
 		tcb_desc->queue_index = HIGH_QUEUE;
@@ -355,15 +361,17 @@ inline void softmac_ps_mgmt_xmit(struct sk_buff *skb,
 
 	if(stype != RTLLIB_STYPE_PSPOLL) 
 		tcb_desc->queue_index = MGNT_QUEUE;
-	else
+	else{
+#ifdef RTL8192CE
+		tcb_desc->queue_index = MGNT_QUEUE;
+#else
 		tcb_desc->queue_index = HIGH_QUEUE;
+#endif
+	}
 
 	if(ieee->disable_mgnt_queue)
 		tcb_desc->queue_index = HIGH_QUEUE;
 		
-#ifdef RTL8192CE
-	tcb_desc->queue_index = MGNT_QUEUE;
-#endif
 
 	tcb_desc->data_rate = MgntQuery_MgntFrameTxRate(ieee);
 	tcb_desc->RATRIndex = 7;
@@ -402,6 +410,12 @@ inline struct sk_buff *rtllib_probe_req(struct rtllib_device *ieee)
 	u8 *tag;
 	struct sk_buff *skb;
 	struct rtllib_probe_request *req;
+	
+	u8* ht_cap_buf = NULL;
+	u8 ht_cap_len=0;
+	int encrypt;
+	struct rtllib_crypt_data* crypt;
+	int wpa_ie_len = ieee->wpa_ie_len;
 	
 #ifdef _RTL8192_EXT_PATCH_
 	short extMore = 0;
@@ -466,6 +480,34 @@ inline struct sk_buff *rtllib_probe_req(struct rtllib_device *ieee)
 		ieee->ext_patch_rtllib_probe_req_2(ieee, skb, tag);
 #endif
 
+        if(0)
+	{
+#ifdef _RTL8192_EXT_PATCH_
+		crypt = ieee->sta_crypt[ieee->tx_keyidx];
+#else
+		crypt = ieee->crypt[ieee->tx_keyidx];
+#endif
+		if(crypt != NULL) {
+			encrypt = ieee->host_encrypt && crypt && crypt->ops && ((0 == strcmp(crypt->ops->name,"WEP") || wpa_ie_len));
+		} else {
+			encrypt = 0;
+		}
+	
+		ht_cap_buf = (u8*)&(ieee->pHTInfo->SelfHTCap);
+		ht_cap_len = sizeof(ieee->pHTInfo->SelfHTCap);
+#ifdef _RTL8192_EXT_PATCH_
+		HTConstructCapabilityElement(ieee, ht_cap_buf, &ht_cap_len, encrypt, 0, false);
+#else
+		HTConstructCapabilityElement(ieee, ht_cap_buf, &ht_cap_len, encrypt, false);
+#endif
+		if(ht_cap_len){
+			*(tag++) = MFIE_TYPE_HT_CAP;
+			*(tag++) = ht_cap_len - 2;
+			memcpy(tag, ht_cap_buf, ht_cap_len - 2);	
+			tag += ht_cap_len - 2;
+		}
+	}
+	
 	return skb;
 }
 
@@ -671,12 +713,7 @@ void rtllib_DisableIntelPromiscuousMode(struct net_device* dev,
         ieee->bNetPromiscuousMode = false;
 }
 
-
-#ifdef _RTL8192_EXT_PATCH_
 void rtllib_send_probe(struct rtllib_device *ieee, u8 is_mesh)
-#else
-void rtllib_send_probe(struct rtllib_device *ieee)
-#endif
 {
 	struct sk_buff *skb;
 #ifdef _RTL8192_EXT_PATCH_
@@ -691,23 +728,21 @@ void rtllib_send_probe(struct rtllib_device *ieee)
 	}
 }
 
-#ifdef _RTL8192_EXT_PATCH_
+
 void rtllib_send_probe_requests(struct rtllib_device *ieee, u8 is_mesh)
 {
+#ifdef _RTL8192_EXT_PATCH_
 	if (ieee->active_scan && (ieee->softmac_features & IEEE_SOFTMAC_PROBERQ)){
 		rtllib_send_probe(ieee,is_mesh);
 		rtllib_send_probe(ieee,is_mesh);
 	}
-}
 #else
-void rtllib_send_probe_requests(struct rtllib_device *ieee)
-{
 	if (ieee->active_scan && (ieee->softmac_features & IEEE_SOFTMAC_PROBERQ)){
-		rtllib_send_probe(ieee);
-		rtllib_send_probe(ieee);
-	}
+		rtllib_send_probe(ieee, 0);
+		rtllib_send_probe(ieee, 0);
 }
 #endif
+}
 
 void rtllib_softmac_hint11d_wq(void *data)
 {
@@ -790,7 +825,7 @@ void rtllib_softmac_scan_syncro(struct rtllib_device *ieee, u8 is_mesh)
 #ifdef _RTL8192_EXT_PATCH_
 		rtllib_send_probe_requests(ieee, is_mesh);
 #else
-		rtllib_send_probe_requests(ieee);
+		rtllib_send_probe_requests(ieee, 0);
 #endif
 		
 		/* this prevent excessive time wait when we
@@ -863,7 +898,7 @@ void rtllib_softmac_scan_wq(void *data)
 #ifdef _RTL8192_EXT_PATCH_
 	rtllib_send_probe_requests(ieee, 0);
 #else
-	rtllib_send_probe_requests(ieee);
+	rtllib_send_probe_requests(ieee, 0);
 #endif				
 
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,40)
@@ -948,6 +983,7 @@ void rtllib_softmac_stop_scan(struct rtllib_device *ieee)
 	ieee->scan_watch_dog = 0;
 	if (ieee->scanning_continue == 1){
 		ieee->scanning_continue = 0;
+		ieee->actscanning = 0;  
 
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,40)
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,67)
@@ -1064,13 +1100,8 @@ void rtllib_start_scan_syncro(struct rtllib_device *ieee, u8 is_mesh)
 		
 }
 
-#ifdef _RTL8192_EXT_PATCH_
 inline struct sk_buff *rtllib_authentication_req(struct rtllib_network *beacon, 
 	struct rtllib_device *ieee, int challengelen,u8 * daddr)
-#else
-inline struct sk_buff *rtllib_authentication_req(struct rtllib_network *beacon, 
-	struct rtllib_device *ieee, int challengelen)
-#endif
 {
 	struct sk_buff *skb;	
 	struct rtllib_authentication *auth;
@@ -1232,9 +1263,9 @@ static struct sk_buff* rtllib_probe_resp(struct rtllib_device *ieee, u8 *dest)
 		tmp_ht_info_buf =(u8*) &(ieee->pHTInfo->SelfHTInfo);
 		tmp_ht_info_len = sizeof(ieee->pHTInfo->SelfHTInfo);
 #ifdef _RTL8192_EXT_PATCH_
-		HTConstructCapabilityElement(ieee, tmp_ht_cap_buf, &tmp_ht_cap_len,encrypt, 1);
+		HTConstructCapabilityElement(ieee, tmp_ht_cap_buf, &tmp_ht_cap_len,encrypt, 1, false);
 #else
-		HTConstructCapabilityElement(ieee, tmp_ht_cap_buf, &tmp_ht_cap_len,encrypt);
+		HTConstructCapabilityElement(ieee, tmp_ht_cap_buf, &tmp_ht_cap_len,encrypt, false);
 #endif	
 		HTConstructInfoElement(ieee,tmp_ht_info_buf,&tmp_ht_info_len, encrypt);
 		
@@ -1904,7 +1935,6 @@ void rtllib_resp_to_auth(struct rtllib_device *ieee, int s, u8* dest)
 void rtllib_resp_to_probe(struct rtllib_device *ieee, u8 *dest)
 {
 	
-
 	struct sk_buff *buf = rtllib_probe_resp(ieee, dest);
 	if (buf) 
 		softmac_mgmt_xmit(buf, ieee);
@@ -1989,7 +2019,7 @@ inline struct sk_buff *rtllib_association_req(struct rtllib_network *beacon,stru
 #ifdef ENABLE_TKIP11N
 	if (ieee->bForcedBgMode == true)
 #else
-	if ((ieee->rtllib_ap_sec_type && (ieee->rtllib_ap_sec_type(ieee)&SEC_ALG_TKIP)) ||(ieee->bForcedBgMode == true)) 
+	if ((ieee->rtllib_ap_sec_type && (ieee->rtllib_ap_sec_type(ieee)&SEC_ALG_TKIP)) || (ieee->bForcedBgMode == true)) 
 #endif
 	{
 		ieee->pHTInfo->bEnableHT = 0;
@@ -2001,9 +2031,9 @@ inline struct sk_buff *rtllib_association_req(struct rtllib_network *beacon,stru
 		ht_cap_buf = (u8*)&(ieee->pHTInfo->SelfHTCap);
 		ht_cap_len = sizeof(ieee->pHTInfo->SelfHTCap);
 #ifdef _RTL8192_EXT_PATCH_
-		HTConstructCapabilityElement(ieee, ht_cap_buf, &ht_cap_len, encrypt, 0);
+		HTConstructCapabilityElement(ieee, ht_cap_buf, &ht_cap_len, encrypt, 0, true);
 #else
-		HTConstructCapabilityElement(ieee, ht_cap_buf, &ht_cap_len, encrypt);
+		HTConstructCapabilityElement(ieee, ht_cap_buf, &ht_cap_len, encrypt, true);
 #endif
 		if(ieee->pHTInfo->bCurrentRT2RTAggregation)
 		{
@@ -2316,12 +2346,7 @@ void rtllib_associate_abort_cb(unsigned long dev)
 	rtllib_associate_abort((struct rtllib_device *) dev);
 }
 
-
-#ifdef _RTL8192_EXT_PATCH_
 void rtllib_associate_step1(struct rtllib_device *ieee,u8 * daddr)
-#else
-void rtllib_associate_step1(struct rtllib_device *ieee)
-#endif
 {
 	struct rtllib_network *beacon = &ieee->current_network;
 	struct sk_buff *skb;
@@ -2331,11 +2356,9 @@ void rtllib_associate_step1(struct rtllib_device *ieee)
 	RTLLIB_DEBUG_MGMT("Stopping scan\n");
 
 	ieee->softmac_stats.tx_auth_rq++;
-#ifdef _RTL8192_EXT_PATCH_
+
 	skb=rtllib_authentication_req(beacon, ieee, 0,daddr);
-#else
-	skb=rtllib_authentication_req(beacon, ieee, 0);
-#endif
+
 #ifdef _RTL8192_EXT_PATCH_
 	is_mesh = ieee->ext_patch_rtllib_is_mesh(ieee,daddr);
 	if(is_mesh)	{
@@ -2367,11 +2390,8 @@ void rtllib_auth_challenge(struct rtllib_device *ieee, u8 *challenge, int chlen)
 	ieee->associate_seq++;
 	ieee->softmac_stats.tx_auth_rq++;
 	
-#ifdef _RTL8192_EXT_PATCH_
 	skb = rtllib_authentication_req(beacon, ieee, chlen+2,beacon->bssid);
-#else
-	skb = rtllib_authentication_req(beacon, ieee, chlen+2);
-#endif		
+	
 	if (!skb) 
 		rtllib_associate_abort(ieee);
 	else{
@@ -2603,11 +2623,9 @@ void rtllib_associate_procedure_wq(void *data)
 		return;
 	}
 	ieee->associate_seq = 1;
-#ifdef _RTL8192_EXT_PATCH_
+
 	rtllib_associate_step1(ieee, ieee->current_network.bssid);
-#else
-	rtllib_associate_step1(ieee);
-#endif	
+	
 	up(&ieee->wx_sem);
 }
 
@@ -2730,7 +2748,7 @@ inline void rtllib_softmac_new_net(struct rtllib_device *ieee, struct rtllib_net
 				{
 					/* Join the network for the first time */
 					ieee->AsocRetryCount = 0;	
-					if((ieee->current_network.qos_data.supported == 1) &&
+					if(/*(ieee->current_network.qos_data.supported == 1) &&*/
 					   ieee->current_network.bssht.bdSupportHT)
 /*WB, 2008.09.09:bCurrentHTSupport and bEnableHT two flags are going to put together to check whether we are in HT now, so needn't to check bEnableHT flags here. That's is to say we will set to HT support whenever joined AP has the ability to support HT. And whether we are in HT or not, please check bCurrentHTSupport&&bEnableHT now please.*/
 					{
@@ -3136,15 +3154,15 @@ inline void rtllib_sta_ps(struct rtllib_device *ieee)
 		goto out;
 	}
 	if(sleep == 1){
-		if(ieee->sta_sleep == 1){
+		if(ieee->sta_sleep == LPS_IS_SLEEP){
 			ieee->enter_sleep_state(ieee->dev,th,tl);
 		}
 		
-		else if(ieee->sta_sleep == 0){
+		else if(ieee->sta_sleep == LPS_IS_WAKE){
 			spin_lock_irqsave(&ieee->mgmt_tx_lock, flags2);
 			
 			if(ieee->ps_is_queue_empty(ieee->dev)){
-				ieee->sta_sleep = 2;
+				ieee->sta_sleep = LPS_WAIT_NULL_DATA_SEND;
 				ieee->ack_tx_to_ieee = 1;
 				rtllib_sta_ps_send_null_frame(ieee,1);
 				ieee->ps_th = th;
@@ -3171,7 +3189,7 @@ out:
 
 void rtllib_sta_wakeup(struct rtllib_device *ieee, short nl)
 {
-	if(ieee->sta_sleep == 0){
+	if(ieee->sta_sleep == LPS_IS_WAKE){
 		if(nl){
 			if(ieee->pHTInfo->IOTAction & HT_IOT_ACT_NULL_DATA_POWER_SAVING)
 			{
@@ -3188,7 +3206,7 @@ void rtllib_sta_wakeup(struct rtllib_device *ieee, short nl)
 		
 	}
 	
-	if(ieee->sta_sleep == 1) 
+	if(ieee->sta_sleep == LPS_IS_SLEEP) 
 		ieee->sta_wake_up(ieee->dev);
 	if(nl){
 		/*		
@@ -3209,7 +3227,7 @@ void rtllib_sta_wakeup(struct rtllib_device *ieee, short nl)
 		}
 
 	} else {
-		ieee->sta_sleep = 0;
+		ieee->sta_sleep = LPS_IS_WAKE;
 		ieee->polling = false;
 	}
 }
@@ -3220,10 +3238,10 @@ void rtllib_ps_tx_ack(struct rtllib_device *ieee, short success)
 	
 	spin_lock_irqsave(&ieee->lock, flags);
 	
-	if(ieee->sta_sleep == 2){
+	if(ieee->sta_sleep == LPS_WAIT_NULL_DATA_SEND){
 		/* Null frame with PS bit set */
 		if(success){
-			ieee->sta_sleep = 1;
+			ieee->sta_sleep = LPS_IS_SLEEP;
 			ieee->enter_sleep_state(ieee->dev,ieee->ps_th,ieee->ps_tl);
 		}
 		/* if the card report not success we can't be sure the AP
@@ -3231,7 +3249,7 @@ void rtllib_ps_tx_ack(struct rtllib_device *ieee, short success)
 		 */
 	} else {/* 21112005 - tx again null without PS bit if lost */
 	
-		if((ieee->sta_sleep == 0) && !success){
+		if((ieee->sta_sleep == LPS_IS_WAKE) && !success){
 			spin_lock_irqsave(&ieee->mgmt_tx_lock, flags2);
 			if(ieee->pHTInfo->IOTAction & HT_IOT_ACT_NULL_DATA_POWER_SAVING)
 			{
@@ -3404,22 +3422,243 @@ void rtllib_process_action_mesh(struct rtllib_device* ieee, struct sk_buff* skb,
 }
 #endif
 
+
+inline int rtllib_rx_assoc_resp(struct rtllib_device *ieee, struct sk_buff *skb, struct rtllib_rx_stats *rx_stats)
+{
+	u16 errcode;
+	int aid;
+	u8* ies;
+	struct rtllib_assoc_response_frame *assoc_resp;
+	struct rtllib_hdr_3addr *header = (struct rtllib_hdr_3addr *) skb->data;
+
+	RTLLIB_DEBUG_MGMT("received [RE]ASSOCIATION RESPONSE (%d)\n",
+					WLAN_FC_GET_STYPE(header->frame_ctl));
+			
+	if ((ieee->softmac_features & IEEE_SOFTMAC_ASSOCIATE) &&
+		ieee->state == RTLLIB_ASSOCIATING_AUTHENTICATED && 
+#ifdef _RTL8192_EXT_PATCH_
+		((ieee->iw_mode == IW_MODE_INFRA) || 
+		(ieee->iw_mode == IW_MODE_MESH && ieee->only_mesh == 0)))
+#else
+		(ieee->iw_mode == IW_MODE_INFRA)) 
+#endif
+	{
+		if (0 == (errcode=assoc_parse(ieee,skb, &aid))){
+#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,13))
+			struct rtllib_network *network = kzalloc(sizeof(struct rtllib_network), GFP_ATOMIC);
+#else
+			struct rtllib_network *network = kmalloc(sizeof(*network), GFP_ATOMIC);
+#endif
+			if (!network) {
+				return 1;
+			}
+			memset(network,0,sizeof(*network));
+			ieee->state=RTLLIB_LINKED;
+			ieee->assoc_id = aid;
+			ieee->softmac_stats.rx_ass_ok++;
+			/* station support qos */
+			/* Let the register setting defaultly with Legacy station */
+			assoc_resp = (struct rtllib_assoc_response_frame*)skb->data;
+			if(ieee->current_network.qos_data.supported == 1) {
+				if (rtllib_parse_info_param(ieee,assoc_resp->info_element,\
+							rx_stats->len - sizeof(*assoc_resp),\
+							network,rx_stats)){
+					kfree(network);
+					return 1;
+				}
+				else
+				{	
+					memcpy(ieee->pHTInfo->PeerHTCapBuf, network->bssht.bdHTCapBuf, network->bssht.bdHTCapLen);
+					memcpy(ieee->pHTInfo->PeerHTInfoBuf, network->bssht.bdHTInfoBuf, network->bssht.bdHTInfoLen);
+				}
+				if (ieee->handle_assoc_response != NULL)
+					ieee->handle_assoc_response(ieee->dev, (struct rtllib_assoc_response_frame*)header, network);
+				kfree(network);
+			}
+
+			if(ieee->assocresp_ies){
+				kfree(ieee->assocresp_ies);
+				ieee->assocresp_ies = NULL;
+			}
+			ies = &(assoc_resp->info_element[0].id);
+			ieee->assocresp_ies_len = (skb->data + skb->len) - ies;
+			ieee->assocresp_ies = kmalloc(ieee->assocresp_ies_len, GFP_ATOMIC);
+			if (ieee->assocresp_ies)
+				memcpy(ieee->assocresp_ies, ies, ieee->assocresp_ies_len);
+			else{
+				printk("%s()Warning: can't alloc memory for assocresp_ies\n", __func__);
+				ieee->assocresp_ies_len = 0;
+			}	
+#ifdef RTL8192S_WAPI_SUPPORT
+			{
+				PRT_WAPI_T pWapiInfo = &(ieee->wapiInfo);
+				PRT_WAPI_STA_INFO pWapiSta;
+				u8 WapiAEPNInitialValueSrc[16] = {0x37,0x5C,0x36,0x5C,0x36,0x5C,0x36,0x5C,0x36,0x5C,0x36,0x5C,0x36,0x5C,0x36,0x5C} ;
+				u8 WapiAEMultiCastPNInitialValueSrc[16] = {0x36,0x5C,0x36,0x5C,0x36,0x5C,0x36,0x5C,0x36,0x5C,0x36,0x5C,0x36,0x5C,0x36,0x5C} ;	
+				if ((ieee->WapiSupport) && (ieee->wapiInfo.bWapiEnable))
+				{
+					pWapiSta =(PRT_WAPI_STA_INFO)list_entry(pWapiInfo->wapiSTAIdleList.next, RT_WAPI_STA_INFO, list);
+					list_del_init(&pWapiSta->list);
+					list_add_tail(&pWapiSta->list, &pWapiInfo->wapiSTAUsedList);
+					WAPI_TRACE(WAPI_API, "%s(): New WAPI STA ("MAC_FMT")!!\n",__FUNCTION__,MAC_ARG(ieee->current_network.bssid));
+					memcpy(pWapiSta->PeerMacAddr,ieee->current_network.bssid,6);
+					memcpy(pWapiSta->lastRxMulticastPN, WapiAEMultiCastPNInitialValueSrc, 16);
+					memcpy(pWapiSta->lastRxUnicastPN, WapiAEPNInitialValueSrc, 16);
+					pWapiInfo->bFirstAuthentiateInProgress= true;
+					pWapiInfo->assoRspWapiIE[0] = MFIE_TYPE_WAPI;
+					pWapiInfo->assoRspWapiIE[1] = network->wapi_ie_len;
+					pWapiInfo->assoRspWapiIELength = network->wapi_ie_len+2;
+					memcpy(pWapiInfo->assoRspWapiIE+2,network->wapi_ie,network->wapi_ie_len);
+				}
+			}
+#endif	
+			rtllib_associate_complete(ieee);
+		} else {
+			/* aid could not been allocated */
+			ieee->softmac_stats.rx_ass_err++;
+			printk(
+				"Association response status code 0x%x\n",
+				errcode);
+			RTLLIB_DEBUG_MGMT(
+				"Association response status code 0x%x\n",
+				errcode);
+			if(ieee->AsocRetryCount < RT_ASOC_RETRY_LIMIT) {
+				queue_delayed_work_rsl(ieee->wq, &ieee->associate_procedure_wq, 0);
+			} else {
+				rtllib_associate_abort(ieee); 
+			}
+		}
+	}
+
+	return 0;
+}
+
+inline int rtllib_rx_auth(struct rtllib_device *ieee, struct sk_buff *skb, struct rtllib_rx_stats *rx_stats)
+{
+#ifdef _RTL8192_EXT_PATCH_
+	struct rtllib_hdr_3addr *header = (struct rtllib_hdr_3addr *) skb->data;
+	u8 mesh_bssid[6] = {0,0,0,0,0,0};
+#endif
+	u16 errcode;
+	u8* challenge;
+	int chlen=0;
+	bool bSupportNmode = true, bHalfSupportNmode = false; 
+
+#ifdef _RTL8192_EXT_PATCH_
+	if((ieee->iw_mode == IW_MODE_MESH) && ieee->ext_patch_rtllib_rx_frame_softmac_on_auth && ieee->mesh_started && ((memcmp(header->addr3, ieee->current_network.bssid, 6)) || (memcmp(ieee->current_network.bssid, mesh_bssid, 6) == 0))) 
+		ieee->ext_patch_rtllib_rx_frame_softmac_on_auth(ieee, skb, rx_stats);
+	else
+#endif
+	if (ieee->softmac_features & IEEE_SOFTMAC_ASSOCIATE){
+		if (ieee->state == RTLLIB_ASSOCIATING_AUTHENTICATING && 
+#ifdef _RTL8192_EXT_PATCH_
+			((ieee->iw_mode == IW_MODE_INFRA)||
+			((ieee->iw_mode == IW_MODE_MESH) && (ieee->only_mesh == 0))))
+#else
+			(ieee->iw_mode == IW_MODE_INFRA))
+#endif
+		{
+			RTLLIB_DEBUG_MGMT("Received authentication response");
+			
+			if (0 == (errcode=auth_parse(skb, &challenge, &chlen))){
+				if(ieee->open_wep || !challenge){
+					ieee->state = RTLLIB_ASSOCIATING_AUTHENTICATED;
+					ieee->softmac_stats.rx_auth_rs_ok++;
+					if(!(ieee->pHTInfo->IOTAction&HT_IOT_ACT_PURE_N_MODE))
+					{
+						if (!ieee->GetNmodeSupportBySecCfg(ieee->dev))
+						{
+							if(IsHTHalfNmodeAPs(ieee))
+							{	
+								bSupportNmode = true;
+								bHalfSupportNmode = true;
+							}
+							else
+							{
+								bSupportNmode = false;
+								bHalfSupportNmode = false;
+							}
+						}
+					}								
+					/* Dummy wirless mode setting to avoid encryption issue */
+					if(bSupportNmode) {
+						ieee->SetWirelessMode(ieee->dev, \
+							ieee->current_network.mode);
+					}else{
+						/*TODO*/
+						ieee->SetWirelessMode(ieee->dev, IEEE_G);
+					}
+
+					if (ieee->current_network.mode == IEEE_N_24G && bHalfSupportNmode == true)
+					{
+						printk("===============>entern half N mode\n");
+						ieee->bHalfWirelessN24GMode = true;
+					}
+					else
+						ieee->bHalfWirelessN24GMode = false;
+					
+					rtllib_associate_step2(ieee);
+				}else{
+					rtllib_auth_challenge(ieee, challenge, chlen);
+				}
+			}else{
+				ieee->softmac_stats.rx_auth_rs_err++;
+				RTLLIB_DEBUG_MGMT("Authentication respose status code 0x%x",errcode);
+
+				printk("Authentication respose status code 0x%x",errcode);
+				rtllib_associate_abort(ieee);
+			}
+				
+		}else if (ieee->iw_mode == IW_MODE_MASTER){
+			rtllib_rx_auth_rq(ieee, skb);
+		}
+	}
+
+	return 0;
+}
+
+inline int rtllib_rx_deauth(struct rtllib_device *ieee, struct sk_buff *skb)
+{
+	struct rtllib_hdr_3addr *header = (struct rtllib_hdr_3addr *) skb->data;
+	
+	if(memcmp(header->addr3, ieee->current_network.bssid, ETH_ALEN) != 0)
+		return 0;
+	
+	/* FIXME for now repeat all the association procedure 
+	* both for disassociation and deauthentication
+	*/
+	if ((ieee->softmac_features & IEEE_SOFTMAC_ASSOCIATE) &&
+		ieee->state == RTLLIB_LINKED && 
+#ifdef _RTL8192_EXT_PATCH_
+		((ieee->iw_mode == IW_MODE_INFRA) ||
+		((ieee->iw_mode == IW_MODE_MESH) && (ieee->only_mesh == 0))))
+#else
+		(ieee->iw_mode == IW_MODE_INFRA))
+#endif
+	{
+		printk("==========>received disassoc/deauth(%x) frame, reason code:%x\n",WLAN_FC_GET_STYPE(header->frame_ctl), ((struct rtllib_disassoc*)skb->data)->reason);	
+		ieee->state = RTLLIB_ASSOCIATING;
+		ieee->softmac_stats.reassoc++;
+		ieee->is_roaming = true;
+		ieee->LinkDetectInfo.bBusyTraffic = false;
+		rtllib_disassociate(ieee);
+		RemovePeerTS(ieee, header->addr2); 	
+		if(ieee->LedControlHandler != NULL)
+		        ieee->LedControlHandler(ieee->dev, LED_CTL_START_TO_LINK); 
+
+		if(!(ieee->rtllib_ap_sec_type(ieee)&(SEC_ALG_CCMP|SEC_ALG_TKIP)))
+		queue_delayed_work_rsl(ieee->wq, &ieee->associate_procedure_wq, 5);
+	}
+
+	return 0;
+}
+
 inline int rtllib_rx_frame_softmac(struct rtllib_device *ieee, struct sk_buff *skb,
 			struct rtllib_rx_stats *rx_stats, u16 type,
 			u16 stype)
 {
 	struct rtllib_hdr_3addr *header = (struct rtllib_hdr_3addr *) skb->data;
-	u8* ies;
-	u16 errcode;
-	u8* challenge;
-	int chlen=0;
-	int aid;
-#ifdef _RTL8192_EXT_PATCH_
-	u8 mesh_bssid[6] = {0,0,0,0,0,0};
-#endif
-	struct rtllib_assoc_response_frame *assoc_resp;
-	bool bSupportNmode = true, bHalfSupportNmode = false; 
-	
+
 #ifdef _RTL8192_EXT_PATCH_
 	if((!ieee->proto_started)&&(!ieee->mesh_started))
 #else
@@ -3431,104 +3670,10 @@ inline int rtllib_rx_frame_softmac(struct rtllib_device *ieee, struct sk_buff *s
 	
 		case RTLLIB_STYPE_ASSOC_RESP:
 		case RTLLIB_STYPE_REASSOC_RESP:
-		
-			RTLLIB_DEBUG_MGMT("received [RE]ASSOCIATION RESPONSE (%d)\n",
-					WLAN_FC_GET_STYPE(header->frame_ctl));
-			if ((ieee->softmac_features & IEEE_SOFTMAC_ASSOCIATE) &&
-				ieee->state == RTLLIB_ASSOCIATING_AUTHENTICATED && 
-#ifdef _RTL8192_EXT_PATCH_
-				((ieee->iw_mode == IW_MODE_INFRA) || 
-				(ieee->iw_mode == IW_MODE_MESH && ieee->only_mesh == 0)))
-#else
-				(ieee->iw_mode == IW_MODE_INFRA)) 
-#endif
-			{
-				if (0 == (errcode=assoc_parse(ieee,skb, &aid))){
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,13))
-					struct rtllib_network *network = kzalloc(sizeof(struct rtllib_network), GFP_ATOMIC);
-#else
-					struct rtllib_network *network = kmalloc(sizeof(*network), GFP_KERNEL);
-#endif
-					if (!network) {
-						return 1;
-					}
-					memset(network,0,sizeof(*network));
-					ieee->state=RTLLIB_LINKED;
-					ieee->assoc_id = aid;
-					ieee->softmac_stats.rx_ass_ok++;
-					/* station support qos */
-					/* Let the register setting defaultly with Legacy station */
-					assoc_resp = (struct rtllib_assoc_response_frame*)skb->data;
-					if(ieee->current_network.qos_data.supported == 1) {
-						if (rtllib_parse_info_param(ieee,assoc_resp->info_element,\
-									rx_stats->len - sizeof(*assoc_resp),\
-									network,rx_stats)){
-							kfree(network);
-							return 1;
-						}
-						else
-						{	
-							memcpy(ieee->pHTInfo->PeerHTCapBuf, network->bssht.bdHTCapBuf, network->bssht.bdHTCapLen);
-							memcpy(ieee->pHTInfo->PeerHTInfoBuf, network->bssht.bdHTInfoBuf, network->bssht.bdHTInfoLen);
-						}
-						if (ieee->handle_assoc_response != NULL)
-							ieee->handle_assoc_response(ieee->dev, (struct rtllib_assoc_response_frame*)header, network);
-						kfree(network);
-					}
 
-					if(ieee->assocresp_ies){
-						kfree(ieee->assocresp_ies);
-						ieee->assocresp_ies = NULL;
-					}
-					ies = &(assoc_resp->info_element[0].id);
-					ieee->assocresp_ies_len = (skb->data + skb->len) - ies;
-					ieee->assocresp_ies = kmalloc(ieee->assocresp_ies_len, GFP_ATOMIC);
-					if (ieee->assocresp_ies)
-						memcpy(ieee->assocresp_ies, ies, ieee->assocresp_ies_len);
-					else{
-						printk("%s()Warning: can't alloc memory for assocresp_ies\n", __func__);
-						ieee->assocresp_ies_len = 0;
-					}	
-#ifdef RTL8192S_WAPI_SUPPORT
-					{
-						PRT_WAPI_T pWapiInfo = &(ieee->wapiInfo);
-						PRT_WAPI_STA_INFO pWapiSta;
-						u8 WapiAEPNInitialValueSrc[16] = {0x37,0x5C,0x36,0x5C,0x36,0x5C,0x36,0x5C,0x36,0x5C,0x36,0x5C,0x36,0x5C,0x36,0x5C} ;
-						u8 WapiAEMultiCastPNInitialValueSrc[16] = {0x36,0x5C,0x36,0x5C,0x36,0x5C,0x36,0x5C,0x36,0x5C,0x36,0x5C,0x36,0x5C,0x36,0x5C} ;	
-						if ((ieee->WapiSupport) && (ieee->wapiInfo.bWapiEnable))
-						{
-							pWapiSta =(PRT_WAPI_STA_INFO)list_entry(pWapiInfo->wapiSTAIdleList.next, RT_WAPI_STA_INFO, list);
-							list_del_init(&pWapiSta->list);
-							list_add_tail(&pWapiSta->list, &pWapiInfo->wapiSTAUsedList);
-							WAPI_TRACE(WAPI_API, "%s(): New WAPI STA ("MAC_FMT")!!\n",__FUNCTION__,MAC_ARG(ieee->current_network.bssid));
-							memcpy(pWapiSta->PeerMacAddr,ieee->current_network.bssid,6);
-							memcpy(pWapiSta->lastRxMulticastPN, WapiAEMultiCastPNInitialValueSrc, 16);
-							memcpy(pWapiSta->lastRxUnicastPN, WapiAEPNInitialValueSrc, 16);
-							pWapiInfo->bFirstAuthentiateInProgress= true;
-							pWapiInfo->assoRspWapiIE[0] = MFIE_TYPE_WAPI;
-							pWapiInfo->assoRspWapiIE[1] = network->wapi_ie_len;
-							pWapiInfo->assoRspWapiIELength = network->wapi_ie_len+2;
-							memcpy(pWapiInfo->assoRspWapiIE+2,network->wapi_ie,network->wapi_ie_len);
-						}
-					}
-#endif	
-					rtllib_associate_complete(ieee);
-				} else {
-					/* aid could not been allocated */
-					ieee->softmac_stats.rx_ass_err++;
-					printk(
-						"Association response status code 0x%x\n",
-						errcode);
-					RTLLIB_DEBUG_MGMT(
-						"Association response status code 0x%x\n",
-						errcode);
-					if(ieee->AsocRetryCount < RT_ASOC_RETRY_LIMIT) {
-						queue_delayed_work_rsl(ieee->wq, &ieee->associate_procedure_wq, 0);
-					} else {
-						rtllib_associate_abort(ieee); 
-					}
-				}
-			}
+			if(rtllib_rx_assoc_resp(ieee, skb, rx_stats) == 1)
+				return 1;
+
 			break;
 		
 		case RTLLIB_STYPE_ASSOC_REQ:
@@ -3541,76 +3686,9 @@ inline int rtllib_rx_frame_softmac(struct rtllib_device *ieee, struct sk_buff *s
 			break;
 			
 		case RTLLIB_STYPE_AUTH:
-#ifdef _RTL8192_EXT_PATCH_
-			if((ieee->iw_mode == IW_MODE_MESH) && ieee->ext_patch_rtllib_rx_frame_softmac_on_auth && ieee->mesh_started && ((memcmp(header->addr3, ieee->current_network.bssid, 6)) || (memcmp(ieee->current_network.bssid, mesh_bssid, 6) == 0))) 
-				ieee->ext_patch_rtllib_rx_frame_softmac_on_auth(ieee, skb, rx_stats);
-			else
-#endif
-			if (ieee->softmac_features & IEEE_SOFTMAC_ASSOCIATE){
-				if (ieee->state == RTLLIB_ASSOCIATING_AUTHENTICATING && 
-#ifdef _RTL8192_EXT_PATCH_
-					((ieee->iw_mode == IW_MODE_INFRA)||
-					((ieee->iw_mode == IW_MODE_MESH) && (ieee->only_mesh == 0))))
-#else
-					(ieee->iw_mode == IW_MODE_INFRA))
-#endif
-				{
-						RTLLIB_DEBUG_MGMT("Received authentication response");
-						
-						if (0 == (errcode=auth_parse(skb, &challenge, &chlen))){
-							if(ieee->open_wep || !challenge){
-								ieee->state = RTLLIB_ASSOCIATING_AUTHENTICATED;
-								ieee->softmac_stats.rx_auth_rs_ok++;
-								if(!(ieee->pHTInfo->IOTAction&HT_IOT_ACT_PURE_N_MODE))
-								{
-									if (!ieee->GetNmodeSupportBySecCfg(ieee->dev))
-									{
-										if(IsHTHalfNmodeAPs(ieee))
-										{	
-											bSupportNmode = true;
-											bHalfSupportNmode = true;
-										}
-										else
-										{
-											bSupportNmode = false;
-											bHalfSupportNmode = false;
-										}
-									printk("==========>to link with AP using SEC(%d, %d)", bSupportNmode, bHalfSupportNmode);
-									}
-								}								
-								/* Dummy wirless mode setting to avoid encryption issue */
-								if(bSupportNmode) {
-									ieee->SetWirelessMode(ieee->dev, \
-											ieee->current_network.mode);
-								}else{
-									/*TODO*/
-									ieee->SetWirelessMode(ieee->dev, IEEE_G);
-								}
 
-								if (ieee->current_network.mode == IEEE_N_24G && bHalfSupportNmode == true)
-								{
-									printk("===============>entern half N mode\n");
-									ieee->bHalfWirelessN24GMode = true;
-								}
-								else
-									ieee->bHalfWirelessN24GMode = false;
-								
-								rtllib_associate_step2(ieee);
-							}else{
-								rtllib_auth_challenge(ieee, challenge, chlen);
-							}
-						}else{
-							ieee->softmac_stats.rx_auth_rs_err++;
-							RTLLIB_DEBUG_MGMT("Authentication respose status code 0x%x",errcode);
+			rtllib_rx_auth(ieee, skb, rx_stats);
 
-							printk("Authentication respose status code 0x%x",errcode);
-							rtllib_associate_abort(ieee);
-						}
-						
-					}else if (ieee->iw_mode == IW_MODE_MASTER){
-						rtllib_rx_auth_rq(ieee, skb);
-					}
-				}
 			break;
 #if 0				
 		case RTLLIB_STYPE_PROBE_REQ:
@@ -3626,32 +3704,10 @@ inline int rtllib_rx_frame_softmac(struct rtllib_device *ieee, struct sk_buff *s
 		case RTLLIB_STYPE_DISASSOC:
 		case RTLLIB_STYPE_DEAUTH:
 
-			if(memcmp(header->addr3, ieee->current_network.bssid, ETH_ALEN) != 0)
-				break;
-			/* FIXME for now repeat all the association procedure 
-			* both for disassociation and deauthentication
-			*/
-			if ((ieee->softmac_features & IEEE_SOFTMAC_ASSOCIATE) &&
-				ieee->state == RTLLIB_LINKED && 
-#ifdef _RTL8192_EXT_PATCH_
-				((ieee->iw_mode == IW_MODE_INFRA) ||
-				((ieee->iw_mode == IW_MODE_MESH) && (ieee->only_mesh == 0))))
-#else
-				(ieee->iw_mode == IW_MODE_INFRA))
-#endif
-			{
-				printk("==========>received disassoc/deauth(%x) frame, reason code:%x\n",WLAN_FC_GET_STYPE(header->frame_ctl), ((struct rtllib_disassoc*)skb->data)->reason);	
-				ieee->state = RTLLIB_ASSOCIATING;
-				ieee->softmac_stats.reassoc++;
-				ieee->is_roaming = true;
-				ieee->LinkDetectInfo.bBusyTraffic = false;
-				rtllib_disassociate(ieee);
-				RemovePeerTS(ieee, header->addr2); 	
-				if(ieee->LedControlHandler != NULL)
-				        ieee->LedControlHandler(ieee->dev, LED_CTL_START_TO_LINK); 
-				queue_delayed_work_rsl(ieee->wq, &ieee->associate_procedure_wq, 5);
-			}
+			rtllib_rx_deauth(ieee, skb);
+			
 			break;
+			
 		case RTLLIB_STYPE_MANAGE_ACT:
 			rtllib_process_action(ieee,skb);
 #ifdef _RTL8192_EXT_PATCH_
@@ -4264,11 +4320,7 @@ struct sk_buff *rtllib_get_beacon(struct rtllib_device *ieee)
 	return skb;
 }
 
-#ifdef _RTL8192_EXT_PATCH_	
 void rtllib_softmac_stop_protocol(struct rtllib_device *ieee, u8 mesh_flag, u8 shutdown)
-#else
-void rtllib_softmac_stop_protocol(struct rtllib_device *ieee,u8 shutdown)
-#endif
 {
 	rtllib_stop_scan_syncro(ieee);
 	down(&ieee->wx_sem);
@@ -4359,11 +4411,7 @@ void rtllib_stop_mesh_protocol(struct rtllib_device *ieee)
 }
 #endif	
 
-#ifdef _RTL8192_EXT_PATCH_	
 void rtllib_softmac_start_protocol(struct rtllib_device *ieee, u8 mesh_flag)
-#else
-void rtllib_softmac_start_protocol(struct rtllib_device *ieee)
-#endif	
 {
 	down(&ieee->wx_sem);
 #ifdef _RTL8192_EXT_PATCH_	
@@ -4406,9 +4454,14 @@ void rtllib_start_protocol(struct rtllib_device *ieee)
 		ieee->last_packet_time[i] = 0;
 	}
 
-	if(ieee->UpdateBeaconInterruptHandler)
+	if(ieee->UpdateBeaconInterruptHandler) {
+#ifdef _RTL8192_EXT_PATCH_
+		if (ieee->iw_mode == IW_MODE_MESH)
+			ieee->UpdateBeaconInterruptHandler(ieee->dev, true);
+		else
+#endif
 		ieee->UpdateBeaconInterruptHandler(ieee->dev, false);
-		
+	}		
 	ieee->wmm_acm = 0;
 	/* if the user set the MAC of the ad-hoc cell and then
 	 * switch to managed mode, shall we  make sure that association
@@ -4461,6 +4514,9 @@ void rtllib_start_mesh_protocol(struct rtllib_device *ieee)
 		ieee->current_mesh_network.beacon_interval = 100;
 	ieee->wmm_acm = 0;
 
+	if(ieee->UpdateBeaconInterruptHandler)
+		ieee->UpdateBeaconInterruptHandler(ieee->dev, true);
+
 	if(ieee->ext_patch_rtllib_start_mesh)
 		ieee->ext_patch_rtllib_start_mesh(ieee);
 }
@@ -4494,6 +4550,7 @@ void rtllib_softmac_init(struct rtllib_device *ieee)
 	ieee->LinkDetectInfo.NumRxOkInPeriod =0;
 	ieee->LinkDetectInfo.NumRxUnicastOkInPeriod=0;
 #ifdef _RTL8192_EXT_PATCH_
+	ieee->LinkDetectInfo.NumTxUnicastOkInPeriod = 0;
 	ieee->LinkDetectInfo.LastNumRxUnicast = 0;
 	ieee->LinkDetectInfo.LastNumTxUnicast = 0;
 	ieee->LinkDetectInfo.IdleCount = 0;
@@ -4510,7 +4567,7 @@ void rtllib_softmac_init(struct rtllib_device *ieee)
 	ieee->basic_rate = RTLLIB_DEFAULT_BASIC_RATE;
 	ieee->rate = 22;
 	ieee->ps = RTLLIB_PS_DISABLED;
-	ieee->sta_sleep = 0;
+	ieee->sta_sleep = LPS_IS_WAKE;
 
 #ifdef _RTL8192_EXT_PATCH_
 	ieee->mesh_started = 0;
@@ -4793,14 +4850,8 @@ static int rtllib_wpa_set_param(struct rtllib_device *ieee, u8 name, u32 value)
 }
 
 /* implementation borrowed from hostap driver */
-
-#ifdef _RTL8192_EXT_PATCH_
 static int rtllib_wpa_set_encryption(struct rtllib_device *ieee,
 				  struct ieee_param *param, int param_len, u8 is_mesh)
-#else
-static int rtllib_wpa_set_encryption(struct rtllib_device *ieee,
-				  struct ieee_param *param, int param_len)
-#endif
 {
 	int ret = 0;
 #ifdef _RTL8192_EXT_PATCH_
@@ -5125,11 +5176,7 @@ u8 rtllib_ap_sec_type(struct rtllib_device *ieee)
 	}
 }
 
-#ifdef _RTL8192_EXT_PATCH_
 int rtllib_wpa_supplicant_ioctl(struct rtllib_device *ieee, struct iw_point *p, u8 is_mesh)
-#else
-int rtllib_wpa_supplicant_ioctl(struct rtllib_device *ieee, struct iw_point *p)
-#endif
 {
 	struct ieee_param *param;
 	int ret=0;
@@ -5167,7 +5214,7 @@ int rtllib_wpa_supplicant_ioctl(struct rtllib_device *ieee, struct iw_point *p)
 #ifdef _RTL8192_EXT_PATCH_
 		ret = rtllib_wpa_set_encryption(ieee, param, p->length, is_mesh);
 #else
-		ret = rtllib_wpa_set_encryption(ieee, param, p->length);
+		ret = rtllib_wpa_set_encryption(ieee, param, p->length, 0);
 #endif
 		break;
 
@@ -5190,6 +5237,127 @@ out:
 	up(&ieee->wx_sem);
 	
 	return ret;
+}
+
+void
+rtllib_MgntDisconnectIBSS(struct rtllib_device* rtllib) 
+{
+	u8	OpMode;
+	u8	i;
+	bool	bFilterOutNonAssociatedBSSID = false;
+
+	rtllib->state = RTLLIB_NOLINK;
+
+	for(i=0;i<6;i++)  rtllib->current_network.bssid[i]= 0x55;
+
+	rtllib->OpMode = RT_OP_MODE_NO_LINK;
+	rtllib->SetHwRegHandler(rtllib->dev, HW_VAR_BSSID, rtllib->current_network.bssid);
+	OpMode = RT_OP_MODE_NO_LINK;
+	rtllib->SetHwRegHandler(rtllib->dev, HW_VAR_MEDIA_STATUS, &OpMode);
+	rtllib_stop_send_beacons(rtllib);
+	
+	bFilterOutNonAssociatedBSSID = false;
+	rtllib->SetHwRegHandler(rtllib->dev, HW_VAR_CECHK_BSSID, (u8*)(&bFilterOutNonAssociatedBSSID));
+	notify_wx_assoc_event(rtllib);
+
+}
+
+void
+rtllib_MlmeDisassociateRequest(
+	struct rtllib_device* rtllib,
+	u8* 		asSta,
+	u8		asRsn
+	)
+{
+	u8 i;
+	u8	OpMode;
+
+	RemovePeerTS(rtllib, asSta);
+	
+	
+	if(memcpy(rtllib->current_network.bssid,asSta,6) == 0)
+	{
+		rtllib->state = RTLLIB_NOLINK;
+		
+		for(i=0;i<6;i++)  rtllib->current_network.bssid[i] = 0x22;
+		OpMode = RT_OP_MODE_NO_LINK;
+		rtllib->OpMode = RT_OP_MODE_NO_LINK;
+		rtllib->SetHwRegHandler(rtllib->dev, HW_VAR_MEDIA_STATUS, (u8 *)(&OpMode) );
+		rtllib_disassociate(rtllib);
+
+		rtllib->SetHwRegHandler(rtllib->dev, HW_VAR_BSSID, rtllib->current_network.bssid);
+		
+	}
+
+}
+
+void
+rtllib_MgntDisconnectAP(
+	struct rtllib_device* rtllib,
+	u8 asRsn
+) 
+{
+	bool bFilterOutNonAssociatedBSSID = false;
+
+
+#ifdef TO_DO
+	if(   pMgntInfo->SecurityInfo.AuthMode > RT_802_11AuthModeAutoSwitch ||
+		(pMgntInfo->bAPSuportCCKM && pMgntInfo->bCCX8021xenable) )	
+	{
+		SecClearAllKeys(rtllib->dev);
+		RT_TRACE(COMP_SEC, DBG_LOUD,("======>CCKM clear key..."))
+	}
+#endif
+	bFilterOutNonAssociatedBSSID = false;
+	rtllib->SetHwRegHandler(rtllib->dev, HW_VAR_CECHK_BSSID, (u8*)(&bFilterOutNonAssociatedBSSID));
+	rtllib_MlmeDisassociateRequest( rtllib, rtllib->current_network.bssid, asRsn );
+
+	rtllib->state = RTLLIB_NOLINK;
+}
+
+bool
+rtllib_MgntDisconnect(
+	struct rtllib_device* rtllib,
+	u8 asRsn
+) 
+{
+	if(rtllib->ps != RTLLIB_PS_DISABLED)
+	{
+#ifndef RTL8190P
+                rtllib->sta_wake_up(rtllib->dev);
+#endif
+	}
+
+#ifdef TO_DO
+	if(pMgntInfo->mActingAsAp)
+	{
+		RT_TRACE(COMP_MLME, DBG_LOUD, ("MgntDisconnect() ===> AP_DisassociateAllStation\n"));
+		AP_DisassociateAllStation(rtllib->dev, unspec_reason);
+		return true;
+	}	
+#endif
+
+	if( rtllib->state == RTLLIB_LINKED )
+	{
+		if( rtllib->iw_mode == IW_MODE_ADHOC )
+		{
+			rtllib_MgntDisconnectIBSS(rtllib);
+		}
+#ifdef _RTL8192_EXT_PATCH_
+		if((rtllib->iw_mode == IW_MODE_INFRA ) || ((rtllib->iw_mode == IW_MODE_MESH) && (rtllib->only_mesh == 0)))
+#else
+		if( rtllib->iw_mode == IW_MODE_INFRA )
+#endif
+		{
+#ifdef TO_DO_LIST
+			SecClearAllKeys(Adapter); 
+#endif
+			rtllib_MgntDisconnectAP(rtllib, asRsn);
+		}
+
+	}
+
+	return true;
 }
 
 void notify_wx_assoc_event(struct rtllib_device *ieee)

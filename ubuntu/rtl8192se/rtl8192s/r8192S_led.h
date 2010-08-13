@@ -73,10 +73,13 @@ typedef	enum _LED_STRATEGY_8190{
 	SW_LED_MODE7, 
 	SW_LED_MODE8,
 	SW_LED_MODE9, 
+	SW_LED_MODE10,
 	HW_LED, 
 }LED_STRATEGY_8190, *PLED_STRATEGY_8190;
 
 
+void SwLedOn(struct net_device *dev , PLED_8190 pLed);
+void SwLedOff(struct net_device *dev, PLED_8190 pLed);
 void InitSwLeds(struct net_device *dev);
 void DeInitSwLeds(struct net_device *dev);
 void LedControl8192SE(struct net_device *dev, LED_CTL_MODE LedAction);

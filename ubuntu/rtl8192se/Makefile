@@ -22,7 +22,6 @@ EXTRA_CFLAGS += -DEEPROM_OLD_FORMAT_SUPPORT=0 		\
 		-DRTL8190_Download_Firmware_From_Header=1 \
 		-DMUTUAL_AUTHENTICATION=1		\
 		-DFOR_QMI=0				\
-		-DENABLE_TKIP11N 			\
 		-DCONFIG_PM_RTL 			\
 		-DCONFIG_PM 				\
 		-DENABLE_IPS 				\
@@ -30,8 +29,9 @@ EXTRA_CFLAGS += -DEEPROM_OLD_FORMAT_SUPPORT=0 		\
 		-DCONFIG_ASPM_OR_D3 			\
 		-DENABLE_GPIO_RADIO_CTL 		\
 		-DMP_DRIVER=0				\
-		-DENABLE_DOT11D 			
+		-DENABLE_DOT11D				\
 		#					\
+		-DENABLE_TKIP11N 			\
 		-D_ENABLE_SW_BEACON 			\
 		-DUSE_FW_SOURCE_IMG_FILE 		\
 		-DEFUSE_REPG_WORKAROUND			\
@@ -39,6 +39,7 @@ EXTRA_CFLAGS += -DEEPROM_OLD_FORMAT_SUPPORT=0 		\
 		-DADHOC_11N 				\
 		-DFOR_ANDROID_X86			\
 		-DCONFIG_64BIT_DMA			\
+		-DCONFIG_BT_30				\
 		#
 endif
 
@@ -65,6 +66,7 @@ EXTRA_CFLAGS += -DEEPROM_OLD_FORMAT_SUPPORT=0 		\
 		-DUSE_FW_SOURCE_IMG_FILE 		\
 		-DENABLE_DOT11D 			\
 		-DCONFIG_ASPM_OR_D3 			\
+		-DRTLLIB_RADIOTAP			\
 		#					\
 		-DCONFIG_CRDA	 			\
 		-DCONFIG_CFG_80211 			\
@@ -95,9 +97,10 @@ sub_folder = rtl8192e
 EXTRA_CFLAGS += -DRTL8190P				\
 		-DUSE_FW_SOURCE_IMG_FILE		\
 		-DEEPROM_OLD_FORMAT_SUPPORT=1		\
-		-DENABLE_DOT11D 			
-		#					\
+		-DENABLE_DOT11D 			\
 		-DCONFIG_PM				\
+		-DCONFIG_PM_RTL 			\
+		#					\
 		-DENABLE_TKIP11N			\
 		-DFOR_ANDROID_X86			\
 		#
@@ -169,6 +172,54 @@ EXTRA_CFLAGS += -DRTL8192SE 				\
 		#
 endif
 
+ifeq ($(NIC_SELECT),RTL8192CE_MESH)
+sub_folder = rtl8192c
+EXTRA_CFLAGS = -DRTL8192CE
+EXTRA_CFLAGS += -DEEPROM_OLD_FORMAT_SUPPORT=0 		\
+		-DRTL8192SU_DISABLE_CCK_RATE=0 		\
+		-DDISABLE_BB_RF=0 			\
+		-DRTL92SE_FPGA_VERIFY=0	 		\
+		-DSIMULATE_ETHERNET=0 			\
+		-DSUPERMAC_92D_ENABLE=0			\
+		-DEARLYMODE_ENABLE_FOR_92D=0 		\
+		-DRTL8192S_DISABLE_FW_DM=0 		\
+		-DMP_CCK_WORKAROUND=0			\
+		-DRTL8192SE_DISABLE_MGNT_QUEUE=0	\
+		-DRTL8190_Download_Firmware_From_Header=1 \
+		-DMUTUAL_AUTHENTICATION=1		\
+		-DFOR_QMI=0				\
+		-DENABLE_TKIP11N 			\
+		-DCONFIG_PM_RTL 			\
+		-DCONFIG_PM 				\
+		-DENABLE_IPS 				\
+		-DENABLE_LPS 				\
+		-DCONFIG_ASPM_OR_D3 			\
+		-DENABLE_GPIO_RADIO_CTL 		\
+		-DMP_DRIVER=0				\
+		-DENABLE_DOT11D				\
+		-DEFUSE_REPG_WORKAROUND 		\
+		-DCUSTOMER_ID_INTEL_CMPC 		\
+		-DMESH_8192_SPECIFIED 			\
+		-D_RTL8192_EXT_PATCH_ 			\
+		-D_MESH_DEBUG_ 				\
+		-DTREE_BASED_ROUTING_ENABLE 		\
+		-DMESH_PATHSEL_DBG_LV=0 		\
+		-DMESH_PATHSEL_DBG_SIMPLE=0 		\
+		-DMESH_PATHSEL_DBG_TEST=0		\
+		-DBUILT_IN_MSHCLASS 			\
+		-DENABLE_AMSDU				\
+		#					\
+		-D_ENABLE_SW_BEACON 			\
+		-DUSE_FW_SOURCE_IMG_FILE 		\
+		-DCOMPATIBLE_WITH_RALINK_MESH 		\
+		-DEFUSE_REPG_WORKAROUND			\
+		-DENABLE_AMSDU 				\
+		-DADHOC_11N 				\
+		-DFOR_ANDROID_X86			\
+		-DCONFIG_64BIT_DMA			\
+		#
+endif
+
 #it will fail to compile in suse linux enterprise 10 sp2. This flag is to solve this problem.
 ifeq ($(shell uname -r | cut -d. -f1,2,3,4), 2.6.16.60-0)
 	EXTRA_CFLAGS += -DOPENSUSE_SLED=1
@@ -197,6 +248,7 @@ r8190_pci-objs := rtl_core.o 		\
 		  rtl_cam.o		\
 		  rtl_dm.o 		\
 		  rtl_pm.o 		\
+		  rtl_pci.o 		\
 		  rtl_debug.o 		\
 		  rtl_ethtool.o		\
 		  rtl8192e/r8190P_hwimg.o	\
@@ -230,6 +282,7 @@ r8192e_pci-objs := rtl_core.o 		\
 		  rtl_cam.o		\
 		  rtl_dm.o 		\
 		  rtl_pm.o 		\
+		  rtl_pci.o 		\
 		  rtl_debug.o		\
 		  rtl_ethtool.o		\
 		  rtl8192e/r8192E_dev.o		\
@@ -238,20 +291,20 @@ r8192e_pci-objs := rtl_core.o 		\
 		  rtl8192e/r8192E_cmdpkt.o 	\
 		  rtl8192e/r8192E_hwimg.o 	\
 		  rtl8192e/r8190P_rtl8256.o 	\
-		  rtllib/rtllib_rx.o                \
-		  rtllib/rtllib_softmac.o           \
-		  rtllib/rtllib_tx.o                \
-		  rtllib/rtllib_wx.o                \
-		  rtllib/rtllib_module.o            \
-		  rtllib/rtllib_softmac_wx.o        \
-		  rtllib/rtl819x_HTProc.o              \
-		  rtllib/rtl819x_TSProc.o              \
-		  rtllib/rtl819x_BAProc.o              \
-		  rtllib/dot11d.o                      \
-		  rtllib/rtllib_crypt.o             \
-		  rtllib/rtllib_crypt_tkip.o        \
-		  rtllib/rtllib_crypt_ccmp.o        \
-		  rtllib/rtllib_crypt_wep.o
+		  ../../rtllib/rtllib_rx.o                \
+		  ../../rtllib/rtllib_softmac.o           \
+		  ../../rtllib/rtllib_tx.o                \
+		  ../../rtllib/rtllib_wx.o                \
+		  ../../rtllib/rtllib_module.o            \
+		  ../../rtllib/rtllib_softmac_wx.o        \
+		  ../../rtllib/rtl819x_HTProc.o              \
+		  ../../rtllib/rtl819x_TSProc.o              \
+		  ../../rtllib/rtl819x_BAProc.o              \
+		  ../../rtllib/dot11d.o                      \
+		  ../../rtllib/rtllib_crypt.o             \
+		  ../../rtllib/rtllib_crypt_tkip.o        \
+		  ../../rtllib/rtllib_crypt_ccmp.o        \
+		  ../../rtllib/rtllib_crypt_wep.o
 obj-m := r8192e_pci.o
 endif
 ifeq ($(NIC_SELECT),RTL8192SE)
@@ -262,6 +315,7 @@ r8192se_pci-objs := rtl_core.o 		\
 		  rtl_wx.o 		\
 		  rtl_cam.o		\
 		  rtl_pm.o 		\
+		  rtl_pci.o 		\
 		  rtl_ps.o 		\
 		  rtl_dm.o 		\
 		  rtl_debug.o		\
@@ -301,6 +355,7 @@ r8192ce_pci-objs := rtl_core.o 		\
 		  rtl_wx.o 		\
 		  rtl_cam.o		\
 		  rtl_pm.o 		\
+		  rtl_pci.o 		\
 		  rtl_ps.o 		\
 		  rtl_debug.o		\
 		  rtl_ethtool.o         \
@@ -313,7 +368,6 @@ r8192ce_pci-objs := rtl_core.o 		\
 		  rtl8192c/r8192C_hwimg.o 	\
 		  rtl8192c/r8192C_led.o 	\
 		  rtl8192c/r8192C_com.o 	\
-		  rtl8192c/r8192C_PhyParam.o 	\
 		  ../../rtllib/rtllib_rx.o                \
 		  ../../rtllib/rtllib_softmac.o           \
 		  ../../rtllib/rtllib_tx.o                \
@@ -327,7 +381,17 @@ r8192ce_pci-objs := rtl_core.o 		\
 		  ../../rtllib/rtllib_crypt.o             \
 		  ../../rtllib/rtllib_crypt_tkip.o        \
 		  ../../rtllib/rtllib_crypt_ccmp.o        \
-		  ../../rtllib/rtllib_crypt_wep.o
+		  ../../rtllib/rtllib_crypt_wep.o      \
+		  # BT3.0				\
+		  ../../btlib/bt_aes.o			\
+		  ../../btlib/bt_rc4.o			\
+		  ../../btlib/bt_md5c.o			\
+		  ../../btlib/bt_kmsm_hmac.o		\
+		  ../../btlib/bt_kmsm_prf.o		\
+		  ../../btlib/bt_kmsm_eapolkey.o	\
+		  ../../btlib/bt_hci.o			\
+		  ../../btlib/bt_handlePacket.o		\
+		  ../../btlib/bt_wifi.o
 obj-m := r8192ce_pci.o
 endif
 
@@ -341,6 +405,7 @@ r8192se_pci_mesh-objs := rtl_core.o 	\
 		  rtl_cam.o		\
 		  rtl_dm.o 		\
 		  rtl_pm.o 		\
+		  rtl_pci.o 		\
 		  rtl_debug.o		\
 		  rtl_ethtool.o         \
 		  rtl_mesh.o		\
@@ -391,6 +456,64 @@ r8192se_pci_mesh-objs := rtl_core.o 	\
 obj-m := r8192se_pci_mesh.o
 endif
 
+ifeq ($(NIC_SELECT),RTL8192CE_MESH)
+r8192ce_pci_mesh-objs := rtl_core.o 		\
+		  rtl_eeprom.o 		\
+		  rtl_wx.o 		\
+		  rtl_cam.o		\
+		  rtl_pm.o 		\
+		  rtl_pci.o 		\
+		  rtl_ps.o 		\
+		  rtl_debug.o		\
+		  rtl_ethtool.o         \
+		  rtl_mesh.o		\
+		  rtl8192c/r8192C_dev.o 	\
+		  rtl8192c/r8192C_Efuse.o 	\
+		  rtl8192c/r8192C_phy.o 	\
+		  rtl8192c/r8192C_firmware.o 	\
+		  rtl8192c/r8192C_dm.o 		\
+		  rtl8192c/r8192C_rtl6052.o 	\
+		  rtl8192c/r8192C_hwimg.o 	\
+		  rtl8192c/r8192C_led.o 	\
+		  rtl8192c/r8192C_com.o 	\
+		  rtl8192c/r8192C_PhyParam.o 	\
+		  ../../rtllib/rtllib_rx.o                \
+		  ../../rtllib/rtllib_softmac.o           \
+		  ../../rtllib/rtllib_tx.o                \
+		  ../../rtllib/rtllib_wx.o                \
+		  ../../rtllib/rtllib_module.o            \
+		  ../../rtllib/rtllib_softmac_wx.o        \
+		  ../../rtllib/rtl819x_HTProc.o              \
+		  ../../rtllib/rtl819x_TSProc.o              \
+		  ../../rtllib/rtl819x_BAProc.o              \
+		  ../../rtllib/dot11d.o                      \
+		  ../../rtllib/rtllib_crypt.o             \
+		  ../../rtllib/rtllib_crypt_tkip.o        \
+		  ../../rtllib/rtllib_crypt_ccmp.o        \
+		  ../../rtllib/rtllib_crypt_wep.o      \
+		  ../../mshclass/msh_class.o 		  \
+		  ../../mshclass/mesh_8192_util.o  	  \
+		  ../../mshclass/rtl8192_mesh.o 	  \
+		  ../../mshclass/rtl8192s_sme.o 	  \
+	  	  ../../mshclass/rtl8192_proc.o 	  \
+		  ../../mshclass/8192s_pathsel.o 	  \
+		  ../../mshclass/hash_table.o 		  \
+		  ../../mshclass/rtl8192_sha1.o           \
+		  ../../mshclass/rtl8192_sha256.o         \
+		  ../../mshclass/rtl8192_aes.o            \
+		  ../../mshclass/mesh_abbr_handshk.o      \
+		  ../../mshclass/rtl8192_bn_ctx.o         \
+		  ../../mshclass/rtl8192_bn_asm.o         \
+		  ../../mshclass/rtl8192_bn_gcd.o         \
+		  ../../mshclass/rtl8192_bn_mont.o        \
+		  ../../mshclass/rtl8192_bn_recp.o        \
+		  ../../mshclass/rtl8192_bn_lib.o         \
+		  ../../mshclass/mesh_ath.o		  \
+		  ../../mshclass/pathselection.o 	  \
+		  ../../mshclass/tree_proactive.o
+		  
+obj-m := r8192ce_pci_mesh.o
+endif
 
 KSRC := /lib/modules/$(KVER)/build
 INSTALL_PREFIX :=
@@ -413,6 +536,7 @@ ifeq ($(NIC_SELECT),RTL8192CE)
 	install -p -m 644 r8192ce_pci.ko $(MODDESTDIR)
 endif
 ifeq ($(NIC_SELECT),RTL8191SE_MESH)
+	mkdir /usr/share/enhanced-easy-network -p
 	cp ../../script/mesh-tools /usr/share/enhanced-easy-network/ -rf
 	cp ../../script/mesh.conf /etc/
 	cp ../../script/wpa_mesh_tkip.conf /etc/
@@ -420,6 +544,16 @@ ifeq ($(NIC_SELECT),RTL8191SE_MESH)
 	chmod 777 ../../script/do_install
 	../../script/do_install
 	install -p -m 644 r8192se_pci_mesh.ko $(MODDESTDIR)
+endif
+ifeq ($(NIC_SELECT),RTL8192CE_MESH)
+	mkdir /usr/share/enhanced-easy-network -p
+	cp ../../script/mesh-tools /usr/share/enhanced-easy-network/ -rf
+	cp ../../script/mesh.conf /etc/
+	cp ../../script/wpa_mesh_tkip.conf /etc/
+	cp ../../script/wpa_mesh_ccmp.conf /etc/
+	chmod 777 ../../script/do_install
+	../../script/do_install
+	install -p -m 644 r8192ce_pci_mesh.ko $(MODDESTDIR)
 endif
 
 	depmod -a
@@ -561,6 +695,7 @@ r8190_pci.o: \
 	rtl_wx.o \
 	rtl_cam.o	 \
 	rtl_pm.o \
+	rtl_pci.o 		\
 	rtl_debug.o \
 	rtl_ethtool.o         \
 	rtl8192e/r8190P_rtl8256.o \
@@ -612,6 +747,7 @@ r8192e_pci.o: \
 	rtl_wx.o \
 	rtl_cam.o	\
 	rtl_pm.o \
+	rtl_pci.o 		\
 	rtl_debug.o \
 	rtl_ethtool.o         \
 	rtl8192e/r8192E_dev.o           \
@@ -664,6 +800,7 @@ r8192se_pci.o: rtl_core.o \
 	rtl_wx.o \
 	rtl_cam.o		\
 	rtl_pm.o \
+	rtl_pci.o 		\
 	rtl8192s/r8192S_dev.o \
 	rtl8192s/r8192S_Efuse.o \
 	rtl8192s/r8192S_firmware.o \
@@ -717,6 +854,7 @@ r8192se_pci_mesh.o: 		\
 	rtl_wx.o 		\
 	rtl_cam.o		\
 	rtl_pm.o 		\
+	rtl_pci.o 		\
 	rtl_debug.o 		\
 	rtl_ethtool.o 		\
 	rtl_mesh.o		\

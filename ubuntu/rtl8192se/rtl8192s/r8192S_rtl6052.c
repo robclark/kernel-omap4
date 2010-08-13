@@ -20,9 +20,6 @@
 #ifdef RTL8192SE
 #include "../rtl_core.h"
 #include "../rtl_dm.h"
-#include "r8192S_phyreg.h"
-#include "r8192S_phy.h"
-#include "r8192S_rtl6052.h"
 
 /*---------------------------Define Local Constant---------------------------*/
 typedef struct RF_Shadow_Compare_Map {

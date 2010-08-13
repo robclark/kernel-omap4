@@ -60,7 +60,21 @@ MODULE_AUTHOR("Copyright (C) 2004 Intel Corporation <jketreno@linux.intel.com>")
 MODULE_LICENSE("GPL");
 #endif
 
-#define DRV_NAME "rtllib"
+#ifdef RTL8192CE
+#define DRV_NAME "rtllib_92ce"
+#elif defined RTL8192SE
+#define DRV_NAME "rtllib_92se"
+#elif defined RTL8192E
+#define DRV_NAME "rtllib_92e"
+#elif defined RTL8190P
+#define DRV_NAME "rtllib_90p"
+#elif defined RTL8192SU
+#define DRV_NAME "rtllib_92su"
+#elif defined RTL8192U
+#define DRV_NAME "rtllib_92u"
+#else
+#define DRV_NAME "rtllib_9x"
+#endif
 
 #ifdef CONFIG_CFG_80211 
 #ifdef CONFIG_RTL_RFKILL

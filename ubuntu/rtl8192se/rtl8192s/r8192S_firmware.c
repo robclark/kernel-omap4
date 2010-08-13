@@ -18,9 +18,7 @@
 ******************************************************************************/
 #if defined(RTL8192SE)
 #include "../rtl_core.h"
-#include "../rtl_endianfree.h"
-#include "r8192S_hwimg.h"
-#include "r8192S_dev.h"
+#include "../rtllib/rtllib_endianfree.h"
 
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0) && defined(USE_FW_SOURCE_IMG_FILE)
 #include <linux/firmware.h>

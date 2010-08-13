@@ -17,8 +17,6 @@
  * wlanfae <wlanfae@realtek.com>
 ******************************************************************************/
 #include "../rtl_core.h"
-#include "r8192S_Efuse.h"
-
 #include <linux/types.h>
 
 #ifdef RTL8192SE

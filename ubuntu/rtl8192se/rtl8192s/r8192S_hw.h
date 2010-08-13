@@ -1003,6 +1003,8 @@ Default: 00b.
 #define		FW_TX_FEEDBACK_CCX_ENABLE	(FW_TX_FEEDBACK_NONE | 0x2) 
 #define		FW_BB_RESET_ENABLE			0xff00000d
 #define		FW_BB_RESET_DISABLE			0xff00000e
+#define		FW_CCA_CHK_ENABLE				0xff000011		
+#define		FW_CCK_RESET_CNT				0xff000013		
 #define		FW_LPS_ENTER					0xfe000010
 #define		FW_LPS_LEAVE					0xfe000011
 #define		FW_INDIRECT_READ				0xf2000000

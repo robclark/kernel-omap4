@@ -20,10 +20,6 @@
 
 #include "../rtl_core.h"
 #include "../rtl_dm.h"
-#include "r8192S_phy.h"
-#include "r8192S_phyreg.h"
-#include "r8192S_rtl6052.h"
-#include "r8192S_hwimg.h"
 
 #ifdef ENABLE_DOT11D
 #include "../rtllib/dot11d.h"
@@ -911,9 +907,9 @@ phy_ConfigBBWithHeaderFile(struct net_device* dev,u8 ConfigType)
 				udelay(5);
 			else if (Rtl819XPHY_REGArray_Table[i] == 0xf9)
 				udelay(1);
-#ifdef ECS_T20_INIT_DELAY 
-				udelay(1);
-#endif
+
+			udelay(1);
+
 			rtl8192_setBBreg(dev, Rtl819XPHY_REGArray_Table[i], bMaskDWord, Rtl819XPHY_REGArray_Table[i+1]);		
 
 		}
@@ -922,9 +918,7 @@ phy_ConfigBBWithHeaderFile(struct net_device* dev,u8 ConfigType)
 		for(i=0;i<AGCTAB_ArrayLen;i=i+2)
 		{
 			rtl8192_setBBreg(dev, Rtl819XAGCTAB_Array_Table[i], bMaskDWord, Rtl819XAGCTAB_Array_Table[i+1]);		
-#ifdef ECS_T20_INIT_DELAY 
 			udelay(1);
-#endif
 		}
 	}
 	return true;
@@ -1123,6 +1117,8 @@ u8 rtl8192_phy_ConfigRFWithHeaderFile(struct net_device* dev, RF90_RADIO_PATH_E	
 					rtl8192_phy_SetRFReg(dev, eRFPath, Rtl819XRadioA_Array_Table[i], 
 							bMask20Bits, Rtl819XRadioA_Array_Table[i+1]);
 				}
+
+				udelay(1);
 			}
 			rtl8192_phy_configRFPABiascurrent(dev, eRFPath);
 			break;
@@ -1146,9 +1142,8 @@ u8 rtl8192_phy_ConfigRFWithHeaderFile(struct net_device* dev, RF90_RADIO_PATH_E	
 				{
 					rtl8192_phy_SetRFReg(dev, eRFPath, Rtl819XRadioB_Array_Table[i], bMask20Bits, Rtl819XRadioB_Array_Table[i+1]);
 				}
-#ifdef ECS_T20_INIT_DELAY 
-			udelay(1);
-#endif
+				
+			        udelay(1);
 			}			
 			break;
 		case RF90_PATH_C:
@@ -1508,6 +1503,12 @@ static bool phy_SetRFPowerState8192SE(struct net_device* dev,RT_RF_POWER_STATE e
 				{					
 					for(QueueID = 0, i = 0; QueueID < MAX_TX_QUEUE; )
 					{
+						if(QueueID == 5) 
+						{
+							QueueID++;
+							continue;
+						}
+										
 						ring = &priv->tx_ring[QueueID];
 						if(skb_queue_len(&ring->queue) == 0)
 						{
@@ -1643,10 +1644,22 @@ PHY_SwitchEphyParameter(struct net_device* dev)
 	write_nic_byte(dev, 0x554, 0x39);
 	phy_CheckEphySwitchReady(dev);
 
-	if (priv->pci_bridge_vendor & (PCI_BRIDGE_VENDOR_INTEL | PCI_BRIDGE_VENDOR_SIS))
+	if(priv->bSupportASPM && !priv->bSupportBackDoor)
 		write_nic_byte(dev, 0x560, 0x40);
 	else
+	{
 		write_nic_byte(dev, 0x560, 0x00);
+	
+		if (priv->CustomerID == RT_CID_819x_SAMSUNG ||
+			priv->CustomerID == RT_CID_819x_Lenovo)
+		{
+			if (priv->NdisAdapter.PciBridgeVendor == PCI_BRIDGE_VENDOR_AMD ||
+				priv->NdisAdapter.PciBridgeVendor == PCI_BRIDGE_VENDOR_ATI)
+			{
+				write_nic_byte(dev, 0x560, 0x40);
+			}
+		}
+	}
 	
 }	
 
@@ -2080,7 +2093,6 @@ static long phy_TxPwrIdxToDbm(
 	return PwrOutDbm;
 }
 
-#ifdef TO_DO_LIST
 extern	void 
 PHY_ScanOperationBackup8192S(
 	struct net_device* dev,
@@ -2089,26 +2101,28 @@ PHY_ScanOperationBackup8192S(
 {
 #if(RTL8192S_DISABLE_FW_DM == 0)
 
-	if(!Adapter->bDriverStopped)
+	struct r8192_priv *priv = rtllib_priv(dev);
+
+	if(priv->up)
 	{
 		switch(Operation)
 		{
 			case SCAN_OPT_BACKUP:
-				Adapter->HalFunc.SetFwCmdHandler(Adapter, FW_CMD_PAUSE_DM_BY_SCAN);
+				priv->rtllib->SetFwCmdHandler(dev, FW_CMD_PAUSE_DM_BY_SCAN);
 				break;
 
 			case SCAN_OPT_RESTORE:
-				Adapter->HalFunc.SetFwCmdHandler(Adapter, FW_CMD_RESUME_DM_BY_SCAN);
+				priv->rtllib->SetFwCmdHandler(dev, FW_CMD_RESUME_DM_BY_SCAN);
 				break;
 
 			default:
-				RT_TRACE(COMP_SCAN, DBG_LOUD, ("Unknown Scan Backup Operation. \n"));
+				RT_TRACE(COMP_SCAN, "Unknown Scan Backup Operation. \n");
 				break;
 		}
 	}
 #endif
 }
-#endif
+
 void PHY_SetBWModeCallback8192S(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
@@ -3307,7 +3321,7 @@ void rtl8192_SetFwCmdIOCallback(struct net_device* dev)
 
 		case FW_CMD_RESUME_DM_BY_SCAN:		
 			RT_TRACE(COMP_CMD, "[FW CMD] Resume DM by Scan!!\n");
-			rtl8192_setBBreg(dev, rCCK0_CCA, bMaskByte2, 0x83);	
+			rtl8192_setBBreg(dev, rCCK0_CCA, bMaskByte2, 0xcd);	
 			rtl8192_phy_setTxPower(dev, priv->rtllib->current_network.channel);
 			break;
 		
@@ -3325,7 +3339,7 @@ void rtl8192_SetFwCmdIOCallback(struct net_device* dev)
 			if((priv->DMFlag & HAL_DM_HIPWR_DISABLE) ||
 				(priv->rtllib->bdynamic_txpower_enable == true))
 				break;
-			rtl8192_setBBreg(dev, rCCK0_CCA, bMaskByte2, 0x83);				
+			rtl8192_setBBreg(dev, rCCK0_CCA, bMaskByte2, 0xcd);				
 			break;
 
 		case FW_CMD_LPS_ENTER:
@@ -3354,12 +3368,14 @@ void rtl8192_SetFwCmdIOCallback(struct net_device* dev)
 			write_nic_dword(dev, WFM5, FW_CTRL_DM_BY_DRIVER);
 	                ChkFwCmdIoDone(dev);		
 			break;
+#ifdef CONFIG_FW_SETCHAN
 		case FW_CMD_CHAN_SET:
 			input = FW_CHAN_SET | (((priv->chan)&0xff) << 8);
 			RT_TRACE(COMP_CMD, "[FW CMD] Inform fw to set channel to %x!!, input(%#x):\n", priv->chan,input);
 			write_nic_dword(dev, WFM5, input);
 	                ChkFwCmdIoDone(dev);		
 			break;
+#endif
 			
 		default:
 			break;

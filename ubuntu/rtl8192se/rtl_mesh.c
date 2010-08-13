@@ -29,11 +29,6 @@
 
 #include "rtl_wx.h"
 #include "rtl_core.h"
-#include "rtl_dm.h"
-#include "rtl8192s/r8192S_phy.h"
-#include "rtl8192s/r8192S_phyreg.h"
-#include "rtl8192s/r8192S_rtl6052.h"
-#include "rtl8192s/r8192S_Efuse.h"
 #include "../../mshclass/msh_class.h"
 
 int meshdev_up(struct net_device *meshdev,bool is_silent_reset)
@@ -61,7 +56,16 @@ int meshdev_up(struct net_device *meshdev,bool is_silent_reset)
         /*RCR_AAP               |*/                                                     
         RCR_APP_PHYST_STAFF | RCR_APP_PHYST_RXFF |      
         (mpriv->priv->EarlyRxThreshold<<RCR_FIFO_OFFSET)       ;
-
+#elif defined RTL8192CE
+		mpriv->priv->ReceiveConfig = (\
+				RCR_APPFCS	
+				| RCR_AMF | RCR_ADF| RCR_APP_MIC| RCR_APP_ICV
+				| RCR_AICV | RCR_ACRC32 
+				| RCR_AB | RCR_AM			
+					| RCR_APM					
+					| RCR_APP_PHYST_RXFF		
+					| RCR_HTC_LOC_CTRL
+				);
 #else
         mpriv->priv->ReceiveConfig = RCR_ADD3  |
                 RCR_AMF | RCR_ADF |             
@@ -112,7 +116,7 @@ int meshdev_up(struct net_device *meshdev,bool is_silent_reset)
         if(!ieee->mesh_started) {
 #ifdef RTL8192E
             if(ieee->eRFPowerState!=eRfOn)
-                MgntActSet_RF_State(dev, eRfOn, ieee->RfOffReason);	
+                MgntActSet_RF_State(dev, eRfOn, ieee->RfOffReason,true);	
 #endif
             if(mpriv->priv->mshobj && mpriv->priv->mshobj->ext_patch_rtl819x_up )
                 mpriv->priv->mshobj->ext_patch_rtl819x_up(mpriv->priv->mshobj);
@@ -332,8 +336,8 @@ int meshdev_update_ext_chnl_offset_as_client(void *data)
 	u8 bserverHT = 0;
 
 	updateBW=mshobj->ext_patch_r819x_wx_update_beacon(dev,&bserverHT);
-	printk("$$$$$$%s(): Cur_networ.chan=%d, cur_mesh_net.chan=%d,bserverHT=%d\n",
-			__FUNCTION__,ieee->current_network.channel,ieee->current_mesh_network.channel,bserverHT);
+	printk("%s(): Cur_network.chan=%d, cur_mesh_net.chan=%d, updateBW=%d, bserverHT=%d\n",
+			__FUNCTION__,ieee->current_network.channel,ieee->current_mesh_network.channel,updateBW, bserverHT);
 	if (updateBW == 1) {
 		if (bserverHT == 0) {
 			printk("===>server is not HT supported,set 20M\n");

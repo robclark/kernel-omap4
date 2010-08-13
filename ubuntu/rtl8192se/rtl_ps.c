@@ -24,22 +24,6 @@
  *****************************************************************************/
 #include "rtl_ps.h"
 #include "rtl_core.h"
-#ifdef RTL8192CE
-#include "rtl8192c/r8192C_phy.h"
-#include "rtl8192c/r8192C_phyreg.h"
-#include "rtl8192c/r8192C_rtl6052.h"
-#include "rtl8192c/r8192C_Efuse.h"
-#elif defined RTL8192SE
-#include "rtl8192s/r8192S_phy.h"
-#include "rtl8192s/r8192S_phyreg.h"
-#include "rtl8192s/r8192S_rtl6052.h"
-#include "rtl8192s/r8192S_Efuse.h"
-#else
-#include "rtl8192e/r8192E_phy.h"
-#include "rtl8192e/r8192E_phyreg.h"
-#include "rtl8192e/r8190P_rtl8256.h" /* RTL8225 Radio frontend */
-#include "rtl8192e/r8192E_cmdpkt.h"
-#endif
 
 #if defined(RTL8192E) || defined(RTL8192SE) || defined RTL8192CE
 void rtl8192_hw_sleep_down(struct net_device *dev)
@@ -64,7 +48,7 @@ void rtl8192_hw_sleep_down(struct net_device *dev)
 		return;
 	}
 #endif	
-	MgntActSet_RF_State(dev, eRfSleep, RF_CHANGE_BY_PS);
+	MgntActSet_RF_State(dev, eRfSleep, RF_CHANGE_BY_PS,false);
 #ifdef CONFIG_ASPM_OR_D3
 	if(pPSC->RegRfPsLevel & RT_RF_LPS_LEVEL_ASPM)
 	{
@@ -108,7 +92,7 @@ void rtl8192_hw_wakeup(struct net_device* dev)
 	}
 #endif
 	RT_TRACE(COMP_PS, "%s()============>come to wake up\n", __FUNCTION__);
-	MgntActSet_RF_State(dev, eRfOn, RF_CHANGE_BY_PS);
+	MgntActSet_RF_State(dev, eRfOn, RF_CHANGE_BY_PS,false);
 }
 
 void rtl8192_hw_wakeup_wq(void *data)
@@ -239,7 +223,7 @@ void InactivePsWorkItemCallback(struct net_device *dev)
 #endif		
 	}
 #endif
-	MgntActSet_RF_State(dev, pPSC->eInactivePowerState, RF_CHANGE_BY_IPS);
+	MgntActSet_RF_State(dev, pPSC->eInactivePowerState, RF_CHANGE_BY_IPS,false);
 
 #ifdef CONFIG_ASPM_OR_D3
 	if(pPSC->eInactivePowerState == eRfOff)
@@ -393,12 +377,12 @@ bool MgntActSet_802_11_PowerSaveMode(struct net_device *dev,	u8 rtPsMode)
 	{
 	}
 #endif
-	if(priv->rtllib->sta_sleep != 0 && rtPsMode == RTLLIB_PS_DISABLED)
+	if(priv->rtllib->sta_sleep != LPS_IS_WAKE && rtPsMode == RTLLIB_PS_DISABLED)
 	{
                 unsigned long flags;
 
 		rtl8192_hw_wakeup(dev);
-		priv->rtllib->sta_sleep = 0;
+		priv->rtllib->sta_sleep = LPS_IS_WAKE;
 
                 spin_lock_irqsave(&(priv->rtllib->mgmt_tx_lock), flags);
 		printk("LPS leave: notify AP we are awaked ++++++++++ SendNullFunctionData\n");
@@ -525,6 +509,44 @@ void LeisurePSLeave(struct net_device *dev)
 #endif
 
 #ifdef CONFIG_ASPM_OR_D3
+
+void
+PlatformDisableHostL0s(struct net_device *dev)
+{
+	struct r8192_priv 	*priv = (struct r8192_priv *)rtllib_priv(dev);
+	u32				PciCfgAddrPort=0;
+	u8				Num4Bytes;
+	u8				uPciBridgeASPMSetting = 0;
+
+	
+	if( (priv->NdisAdapter.BusNumber == 0xff && priv->NdisAdapter.DevNumber == 0xff && priv->NdisAdapter.FuncNumber == 0xff) ||
+		(priv->NdisAdapter.PciBridgeBusNum == 0xff && priv->NdisAdapter.PciBridgeDevNum == 0xff && priv->NdisAdapter.PciBridgeFuncNum == 0xff) )
+	{
+		printk("PlatformDisableHostL0s(): Fail to enable ASPM. Cannot find the Bus of PCI(Bridge).\n");
+		return;
+	}
+	
+	PciCfgAddrPort= (priv->NdisAdapter.PciBridgeBusNum << 16)|(priv->NdisAdapter.PciBridgeDevNum<< 11)|(priv->NdisAdapter.PciBridgeFuncNum <<  8)|(1 << 31);
+	Num4Bytes = (priv->NdisAdapter.PciBridgePCIeHdrOffset+0x10)/4;
+
+
+	NdisRawWritePortUlong(PCI_CONF_ADDRESS , PciCfgAddrPort+(Num4Bytes << 2));
+
+	NdisRawReadPortUchar(PCI_CONF_DATA, &uPciBridgeASPMSetting);
+
+	if(uPciBridgeASPMSetting & BIT0)
+		uPciBridgeASPMSetting &=  ~(BIT0);
+
+	NdisRawWritePortUlong(PCI_CONF_ADDRESS , PciCfgAddrPort+(Num4Bytes << 2));
+	NdisRawWritePortUchar(PCI_CONF_DATA, uPciBridgeASPMSetting);
+
+	udelay(50);
+
+	printk("PlatformDisableHostL0s():PciBridge BusNumber[%x], DevNumbe[%x], FuncNumber[%x], Write reg[%x] = %x\n",
+		priv->NdisAdapter.PciBridgeBusNum, priv->NdisAdapter.PciBridgeDevNum, priv->NdisAdapter.PciBridgeFuncNum, 
+		(priv->NdisAdapter.PciBridgePCIeHdrOffset+0x10), (priv->NdisAdapter.PciBridgeLinkCtrlReg | (priv->RegDevicePciASPMSetting&~BIT0)));
+}
+
 bool
 PlatformEnable92CEBackDoor(struct net_device *dev)
 {
@@ -532,8 +554,24 @@ PlatformEnable92CEBackDoor(struct net_device *dev)
 	bool			bResult = true;
 	u8			value;
 
+	if( (priv->NdisAdapter.BusNumber == 0xff && priv->NdisAdapter.DevNumber == 0xff && priv->NdisAdapter.FuncNumber == 0xff) ||
+		(priv->NdisAdapter.PciBridgeBusNum == 0xff && priv->NdisAdapter.PciBridgeDevNum == 0xff && priv->NdisAdapter.PciBridgeFuncNum == 0xff) )
+	{
+		RT_TRACE(COMP_INIT, "PlatformEnableASPM(): Fail to enable ASPM. Cannot find the Bus of PCI(Bridge).\n");
+		return false;
+	}
+	
 	pci_read_config_byte(priv->pdev, 0x70f, &value);
+	
+	if(priv->NdisAdapter.PciBridgeVendor == PCI_BRIDGE_VENDOR_INTEL)
+	{
 	value |= BIT7;
+	}
+	else
+	{
+		value = 0x23;
+	}
+	
 	pci_write_config_byte(priv->pdev, 0x70f, value);
 
 
@@ -554,8 +592,11 @@ bool PlatformSwitchDevicePciASPM(struct net_device *dev, u8 value)
 	value |= 0x40;
 #endif
 
-	pci_write_config_byte(priv->pdev, priv->ASPMRegOffset, value);
+	pci_write_config_byte(priv->pdev, 0x80, value);
+
+#ifdef RTL8192SE
 	udelay(100);
+#endif
 
 	return bResult;
 }
@@ -568,8 +609,15 @@ bool PlatformSwitchClkReq(struct net_device *dev, u8 value)
 
 	Buffer= value;	
 	
-	pci_write_config_byte(priv->pdev,priv->ClkReqOffset,value);
+#ifdef MERGE_TO_DO
+	if(Adapter->bDriverIsGoingToPnpSetPowerSleep && pDevice->RegSupportLowPowerState
+		&& value == 0x0)
+		return false;
+#endif
+
+	pci_write_config_byte(priv->pdev,0x81,value);
 	bResult = true;
+	
 #ifdef TODO
 	if(Buffer) {
 		priv->ClkReqState = true;
@@ -577,7 +625,11 @@ bool PlatformSwitchClkReq(struct net_device *dev, u8 value)
 		priv->ClkReqState = false;
 	}
 #endif
+
+#ifdef RTL8192SE
 	udelay(100);
+#endif
+
 	return bResult;
 }
 
@@ -586,38 +638,94 @@ PlatformDisableASPM(struct net_device *dev)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
 	PRT_POWER_SAVE_CONTROL	pPSC = (PRT_POWER_SAVE_CONTROL)(&(priv->rtllib->PowerSaveControl));
-
+#if 1
+	u32	PciCfgAddrPort=0;
+	u8	Num4Bytes;
+#endif
 	u8	LinkCtrlReg;
 	u16	PciBridgeLinkCtrlReg, ASPMLevel=0;
 
 #ifdef RTL8192CE
-	if (!priv->aspm_clkreq_enable) {
-		RT_TRACE(COMP_INIT, "%s: Fail to enable ASPM. Cannot find the Bus of PCI(Bridge).\n",\
-			       	__FUNCTION__);
+	if( (priv->NdisAdapter.BusNumber == 0xff && priv->NdisAdapter.DevNumber == 0xff && priv->NdisAdapter.FuncNumber == 0xff) ||
+		(priv->NdisAdapter.PciBridgeBusNum == 0xff && priv->NdisAdapter.PciBridgeDevNum == 0xff && priv->NdisAdapter.PciBridgeFuncNum == 0xff) )
+	{
+		RT_TRACE(COMP_INIT, "PlatformEnableASPM(): Fail to enable ASPM. Cannot find the Bus of PCI(Bridge).\n");
 		return;
 	}
 #endif
 
-	LinkCtrlReg = priv->LinkCtrlReg;
+#ifdef RTL8192SE
+	if(priv->NdisAdapter.PciBridgeVendor != PCI_BRIDGE_VENDOR_INTEL )
+	{
+		RT_TRACE(COMP_POWER, "%s(): Dont modify ASPM for non intel chipset. For Bridge Vendor %d.\n"
+			,__func__,priv->NdisAdapter.PciBridgeVendor);
+		return;
+	}
+#endif
+
+	if(priv->NdisAdapter.PciBridgeVendor == PCI_BRIDGE_VENDOR_UNKNOWN)
+	{
+		RT_TRACE(COMP_POWER,  "%s(): Disable ASPM. Recognize the Bus of PCI(Bridge) as UNKNOWN.\n",__func__);
+	}
+
+#ifdef RTL8192CE
+	if(pPSC->RegRfPsLevel & RT_RF_OFF_LEVL_CLK_REQ)
+	{
+		RT_CLEAR_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_CLK_REQ);
+		PlatformSwitchClkReq(dev, 0x0);
+	}	
+
+	{
+		u8	tmpU1b;
+	
+		pci_read_config_byte(priv->pdev, 0x80, &tmpU1b);		
+	}
+#endif
+
+	LinkCtrlReg = priv->NdisAdapter.LinkCtrlReg;
+	PciBridgeLinkCtrlReg = priv->NdisAdapter.PciBridgeLinkCtrlReg;
+
 	ASPMLevel |= BIT0|BIT1;
 	LinkCtrlReg &=~ASPMLevel;
-
-	PciBridgeLinkCtrlReg = priv->PciBridgeLinkCtrlReg;
 	PciBridgeLinkCtrlReg &=~(BIT0|BIT1);
 
-	if (priv->aspm_clkreq_enable) {
+#ifdef RTL8192CE
+	PlatformSwitchDevicePciASPM(dev, LinkCtrlReg);
+	udelay( 50);
+#endif
 
+	if( (priv->NdisAdapter.BusNumber == 0xff && priv->NdisAdapter.DevNumber == 0xff && priv->NdisAdapter.FuncNumber == 0xff) ||
+		(priv->NdisAdapter.PciBridgeBusNum == 0xff && priv->NdisAdapter.PciBridgeDevNum == 0xff && priv->NdisAdapter.PciBridgeFuncNum == 0xff) )
+	{
+	} else  {
+#if 1
+		PciCfgAddrPort= (priv->NdisAdapter.PciBridgeBusNum << 16)|(priv->NdisAdapter.PciBridgeDevNum<< 11)|(priv->NdisAdapter.PciBridgeFuncNum <<  8)|(1 << 31);
+		Num4Bytes = (priv->NdisAdapter.PciBridgePCIeHdrOffset+0x10)/4;
+
+		NdisRawWritePortUlong(PCI_CONF_ADDRESS , PciCfgAddrPort+(Num4Bytes << 2));
+
+		NdisRawWritePortUchar(PCI_CONF_DATA, PciBridgeLinkCtrlReg);	
+		RT_TRACE(COMP_POWER, "PlatformDisableASPM():PciBridge BusNumber[%x], DevNumbe[%x], FuncNumber[%x], Write reg[%x] = %x\n",
+			priv->NdisAdapter.PciBridgeBusNum, priv->NdisAdapter.PciBridgeDevNum, priv->NdisAdapter.PciBridgeFuncNum, 
+			(priv->NdisAdapter.PciBridgePCIeHdrOffset+0x10), PciBridgeLinkCtrlReg);
+		
+		udelay(50);
+#else
 		pci_write_config_byte(priv->bridge_pdev,priv->PciBridgeASPMRegOffset,PciBridgeLinkCtrlReg);
 		RT_TRACE(COMP_POWER, "Write reg[%x]=%x\n", (priv->PciBridgeASPMRegOffset), PciBridgeLinkCtrlReg);
 		udelay(100);
+#endif
 	}
 
-	PlatformSwitchDevicePciASPM(dev, priv->LinkCtrlReg);
+#ifdef RTL8192SE
+	PlatformSwitchDevicePciASPM(dev, priv->NdisAdapter.LinkCtrlReg);
 
 	PlatformSwitchClkReq(dev, 0x0);
 	if (pPSC->RegRfPsLevel & RT_RF_OFF_LEVL_CLK_REQ)
 		RT_CLEAR_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_CLK_REQ);
 	udelay(100);
+#endif
+
 }
 
 void PlatformEnableASPM(struct net_device *dev)
@@ -625,15 +733,73 @@ void PlatformEnableASPM(struct net_device *dev)
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
 	PRT_POWER_SAVE_CONTROL pPSC = (PRT_POWER_SAVE_CONTROL)(&(priv->rtllib->PowerSaveControl));
 	u16	ASPMLevel = 0;
+	u32	PciCfgAddrPort=0;
+	u8	Num4Bytes;
+	u8	uPciBridgeASPMSetting = 0;
+	u8	uDeviceASPMSetting = 0;
 
-	if (!priv->aspm_clkreq_enable) {
-		RT_TRACE(COMP_INIT, "%s: Fail to enable ASPM. Cannot find the Bus of PCI(Bridge).\n",\
-			       	__FUNCTION__);
+
+	if( (priv->NdisAdapter.BusNumber == 0xff && priv->NdisAdapter.DevNumber == 0xff && priv->NdisAdapter.FuncNumber == 0xff) ||
+		(priv->NdisAdapter.PciBridgeBusNum == 0xff && priv->NdisAdapter.PciBridgeDevNum == 0xff && priv->NdisAdapter.PciBridgeFuncNum == 0xff) )
+	{
+		RT_TRACE(COMP_INIT, "PlatformEnableASPM(): Fail to enable ASPM. Cannot find the Bus of PCI(Bridge).\n");
 		return;
 	}
 
+#ifdef RTL8192SE
+	if(priv->NdisAdapter.PciBridgeVendor != PCI_BRIDGE_VENDOR_INTEL )
+	{
+		RT_TRACE(COMP_POWER, "%s(): Dont modify ASPM for non intel chipset. For Bridge Vendor %d.\n"
+			,__func__,priv->NdisAdapter.PciBridgeVendor);
+		return;
+	}
+#endif
+
+#ifdef RTL8192CE
+	PciCfgAddrPort= (priv->NdisAdapter.PciBridgeBusNum << 16)|(priv->NdisAdapter.PciBridgeDevNum<< 11)
+							|(priv->NdisAdapter.PciBridgeFuncNum <<  8)|(1 << 31);
+	Num4Bytes = (priv->NdisAdapter.PciBridgePCIeHdrOffset+0x10)/4;
+	NdisRawWritePortUlong(PCI_CONF_ADDRESS , PciCfgAddrPort+(Num4Bytes << 2));
+
+	uPciBridgeASPMSetting = priv->NdisAdapter.PciBridgeLinkCtrlReg |priv->RegHostPciASPMSetting;
+	
+#ifdef RTL8192SE
+	if(priv->CustomerID == RT_CID_TOSHIBA && priv->NdisAdapter.PciBridgeVendor == PCI_BRIDGE_VENDOR_AMD 
+		&& pPSC->RegAMDPciASPM)
+	{
+		if(priv->NdisAdapter.PciBridgeLinkCtrlReg & BIT1)
+			uPciBridgeASPMSetting |= BIT0;
+	}
+	else
+#endif
+	if(priv->NdisAdapter.PciBridgeVendor == PCI_BRIDGE_VENDOR_INTEL )
+		uPciBridgeASPMSetting &=  ~ BIT0;
+
+	NdisRawWritePortUchar(PCI_CONF_DATA, uPciBridgeASPMSetting);
+	RT_TRACE(COMP_INIT, "PlatformEnableASPM():PciBridge BusNumber[%x], DevNumbe[%x], FuncNumber[%x], Write reg[%x] = %x\n",
+		priv->NdisAdapter.PciBridgeBusNum, priv->NdisAdapter.PciBridgeDevNum, priv->NdisAdapter.PciBridgeFuncNum, (priv->NdisAdapter.PciBridgePCIeHdrOffset+0x10), 
+		uPciBridgeASPMSetting);
+
+	udelay(50);
+#endif
+
 	ASPMLevel |= priv->RegDevicePciASPMSetting;
-	PlatformSwitchDevicePciASPM(dev, (priv->LinkCtrlReg | ASPMLevel));
+	uDeviceASPMSetting = priv->NdisAdapter.LinkCtrlReg;
+
+
+#ifdef RTL8192SE
+	if(priv->CustomerID == RT_CID_TOSHIBA && priv->NdisAdapter.PciBridgeVendor == PCI_BRIDGE_VENDOR_AMD)
+	{
+		if(priv->NdisAdapter.LinkCtrlReg & BIT1)
+			uDeviceASPMSetting |= BIT0;
+		else 
+			uDeviceASPMSetting |= ASPMLevel;			
+	}
+	else
+#endif
+		uDeviceASPMSetting |= ASPMLevel;
+	
+	PlatformSwitchDevicePciASPM(dev, uDeviceASPMSetting);
 
 	if (pPSC->RegRfPsLevel & RT_RF_OFF_LEVL_CLK_REQ) {
 		PlatformSwitchClkReq(dev,(pPSC->RegRfPsLevel & RT_RF_OFF_LEVL_CLK_REQ) ? 1 : 0);
@@ -641,11 +807,36 @@ void PlatformEnableASPM(struct net_device *dev)
 	}
 	udelay(100);
 
+#ifdef RTL8192SE
+#if 0
 	pci_write_config_byte(priv->bridge_pdev,priv->PciBridgeASPMRegOffset,\
-			((priv->PciBridgeLinkCtrlReg | priv->RegHostPciASPMSetting)&~BIT0)&0xff);
+			((priv->NdisAdapter.PciBridgeLinkCtrlReg | priv->RegHostPciASPMSetting)&~BIT0)&0xff);
 	RT_TRACE(COMP_INIT, "Write reg[%x] = %x\n",
 		priv->PciBridgeASPMRegOffset, 
-		(priv->PciBridgeLinkCtrlReg|priv->RegHostPciASPMSetting));
+		(priv->NdisAdapter.PciBridgeLinkCtrlReg|priv->RegHostPciASPMSetting));
+#else
+	PciCfgAddrPort= (priv->NdisAdapter.PciBridgeBusNum << 16)|(priv->NdisAdapter.PciBridgeDevNum<< 11)|(priv->NdisAdapter.PciBridgeFuncNum <<  8)|(1 << 31);
+	Num4Bytes = (priv->NdisAdapter.PciBridgePCIeHdrOffset+0x10)/4;
+	NdisRawWritePortUlong(PCI_CONF_ADDRESS , PciCfgAddrPort+(Num4Bytes << 2));
+
+	uPciBridgeASPMSetting = priv->NdisAdapter.PciBridgeLinkCtrlReg |priv->RegHostPciASPMSetting;
+	
+	if(priv->CustomerID == RT_CID_TOSHIBA && priv->NdisAdapter.PciBridgeVendor == PCI_BRIDGE_VENDOR_AMD 
+		&& pPSC->RegAMDPciASPM)
+	{
+		if(priv->NdisAdapter.PciBridgeLinkCtrlReg & BIT1)
+			uPciBridgeASPMSetting |= BIT0;
+	}
+	else if(priv->NdisAdapter.PciBridgeVendor == PCI_BRIDGE_VENDOR_INTEL )
+		uPciBridgeASPMSetting &=  ~ BIT0;
+
+	NdisRawWritePortUchar(PCI_CONF_DATA, uPciBridgeASPMSetting);
+	RT_TRACE(COMP_INIT, "PlatformEnableASPM():PciBridge BusNumber[%x], DevNumbe[%x], FuncNumber[%x], Write reg[%x] = %x\n",
+		priv->NdisAdapter.PciBridgeBusNum, priv->NdisAdapter.PciBridgeDevNum, priv->NdisAdapter.PciBridgeFuncNum, (priv->NdisAdapter.PciBridgePCIeHdrOffset+0x10), 
+		uPciBridgeASPMSetting);
+#endif
+#endif
+
 	udelay(100);
 }
 

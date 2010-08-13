@@ -24,26 +24,62 @@
 ******************************************************************************/
 #include "rtl_debug.h"
 #include "rtl_core.h"
-#ifdef RTL8192CE
-#include "rtl8192c/r8192C_phy.h"
-#include "rtl8192c/r8192C_phyreg.h"
-#include "rtl8192c/r8192C_rtl6052.h"
-#include "rtl8192c/r8192C_Efuse.h"
-#elif defined RTL8192SE
-#include "rtl8192s/r8192S_phy.h"
-#include "rtl8192s/r8192S_phyreg.h"
-#include "rtl8192s/r8192S_rtl6052.h"
-#include "rtl8192s/r8192S_Efuse.h"
-#else
-#include "rtl8192e/r8192E_phy.h" 
-#include "rtl8192e/r8192E_phyreg.h"
-#include "rtl8192e/r8190P_rtl8256.h" /* RTL8225 Radio frontend */
-#include "rtl8192e/r8192E_cmdpkt.h"
-#endif
 
 #ifdef _RTL8192_EXT_PATCH_
 #include "../../mshclass/msh_class.h"
 #endif
+
+u32 rt_global_debug_component = \
+				COMP_ERR ; 
+
+/*------------------Declare variable-----------------------*/
+u32	DBGP_Type[DBGP_TYPE_MAX];
+
+/*-----------------------------------------------------------------------------
+ * Function:    DBGP_Flag_Init
+ *
+ * Overview:    Refresh all debug print control flag content to zero.
+ *
+ * Input:       NONE
+ *
+ * Output:      NONE
+ *
+ * Return:      NONE
+ *
+ * Revised History:
+ *  When		Who		Remark
+ *  10/20/2006	MHC		Create Version 0.
+ *
+ *---------------------------------------------------------------------------*/
+void	rtl8192_dbgp_flag_init(struct net_device *dev)
+{    
+    u8	i;
+    
+	for (i = 0; i < DBGP_TYPE_MAX; i++)
+	{
+ 		DBGP_Type[i] = 0;
+	}
+    
+	
+	DBGP_Type[FIOCTL] = \
+				IOCTL_TRACE			|
+				IOCTL_BT_EVENT			|
+				IOCTL_BT_EVENT_DETAIL		|
+				IOCTL_BT_TX_ACLDATA		|
+				IOCTL_BT_TX_ACLDATA_DETAIL	|
+				IOCTL_BT_RX_ACLDATA		|
+				IOCTL_BT_RX_ACLDATA_DETAIL	|
+				IOCTL_BT_HCICMD			|
+				IOCTL_BT_HCICMD_DETAIL		|
+				IOCTL_IRP			|
+				IOCTL_IRP_DETAIL		|
+				IOCTL_CALLBACK_FUN		|
+				IOCTL_STATE			|
+				IOCTL_BT_TP			|
+				IOCTL_BT_LOGO			|
+				0;				
+}	/* DBGP_Flag_Init */
+
 /* this is only for debugging */
 void print_buffer(u32 *buffer, int len)
 {
@@ -522,6 +558,8 @@ static int proc_get_registers_0(char *page, char **start,
 	{
 		len += snprintf(page + len, count - len,
 				"\n####################page %x##################\n ", (page0>>8));
+		len += snprintf(page + len, count - len,
+				"\nD:  OF > 00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F");
 		for(n=0;n<=max;)
 		{
 			len += snprintf(page + len, count - len, "\nD:  %2x > ",n);
@@ -550,6 +588,8 @@ static int proc_get_registers_1(char *page, char **start,
 	/* This dump the current register page */
 	len += snprintf(page + len, count - len,
 			"\n####################page %x##################\n ", (page0>>8));
+	len += snprintf(page + len, count - len,
+			"\nD:  OF > 00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F");
 	for(n=0;n<=max;)
 	{
 		len += snprintf(page + len, count - len,
@@ -578,6 +618,8 @@ static int proc_get_registers_2(char *page, char **start,
 	/* This dump the current register page */
 	len += snprintf(page + len, count - len,
 			"\n####################page %x##################\n ", (page0>>8));
+	len += snprintf(page + len, count - len,
+			"\nD:  OF > 00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F");
 	for(n=0;n<=max;)
 	{
 		len += snprintf(page + len, count - len,
@@ -606,6 +648,8 @@ static int proc_get_registers_3(char *page, char **start,
 	/* This dump the current register page */
 	len += snprintf(page + len, count - len,
 			"\n####################page %x##################\n ", (page0>>8));
+	len += snprintf(page + len, count - len,
+			"\nD:  OF > 00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F");
 	for(n=0;n<=max;)
 	{
 		len += snprintf(page + len, count - len,
@@ -634,6 +678,8 @@ static int proc_get_registers_4(char *page, char **start,
 	/* This dump the current register page */
 	len += snprintf(page + len, count - len,
 			"\n####################page %x##################\n ", (page0>>8));
+	len += snprintf(page + len, count - len,
+			"\nD:  OF > 00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F");
 	for(n=0;n<=max;)
 	{
 		len += snprintf(page + len, count - len,
@@ -662,6 +708,8 @@ static int proc_get_registers_5(char *page, char **start,
         /* This dump the current register page */
         len += snprintf(page + len, count - len,
                         "\n####################page %x##################\n ", (page0>>8));
+	len += snprintf(page + len, count - len,
+			"\nD:  OF > 00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F");
         for(n=0;n<=max;)
         {
                 len += snprintf(page + len, count - len,
@@ -690,6 +738,8 @@ static int proc_get_registers_6(char *page, char **start,
         /* This dump the current register page */
         len += snprintf(page + len, count - len,
                         "\n####################page %x##################\n ", (page0>>8));
+	len += snprintf(page + len, count - len,
+			"\nD:  OF > 00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F");
         for(n=0;n<=max;)
         {
                 len += snprintf(page + len, count - len,
@@ -718,6 +768,8 @@ static int proc_get_registers_7(char *page, char **start,
         /* This dump the current register page */
         len += snprintf(page + len, count - len,
                         "\n####################page %x##################\n ", (page0>>8));
+	len += snprintf(page + len, count - len,
+			"\nD:  OF > 00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F");
         for(n=0;n<=max;)
         {
                 len += snprintf(page + len, count - len,
@@ -1019,7 +1071,7 @@ static int proc_get_reg_rf_d(char *page, char **start,
 	return len;
 }
 
-static int proc_get_cam_register(char *page, char **start,
+static int proc_get_cam_register_1(char *page, char **start,
 			  off_t offset, int count,
 			  int *eof, void *data)
 {
@@ -1033,11 +1085,9 @@ static int proc_get_cam_register(char *page, char **start,
 
 	/* This dump the current register page */
 	len += snprintf(page + len, count - len,
-				"\n#################### SECURITY CAM ##################\n ");
-	for(j=0; j<TOTAL_CAM_ENTRY; j++)
+				"\n#################### SECURITY CAM (0-10) ##################\n ");
+	for(j=0; j<11; j++)
 	{
-		if((j>6) && (j<31))
-			continue;
 		len += snprintf(page + len, count - len, "\nD:  %2x > ",j);
 	 	for(entry_i=0;entry_i<CAM_CONTENT_COUNT;entry_i++)
 	 	{
@@ -1065,6 +1115,93 @@ static int proc_get_cam_register(char *page, char **start,
 	return len;
 }
 
+static int proc_get_cam_register_2(char *page, char **start,
+			  off_t offset, int count,
+			  int *eof, void *data)
+{
+	struct net_device *dev = data;
+	u32 target_command=0;
+	u32 target_content=0;
+	u8 entry_i=0;
+	u32 ulStatus;
+	int len = 0;
+	int i=100, j = 0;
+
+	/* This dump the current register page */
+	len += snprintf(page + len, count - len,
+				"\n#################### SECURITY CAM (11-21) ##################\n ");
+	for(j=11; j<22; j++)
+	{
+		len += snprintf(page + len, count - len, "\nD:  %2x > ",j);
+	 	for(entry_i=0;entry_i<CAM_CONTENT_COUNT;entry_i++)
+	 	{
+			target_command= entry_i+CAM_CONTENT_COUNT*j;
+			target_command= target_command | BIT31;
+
+			while((i--)>=0)
+			{
+				ulStatus = read_nic_dword(dev, RWCAM);
+				if(ulStatus & BIT31){
+					continue;
+				}
+				else{
+					break;
+				}
+			}
+	  		write_nic_dword(dev, RWCAM, target_command);
+	  	 	target_content = read_nic_dword(dev, RCAMO);
+			len += snprintf(page + len, count - len,"%8.8x ",target_content);
+	 	}
+	}
+
+	len += snprintf(page + len, count - len,"\n");
+	*eof = 1;
+	return len;
+}
+
+static int proc_get_cam_register_3(char *page, char **start,
+			  off_t offset, int count,
+			  int *eof, void *data)
+{
+	struct net_device *dev = data;
+	u32 target_command=0;
+	u32 target_content=0;
+	u8 entry_i=0;
+	u32 ulStatus;
+	int len = 0;
+	int i=100, j = 0;
+
+	/* This dump the current register page */
+	len += snprintf(page + len, count - len,
+				"\n#################### SECURITY CAM (22-31) ##################\n ");
+	for(j=22; j<TOTAL_CAM_ENTRY; j++)
+	{
+		len += snprintf(page + len, count - len, "\nD:  %2x > ",j);
+	 	for(entry_i=0;entry_i<CAM_CONTENT_COUNT;entry_i++)
+	 	{
+			target_command= entry_i+CAM_CONTENT_COUNT*j;
+			target_command= target_command | BIT31;
+
+			while((i--)>=0)
+			{
+				ulStatus = read_nic_dword(dev, RWCAM);
+				if(ulStatus & BIT31){
+					continue;
+				}
+				else{
+					break;
+				}
+			}
+	  		write_nic_dword(dev, RWCAM, target_command);
+	  	 	target_content = read_nic_dword(dev, RCAMO);
+			len += snprintf(page + len, count - len,"%8.8x ",target_content);
+	 	}
+	}
+
+	len += snprintf(page + len, count - len,"\n");
+	*eof = 1;
+	return len;
+}
 static int proc_get_stats_tx(char *page, char **start,
 			  off_t offset, int count,
 			  int *eof, void *data)
@@ -1184,7 +1321,9 @@ void rtl8192_proc_remove_one(struct net_device *dev)
 		remove_proc_entry("RF-B", priv->dir_dev);
 		remove_proc_entry("RF-C", priv->dir_dev);
 		remove_proc_entry("RF-D", priv->dir_dev);
-		remove_proc_entry("SEC-CAM", priv->dir_dev);
+		remove_proc_entry("SEC-CAM-1", priv->dir_dev);
+		remove_proc_entry("SEC-CAM-2", priv->dir_dev);
+		remove_proc_entry("SEC-CAM-3", priv->dir_dev);
 #ifdef _RTL8192_EXT_PATCH_
 		remove_proc_entry("ra0", rtl8192_proc);
 #else
@@ -1368,11 +1507,25 @@ void rtl8192_proc_init_one(struct net_device *dev)
 		      "/proc/net/rtl8192/%s/RF-D\n",
 		      dev->name);
 	}
-	e = create_proc_read_entry("SEC-CAM", S_IFREG | S_IRUGO,
-				   priv->dir_dev, proc_get_cam_register, dev);
+	e = create_proc_read_entry("SEC-CAM-1", S_IFREG | S_IRUGO,
+				   priv->dir_dev, proc_get_cam_register_1, dev);
 	if (!e) {
 		RT_TRACE(COMP_ERR, "Unable to initialize "
-		      "/proc/net/rtl8192/%s/SEC-CAM\n",
+		      "/proc/net/rtl8192/%s/SEC-CAM-1\n",
+		      dev->name);
+	}
+	e = create_proc_read_entry("SEC-CAM-2", S_IFREG | S_IRUGO,
+				   priv->dir_dev, proc_get_cam_register_2, dev);
+	if (!e) {
+		RT_TRACE(COMP_ERR, "Unable to initialize "
+		      "/proc/net/rtl8192/%s/SEC-CAM-2\n",
+		      dev->name);
+	}
+	e = create_proc_read_entry("SEC-CAM-3", S_IFREG | S_IRUGO,
+				   priv->dir_dev, proc_get_cam_register_3, dev);
+	if (!e) {
+		RT_TRACE(COMP_ERR, "Unable to initialize "
+		      "/proc/net/rtl8192/%s/SEC-CAM-3\n",
 		      dev->name);
 	}
 #ifdef _RTL8192_EXT_PATCH_

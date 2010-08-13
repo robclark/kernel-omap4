@@ -256,7 +256,7 @@ int rtllib_wx_get_rate(struct rtllib_device *ieee,
 			     union iwreq_data *wrqu, char *extra)
 {
 	u32 tmp_rate = 0;
-#if defined RTL8192SU|| defined RTL8192CE
+#if defined RTL8192SU
 	if (ieee->mode & (IEEE_A | IEEE_B | IEEE_G))
 		tmp_rate = ieee->rate;
 	else if (ieee->mode & IEEE_N_5G)
@@ -267,7 +267,7 @@ int rtllib_wx_get_rate(struct rtllib_device *ieee,
 		else
 			tmp_rate = HTMcsToDataRate(ieee, 15);
 	}
-#elif defined RTL8192SE
+#elif defined RTL8192SE || defined RTL8192CE
 	tmp_rate = ieee->rtl_11n_user_show_rates(ieee->dev);
 #else
         tmp_rate = TxCountToDataRate(ieee, ieee->softmac_stats.CurrentShowTxate);
@@ -331,7 +331,7 @@ int rtllib_wx_set_mode(struct rtllib_device *ieee, struct iw_request_info *a,
 		goto out;
 	
 	if (wrqu->mode == IW_MODE_MONITOR) {
-#ifdef CONFIG_RTL819x_RADIOTAP
+#if defined(RTLLIB_RADIOTAP) && (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,10)) 
 		ieee->dev->type = ARPHRD_IEEE80211_RADIOTAP;
 #else
 		ieee->dev->type = ARPHRD_IEEE80211;
@@ -396,19 +396,8 @@ void rtllib_wx_sync_scan_wq(void *data)
 	/* wait for ps packet to be kicked out successfully */
 	msleep(50);
 
-#if !(defined RTL8192SE ||defined RTL8192CE)	
-	ieee->InitialGainHandler(ieee->dev,IG_Backup);
-#endif
-#if defined(RTL8192SE)
-#if(RTL8192S_DISABLE_FW_DM == 0)
-	if (ieee->SetFwCmdHandler) {
-		ieee->SetFwCmdHandler(ieee->dev, FW_CMD_PAUSE_DM_BY_SCAN);
-	}
-#endif
-#endif	
-#if defined RTL8192SU || defined RTL8192CE
-	ieee->ScanOperationBackupHandler(ieee->dev,SCAN_OPT_BACKUP);
-#endif
+	if(ieee->ScanOperationBackupHandler)
+		ieee->ScanOperationBackupHandler(ieee->dev,SCAN_OPT_BACKUP);
 
 	if (ieee->pHTInfo->bCurrentHTSupport && ieee->pHTInfo->bEnableHT && ieee->pHTInfo->bCurBW40MHz) {
 		b40M = 1;
@@ -433,20 +422,9 @@ void rtllib_wx_sync_scan_wq(void *data)
 		ieee->set_chan(ieee->dev, chan);
 	}
 	
-#if !(defined RTL8192SE ||defined RTL8192CE)
-	ieee->InitialGainHandler(ieee->dev,IG_Restore);
-#endif
-
-#if defined(RTL8192SE)
-#if(RTL8192S_DISABLE_FW_DM == 0)
-	if (ieee->SetFwCmdHandler) {
-		ieee->SetFwCmdHandler(ieee->dev, FW_CMD_RESUME_DM_BY_SCAN);
-	}
-#endif
-#endif	
-#if defined RTL8192SU || defined RTL8192CE
-	ieee->ScanOperationBackupHandler(ieee->dev,SCAN_OPT_RESTORE);
-#endif
+	if(ieee->ScanOperationBackupHandler)
+		ieee->ScanOperationBackupHandler(ieee->dev,SCAN_OPT_RESTORE);
+	
 	ieee->state = RTLLIB_LINKED;
 	ieee->link_change(ieee->dev);
 

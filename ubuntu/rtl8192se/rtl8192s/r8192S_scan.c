@@ -54,7 +54,7 @@ void rtl8192se_hw_scan_simu(void *data)
 #ifdef _RTL8192_EXT_PATCH_
 		rtllib_send_probe_requests(priv->rtllib, 1);
 #else
-		rtllib_send_probe_requests(priv->rtllib);
+		rtllib_send_probe_requests(priv->rtllib, 0);
 #endif
 	}
 

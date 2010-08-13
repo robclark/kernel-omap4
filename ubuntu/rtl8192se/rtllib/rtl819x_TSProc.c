@@ -487,7 +487,7 @@ bool GetTs(
 					ResetRxTsEntry(tmp);
 				}
 				
-				RTLLIB_DEBUG(RTLLIB_DL_TS, "to init current TS, UP:%d, Dir:%d, addr:"MAC_FMT"\n", UP, Dir, MAC_ARG(Addr));
+				RTLLIB_DEBUG(RTLLIB_DL_TS, "to init current TS, UP:%d, Dir:%d, addr:"MAC_FMT" ppTs=%p\n", UP, Dir, MAC_ARG(Addr), *ppTS);
 				pTSInfo->field.ucTrafficType = 0;			
 				pTSInfo->field.ucTSID = UP;			
 				pTSInfo->field.ucDirection = Dir;			
@@ -519,7 +519,6 @@ void RemoveTsEntry(
 	TR_SELECT			TxRxSelect
 	)
 {
-	unsigned long flags = 0;
 	del_timer_sync(&pTs->SetupTimer);
 	del_timer_sync(&pTs->InactTimer);
 	TsInitDelBA(ieee, pTs, TxRxSelect);
@@ -528,7 +527,6 @@ void RemoveTsEntry(
 	{
 		PRX_REORDER_ENTRY	pRxReorderEntry;
 		PRX_TS_RECORD 		pRxTS = (PRX_TS_RECORD)pTs;
-		spin_lock_irqsave(&(ieee->reorder_spinlock), flags);
 
 		if(timer_pending(&pRxTS->RxPktPendingTimer))	
 			del_timer_sync(&pRxTS->RxPktPendingTimer);
@@ -541,7 +539,6 @@ void RemoveTsEntry(
 				int i = 0;
 				struct rtllib_rxb * prxb = pRxReorderEntry->prxb;
 				if (unlikely(!prxb)){
-					spin_unlock_irqrestore(&(ieee->reorder_spinlock), flags);
 					return;
 				}
 				for(i =0; i < prxb->nr_subframes; i++) {
@@ -552,7 +549,6 @@ void RemoveTsEntry(
 			}
 			list_add_tail(&pRxReorderEntry->List,&ieee->RxReorder_Unused_List);
 		}
-		spin_unlock_irqrestore(&(ieee->reorder_spinlock), flags);
 	}
 	else{
 		PTX_TS_RECORD pTxTS = (PTX_TS_RECORD)pTs;

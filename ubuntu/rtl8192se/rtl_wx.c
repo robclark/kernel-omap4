@@ -495,7 +495,9 @@ static int r8192_wx_set_mode(struct net_device *dev, struct iw_request_info *a,
 			     union iwreq_data *wrqu, char *b)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
+#ifdef ENABLE_IPS	
 	struct rtllib_device* ieee = netdev_priv_rsl(dev);
+#endif
 
 	RT_RF_POWER_STATE	rtState;
 	int ret;
@@ -754,12 +756,19 @@ static int r8192_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 		
                 if(priv->rtllib->eRFPowerState != eRfOff){
 			priv->rtllib->actscanning = true;
+
+			if(ieee->ScanOperationBackupHandler)
+				ieee->ScanOperationBackupHandler(ieee->dev,SCAN_OPT_BACKUP);
+	
 			rtllib_start_scan_syncro(priv->rtllib, 0);
+
+			if(ieee->ScanOperationBackupHandler)
+				ieee->ScanOperationBackupHandler(ieee->dev,SCAN_OPT_RESTORE);
                 }
 		ret = 0;
 	} else {
 		priv->rtllib->actscanning = true;
-	ret = rtllib_wx_set_scan(priv->rtllib,a,wrqu,b);
+	        ret = rtllib_wx_set_scan(priv->rtllib,a,wrqu,b);
 	}
 	
 	up(&priv->wx_sem);
@@ -2316,6 +2325,109 @@ static int r8192_wx_get_PromiscuousMode(struct net_device *dev,
 	return 0;
 }
 
+#ifdef CONFIG_BT_30
+static int r8192_wx_creat_physical_link(
+		struct net_device 	*dev,
+                struct iw_request_info 	*info,
+                union iwreq_data 	*wrqu, 
+		char 			*extra)
+{
+	u32	*info_buf = (u32*)(wrqu->data.pointer);
+	
+	struct r8192_priv* priv = rtllib_priv(dev);
+	PBT30Info	pBTInfo = &priv->BtInfo;
+	PPACKET_IRP_HCICMD_DATA	pHciCmd = NULL;
+	u8	joinaddr[6] = {0x00, 0xe0, 0x4c, 0x76, 0x00, 0x33};
+	u8	i = 0;
+
+	for(i=0; i<6; i++)
+		joinaddr[i] = (u8)(info_buf[i]);
+
+	printk("===++===++===> RemoteJoinerAddr: %02x:%02x:%02x:%02x:%02x:%02x\n", 
+		joinaddr[0],joinaddr[1],joinaddr[2],joinaddr[3],joinaddr[4],joinaddr[5]);
+
+	pHciCmd = (PPACKET_IRP_HCICMD_DATA)kmalloc(sizeof(PACKET_IRP_HCICMD_DATA)+4, GFP_KERNEL);
+
+	BT_HCI_RESET(dev, false);
+	BT_HCI_CREATE_PHYSICAL_LINK(dev, pHciCmd);
+	
+	memcpy(priv->BtInfo.BtAsocEntry[0].BTRemoteMACAddr, joinaddr, 6);
+
+	bt_wifi_set_enc(dev, type_Pairwise, 0, 1);
+	BT_HCI_StartBeaconAndConnect(dev, pHciCmd, 0);
+
+	kfree(pHciCmd);
+
+	return 1;
+}
+
+static int r8192_wx_accept_physical_link(
+		struct net_device 	*dev,
+                struct iw_request_info 	*info,
+                union iwreq_data 	*wrqu, 
+		char 			*extra)
+{
+	struct r8192_priv* priv = rtllib_priv(dev);
+	PBT30Info	pBTInfo = &priv->BtInfo;
+	PPACKET_IRP_HCICMD_DATA	pHciCmd = NULL;
+
+	u8 amp_ssid[32] = {0};
+	u8 amp_len = strlen(wrqu->data.pointer);
+			
+	memcpy(amp_ssid, wrqu->data.pointer, amp_len);
+
+	pHciCmd = (PPACKET_IRP_HCICMD_DATA)kmalloc(sizeof(PACKET_IRP_HCICMD_DATA)+4, GFP_KERNEL);
+
+	BT_HCI_RESET(dev, false);
+	BT_HCI_ACCEPT_PHYSICAL_LINK(dev, pHciCmd);
+
+	snprintf(pBTInfo->BtAsocEntry[0].BTSsidBuf, 32, "AMP-%02x-%02x-%02x-%02x-%02x-%02x", 0x00,0xe0,0x4c,0x78,0x00,0x00);
+	pBTInfo->BtAsocEntry[0].BTSsid.Octet = pBTInfo->BtAsocEntry[0].BTSsidBuf;
+	pBTInfo->BtAsocEntry[0].BTSsid.Length = 21;
+	printk("==++==++==++==>%s() AMP-SSID:%s:%s, len:%d\n", __func__, amp_ssid, pBTInfo->BtAsocEntry[0].BTSsid.Octet, amp_len);
+
+#if 1 
+	{
+		unsigned long flags;
+		struct rtllib_network *target;
+
+		spin_lock_irqsave(&priv->rtllib->lock, flags);
+				
+		list_for_each_entry(target, &priv->rtllib->network_list, list) {
+
+			if(!CompareSSID(pBTInfo->BtAsocEntry[0].BTSsidBuf, pBTInfo->BtAsocEntry[0].BTSsid.Length, 
+				target->ssid,target->ssid_len)){
+				continue;
+			}
+
+			printk("===++===++===> CreaterBssid:  %02x:%02x:%02x:%02x:%02x:%02x\n", 
+				target->bssid[0],target->bssid[1],target->bssid[2],
+				target->bssid[3],target->bssid[4],target->bssid[5]);
+			memcpy(pBTInfo->BtAsocEntry[0].BTRemoteMACAddr, target->bssid, 6);
+		}
+		
+		spin_unlock_irqrestore(&priv->rtllib->lock, flags);
+	}
+#endif
+
+	BT_HCI_StartBeaconAndConnect(dev, pHciCmd, 0);
+	
+
+	mdelay(100);
+
+	snprintf(pBTInfo->BtAsocEntry[0].BTSsidBuf, 32, "AMP-%02x-%02x-%02x-%02x-%02x-%02x", 0x00,0xe0,0x4c,0x78,0x00,0x00);
+	pBTInfo->BtAsocEntry[0].BTSsid.Octet = pBTInfo->BtAsocEntry[0].BTSsidBuf;
+	pBTInfo->BtAsocEntry[0].BTSsid.Length = 21;
+
+	bt_wifi_set_enc(dev, type_Pairwise, 0, 1);
+	BT_ConnectProcedure(dev, 0);
+
+	kfree(pHciCmd);
+
+	return 1;
+}
+#endif
+
 
 #define IW_IOCTL(x) [(x)-SIOCSIWCOMMIT]
 static iw_handler r8192_wx_handlers[] =
@@ -2494,7 +2606,18 @@ static const struct iw_priv_args r8192_private_args[] = {
 		SIOCIWFIRSTPRIV + 0x17,
 		0,IW_PRIV_TYPE_CHAR | IW_PRIV_SIZE_FIXED | 45, "getpromisc"
 	}
-
+#ifdef CONFIG_BT_30
+	,
+	{
+		SIOCIWFIRSTPRIV + 0x18,
+                IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 6, 0, "amp_creater"
+	}
+	,
+	{
+		SIOCIWFIRSTPRIV + 0x19,
+		IW_PRIV_TYPE_CHAR | 64, 0, "amp_joiner"
+	}
+#endif
 };
 
 static iw_handler r8192_private_handler[] = {
@@ -2542,6 +2665,13 @@ static iw_handler r8192_private_handler[] = {
 #endif
 	(iw_handler)r8192_wx_set_PromiscuousMode,
 	(iw_handler)r8192_wx_get_PromiscuousMode,
+#ifdef CONFIG_BT_30
+	(iw_handler)r8192_wx_creat_physical_link,
+	(iw_handler)r8192_wx_accept_physical_link,
+#else
+	(iw_handler)NULL,
+	(iw_handler)NULL,
+#endif
 };
 
 struct iw_statistics *r8192_get_wireless_stats(struct net_device *dev)
@@ -2583,6 +2713,8 @@ struct iw_statistics *r8192_get_wireless_stats(struct net_device *dev)
 #if defined RTL8192SE || defined RTL8192CE
 u8 SS_Rate_Map_G[6][2] = {{40, MGN_54M}, {30, MGN_48M}, {20, MGN_36M},
 	{12, MGN_24M}, {7, MGN_18M}, {0, MGN_12M}};
+u8 SS_Rate_Map_G_MRC_OFF[6][2]= {{17, MGN_54M}, {15, MGN_48M}, 
+	{13, MGN_36M}, {10, MGN_24M}, {3, MGN_18M}, {0, MGN_12M}};
 u8 MSI_SS_Rate_Map_G[6][2] = {{40, MGN_54M}, {30, MGN_54M}, {20, MGN_54M},
 	{12, MGN_48M}, {7, MGN_36M}, {0, MGN_24M}};
 u8 SS_Rate_Map_B[2][2] = {{7, MGN_11M}, {0, MGN_5_5M}};
@@ -2613,6 +2745,9 @@ u16 rtl8192_11n_user_show_rates(struct net_device* dev)
 	u8  rate = MGN_1M;
 	u32  Sgstrength;
 	bool TxorRx = priv->rtllib->bForcedShowRxRate;          
+	u8 bCurrentMRC = 0;
+
+	priv->rtllib->GetHwRegHandler(dev, HW_VAR_MRC, (u8*)(&bCurrentMRC));
 
 
 	if (!TxorRx) {
@@ -2634,6 +2769,10 @@ u16 rtl8192_11n_user_show_rates(struct net_device* dev)
 			rate = rtl8192_decorate_txrate_by_singalstrength(Sgstrength,
 					(u8*)MSI_SS_Rate_Map_G, sizeof(MSI_SS_Rate_Map_G)/2);
 		} else {
+			if(!bCurrentMRC) 
+				rate = rtl8192_decorate_txrate_by_singalstrength(Sgstrength, 
+					(u8*)SS_Rate_Map_G_MRC_OFF, sizeof(SS_Rate_Map_G_MRC_OFF)/2);
+			else				
 			rate = rtl8192_decorate_txrate_by_singalstrength(Sgstrength,
 					(u8*)SS_Rate_Map_G, sizeof(SS_Rate_Map_G)/2);
 		}
@@ -3726,8 +3865,14 @@ static int meshdev_wx_update_beacon(struct net_device *meshdev,
 			return -1;
 		}
 	}
+#ifdef RTL8192SE
 	write_nic_dword(dev,BSSIDR,((u32*)priv->rtllib->current_mesh_network.bssid)[0]);
 	write_nic_word(dev,BSSIDR+4,((u16*)priv->rtllib->current_mesh_network.bssid)[2]);
+#elif defined RTL8192CE
+	write_nic_dword(dev,REG_BSSID,((u32*)priv->rtllib->current_mesh_network.bssid)[0]);
+	write_nic_word(dev,REG_BSSID+4,((u16*)priv->rtllib->current_mesh_network.bssid)[2]);
+#endif
+
 	return 0;
 }
 static int meshdev_wx_add_mac_deny(struct net_device *meshdev, 

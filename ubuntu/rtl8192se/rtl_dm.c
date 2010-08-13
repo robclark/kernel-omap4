@@ -16,19 +16,7 @@
  * Contact Information:
  * wlanfae <wlanfae@realtek.com>
 ******************************************************************************/
-#ifdef RTL8192SE
 #include "rtl_core.h"
-#include "rtl_dm.h"
-#include "rtl8192s/r8192S_phy.h"
-#include "rtl8192s/r8192S_phyreg.h"
-#else
-#include "rtl_core.h"
-#include "rtl_dm.h"
-#include "rtl8192e/r8192E_hw.h"
-#include "rtl8192e/r8192E_phy.h"
-#include "rtl8192e/r8192E_phyreg.h"
-#include "rtl8192e/r8190P_rtl8256.h"
-#endif
 #ifdef _RTL8192_EXT_PATCH_
 #include "../../mshclass/msh_class.h"
 #endif
@@ -126,7 +114,7 @@ static u32 edca_setting_DL_GMode[HT_IOT_PEER_MAX] =
    0x4322, 		
    0xa430,		
    0x5ea44f,	
-   0x5e4322,	
+   0x3ea430,	
    0x5e4322	
 };
 
@@ -305,8 +293,13 @@ init_hal_dm(struct net_device *dev)
 	dm_init_fsync(dev);
 	dm_init_rxpath_selection(dev);
 	dm_init_ctstoself(dev);
-        if (IS_HARDWARE_TYPE_8192SE(dev))
-	dm_Init_WA_Broadcom_IOT(dev);
+        if (IS_HARDWARE_TYPE_8192SE(dev)) {
+	        dm_Init_WA_Broadcom_IOT(dev);
+		
+#ifdef RTL8192SE
+		write_nic_dword(dev, WFM5, FW_CCA_CHK_ENABLE); 
+#endif
+        }
 		
 #if (defined RTL8192E || defined RTL8192SE)
 	INIT_DELAYED_WORK_RSL(&priv->gpio_change_rf_wq, (void *)dm_CheckRfCtrlGPIO,dev);
@@ -376,6 +369,7 @@ extern  void    hal_dm_watchdog(struct net_device *dev)
 #ifdef RTL8192SE
 		dm_RefreshRateAdaptiveMask(dev);
 		dm_WA_Broadcom_IOT(dev);
+
 		return;
 #if 0			
 		dm_check_txpower_tracking(dev);
@@ -411,7 +405,7 @@ extern  void    hal_dm_watchdog(struct net_device *dev)
 void dm_check_ac_dc_power(struct net_device *dev) 
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	static char *ac_dc_check_script_path = "/etc/acpi/wireless-rtl-ac-dc-power.sh";
+	static char *ac_dc_check_script_path = "/etc/realtek/wireless-rtl-ac-dc-power.sh";
 	char *argv[] = {ac_dc_check_script_path,DRV_NAME,NULL};
 	static char *envp[] = {"HOME=/", 
 			"TERM=linux", 
@@ -466,7 +460,7 @@ extern void init_rate_adaptive(struct net_device * dev)
 	}
 	else if (priv->rf_type == RF_1T2R)
 	{
-		pra->upper_rssi_threshold_ratr		= 	0x000f0000;		
+		pra->upper_rssi_threshold_ratr		= 	0x000fc000;		
 		pra->middle_rssi_threshold_ratr		= 	0x000ff000;
 		pra->low_rssi_threshold_ratr		= 	0x000ff001;
 		pra->low_rssi_threshold_ratr_40M	= 	0x000ff005;
@@ -1180,9 +1174,9 @@ static void dm_TXPowerTrackingCallback_ThermalMeter(struct net_device * dev)
 		{
 			if(tmpRegA == OFDMSwingTable[i])
 			{
-				priv->OFDM_index= (u8)i;
+				priv->OFDM_index[0]= (u8)i;
 				RT_TRACE(COMP_POWER_TRACKING, "Initial reg0x%x = 0x%x, OFDM_index=0x%x\n", 
-					rOFDM0_XATxIQImbalance, tmpRegA, priv->OFDM_index);
+					rOFDM0_XATxIQImbalance, tmpRegA, priv->OFDM_index[0]);
 			}
 		}
 
@@ -1278,12 +1272,12 @@ static void dm_TXPowerTrackingCallback_ThermalMeter(struct net_device * dev)
 	{
 		dm_cck_txpower_adjust(dev, priv->bcck_in_ch14);
 	}
-	if(priv->OFDM_index != tmpOFDMindex)
+	if(priv->OFDM_index[0] != tmpOFDMindex)
 	{
-		priv->OFDM_index = tmpOFDMindex;
-		rtl8192_setBBreg(dev, rOFDM0_XATxIQImbalance, bMaskDWord, OFDMSwingTable[priv->OFDM_index]);		
+		priv->OFDM_index[0] = tmpOFDMindex;
+		rtl8192_setBBreg(dev, rOFDM0_XATxIQImbalance, bMaskDWord, OFDMSwingTable[priv->OFDM_index[0]]);		
 		RT_TRACE(COMP_POWER_TRACKING, "Update OFDMSwing[%d] = 0x%x\n", 
-			priv->OFDM_index, OFDMSwingTable[priv->OFDM_index]);
+			priv->OFDM_index[0], OFDMSwingTable[priv->OFDM_index[0]]);
 	}
 	priv->txpower_count = 0;
 }
@@ -3268,6 +3262,7 @@ static void dm_check_edca_turbo(
 		 if(priv->bcurrent_turbo_EDCA)
 		{
 
+#if 0
 			{
 				u8		u1bAIFS;
 				u32		u4bAcParam;
@@ -3299,6 +3294,10 @@ static void dm_check_edca_turbo(
 					write_nic_byte(dev, AcmHwCtrl, AcmCtrl );
 				}
 			}
+#else
+			 u8 tmp = AC0_BE;
+			 priv->rtllib->SetHwRegHandler(dev, HW_VAR_AC_PARAM, (u8*)(&tmp) );
+#endif
 			priv->bcurrent_turbo_EDCA = false;
 		}
 	}
@@ -3562,7 +3561,7 @@ extern	void	dm_CheckRfCtrlGPIO(void *data)
 	bool bActuallySet = false;
 
 	char *argv[3];
-	static char *RadioPowerPath = "/etc/acpi/events/RadioPower.sh";
+	static char *RadioPowerPath = "/etc/realtek/RadioPower.sh";
 	static char *envp[] = {"HOME=/", "TERM=linux", "PATH=/usr/bin:/bin", NULL};
 
 	bActuallySet=false;
@@ -3603,7 +3602,7 @@ extern	void	dm_CheckRfCtrlGPIO(void *data)
 		{
 			mdelay(1000); 
 			priv->bHwRfOffAction = 1;
-			MgntActSet_RF_State(dev, eRfPowerStateToSet, RF_CHANGE_BY_HW);
+			MgntActSet_RF_State(dev, eRfPowerStateToSet, RF_CHANGE_BY_HW,true);
 			{
 				if(priv->bHwRadioOff == true)
 					argv[1] = "RFOFF";
@@ -3979,7 +3978,7 @@ extern void dm_CheckRfCtrlGPIO(void *data)
 		spin_lock_irqsave(&priv->rf_ps_lock,flag);
 		priv->RFChangeInProgress = false;
 		spin_unlock_irqrestore(&priv->rf_ps_lock,flag);
-		MgntActSet_RF_State(dev, eRfPowerStateToSet, RF_CHANGE_BY_HW);
+		MgntActSet_RF_State(dev, eRfPowerStateToSet, RF_CHANGE_BY_HW,true);
 
 		{
 #ifdef CONFIG_CFG_80211			
@@ -3987,7 +3986,7 @@ extern void dm_CheckRfCtrlGPIO(void *data)
 			wiphy_rfkill_set_hw_state(wdev->wiphy, priv->bHwRadioOff);
 #else
 			char *argv[3];
-			static char *RadioPowerPath = "/etc/acpi/events/RadioPower.sh";
+			static char *RadioPowerPath = "/etc/realtek/RadioPower.sh";
 			static char *envp[] = {"HOME=/", "TERM=linux", "PATH=/usr/bin:/bin", NULL};
 
 			if(priv->bHwRadioOff == true)
@@ -4022,6 +4021,8 @@ extern void dm_CheckRfCtrlGPIO(void *data)
 			}
 #endif			
 #endif
+			
+			gen_RefreshLedState(dev);
 		}
 	}
 	else if(eRfPowerStateToSet == eRfOff || CurRfState == eRfOff || priv->bDriverIsGoingToUnload)
@@ -4384,6 +4385,7 @@ static void dm_init_fsync (struct net_device *dev)
 	priv->framesyncMonitor = 1;	
 #endif
 
+	init_timer(&priv->fsync_timer);
 	setup_timer(&priv->fsync_timer, dm_fsync_timer_callback,(unsigned long) dev);
 }
 
@@ -4520,9 +4522,12 @@ extern void dm_fsync_timer_callback(unsigned long data)
 
 static void dm_StartHWFsync(struct net_device *dev)
 {
-	RT_TRACE(COMP_HALDM, "%s\n", __FUNCTION__);
 #if defined RTL8192E 
+	u8 rf_timing = 0x77;
+	struct r8192_priv *priv = rtllib_priv(dev);
+	RT_TRACE(COMP_HALDM, "%s\n", __FUNCTION__);
 	write_nic_dword(dev, rOFDM0_RxDetector2, 0x465c12cf);
+	priv->rtllib->SetHwRegHandler(dev, HW_VAR_RF_TIMING, (u8*)(&rf_timing));
 	write_nic_byte(dev, 0xc3b, 0x41);
 #elif defined RTL8192SE
 	write_nic_byte(dev, rOFDM0_RxDetector3, 0x96);
@@ -4531,9 +4536,12 @@ static void dm_StartHWFsync(struct net_device *dev)
 
 static void dm_EndHWFsync(struct net_device *dev)
 {
-	RT_TRACE(COMP_HALDM,"%s\n", __FUNCTION__);
 #if defined RTL8192E 
+	u8 rf_timing = 0xaa;
+	struct r8192_priv *priv = rtllib_priv(dev);
+	RT_TRACE(COMP_HALDM,"%s\n", __FUNCTION__);
 	write_nic_dword(dev, rOFDM0_RxDetector2, 0x465c52cd);
+	priv->rtllib->SetHwRegHandler(dev, HW_VAR_RF_TIMING, (u8*)(&rf_timing));
 	write_nic_byte(dev, 0xc3b, 0x49);
 #elif defined RTL8192SE
 	write_nic_byte(dev, rOFDM0_RxDetector3, 0x94);
@@ -4620,7 +4628,7 @@ void dm_check_fsync(struct net_device *dev)
 	RT_TRACE(COMP_HALDM, "RateBitmap 0x%x FirstDiffRateThreshold %d SecondDiffRateThreshold %d\n", priv->rtllib->fsync_rate_bitmap, priv->rtllib->fsync_firstdiff_ratethreshold, priv->rtllib->fsync_seconddiff_ratethreshold);	
 	
 	if(	priv->rtllib->state == RTLLIB_LINKED && 
-		(priv->rtllib->pHTInfo->IOTAction & HT_IOT_ACT_CDD_FSYNC))
+		priv->rtllib->pHTInfo->IOTPeer == HT_IOT_PEER_BROADCOM)
 	{
 		if(priv->rtllib->bfsync_enable == 0)
 		{
@@ -4913,7 +4921,7 @@ static void dm_dynamic_txpower(struct net_device *dev)
 	}
 	
 	if(priv->rtllib->state == RTLLIB_LINKED) {
-		if(priv->OpMode == RT_OP_MODE_IBSS) {
+		if(priv->rtllib->OpMode == RT_OP_MODE_IBSS) {
 			UndecoratedSmoothedPWDB = priv->EntryMinUndecoratedSmoothedPWDB;
 			RT_TRACE(COMP_POWER, "AP Client PWDB = %ld \n", UndecoratedSmoothedPWDB);
 		} else {
@@ -4986,6 +4994,7 @@ static void dm_send_rssi_tofw(struct net_device *dev)
 }
 
 #if defined RTL8192SE
+
 /*-----------------------------------------------------------------------------
  * Function:	dm_RefreshRateAdaptiveMask()
  *
@@ -5006,7 +5015,7 @@ static void dm_RefreshRateAdaptiveMask(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	prate_adaptive	pRA = (prate_adaptive)&priv->rate_adaptive;
-	u32	LowRSSIThreshForRA = 0, HighRSSIThreshForRA = 0;
+	u32	LowRSSIThreshForRA = 0,MiddleRSSIThreshForRA = 0, HighRSSIThreshForRA = 0;
 	u8	rssi_level;
 	
 	if(IS_NIC_DOWN(priv)){
@@ -5033,34 +5042,84 @@ static void dm_RefreshRateAdaptiveMask(struct net_device *dev)
 		
 		switch (pRA->PreRATRState){
 			case DM_RATR_STA_HIGH:
-				HighRSSIThreshForRA = 50;
+			{
+				HighRSSIThreshForRA = 40;
+				MiddleRSSIThreshForRA = 30;
 				LowRSSIThreshForRA = 20;
+			}
 				break;
+
+				
 			case DM_RATR_STA_MIDDLE:
-				HighRSSIThreshForRA = 55;
+			{
+				HighRSSIThreshForRA = 44;
+				MiddleRSSIThreshForRA = 30;
 				LowRSSIThreshForRA = 20;
+			}
 				break;
+
+			
 			case DM_RATR_STA_LOW:
-				HighRSSIThreshForRA = 50;
-				LowRSSIThreshForRA = 25;
+			{
+				HighRSSIThreshForRA = 44;
+				MiddleRSSIThreshForRA = 34;
+				LowRSSIThreshForRA = 20;	
+			}
 				break;
+
+
+			case DM_RATR_STA_ULTRALOW:
+			{
+				HighRSSIThreshForRA = 44;
+				MiddleRSSIThreshForRA = 34;
+				LowRSSIThreshForRA = 24;
+			}
+			break;
+
 			default:
-				HighRSSIThreshForRA = 50;
-				LowRSSIThreshForRA = 20;
+			{
+				HighRSSIThreshForRA = 44;
+				MiddleRSSIThreshForRA = 34;
+				LowRSSIThreshForRA = 24;
+			}
 				break;
 		}
 
-		if(priv->undecorated_smoothed_pwdb > (long)HighRSSIThreshForRA){
+		if(priv->undecorated_smoothed_pwdb > (long)HighRSSIThreshForRA)
+		{
 			pRA->ratr_state = DM_RATR_STA_HIGH;
 			rssi_level = 1;
 		}
-		else if(priv->undecorated_smoothed_pwdb > (long)LowRSSIThreshForRA){
-			pRA->ratr_state = DM_RATR_STA_MIDDLE;
+#if 0
+		else if(priv->undecorated_smoothed_pwdb > (long)MiddleRSSIThreshForRA)
+		{
+			pRA->ratr_state = DM_RATR_STA_MIDDLEHIGH;
 			rssi_level = 2;
-		}else{
+		}
+#endif
+		else if(priv->undecorated_smoothed_pwdb > (long)MiddleRSSIThreshForRA)
+		{
 			pRA->ratr_state = DM_RATR_STA_LOW;
 			rssi_level = 3;
 		}
+#if 0
+		else if(priv->undecorated_smoothed_pwdb > (long)LowRSSIThreshForRA)
+		{
+			pRA->ratr_state = DM_RATR_STA_MIDDLELOW;
+			rssi_level = 4;
+		}
+#endif
+		else if(priv->undecorated_smoothed_pwdb > (long)LowRSSIThreshForRA)
+		{
+			pRA->ratr_state = DM_RATR_STA_LOW;
+			rssi_level = 5;
+		}	
+		else
+		{
+			pRA->ratr_state = DM_RATR_STA_ULTRALOW;
+			rssi_level = 6;
+		}	
+		
 		if((pRA->PreRATRState != pRA->ratr_state) || ((pRA->PreRATRState == pRA->ratr_state) && (rssi_level != priv->rssi_level)))
 		{
 			RT_TRACE(COMP_RATE, "Target AP addr : "MAC_FMT"\n", MAC_ARG(priv->rtllib->current_network.bssid));

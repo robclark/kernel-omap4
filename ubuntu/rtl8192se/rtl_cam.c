@@ -23,22 +23,6 @@
  * wlanfae <wlanfae@realtek.com>
 ******************************************************************************/
 #include "rtl_core.h"
-#if defined RTL8192CE
-#include "rtl8192c/r8192C_phy.h"
-#include "rtl8192c/r8192C_phyreg.h"
-#include "rtl8192c/r8192C_rtl6052.h"
-#include "rtl8192c/r8192C_Efuse.h"
-#elif defined RTL8192SE  
-#include "rtl8192s/r8192S_phy.h"
-#include "rtl8192s/r8192S_phyreg.h"
-#include "rtl8192s/r8192S_rtl6052.h"
-#include "rtl8192s/r8192S_Efuse.h"
-#else
-#include "rtl8192e/r8192E_phy.h"
-#include "rtl8192e/r8192E_phyreg.h"
-#include "rtl8192e/r8190P_rtl8256.h" /* RTL8225 Radio frontend */
-#include "rtl8192e/r8192E_cmdpkt.h"
-#endif
 
 extern int hwwep;
 void CamResetAllEntry(struct net_device *dev)
@@ -150,14 +134,20 @@ void EnableHWSecurityConfig8192(struct net_device *dev)
 #endif
 
 #ifdef RTL8192CE
+	if(IS_NORMAL_CHIP(priv->card_8192_version))
+		SECR_value |= (SCR_RXBCUSEDK | SCR_TXBCUSEDK);
+
 	write_nic_byte(dev, REG_CR+1,0x02); 
-#endif
+
+	RT_TRACE(COMP_SEC,"The SECR-value %x \n",SECR_value)
+	priv->rtllib->SetHwRegHandler(dev, HW_VAR_WPA_CONFIG, &SECR_value);
+#else
 	RT_TRACE(COMP_SEC,"%s:, hwsec:%d, pairwise_key:%d, SECR_value:%x\n", __FUNCTION__, \
 			ieee->hwsec_active, ieee->pairwise_key_type, SECR_value);	
 	{
 		write_nic_byte(dev, SECR,  SECR_value);
 	}
-
+#endif
 }
 
 void set_swcam(struct net_device *dev, 
@@ -272,6 +262,9 @@ void setKey(struct net_device *dev,
 			{
 				write_nic_dword(dev, WCAMI, (u32)(*(KeyContent+i-2)) ); 
 				write_nic_dword(dev, RWCAM, TargetCommand);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,31))
+				udelay(100);
+#endif				
 			}
 		}
 	}

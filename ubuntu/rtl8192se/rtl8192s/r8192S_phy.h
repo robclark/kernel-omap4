@@ -197,6 +197,6 @@ extern void PHY_SetBeaconHwReg( struct net_device* dev, u16 BeaconInterval);
 void ChkFwCmdIoDone(struct net_device* dev);
 void PHY_SwitchEphyParameter(struct net_device* dev);
 bool PHY_SetRFPowerState(struct net_device* dev, RT_RF_POWER_STATE eRFPowerState);
-
+extern void PHY_ScanOperationBackup8192S(struct net_device* dev,u8 Operation);
 #endif	
 

@@ -68,6 +68,8 @@ void HTUpdateDefaultSetting(struct rtllib_device* ieee)
 	pHTInfo->bRDGEnable = 0;
 #endif
 	
+	pHTInfo->bAcceptAddbaReq = 1;
+
 	pHTInfo->bRegShortGI20MHz= 1;
 	pHTInfo->bRegShortGI40MHz= 1;
 
@@ -320,6 +322,11 @@ bool IsHTHalfNmodeAPs(struct rtllib_device* ieee)
 {
 	bool			retValue = false;
 	struct rtllib_network* net = &ieee->current_network;
+
+#if defined RTL8192CE || defined RTL8192SE 
+	return false;
+#endif
+
 #if 0
 	if(ieee->bHalfNMode == false)
 		retValue = false;		
@@ -381,6 +388,8 @@ void HTIOTPeerDetermine(struct rtllib_device* ieee)
 	else if ((memcmp(net->bssid, LINKSYS_MARVELL_4400N, 3) == 0) ||
 		  net->marvell_cap_exist)
 		pHTInfo->IOTPeer = HT_IOT_PEER_MARVELL;
+	else if (net->airgo_cap_exist)
+		pHTInfo->IOTPeer = HT_IOT_PEER_AIRGO;
 	else
 		pHTInfo->IOTPeer = HT_IOT_PEER_UNKNOWN;
 
@@ -530,7 +539,7 @@ HTIOTActWAIOTBroadcom(struct rtllib_device* ieee)
 	{	
 		if(ieee->current_network.bssht.bdBandWidth == HT_CHANNEL_WIDTH_20_40)		
 		{	
-			if(!(pHTInfo->bCurBW40MHz))
+			if(!(pHTInfo->bRegBW40MHz))
 			{	
 				if(ieee->current_network.mode != WIRELESS_MODE_B)
 				{
@@ -670,20 +679,13 @@ u8
 HTIOTActDisableHighPower(struct rtllib_device* ieee,struct rtllib_network *network)
 {
 	u8	retValue = 0;
+	
 #if (defined RTL8192SE || defined RTL8192SU || defined RTL8192CE)
 	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
-#endif
 
-#ifdef RTL8192SU
 	if(pHTInfo->IOTPeer==HT_IOT_PEER_RALINK ||
 		pHTInfo->IOTPeer==HT_IOT_PEER_REALTEK ||
 		pHTInfo->IOTPeer==HT_IOT_PEER_REALTEK_92SE)
-	{
-			retValue = 1;
-	}
-#elif defined RTL8192SE || defined RTL8192CE
-	if(pHTInfo->IOTPeer==HT_IOT_PEER_RALINK ||
-		pHTInfo->IOTPeer==HT_IOT_PEER_REALTEK )
 	{
 			retValue = 1;
 	}
@@ -786,7 +788,6 @@ bool HTIOCActIsDisableCckRate(struct rtllib_device* ieee,struct rtllib_network *
 	return retValue;
 }
 
-
 bool HTIOCActAllowPeerAggOnePacket(struct rtllib_device* ieee,struct rtllib_network *network)
 {
 	bool 	retValue = false;
@@ -828,9 +829,9 @@ void HTResetIOTSetting(
 
 
 #ifdef _RTL8192_EXT_PATCH_
-void HTConstructCapabilityElement(struct rtllib_device* ieee, u8* posHTCap, u8* len, u8 IsEncrypt, u8 bIsBcn)
+void HTConstructCapabilityElement(struct rtllib_device* ieee, u8* posHTCap, u8* len, u8 IsEncrypt, u8 bIsBcn, bool bAssoc)
 #else	
-void HTConstructCapabilityElement(struct rtllib_device* ieee, u8* posHTCap, u8* len, u8 IsEncrypt)
+void HTConstructCapabilityElement(struct rtllib_device* ieee, u8* posHTCap, u8* len, u8 IsEncrypt, bool bAssoc)
 #endif	
 {	
 	PRT_HIGH_THROUGHPUT	pHT = ieee->pHTInfo;
@@ -842,14 +843,17 @@ void HTConstructCapabilityElement(struct rtllib_device* ieee, u8* posHTCap, u8* 
 		return;
 	}
 	memset(posHTCap, 0, *len);	
-	if(pHT->ePeerHTSpecVer == HT_SPEC_VER_EWC)
+	
+	if((bAssoc) && (pHT->ePeerHTSpecVer == HT_SPEC_VER_EWC))
 	{
 		u8	EWC11NHTCap[] = {0x00, 0x90, 0x4c, 0x33};	
 		memcpy(posHTCap, EWC11NHTCap, sizeof(EWC11NHTCap));
 		pCapELE = (PHT_CAPABILITY_ELE)&(posHTCap[4]);
+		*len = 30 + 2;
 	}else 
 	{
 		pCapELE = (PHT_CAPABILITY_ELE)posHTCap;
+		*len = 26 + 2;
 	}
 
 	pCapELE->AdvCoding 		= 0; 
@@ -871,8 +875,9 @@ void HTConstructCapabilityElement(struct rtllib_device* ieee, u8* posHTCap, u8* 
 	pCapELE->GreenField		= 0; 
 	pCapELE->ShortGI20Mhz		= 1; 
 	pCapELE->ShortGI40Mhz		= 1; 
+	
 	pCapELE->TxSTBC 		= 1;
-#ifdef Rtl8192SE
+#if defined RTL8192SE || defined RTL8192CE
 	pCapELE->TxSTBC 		= 0;
 #endif
 	pCapELE->RxSTBC 		= 0;
@@ -897,6 +902,7 @@ void HTConstructCapabilityElement(struct rtllib_device* ieee, u8* posHTCap, u8* 
 	}		
 
 	memcpy(pCapELE->MCS, ieee->Regdot11HTOperationalRateSet, 16);
+#if 0
 	if(pHT->IOTAction & HT_IOT_ACT_DISABLE_MCS15)
 		pCapELE->MCS[1] &= 0x7f;
 
@@ -912,6 +918,7 @@ void HTConstructCapabilityElement(struct rtllib_device* ieee, u8* posHTCap, u8* 
 		for(i = 1; i< 16; i++)
 			pCapELE->MCS[i] = 0;
 	}
+#endif
 	
 	memset(&pCapELE->ExtHTCapInfo, 0, 2);
 
@@ -919,10 +926,36 @@ void HTConstructCapabilityElement(struct rtllib_device* ieee, u8* posHTCap, u8* 
 	memset(pCapELE->TxBFCap, 0, 4);
 
 	pCapELE->ASCap = 0;
+
+#if 0
 	if(pHT->ePeerHTSpecVer == HT_SPEC_VER_EWC)
 		*len = 30 + 2;
 	else
 		*len = 26 + 2;
+#endif
+
+	if(bAssoc)
+	{
+		if(pHT->IOTAction & HT_IOT_ACT_DISABLE_MCS15)
+			pCapELE->MCS[1] &= 0x7f;
+
+		if(pHT->IOTAction & HT_IOT_ACT_DISABLE_MCS14)
+			pCapELE->MCS[1] &= 0xbf;
+
+		if(pHT->IOTAction & HT_IOT_ACT_DISABLE_ALL_2SS)
+			pCapELE->MCS[1] &= 0x00;
+
+		if(pHT->IOTAction & HT_IOT_ACT_DISABLE_RX_40MHZ_SHORT_GI)
+			pCapELE->ShortGI40Mhz		= 0; 
+
+		if(ieee->GetHalfNmodeSupportByAPsHandler(ieee->dev))
+		{
+			pCapELE->ChlWidth = 0;
+			
+			pCapELE->MCS[1] = 0;
+		}
+	}
+
 		
 
 		
@@ -1002,7 +1035,7 @@ void HTConstructRT2RTAggElement(struct rtllib_device* ieee, u8* posRT2RTAgg, u8*
 #ifdef RTL8192CE
 	*posRT2RTAgg = 0x70;
 #else
-	*posRT2RTAgg = 0x10;
+	*posRT2RTAgg = 0x30;
 #endif
 	
 	if(ieee->bSupportRemoteWakeUp) {
@@ -1212,6 +1245,14 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
 				pHTInfo->CurrentAMPDUFactor = HT_AGG_SIZE_32K;
 		}
 	}
+#ifdef _RTL8192_EXT_PATCH_
+	if (ieee->iw_mode == IW_MODE_MESH) {
+		if(ieee->rtllib_ap_sec_type && (ieee->rtllib_ap_sec_type(ieee)&(SEC_ALG_CCMP))){
+			pHTInfo->CurrentAMPDUFactor = pHTInfo->AMPDU_Factor = 0;  
+			printk("%s: In MSTA mode, AP is encrypted with AES, force CurrentAMPDUFactor to 8K!\n", __func__);
+		}
+	}
+#endif
 
 #if 0
 	if(pHTInfo->MPDU_Density > pPeerHTCap->MPDUDensity)
@@ -1249,6 +1290,14 @@ void HTOnAssocRsp(struct rtllib_device *ieee)
 		pHTInfo->ForcedAMSDUMaxSize = 7935;
 	}
 	pHTInfo->bCurRxReorderEnable = pHTInfo->bRegRxReorderEnable;
+#ifdef _RTL8192_EXT_PATCH_
+	if (ieee->iw_mode == IW_MODE_MESH) {
+		if(ieee->rtllib_ap_sec_type && (ieee->rtllib_ap_sec_type(ieee)&(SEC_ALG_CCMP))){
+			pHTInfo->bCurRxReorderEnable = pHTInfo->bRegRxReorderEnable = 0;  
+			printk("%s: In MSTA mode, AP is encrypted with AES, force closing RxReorder!\n", __func__);
+		}
+	}
+#endif
 
 	
 	if(pPeerHTCap->MCS[0] == 0)
@@ -1464,6 +1513,13 @@ void HTResetSelfAndSavePeerSetting(struct rtllib_device* ieee, 	struct rtllib_ne
 		bIOTAction = HTIOTActIsNullDataPowerSaving(ieee, pNetwork);
 		if(bIOTAction)
 			pHTInfo->IOTAction |= HT_IOT_ACT_NULL_DATA_POWER_SAVING;
+#endif
+
+#if 0
+		bIOTAction = HTIOTActDisableRx40MHzShortGI(ieee, pBssDesc);
+		if(bIOTAction)
+			pHTInfo->IOTAction |= HT_IOT_ACT_DISABLE_RX_40MHZ_SHORT_GI;
+		
 #endif
 	}
 	else

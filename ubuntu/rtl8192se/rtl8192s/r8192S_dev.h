@@ -61,5 +61,20 @@ bool	rtl8192se_RxCommandPacketHandle(struct net_device *dev, struct sk_buff* skb
 bool rtl8192se_check_ht_cap(struct net_device* dev, struct sta_info *sta, 
 		struct rtllib_network* net);
 u8 rtl8192se_MapHwQueueToFirmwareQueue(u8 QueueID, u8 priority);
+
+void GetHwReg8192SE(struct net_device *dev,u8 variable,u8* val);
+void SetHwReg8192SE(struct net_device *dev,u8 variable,u8* val);
+void Adhoc_InitRateAdaptive(struct net_device *dev,struct sta_info  *pEntry);
+void SetBeaconRelatedRegisters8192SE(struct net_device *dev);
+
+#if LINUX_VERSION_CODE >=KERNEL_VERSION(2,6,20)
+void rtl8192se_check_tsf_wq(struct work_struct * work);
+void rtl8192se_update_assoc_sta_info_wq(struct work_struct * work);
+#else
+void rtl8192se_check_tsf_wq(struct net_device *dev);
+void rtl8192se_update_assoc_sta_info_wq(struct net_device *dev);
+#endif
+void gen_RefreshLedState(struct net_device *dev);
+
 #endif
 

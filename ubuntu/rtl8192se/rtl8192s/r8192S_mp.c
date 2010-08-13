@@ -25,9 +25,6 @@
 
 #ifdef CONFIG_MP
 #include "../rtl_core.h"
-#include "r8192S_phy.h"
-#include "r8192S_phyreg.h"
-#include "r8192S_mp.h"
 
 void rtl8192_init_mp(struct net_device* dev)
 {

@@ -20,7 +20,7 @@
 #define R8192SE_DEF_H
 
 #include <linux/types.h>
-#include "../rtl_endianfree.h"
+#include "../rtllib/rtllib_endianfree.h"
 
 #define HAL_RETRY_LIMIT_INFRA		48	
 #define HAL_RETRY_LIMIT_AP_ADHOC	7
