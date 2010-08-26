@@ -261,7 +261,7 @@ static s32 sita_free(struct tcm *tcm, struct tcm_area *area)
 	mutex_lock(&(pvt->mtx));
 
 	/* check that this is in fact an existing area */
-	BUG_ON(pvt->map[area->p0.x][area->p0.y] != area ||
+	WARN_ON(pvt->map[area->p0.x][area->p0.y] != area ||
 		pvt->map[area->p1.x][area->p1.y] != area);
 
 	/* Clear the contents of the associated tiles in the map */
