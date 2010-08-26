@@ -469,7 +469,7 @@ static s32 tiler_ioctl(struct inode *ip, struct file *filp, u32 cmd,
 			return -EACCES;
 		}
 
-		/* undu registration on failure */
+		/* undo registration on failure */
 		if (copy_to_user(data, &_b->buf_info, sizeof(_b->buf_info))) {
 			mutex_lock(&mtx);
 			_m_unregister_buf(_b);
@@ -500,7 +500,7 @@ static s32 tiler_ioctl(struct inode *ip, struct file *filp, u32 cmd,
 		if (r)
 			return r;
 
-		if (copy_to_user(data, &buf_info, sizeof(_b->buf_info)))
+		if (copy_to_user(data, &buf_info, sizeof(buf_info)))
 			return -EFAULT;
 		break;
 	/* prereserv blocks */
