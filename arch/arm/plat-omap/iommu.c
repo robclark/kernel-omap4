@@ -72,9 +72,19 @@ EXPORT_SYMBOL_GPL(uninstall_iommu_arch);
  * iommu_save_ctx - Save registers for pm off-mode support
  * @obj:	target iommu
  **/
-void iommu_save_ctx(struct iommu *obj)
+u32 iommu_save_ctx(struct iommu *obj)
 {
-	arch_iommu->save_ctx(obj);
+	u32 err;
+
+	err = iommu_save_tlb_entries(obj);
+	if (err)
+		goto error;
+
+	arch_iommu->disable(obj);
+
+	return 0;
+error:
+	return err;
 }
 EXPORT_SYMBOL_GPL(iommu_save_ctx);
 
@@ -82,18 +92,30 @@ EXPORT_SYMBOL_GPL(iommu_save_ctx);
  * iommu_restore_ctx - Restore registers for pm off-mode support
  * @obj:	target iommu
  **/
-void iommu_restore_ctx(struct iommu *obj)
+u32 iommu_restore_ctx(struct iommu *obj)
 {
-	arch_iommu->restore_ctx(obj);
+	u32 err;
+
+	err = arch_iommu->enable(obj);
+	if (err)
+		goto error;
+
+	err = iommu_restore_tlb_entries(obj);
+	if (err)
+		goto error;
+
+	return 0;
+error:
+	return err;
 }
 EXPORT_SYMBOL_GPL(iommu_restore_ctx);
 
 /**
  * iommu_arch_version - Return running iommu arch version
  **/
-u32 iommu_arch_version(void)
+u32 iommu_arch_version(struct iommu *obj)
 {
-	return arch_iommu->version;
+	return arch_iommu->get_version(obj);
 }
 EXPORT_SYMBOL_GPL(iommu_arch_version);
 
@@ -361,6 +383,69 @@ void iommu_set_twl(struct iommu *obj, bool on)
 	arch_iommu->set_twl(obj, on);
 }
 EXPORT_SYMBOL_GPL(iommu_set_twl);
+
+/**
+ * save_tlb_entries - save a num of locked tlb entries
+ * @obj:	target iommu
+ *
+ */
+u32 iommu_save_tlb_entries(struct iommu *obj)
+{
+	int i;
+	struct cr_regs cr_tmp;
+	struct iotlb_entry *e = obj->tlbs_e;
+
+	if (!obj || !obj->tlbs_e)
+		goto error;
+
+	for_each_iotlb_cr(obj, obj->nr_tlb_entries, i, cr_tmp) {
+		iotlb_cr_to_e(&cr_tmp, e);
+		e++;
+
+		dev_dbg(obj->dev, "%s: [%02x] %08x %08x\n", __func__,
+					i, cr_tmp.cam, cr_tmp.ram);
+	}
+
+	return 0;
+error:
+	return -EINVAL;
+}
+
+/**
+ * restore_tlb_entries - restor a num of locked tlb entries
+ * @obj:	target iommu
+ *
+ * Function used to restore exclusively the valid TLB entries
+ * based on the e->valid value
+ *
+ */
+u32 iommu_restore_tlb_entries(struct iommu *obj)
+{
+	int i;
+	int status;
+	struct iotlb_entry *e = obj->tlbs_e;
+
+	if (!obj || !obj->tlbs_e)
+		goto error;
+
+	for (i = 0; i < obj->nr_tlb_entries; i++) {
+		if (!e->valid) {
+			e++;
+			continue;
+		}
+		status = load_iotlb_entry(obj, e);
+		if (status)
+			goto error;
+		e++;
+
+		dev_dbg(obj->dev, "%s: [%02x] %08x\n", __func__,
+					i, e->pa);
+	}
+
+	return 0;
+error:
+	return -EINVAL;
+}
 
 #if defined(CONFIG_OMAP_IOMMU_DEBUG_MODULE)
 
@@ -912,7 +997,7 @@ static int __devinit omap_iommu_probe(struct platform_device *pdev)
 	struct iommu *obj;
 	struct iommu_platform_data *pdata = pdev->dev.platform_data;
 
-	obj = kzalloc(sizeof(*obj) + MMU_REG_SIZE, GFP_KERNEL);
+	obj = kzalloc(sizeof(*obj), GFP_KERNEL);
 	if (!obj)
 		return -ENOMEM;
 
@@ -920,9 +1005,12 @@ static int __devinit omap_iommu_probe(struct platform_device *pdev)
 	obj->name = pdata->name;
 	obj->dev = &pdev->dev;
 	obj->pdev = pdev;
-	obj->ctx = (void *)obj + sizeof(*obj);
 	obj->da_start = pdata->da_start;
 	obj->da_end = pdata->da_end;
+	obj->tlbs_e = kzalloc(sizeof(struct iotlb_entry) * obj->nr_tlb_entries,
+							GFP_KERNEL);
+	if (!obj->tlbs_e)
+		goto error;
 
 	mutex_init(&obj->iommu_lock);
 	mutex_init(&obj->mmap_lock);
@@ -938,7 +1026,7 @@ static int __devinit omap_iommu_probe(struct platform_device *pdev)
 	err = request_irq(pdata->irq, iommu_fault_handler, IRQF_SHARED,
 			  dev_name(&pdev->dev), obj);
 	if (err < 0)
-		goto err_irq;
+		goto error;
 	platform_set_drvdata(pdev, obj);
 
 	p = (void *)__get_free_pages(GFP_KERNEL, get_order(IOPGD_TABLE_SIZE));
@@ -957,7 +1045,7 @@ static int __devinit omap_iommu_probe(struct platform_device *pdev)
 
 err_pgd:
 	free_irq(pdata->irq, obj);
-err_irq:
+error:
 	kfree(obj);
 	return err;
 }
