@@ -58,7 +58,9 @@ struct omap_mbox {
 	struct device		*dev;
 	void			*priv;
 	int			use_count;
-	struct blocking_notifier_head   notifier;
+	int			nr_mbox_users;
+	int			nr_mbox;
+	struct blocking_notifier_head	notifier;
 };
 
 int omap_mbox_msg_send(struct omap_mbox *, mbox_msg_t msg);
