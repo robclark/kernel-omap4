@@ -719,9 +719,6 @@ s32 tiler_mmap_blk(struct tiler_block_t *blk, u32 offs, u32 size,
 {
 	u32 v, p, len;
 
-	/* don't allow mremap */
-	vma->vm_flags |= VM_DONTEXPAND | VM_RESERVED;
-
 	/* mapping must fit into vma */
 	BUG_ON(vma->vm_start > vma->vm_start + voffs ||
 		vma->vm_start + voffs > vma->vm_start + voffs + size ||
