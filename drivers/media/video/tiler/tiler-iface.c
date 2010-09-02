@@ -46,6 +46,17 @@ MODULE_PARM_DESC(offset_lookup,
 static struct mutex mtx;
 static struct list_head procs;	/* list of process info structs */
 static struct tiler_ops *ops;	/* shared methods and variables */
+static struct blocking_notifier_head notifier;	/* notifier for events */
+
+/*
+ *  Event notification methods
+ *  ==========================================================================
+ */
+
+static s32 tiler_notify_event(int event, void *data)
+{
+	return blocking_notifier_call_chain(&notifier, event, data);
+}
 
 /*
  *  Buffer handling methods
@@ -221,6 +232,9 @@ static void _m_free_process_info(struct process_info *pi)
 	struct __buf_info *_b = NULL, *_b_ = NULL;
 
 	/* have mutex */
+
+	if (!list_empty(&pi->bufs))
+		tiler_notify_event(TILER_DEVICE_CLOSE, NULL);
 
 	/* unregister all buffers */
 	list_for_each_entry_safe(_b, _b_, &pi->bufs, by_pid)
@@ -614,12 +628,29 @@ void tiler_iface_init(struct tiler_ops *tiler)
 
 	mutex_init(&mtx);
 	INIT_LIST_HEAD(&procs);
+	BLOCKING_INIT_NOTIFIER_HEAD(&notifier);
 }
 
 /*
  *  Kernel APIs
  *  ==========================================================================
  */
+
+s32 tiler_reg_notifier(struct notifier_block *nb)
+{
+	if (!nb)
+		return -EINVAL;
+	return blocking_notifier_chain_register(&notifier, nb);
+}
+EXPORT_SYMBOL(tiler_reg_notifier);
+
+s32 tiler_unreg_notifier(struct notifier_block *nb)
+{
+	if (!nb)
+		return -EINVAL;
+	return blocking_notifier_chain_unregister(&notifier, nb);
+}
+EXPORT_SYMBOL(tiler_unreg_notifier);
 
 void tiler_reservex(u32 n, enum tiler_fmt fmt, u32 width, u32 height,
 		   u32 align, u32 offs, u32 gid, pid_t pid)

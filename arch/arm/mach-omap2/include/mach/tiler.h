@@ -81,6 +81,27 @@ static inline u32 tiler_size(const struct tiler_block_t *b)
 	return b->height * tiler_vstride(b);
 }
 
+/* Event types */
+#define TILER_DEVICE_CLOSE	0
+
+/**
+ * Registers a notifier block with TILER driver.
+ *
+ * @param nb		notifier_block
+ *
+ * @return error status
+ */
+s32 tiler_reg_notifier(struct notifier_block *nb);
+
+/**
+ * Un-registers a notifier block with TILER driver.
+ *
+ * @param nb		notifier_block
+ *
+ * @return error status
+ */
+s32 tiler_unreg_notifier(struct notifier_block *nb);
+
 /**
  * Reserves a 1D or 2D TILER block area and memory for the
  * current process with group ID 0.
