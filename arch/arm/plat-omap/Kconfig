@@ -138,12 +138,10 @@ config OMAP_REMOTE_PROC
 
 config OMAP_IOMMU
 	tristate
-	select GENERIC_ALLOCATOR
 
-config OMAP_IOVMM
-	depends on OMAP_IOMMU
-	select GENERIC_ALLOCATOR
+config OMAP_USER_DMM
 	tristate
+	select GENERIC_ALLOCATOR
 
 config OMAP_USER_DMM
 	tristate

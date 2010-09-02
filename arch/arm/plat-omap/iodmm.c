@@ -30,16 +30,94 @@
 #include <linux/kernel.h>
 #include <linux/genalloc.h>
 
+#include <linux/sched.h>
 #include <asm/cacheflush.h>
 #include <asm/mach/map.h>
+#include <linux/dma-mapping.h>
 
 #include <plat/iommu.h>
-#include <plat/iovmm.h>
+#include <plat/dmm_user.h>
 
 #include "iopgtable.h"
 
+/* Hack hack code to handle MM buffers */
+int temp_user_dma_op(unsigned long start, unsigned long end, int op)
+{
+
+	struct mm_struct *mm = current->active_mm;
+	void (*inner_op)(const void *, const void *);
+	void (*outer_op)(unsigned long, unsigned long);
+
+	switch (op) {
+	case 1:
+		inner_op = dmac_inv_range;
+		outer_op = outer_inv_range;
+		break;
+
+	case 2:
+		inner_op = dmac_clean_range;
+		outer_op = outer_clean_range;
+		break;
+
+	case 3:
+		inner_op = dmac_flush_range;
+		outer_op = outer_flush_range;
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	if (end < start)
+		return -EINVAL;
+
+	down_read(&mm->mmap_sem);
+
+	do {
+		struct vm_area_struct *vma = find_vma(mm, start);
+
+		if (!vma || start < vma->vm_start ||
+			vma->vm_flags & (VM_IO | VM_PFNMAP)) {
+			up_read(&mm->mmap_sem);
+			return -EFAULT;
+		}
+		do {
+			unsigned long e = (start | ~PAGE_MASK) + 1;
+			struct page *page;
+
+			if (e > end)
+				e = end;
+			page = follow_page(vma, start, FOLL_GET);
+			if (IS_ERR(page)) {
+				up_read(&mm->mmap_sem);
+				return PTR_ERR(page);
+			}
+			if (page) {
+				unsigned long phys;
+				/*
+				 * This flushes the userspace address - which
+				 * is not what this API was intended to do.
+				 * Things may go astray as a result.
+				 */
+				inner_op((void *)start, (void *)e);
+				/*
+				 * Now handle the L2 cache.
+				 */
+				phys = page_to_phys(page) +
+						(start & ~PAGE_MASK);
+				outer_op(phys, phys + e - start);
+				put_page(page);
+			}
+			start = e;
+		} while (start < end && start < vma->vm_end);
+	} while (start < end);
+
+	up_read(&mm->mmap_sem);
+	return 0;
+}
+
 /* remember mapping information */
-struct dmm_map_object *add_mapping_info(struct iodmm_struct *obj,
+static struct dmm_map_object *add_mapping_info(struct iodmm_struct *obj,
 		struct gen_pool *gen_pool, u32 va, u32 da, u32 size)
 {
 	struct dmm_map_object *map_obj;
@@ -57,7 +135,7 @@ struct dmm_map_object *add_mapping_info(struct iodmm_struct *obj,
 	INIT_LIST_HEAD(&map_obj->link);
 
 	map_obj->pages = kcalloc(num_usr_pgs, sizeof(struct page *),
-							GFP_KERNEL);
+								GFP_KERNEL);
 	if (!map_obj->pages) {
 		pr_err("%s: kzalloc failed\n", __func__);
 		kfree(map_obj);
@@ -69,9 +147,7 @@ struct dmm_map_object *add_mapping_info(struct iodmm_struct *obj,
 	map_obj->size = size;
 	map_obj->num_usr_pgs = num_usr_pgs;
 	map_obj->gen_pool = gen_pool;
-	spin_lock(&obj->dmm_map_lock);
 	list_add(&map_obj->link, &obj->map_list);
-	spin_unlock(&obj->dmm_map_lock);
 
 	return map_obj;
 }
@@ -99,7 +175,6 @@ static void remove_mapping_information(struct iodmm_struct *obj,
 
 	pr_debug("%s: looking for virt 0x%x size 0x%x\n", __func__,
 							da, size);
-	spin_lock(&obj->dmm_map_lock);
 	list_for_each_entry(map_obj, &obj->map_list, link) {
 		pr_debug("%s: candidate: va 0x%x virt 0x%x size 0x%x\n",
 							__func__,
@@ -122,7 +197,7 @@ static void remove_mapping_information(struct iodmm_struct *obj,
 
 	pr_err("%s: failed to find given map info\n", __func__);
 out:
-	spin_unlock(&obj->dmm_map_lock);
+	return;
 }
 
 static int match_containing_map_obj(struct dmm_map_object *map_obj,
@@ -154,8 +229,6 @@ static struct dmm_map_object *find_containing_mapping(
 	struct dmm_map_object *map_obj, *temp_map;
 	pr_debug("%s: looking for va 0x%x size 0x%x\n", __func__,
 						va, size);
-
-	spin_lock(&obj->dmm_map_lock);
 	list_for_each_entry_safe(map_obj, temp_map, &obj->map_list, link) {
 		pr_debug("%s: candidate: va 0x%x virt 0x%x size 0x%x\n",
 						__func__,
@@ -163,7 +236,7 @@ static struct dmm_map_object *find_containing_mapping(
 						map_obj->da,
 						map_obj->size);
 		if (!match_containing_map_obj(map_obj, va, da, check_va,
-							map_obj->size)) {
+								size)) {
 			pr_debug("%s: match!\n", __func__);
 			goto out;
 		}
@@ -173,10 +246,10 @@ static struct dmm_map_object *find_containing_mapping(
 
 	map_obj = NULL;
 out:
-	spin_unlock(&obj->dmm_map_lock);
 	return map_obj;
 }
 
+#if 0
 static int find_first_page_in_cache(struct dmm_map_object *map_obj,
 					unsigned long va)
 {
@@ -192,6 +265,7 @@ static int find_first_page_in_cache(struct dmm_map_object *map_obj,
 	pr_debug("%s: first page is %d\n", __func__, pg_index);
 	return pg_index;
 }
+#endif
 
 static inline struct page *get_mapping_page(struct dmm_map_object *map_obj,
 								int pg_i)
@@ -206,6 +280,7 @@ static inline struct page *get_mapping_page(struct dmm_map_object *map_obj,
 	return map_obj->pages[pg_i];
 }
 
+#if 0
 /* Cache operation against kernel address instead of users */
 static int build_dma_sg(struct dmm_map_object *map_obj, unsigned long start,
 						ssize_t len, int pg_i)
@@ -339,17 +414,20 @@ kfree_sg:
 out:
 	return ret;
 }
+#endif
 
 int proc_begin_dma(struct iodmm_struct *obj, void *pva, u32 ul_size,
 					enum dma_data_direction dir)
 {
-	/* Keep STATUS here for future additions to this function */
 	int status = 0;
+	u32 end = (u32)pva + ul_size;
+#if 0
 	u32 va_align;
 	struct dmm_map_object *map_obj;
 	struct device *dev = obj->iovmm->iommu->dev;
 	va_align = round_down((u32)pva, PAGE_SIZE);
 
+	mutex_lock(&obj->iovmm->dmm_map_lock);
 	pr_debug("%s: addr 0x%x, size 0x%x, type %d\n", __func__,
 							(u32)va_align,
 							ul_size, dir);
@@ -362,22 +440,25 @@ int proc_begin_dma(struct iodmm_struct *obj, void *pva, u32 ul_size,
 		goto err_out;
 	}
 
-	if (memory_give_ownership(dev, map_obj, (u32) va_align, ul_size, dir)) {
+	if (memory_give_ownership(dev, map_obj, (u32)pva, ul_size, dir)) {
 		pr_err("%s: InValid address parameters %x %x\n",
 			       __func__, va_align, ul_size);
 		status = -EFAULT;
 	}
 
 err_out:
-
+	mutex_unlock(&obj->iovmm->dmm_map_lock);
+#endif
+	status = temp_user_dma_op((u32)pva, end, 3);
 	return status;
 }
 
 int proc_end_dma(struct iodmm_struct *obj, void *pva, u32 ul_size,
 			enum dma_data_direction dir)
 {
-	/* Keep STATUS here for future additions to this function */
 	int status = 0;
+	u32 end = (u32)pva + ul_size;
+#if 0
 	u32 va_align;
 	struct dmm_map_object *map_obj;
 	struct device *dev = obj->iovmm->iommu->dev;
@@ -386,6 +467,7 @@ int proc_end_dma(struct iodmm_struct *obj, void *pva, u32 ul_size,
 	pr_debug("%s: addr 0x%x, size 0x%x, type %d\n", __func__,
 							(u32)va_align,
 							ul_size, dir);
+	mutex_lock(&obj->iovmm->dmm_map_lock);
 
 	/* find requested memory are in cached mapping information */
 	map_obj = find_containing_mapping(obj, (u32) va_align, 0, true,
@@ -396,7 +478,7 @@ int proc_end_dma(struct iodmm_struct *obj, void *pva, u32 ul_size,
 		goto err_out;
 	}
 
-	if (memory_regain_ownership(dev, map_obj, va_align, ul_size, dir)) {
+	if (memory_regain_ownership(dev, map_obj, (u32)pva, ul_size, dir)) {
 		pr_err("%s: InValid address parameters %p %x\n",
 		       __func__, pva, ul_size);
 		status = -EFAULT;
@@ -404,36 +486,10 @@ int proc_end_dma(struct iodmm_struct *obj, void *pva, u32 ul_size,
 	}
 
 err_out:
+	mutex_unlock(&obj->iovmm->dmm_map_lock);
+#endif
+	status = temp_user_dma_op((u32)pva, end, 1);
 	return status;
-}
-
-/**
- * device_flush_memory - Flushes the memory specified
- * @obj:	target dmm object
- * @pva		User address to be flushed
- * @size	Size of the buffer to be flushed
- * Flushes the memory specified
- **/
-int device_flush_memory(struct iodmm_struct *obj, void *pva,
-			     u32 ul_size, u32 ul_flags)
-{
-	enum dma_data_direction dir = DMA_BIDIRECTIONAL;
-
-	return proc_begin_dma(obj, pva, ul_size, dir);
-}
-
-/**
- * device_invalidate_memory - Invalidates the memory specified
- * @obj:	target dmm object
- * @pva		User address to be invalidated
- * @size	Size of the buffer to be invalidated
- * Invalidates the memory specified
- **/
-int device_invalidate_memory(struct iodmm_struct *obj, void *pva, u32 size)
-{
-	enum dma_data_direction dir = DMA_FROM_DEVICE;
-
-	return proc_begin_dma(obj, pva, size, dir);
 }
 
 /**
@@ -447,7 +503,7 @@ int device_invalidate_memory(struct iodmm_struct *obj, void *pva, u32 size)
  * This function maps a user space buffer into DSP virtual address.
  *
  */
-int user_to_device_map(struct iommu *mmu, u32 uva, u32 da, u32 size,
+static int user_to_device_map(struct iommu *mmu, u32 uva, u32 da, u32 size,
 						struct page **usr_pgs)
 
 {
@@ -483,15 +539,12 @@ int user_to_device_map(struct iommu *mmu, u32 uva, u32 da, u32 size,
 					"user buffer\n");
 				break;
 			}
-			tlb_entry.pgsz = MMU_CAM_PGSZ_4K;
-			tlb_entry.prsvd = 0;
-			tlb_entry.valid = MMU_CAM_V;
-			tlb_entry.elsz = MMU_RAM_ELSZ_32;
-			tlb_entry.endian = MMU_RAM_ENDIAN_LITTLE;
-			tlb_entry.mixed = MMU_RAM_MIXED;
-			tlb_entry.da = da;
 			pa = page_to_phys(mapped_page);
-			tlb_entry.pa = (u32)pa;
+			iotlb_init_entry(&tlb_entry, da, pa,
+						MMU_CAM_PGSZ_4K |
+						MMU_RAM_ENDIAN_LITTLE |
+						MMU_RAM_ELSZ_32);
+
 			iopgtable_store_entry(mmu, &tlb_entry);
 			if (usr_pgs)
 				usr_pgs[pg_i] = mapped_page;
@@ -513,6 +566,18 @@ int user_to_device_map(struct iommu *mmu, u32 uva, u32 da, u32 size,
 	return res;
 }
 
+static inline struct gen_pool *get_pool_handle(struct iovmm_device *iovmm_obj,
+								int pool_id)
+{
+	struct iovmm_pool *pool;
+
+	list_for_each_entry(pool, &iovmm_obj->mmap_pool, list) {
+		if (pool->pool_id == pool_id)
+			return pool->genpool;
+	}
+	return NULL;
+}
+
 /**
  * phys_to_device_map() - maps physical addr
  * to device virtual address
@@ -525,34 +590,77 @@ int user_to_device_map(struct iommu *mmu, u32 uva, u32 da, u32 size,
  * This function maps a user space buffer into DSP virtual address.
  *
  */
-int phys_to_device_map(struct iommu *mmu, u32 phys, u32 da, u32 size,
-						struct page **usr_pgs)
+static int phys_to_device_map(struct iodmm_struct *obj,
+				int pool_id, u32 *mapped_addr,
+				u32 pa, size_t bytes, u32 flags)
 {
-	int res = 0;
-	int pg_i;
-	unsigned int pages;
-	struct iotlb_entry tlb_entry;
+	struct iotlb_entry e;
+	struct dmm_map_object *dmm_obj;
+	int da;
+	u32 all_bits;
+	u32 num_bytes = bytes;
+	int err = 0;
+	u32 pg_size[] = {SZ_16M, SZ_1M, SZ_64K, SZ_4K};
+	int size_flag[] = {MMU_CAM_PGSZ_16M, MMU_CAM_PGSZ_1M,
+				MMU_CAM_PGSZ_64K, MMU_CAM_PGSZ_4K};
+	int i;
+	struct gen_pool *gen_pool;
 
-	if (!size || !usr_pgs)
-		return -EINVAL;
-
-	pages = size / PAGE_SIZE;
-
-	for (pg_i = 0; pg_i < pages; pg_i++) {
-		tlb_entry.pgsz = MMU_CAM_PGSZ_4K;
-		tlb_entry.prsvd = MMU_CAM_P;
-		tlb_entry.valid = MMU_CAM_V;
-		tlb_entry.elsz = MMU_RAM_ELSZ_8;
-		tlb_entry.endian = MMU_RAM_ENDIAN_LITTLE;
-		tlb_entry.mixed = 0;
-		tlb_entry.da = da;
-		tlb_entry.pa = (u32)phys;
-		iopgtable_store_entry(mmu, &tlb_entry);
-		da += PAGE_SIZE;
-		phys += PAGE_SIZE;
+	if (!num_bytes) {
+		err = -EINVAL;
+		goto exit;
 	}
 
-	return res;
+	if (pool_id == -1) {
+		da = round_down(*mapped_addr, PAGE_SIZE);
+		gen_pool = NULL;
+	} else {
+		/* search through the list of available pools to
+		 * pool handle
+		 */
+		gen_pool = get_pool_handle(obj->iovmm, pool_id);
+		if (gen_pool) {
+			da = gen_pool_alloc(gen_pool, bytes);
+			*mapped_addr = (da | ((u32)pa & (PAGE_SIZE - 1)));
+		} else {
+			err = -EFAULT;
+			goto exit;
+		}
+	}
+
+	dmm_obj = add_mapping_info(obj, gen_pool, pa, *mapped_addr, num_bytes);
+	if (dmm_obj == NULL) {
+		err = -ENODEV;
+		goto err_add_map;
+	}
+
+	while (num_bytes) {
+		/*
+		 * To find the max. page size with which both PA & VA are
+		 * aligned
+		 */
+		all_bits = pa | da;
+		for (i = 0; i < 4; i++) {
+			if ((num_bytes >= pg_size[i]) && ((all_bits &
+						(pg_size[i] - 1)) == 0)) {
+				iotlb_init_entry(&e, da, pa,
+						size_flag[i] |
+						MMU_RAM_ENDIAN_LITTLE |
+						MMU_RAM_ELSZ_32);
+				iopgtable_store_entry(obj->iovmm->iommu, &e);
+				num_bytes -= pg_size[i];
+				da += pg_size[i];
+				pa += pg_size[i];
+				break;
+			}
+		}
+	}
+	return 0;
+
+err_add_map:
+	gen_pool_free(gen_pool, da, bytes);
+exit:
+	return err;
 }
 
 /**
@@ -563,7 +671,7 @@ int phys_to_device_map(struct iommu *mmu, u32 phys, u32 da, u32 size,
  * This function unmaps a user space buffer into DSP virtual address.
  *
  */
-int user_to_device_unmap(struct iommu *mmu, u32 da, unsigned size)
+static int user_to_device_unmap(struct iommu *mmu, u32 da, unsigned size)
 {
 	unsigned total = size;
 	unsigned start = da;
@@ -624,8 +732,6 @@ static u32 user_va2_pa(struct mm_struct *mm, u32 address)
 int dmm_user(struct iodmm_struct *obj, u32 pool_id, u32 *da,
 				u32 va, size_t bytes, u32 flags)
 {
-	bool found = false;
-	struct iovmm_pool *pool;
 	struct gen_pool *gen_pool;
 	struct dmm_map_object *dmm_obj;
 	struct iovmm_device *iovmm_obj = obj->iovmm;
@@ -635,6 +741,8 @@ int dmm_user(struct iodmm_struct *obj, u32 pool_id, u32 *da,
 	struct page *pg;
 	struct vm_area_struct *vma;
 	struct mm_struct *mm = current->mm;
+	u32 io_addr;
+	struct iotlb_entry e;
 
 	/*
 	 * Important Note: va is mapped from user application process
@@ -647,15 +755,16 @@ int dmm_user(struct iodmm_struct *obj, u32 pool_id, u32 *da,
 	pa_align = round_down((u32) va, PAGE_SIZE);
 	size_align = round_up(bytes + va - pa_align, PAGE_SIZE);
 
+	mutex_lock(&iovmm_obj->dmm_map_lock);
+
 	/*
-	 * Hack hack for Tiler. Don't add mapping information
-	 * for Tiler buffers since they are already pre-mapped
-	 * in TLB
+	 * User passed physical address to map. No DMM pool
+	 * specified if pool_id as -1, so the da is interpreted
+	 * as the Device Address.
 	 */
-	if (flags == IOVMF_DA_PHYS) {
-		da_align = user_va2_pa(current->mm, va);
-		*da = (da_align | (va & (PAGE_SIZE - 1)));
-		err = 0;
+	if (flags == DMM_DA_PHYS) {
+		err = phys_to_device_map(obj, pool_id, da, pa_align,
+							size_align, flags);
 		goto err;
 	}
 
@@ -688,51 +797,62 @@ int dmm_user(struct iodmm_struct *obj, u32 pool_id, u32 *da,
 		goto err;
 	}
 
-	if (vma->vm_flags & VM_IO) {
-		da_align = user_va2_pa(current->mm, va);
-		*da = (da_align | (va & (PAGE_SIZE - 1)));
-		dmm_obj = add_mapping_info(obj, NULL, va, da_align,
-							size_align);
-		if (dmm_obj == NULL) {
-			err = -EINVAL;
+	/*
+	 * If user provided anonymous address, then don't allocate it from
+	 * from genpool
+	 */
+	if (flags == DMM_DA_ANON) {
+		gen_pool = NULL;
+		da_align = round_down(*da, PAGE_SIZE);
+	} else  {
+		/* search through the list of available pools to
+		 * pool handle
+		 */
+		gen_pool = get_pool_handle(iovmm_obj, pool_id);
+		if (gen_pool)
+			da_align = gen_pool_alloc(gen_pool, size_align);
+		else {
+			err = -EFAULT;
 			goto err;
 		}
+	}
+
+	/* Mapped address = MSB of VA | LSB of PA */
+	tmp_addr = (da_align | ((u32)va & (PAGE_SIZE - 1)));
+	dmm_obj = add_mapping_info(obj, gen_pool, pa_align, tmp_addr,
+							size_align);
+	*da = tmp_addr;
+	if (!dmm_obj)
+		goto err;
+
+	/* Mapping the IO buffers */
+	if (vma->vm_flags & VM_IO) {
 		num_of_pages = size_align/PAGE_SIZE;
 		for (i = 0; i < num_of_pages; i++) {
-			pg = phys_to_page(da_align);
+			io_addr = user_va2_pa(current->mm, pa_align);
+			pg = phys_to_page(io_addr);
+
+			iotlb_init_entry(&e, da_align, io_addr,
+						MMU_CAM_PGSZ_4K |
+						MMU_RAM_ENDIAN_LITTLE |
+						MMU_RAM_ELSZ_32);
+			iopgtable_store_entry(obj->iovmm->iommu, &e);
 			da_align += PAGE_SIZE;
+			pa_align += PAGE_SIZE;
 			dmm_obj->pages[i] = pg;
 		}
 		err = 0;
 		goto err;
 	}
 
-	list_for_each_entry(pool, &iovmm_obj->mmap_pool, list) {
-		if (pool->pool_id == pool_id) {
-			gen_pool = pool->genpool;
-			found = true;
-			break;
-		}
-	}
-	if (found == false) {
-		err = -EINVAL;
-		goto err;
-	}
-	da_align = gen_pool_alloc(gen_pool, bytes);
-
-	/* Mapped address = MSB of VA | LSB of PA */
-	tmp_addr = (da_align | ((u32) va & (PAGE_SIZE - 1)));
-	dmm_obj = add_mapping_info(obj, gen_pool, pa_align, tmp_addr,
-							size_align);
-	if (!dmm_obj)
-		goto err;
-
+	/* Mapping the Userspace buffer */
 	err = user_to_device_map(iovmm_obj->iommu, pa_align,
 				da_align, size_align, dmm_obj->pages);
-	if ((!err) && (flags & IOVMF_DA_USER))
-		*da = tmp_addr;
+	if (err)
+		remove_mapping_information(obj, tmp_addr, size_align);
 
 err:
+	mutex_unlock(&iovmm_obj->dmm_map_lock);
 	up_read(&mm->mmap_sem);
 	return err;
 }
@@ -755,6 +875,7 @@ int user_un_map(struct iodmm_struct *obj, u32 map_addr)
 
 	va_align = round_down(map_addr, PAGE_SIZE);
 
+	mutex_lock(&obj->iovmm->dmm_map_lock);
 	/*
 	* Update DMM structures. Get the size to unmap.
 	* This function returns error if the VA is not mapped
@@ -773,7 +894,7 @@ int user_un_map(struct iodmm_struct *obj, u32 map_addr)
 	i = size_align/PAGE_SIZE;
 	while (i--) {
 		pg = map_obj->pages[i];
-		if (pfn_valid(page_to_pfn(pg))) {
+		if (pg && pfn_valid(page_to_pfn(pg))) {
 			if (page_count(pg) < 1)
 				pr_info("%s UNMAP FAILURE !!!\n", __func__);
 			else {
@@ -788,9 +909,8 @@ int user_un_map(struct iodmm_struct *obj, u32 map_addr)
 	* remains uptodate
 	*/
 	remove_mapping_information(obj, map_obj->da, map_obj->size);
-
-	return 0;
 err:
+	mutex_unlock(&obj->iovmm->dmm_map_lock);
 	return status;
 }
 
@@ -814,6 +934,59 @@ void user_remove_resources(struct iodmm_struct *obj)
 				" status = 0x%x\n", __func__, status);
 		}
 	}
+}
+
+/**
+ * omap_create_dmm_pool - Create DMM pool
+ * @obj:	target dmm object
+ * @pool_id	pool id to assign to the pool
+ * @size	Size of the pool
+ * @sa		Starting Address of the Virtual pool
+ **/
+int omap_create_dmm_pool(struct iodmm_struct *obj, int pool_id, int size,
+								int sa)
+{
+	struct iovmm_pool *pool;
+	struct iovmm_device *iovmm = obj->iovmm;
+
+	pool = kzalloc(sizeof(struct iovmm_pool), GFP_ATOMIC);
+	if (!pool)
+		goto err_out;
+
+	pool->pool_id = pool_id;
+	pool->da_begin = sa;
+	pool->da_end = sa + size;
+	pool->genpool = gen_pool_create(12, -1);
+	gen_pool_add(pool->genpool, pool->da_begin, size, -1);
+	INIT_LIST_HEAD(&pool->list);
+	list_add_tail(&pool->list, &iovmm->mmap_pool);
+	return 0;
+
+err_out:
+	return -ENOMEM;
+}
+
+/**
+ * omap_delete_dmm_pool - Delete DMM pool
+ * @obj:	target dmm object
+ * @pool_id	pool id to delete
+ **/
+int omap_delete_dmm_pool(struct iodmm_struct *obj, int pool_id)
+{
+	struct iovmm_pool *pool;
+	struct iovmm_device *iovmm_obj = obj->iovmm;
+	struct list_head *_pool, *_next_pool;
+
+	list_for_each_safe(_pool, _next_pool, &iovmm_obj->mmap_pool) {
+		pool = list_entry(_pool, struct iovmm_pool, list);
+		if (pool->pool_id == pool_id) {
+			gen_pool_destroy(pool->genpool);
+			list_del(&pool->list);
+			kfree(pool);
+			return 0;
+		}
+	}
+	return -ENODEV;
 }
 
 MODULE_LICENSE("GPL v2");
