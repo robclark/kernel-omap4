@@ -2255,7 +2255,7 @@ static inline int security_task_create(unsigned long clone_flags)
 	return 0;
 }
 
-static inline int security_task_free(struct task_struct *task)
+static inline void security_task_free(struct task_struct *task)
 { }
 
 static inline int security_cred_alloc_blank(struct cred *cred, gfp_t gfp)
