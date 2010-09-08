@@ -966,7 +966,10 @@ static void set_multicast_list(struct ndis_device *wnd)
 			WARNING("couldn't allocate memory");
 			EXIT2(return);
 		}
+		i = 0;
 		netdev_for_each_mc_addr(ha, net_dev) {
+			if (i >= size)
+				break;
 			if (net_dev->addr_len != ETH_ALEN)
 				continue;
 			memcpy(buf + i * ETH_ALEN, ha->addr, ETH_ALEN);
