@@ -95,12 +95,21 @@
 /* Suspend/resume/other... */
 #define NUMBER_PM_EVENTS 4
 
+/* Processors id's */
+#define A9 3
+#define SYS_M3 2
+#define APP_M3 1
+#define TESLA 0
+
 #define PM_CSTR_PERF_MASK	0x00000001
 #define PM_CSTR_LAT_MASK	0x00000002
 #define PM_CSTR_BW_MASK		0x00000004
 
 #define IPU_PM_MM_MPU_LAT_CONSTRAINT	10
 #define IPU_PM_NO_MPU_LAT_CONSTRAINT	-1
+#define NO_FREQ_CONSTRAINT		0
+#define NO_LAT_CONSTRAINT		-1
+#define NO_BW_CONSTRAINT		-1
 
 #define RCB_SIZE 8
 
@@ -111,8 +120,10 @@
 #define I2C_BUS_MAX 4
 #define REGULATOR_MIN 1
 #define REGULATOR_MAX 1
-#define AUX_CLK_MIN 1
-#define AUX_CLK_MAX 3
+
+#define AUX_CLK_MIN 0
+#define AUX_CLK_MAX 5
+#define NUM_AUX_CLK 6
 
 #define GP_TIMER_3 3
 #define GP_TIMER_4 4
@@ -137,8 +148,8 @@
 
 /* Auxiliar Clocks Registers */
 #define SCRM_BASE			OMAP2_L4_IO_ADDRESS(0x4a30A000)
-#define SCRM_BASE_AUX_CLK		0x00000314
-#define SCRM_BASE_AUX_CLK_REQ		0x00000214
+#define SCRM_BASE_AUX_CLK		0x00000310
+#define SCRM_BASE_AUX_CLK_REQ		0x00000210
 #define SCRM_AUX_CLK_OFFSET		0x4
 /* Auxiliar Clocks bit fields */
 #define SCRM_AUX_CLK_POLARITY		0x0
@@ -158,12 +169,31 @@
 #define SCRM_AUX_CLK_REQ_POLARITY_MASK	0x00000001
 #define SCRM_AUX_CLK_REQ_ACCURACY_MASK	0x00000002
 #define SCRM_AUX_CLK_REQ_MAPPING_MASK	0x0000001C
+/* Auxiliar Clocks/Req values */
+#define SYSTEM_SRC			0x0
+#define CORE_DPLL_SRC			0x1
+#define PER_DPLL_CLK			0x2
+#define POL_GAT_LOW			0x0
+#define POL_GAT_HIGH			0x1
+#define AUX_CLK_DIS			0x0
+#define AUX_CLK_ENA			0x1
+/* ISS OPT Clocks */
+#define OPTFCLKEN			(1 << 8)
+#define CAM_ENABLED			0x2
+#define CAM_DISABLED			0x0
+
 
 /* Macro to set a val in a bitfield*/
 #define MASK_SET_FIELD(tmp, bitfield, val)	{	\
 						tmp |=	\
 						((val << SCRM_##bitfield)\
 						& SCRM_##bitfield##_MASK);\
+						}
+
+/* Macro to clear a bitfield*/
+#define MASK_CLEAR_FIELD(tmp, bitfield)	{	\
+						tmp &=	\
+						(~SCRM_##bitfield##_MASK);\
 						}
 
 /* Macro to return the address of the aux clk */
@@ -270,11 +300,20 @@ enum res_type{
 	AUX_CLK,
 };
 
-enum pm_event_type{PM_SUSPEND,
+/* Events can start at any number but
+ * should be always consecutive
+ */
+#define PM_FIRST_EVENT	0
+
+enum pm_event_type{PM_SUSPEND = PM_FIRST_EVENT,
 	PM_RESUME,
 	PM_PID_DEATH,
 	PM_HIBERNATE
 };
+
+#define PM_LAST_EVENT	((sizeof(enum pm_event_type) / sizeof(void))	\
+							+ PM_FIRST_EVENT\
+								- 1)
 
 struct rcb_message {
 	unsigned rcb_flag:1;
@@ -349,6 +388,7 @@ struct ipu_pm_params {
 	int pm_iva_hd_counter;
 	int pm_ivaseq0_counter;
 	int pm_ivaseq1_counter;
+	int pm_sl2if_counter;
 	int pm_l3_bus_counter;
 	int pm_mpu_counter;
 	int pm_sdmachan_counter;
@@ -460,6 +500,17 @@ int ipu_pm_module_start(unsigned res_type);
 
 /* Function to stop a module */
 int ipu_pm_module_stop(unsigned res_type);
+
+/* Function to set a module's frequency constraint */
+int ipu_pm_module_set_rate(unsigned rsrc, unsigned target_rsrc, unsigned rate);
+
+/* Function to set a module's latency constraint */
+int ipu_pm_module_set_latency(unsigned rsrc, unsigned target_rsrc, int latency);
+
+/* Function to set a module's bandwidth constraint */
+int ipu_pm_module_set_bandwidth(unsigned rsrc,
+				unsigned target_rsrc,
+				int bandwidth);
 
 /* Function to get ducati state flag from share memory */
 u32 ipu_pm_get_state(int proc_id);

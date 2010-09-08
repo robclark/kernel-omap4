@@ -1,3 +1,4 @@
+#define TMP_AUX_CLK_HACK 1 /* should be removed by Nov 13, 2010 */
 /*
  * ipu_pm.c
  *
@@ -57,16 +58,17 @@
 #include <linux/i2c/twl.h>
 
 /* Module headers */
+#include <plat/ipu_dev.h>
+#include "../../../../arch/arm/mach-omap2/cm.h"
 #include "ipu_pm.h"
 
 /** ============================================================================
  *  Macros and types
  *  ============================================================================
  */
-#define A9 3
-#define SYS_M3 2
-#define APP_M3 1
-#define TESLA 0
+#define HW_AUTO 3
+#define CM_DUCATI_M3_CLKSTCTRL 0x4A008900
+#define SL2_RESOURCE 10
 
 #define proc_supported(proc_id) (proc_id == SYS_M3 || proc_id == APP_M3)
 
@@ -77,6 +79,8 @@
 
 #define SYSM3_IDLE_FLAG_PHY_ADDR 0x9E0502D8
 #define APPM3_IDLE_FLAG_PHY_ADDR 0x9E0502DC
+
+#define _is_valid_event(e) ((PM_FIRST_EVENT <= e && e <= PM_LAST_EVENT) ? 1 : 0)
 
 #define NUM_IDLE_CORES	((__raw_readl(appm3Idle) << 1) + \
 				(__raw_readl(sysm3Idle)))
@@ -240,17 +244,20 @@ static u32 cam2_prev_volt;
 static struct ipu_pm_object *pm_handle_appm3;
 static struct ipu_pm_object *pm_handle_sysm3;
 static struct workqueue_struct *ipu_wq;
+#ifdef CONFIG_OMAP_PM
 static struct pm_qos_request_list *pm_qos_handle;
+static struct pm_qos_request_list *pm_qos_handle_2;
+#endif
 static struct omap_rproc *sys_rproc;
 static struct omap_rproc *app_rproc;
 static struct omap_mbox *ducati_mbox;
 static struct iommu *ducati_iommu;
 static bool first_time = 1;
-static struct omap_dm_timer *pm_gpt;
+static bool mpu_hib_ipu;
+/* static struct omap_dm_timer *pm_gpt; */
 
 /* Ducati Interrupt Capable Gptimers */
 static int ipu_timer_list[NUM_IPU_TIMERS] = {
-	GP_TIMER_4,
 	GP_TIMER_9,
 	GP_TIMER_11};
 
@@ -264,6 +271,26 @@ static int i2c_spinlock_list[I2C_BUS_MAX + 1] = {
 
 static char *ipu_regulator_name[REGULATOR_MAX] = {
 	"cam2pwr"};
+
+static struct clk *aux_clk_ptr[NUM_AUX_CLK];
+
+static char *aux_clk_name[NUM_AUX_CLK] = {
+	"auxclk0_ck",
+	"auxclk1_ck",
+	"auxclk2_ck",
+	"auxclk3_ck",
+	"auxclk4_ck",
+	"auxclk5_ck",
+} ;
+
+static char *aux_clk_source_name[] = {
+	"sys_clkin_ck",
+	"dpll_core_m3_ck",
+	"dpll_per_m3_ck",
+	NULL
+} ;
+
+/* static struct clk *aux_clk_source_clocks[3]; */
 
 static struct ipu_pm_module_object ipu_pm_state = {
 	.def_cfg.reserved = 1,
@@ -279,6 +306,7 @@ static struct ipu_pm_params pm_params = {
 	.pm_iva_hd_counter = 0,
 	.pm_ivaseq0_counter = 0,
 	.pm_ivaseq1_counter = 0,
+	.pm_sl2if_counter = 0,
 	.pm_l3_bus_counter = 0,
 	.pm_mpu_counter = 0,
 	.pm_sdmachan_counter = 0,
@@ -299,6 +327,7 @@ static struct ipu_pm_params pm_params = {
 
 static void __iomem *sysm3Idle;
 static void __iomem *appm3Idle;
+static void __iomem *cm_ducati_clkstctrl;
 
 /*
   Request a resource on behalf of an IPU client
@@ -519,7 +548,7 @@ static void ipu_pm_work(struct work_struct *work)
 
 	while (kfifo_len(&handle->fifo) >= sizeof(im)) {
 		spin_lock_irq(&handle->lock);
-		kfifo_out(&handle->fifo, &im, sizeof(im));
+		retval = kfifo_out(&handle->fifo, &im, sizeof(im));
 		spin_unlock_irq(&handle->lock);
 
 		/* Get the payload */
@@ -601,22 +630,20 @@ void ipu_pm_callback(u16 proc_id, u16 line_id, u32 event_id,
 EXPORT_SYMBOL(ipu_pm_callback);
 
 
-/*
-  Function for PM notifications Callback
- *
+/* Function for PM notifications Callback
+ * This functions receives an event coming from
+ * remote proc as an ack.
+ * Post semaphore based in eventType (payload)
+ * If PM_HIBERNATE is received the save_ctx is triggered
+ * in order to put remote proc in reset.
  */
 void ipu_pm_notify_callback(u16 proc_id, u16 line_id, u32 event_id,
 					uint *arg, u32 payload)
 {
-	/**
-	 * Post semaphore based in eventType (payload);
-	 * IPU has alreay finished the process for the
-	 * notification
-	 */
-	/* Get the payload */
 	struct ipu_pm_object *handle;
 	union message_slicer pm_msg;
 	struct ipu_pm_params *params;
+	enum pm_event_type event;
 	int retval;
 
 	/* get the handle to proper ipu pm object */
@@ -628,32 +655,27 @@ void ipu_pm_notify_callback(u16 proc_id, u16 line_id, u32 event_id,
 		return;
 
 	pm_msg.whole = payload;
-	if (pm_msg.fields.msg_type == PM_NOTIFY_HIBERNATE) {
-		/* Remote proc requested hibernate */
-		/* Remote Proc is ready to hibernate */
+	/* get the event type sent by remote proc */
+	event = pm_msg.fields.msg_subtype;
+	if (!_is_valid_event(event))
+		goto error;
+	if (event == PM_HIBERNATE) {
+		/* Remote Proc is ready to hibernate
+		 * PM_HIBERNATE is a one way notification
+		 * Remote proc to Host proc
+		 */
+		pr_debug("Remote Proc is ready to hibernate\n");
 		retval = ipu_pm_save_ctx(proc_id);
 		if (retval)
-			pr_info("Unable to stop proc %d\n", proc_id);
+			pr_err("Unable to stop proc %d\n", proc_id);
 	} else {
-		switch (pm_msg.fields.msg_subtype) {
-		case PM_SUSPEND:
-			handle->pm_event[PM_SUSPEND].pm_msg = payload;
-			up(&handle->pm_event[PM_SUSPEND].sem_handle);
-			break;
-		case PM_RESUME:
-			handle->pm_event[PM_RESUME].pm_msg = payload;
-			up(&handle->pm_event[PM_RESUME].sem_handle);
-			break;
-		case PM_HIBERNATE:
-			handle->pm_event[PM_HIBERNATE].pm_msg = payload;
-			up(&handle->pm_event[PM_HIBERNATE].sem_handle);
-			break;
-		case PM_PID_DEATH:
-			handle->pm_event[PM_PID_DEATH].pm_msg = payload;
-			up(&handle->pm_event[PM_PID_DEATH].sem_handle);
-			break;
-		}
+		pr_debug("Remote Proc received %d event\n", event);
+		handle->pm_event[event].pm_msg = payload;
+		up(&handle->pm_event[event].sem_handle);
 	}
+	return;
+error:
+	pr_err("Unknow event received from remote proc: %d\n", event);
 }
 EXPORT_SYMBOL(ipu_pm_notify_callback);
 
@@ -742,36 +764,14 @@ int ipu_pm_notifications(enum pm_event_type event_type, void *data)
 				goto error;
 			break;
 		case PM_HIBERNATE:
-			pm_msg.fields.msg_type = PM_NOTIFICATIONS;
-			pm_msg.fields.msg_subtype = PM_HIBERNATE;
-			pm_msg.fields.parm = PM_SUCCESS;
-			/* put general purpose message in share memory */
-			handle->rcb_table->gp_msg = (unsigned)data;
-			/* send the request to IPU*/
-			retval = notify_send_event(
-					params->remote_proc_id,
-					params->line_id,
-					params->pm_notification_event | \
-						(NOTIFY_SYSTEMKEY << 16),
-					(unsigned int)pm_msg.whole,
-					true);
-			if (retval < 0)
-				goto error_send;
-			/* wait until event from IPU (ipu_pm_notify_callback)*/
-			retval = down_timeout
-					(&handle->pm_event[PM_HIBERNATE]
-					.sem_handle,
-					msecs_to_jiffies(params->timeout));
-			pm_msg.whole = handle->pm_event[PM_HIBERNATE].pm_msg;
-			if (WARN_ON((retval < 0) ||
-					(pm_msg.fields.parm != PM_SUCCESS)))
-				goto error;
-			else {
-				/*Remote Proc is ready to hibernate*/
-				pm_ack = ipu_pm_save_ctx(proc_id);
-			}
+			pr_err("PM_HIBERNATE event currently not supported\n");
 			break;
 		case PM_PID_DEATH:
+			/* Just send the message to appm3 since is the one
+			 * running the resource manager.
+			 */
+			if (proc_id == SYS_M3)
+				break;
 			pm_msg.fields.msg_type = PM_NOTIFICATIONS;
 			pm_msg.fields.msg_subtype = PM_PID_DEATH;
 			pm_msg.fields.parm = PM_SUCCESS;
@@ -802,9 +802,9 @@ int ipu_pm_notifications(enum pm_event_type event_type, void *data)
 	return pm_ack;
 
 error_send:
-	pr_err("Error notify_send event\n");
+	pr_err("Error notify_send event %d to proc %d\n", event_type, proc_id);
 error:
-	pr_err("Error sending Notification events\n");
+	pr_err("Error sending Notification event %d\n", event_type);
 	return -EBUSY;
 }
 EXPORT_SYMBOL(ipu_pm_notifications);
@@ -1078,7 +1078,8 @@ static inline int ipu_pm_get_aux_clk(int proc_id, u32 rcb_num)
 	struct ipu_pm_object *handle;
 	struct ipu_pm_params *params;
 	struct rcb_block *rcb_p;
-	u32 tmp = 0;
+	u32 a_clk = 0;
+	int ret;
 	int pm_aux_clk_num;
 
 	/* get the handle to proper ipu pm object */
@@ -1097,20 +1098,63 @@ static inline int ipu_pm_get_aux_clk(int proc_id, u32 rcb_num)
 
 	pm_aux_clk_num = rcb_p->fill9;
 
+	pr_info("Request AUX CLK %d\n", pm_aux_clk_num);
+
 	if (WARN_ON((pm_aux_clk_num < AUX_CLK_MIN) ||
 			(pm_aux_clk_num > AUX_CLK_MAX)))
 		return PM_INVAL_AUX_CLK;
 
 	if (AUX_CLK_USE_MASK & (1 << pm_aux_clk_num)) {
-		/* Build the value to write */
-		MASK_SET_FIELD(tmp, AUX_CLK_ENABLE, 0x1);
-		MASK_SET_FIELD(tmp, AUX_CLK_SRCSELECT, 0x2);
+		struct clk *aux_clk;
+		struct clk *aux_clk_src_ptr;
+
+		aux_clk = clk_get(NULL, aux_clk_name[pm_aux_clk_num]);
+		if (!aux_clk) {
+			pr_err("UNABLE TO GET AUX CLOCK: %s\n",
+				aux_clk_name[pm_aux_clk_num]);
+			return PM_NO_AUX_CLK;
+		}
+		clk_disable(aux_clk);
+
+		aux_clk_src_ptr = clk_get(NULL,
+			aux_clk_source_name[PER_DPLL_CLK]);
+		if (!aux_clk_src_ptr) {
+			pr_err("UNABLE TO GET AUX CLOCK SOURCE CLOCK: %s\n",
+				aux_clk_source_name[PER_DPLL_CLK]);
+			return PM_NO_AUX_CLK;
+		}
+		ret = clk_set_parent(aux_clk, aux_clk_src_ptr);
+		if (ret) {
+			pr_err("UNABLE TO SET CLOCK: %s"
+				"  AS PARENT OF AUX CLOCK: %s\n",
+				aux_clk_source_name[PER_DPLL_CLK],
+				aux_clk_name[pm_aux_clk_num]);
+			return PM_NO_AUX_CLK;
+		}
+
+		/* update divisor manually until API available */
+		a_clk = __raw_readl(AUX_CLK_REG(pm_aux_clk_num));
+		MASK_CLEAR_FIELD(a_clk, AUX_CLK_CLKDIV);
+		MASK_SET_FIELD(a_clk, AUX_CLK_CLKDIV, 0xA);
+
+		/* Enable and configure aux clock */
+		__raw_writel(a_clk, AUX_CLK_REG(pm_aux_clk_num));
+
+		ret = clk_enable(aux_clk);
+		if (ret) {
+			pr_err("UNABLE TO ENABLE AUX CLOCK: %s\n",
+				aux_clk_name[pm_aux_clk_num]);
+			return PM_NO_AUX_CLK;
+		}
+
+		aux_clk_ptr[pm_aux_clk_num] = aux_clk;
 
 		/* Clear the bit in the usage mask */
 		AUX_CLK_USE_MASK &= ~(1 << pm_aux_clk_num);
 
-		/* Enabling aux clock */
-		__raw_writel(tmp, AUX_CLK_REG(pm_aux_clk_num));
+		pr_err("AUX_CLK_REG_%d | [0x%x] | [0x%x]\n", pm_aux_clk_num,
+				__raw_readl(AUX_CLK_REG(pm_aux_clk_num)),
+				__raw_readl(AUX_CLK_REG_REQ(pm_aux_clk_num)));
 
 		/* Store the aux clk addres in the RCB */
 		rcb_p->mod_base_addr =
@@ -1253,8 +1297,14 @@ static inline int ipu_pm_get_iva_hd(int proc_id, u32 rcb_num)
 		return PM_UNSUPPORTED;
 
 	pr_info("Request IVA_HD\n");
+
+#ifdef CONFIG_OMAP_PM
 	retval = omap_pm_set_max_mpu_wakeup_lat(&pm_qos_handle,
 						IPU_PM_MM_MPU_LAT_CONSTRAINT);
+	if (retval)
+		return PM_UNSUPPORTED;
+#endif
+	retval = ipu_pm_module_start(rcb_p->sub_type);
 	if (retval)
 		return PM_UNSUPPORTED;
 
@@ -1293,8 +1343,9 @@ static inline int ipu_pm_get_fdif(int proc_id, u32 rcb_num)
 		return PM_UNSUPPORTED;
 
 	retval = ipu_pm_module_start(rcb_p->sub_type);
-	printk(KERN_ERR "@@@@ cop_module_start( ) %s @@@@\n",
-		retval ? "Failed" : "Successful");
+	if (retval)
+		return PM_UNSUPPORTED;
+
 	params->pm_fdif_counter++;
 
 	return PM_SUCCESS;
@@ -1309,7 +1360,6 @@ static inline int ipu_pm_get_mpu(int proc_id, u32 rcb_num)
 	struct ipu_pm_object *handle;
 	struct ipu_pm_params *params;
 	struct rcb_block *rcb_p;
-	int retval;
 
 	/* get the handle to proper ipu pm object */
 	handle = ipu_pm_get_handle(proc_id);
@@ -1329,9 +1379,6 @@ static inline int ipu_pm_get_mpu(int proc_id, u32 rcb_num)
 	if (params->pm_mpu_counter)
 		return PM_UNSUPPORTED;
 
-	retval = ipu_pm_module_start(rcb_p->sub_type);
-	printk(KERN_ERR "@@@@ cop_module_start( ) %s @@@@\n",
-		retval ? "Failed" : "Successful");
 	params->pm_mpu_counter++;
 
 	return PM_SUCCESS;
@@ -1346,7 +1393,6 @@ static inline int ipu_pm_get_ipu(int proc_id, u32 rcb_num)
 	struct ipu_pm_object *handle;
 	struct ipu_pm_params *params;
 	struct rcb_block *rcb_p;
-	int retval;
 
 	/* get the handle to proper ipu pm object */
 	handle = ipu_pm_get_handle(proc_id);
@@ -1366,9 +1412,6 @@ static inline int ipu_pm_get_ipu(int proc_id, u32 rcb_num)
 	if (params->pm_ipu_counter)
 		return PM_UNSUPPORTED;
 
-	retval = ipu_pm_module_start(rcb_p->sub_type);
-	printk(KERN_ERR "@@@@ cop_module_start( ) %s @@@@\n",
-		retval ? "Failed" : "Successful");
 	params->pm_ipu_counter++;
 
 	return PM_SUCCESS;
@@ -1406,8 +1449,9 @@ static inline int ipu_pm_get_ivaseq0(int proc_id, u32 rcb_num)
 		return PM_UNSUPPORTED;
 
 	retval = ipu_pm_module_start(rcb_p->sub_type);
-	printk(KERN_ERR "@@@@ cop_module_start( ) %s @@@@\n",
-		retval ? "Failed" : "Successful");
+	if (retval)
+		return PM_UNSUPPORTED;
+
 	params->pm_ivaseq0_counter++;
 
 	return PM_SUCCESS;
@@ -1443,9 +1487,16 @@ static inline int ipu_pm_get_ivaseq1(int proc_id, u32 rcb_num)
 		return PM_UNSUPPORTED;
 
 	retval = ipu_pm_module_start(rcb_p->sub_type);
-	printk(KERN_ERR "@@@@ cop_module_start( ) %s @@@@\n",
-		retval ? "Failed" : "Successful");
+	if (retval)
+		return PM_UNSUPPORTED;
 	params->pm_ivaseq1_counter++;
+
+	/*Requesting SL2*/
+	/* FIXME: sl2if should be moved to a independent function */
+	retval = ipu_pm_module_start(SL2_RESOURCE);
+	if (retval)
+		return PM_UNSUPPORTED;
+	params->pm_sl2if_counter++;
 
 	return PM_SUCCESS;
 }
@@ -1479,10 +1530,30 @@ static inline int ipu_pm_get_iss(int proc_id, u32 rcb_num)
 		return PM_UNSUPPORTED;
 
 	pr_info("Request ISS\n");
+
+#if TMP_AUX_CLK_HACK
+	rcb_p->fill9 = AUX_CLK_MIN;
+	ipu_pm_get_aux_clk(proc_id, rcb_num);
+#endif
+#ifdef CONFIG_OMAP_PM
 	retval = omap_pm_set_max_mpu_wakeup_lat(&pm_qos_handle,
 						IPU_PM_MM_MPU_LAT_CONSTRAINT);
 	if (retval)
 		return PM_UNSUPPORTED;
+#endif
+	retval = ipu_pm_module_start(rcb_p->sub_type);
+	if (retval)
+		return PM_UNSUPPORTED;
+
+	/* FIXME:
+	 * enable OPTFCLKEN_CTRLCLK for camera sensors
+	 * should be moved to a separate function for
+	 * independent control this also duplicates the
+	 * above call to avoid read modify write locking.
+	 */
+	cm_write_mod_reg((OPTFCLKEN | CAM_ENABLED),
+					OMAP4430_CM2_CAM_MOD,
+					OMAP4_CM_CAM_ISS_CLKCTRL_OFFSET);
 
 	params->pm_iss_counter++;
 
@@ -1701,7 +1772,7 @@ static inline int ipu_pm_rel_aux_clk(int proc_id, u32 rcb_num)
 	struct ipu_pm_object *handle;
 	struct ipu_pm_params *params;
 	struct rcb_block *rcb_p;
-	u32 tmp = 0;
+	struct clk *aux_clk;
 	int pm_aux_clk_num;
 
 	/* get the handle to proper ipu pm object */
@@ -1720,16 +1791,22 @@ static inline int ipu_pm_rel_aux_clk(int proc_id, u32 rcb_num)
 
 	pm_aux_clk_num = rcb_p->fill9;
 
+	pr_info("Release AUX CLK %d\n", pm_aux_clk_num);
+
 	/* Check the usage mask */
 	if (AUX_CLK_USE_MASK & (1 << pm_aux_clk_num))
 		return PM_NO_AUX_CLK;
 
-	/* Build the value to write */
-	MASK_SET_FIELD(tmp, AUX_CLK_ENABLE, 0x0);
-	MASK_SET_FIELD(tmp, AUX_CLK_SRCSELECT, 0x0);
+	aux_clk = aux_clk_ptr[pm_aux_clk_num];
+	if (!aux_clk) {
+		pr_err("UNABLE TO DISABLE AUX CLOCK,"
+			" STRUCT CLK * IS NULL: %s\n",
+			aux_clk_name[pm_aux_clk_num]);
+		return PM_INVAL_AUX_CLK;
+	}
+	clk_disable(aux_clk);
 
-	/* Disabling aux clock */
-	__raw_writel(tmp, AUX_CLK_REG(pm_aux_clk_num));
+	aux_clk_ptr[pm_aux_clk_num] = 0;
 
 	/* Set the usage mask for reuse */
 	AUX_CLK_USE_MASK |= (1 << pm_aux_clk_num);
@@ -1876,8 +1953,9 @@ static inline int ipu_pm_rel_fdif(int proc_id, u32 rcb_num)
 		goto error;
 
 	retval = ipu_pm_module_stop(rcb_p->sub_type);
-	printk(KERN_ERR "@@@@ cop_module_stop( ) %s @@@@\n",
-		retval ? "Failed" : "Successful");
+	if (retval)
+		return PM_UNSUPPORTED;
+
 	params->pm_fdif_counter--;
 
 	return PM_SUCCESS;
@@ -1894,7 +1972,6 @@ static inline int ipu_pm_rel_mpu(int proc_id, u32 rcb_num)
 	struct ipu_pm_object *handle;
 	struct ipu_pm_params *params;
 	struct rcb_block *rcb_p;
-	int retval;
 
 	/* get the handle to proper ipu pm object */
 	handle = ipu_pm_get_handle(proc_id);
@@ -1915,9 +1992,6 @@ static inline int ipu_pm_rel_mpu(int proc_id, u32 rcb_num)
 	if (!params->pm_mpu_counter)
 		goto error;
 
-	retval = ipu_pm_module_stop(rcb_p->sub_type);
-	printk(KERN_ERR "@@@@ cop_module_stop( ) %s @@@@\n",
-		retval ? "Failed" : "Successful");
 	params->pm_mpu_counter--;
 
 	return PM_SUCCESS;
@@ -1934,7 +2008,6 @@ static inline int ipu_pm_rel_ipu(int proc_id, u32 rcb_num)
 	struct ipu_pm_object *handle;
 	struct ipu_pm_params *params;
 	struct rcb_block *rcb_p;
-	int retval;
 
 	/* get the handle to proper ipu pm object */
 	handle = ipu_pm_get_handle(proc_id);
@@ -1955,9 +2028,6 @@ static inline int ipu_pm_rel_ipu(int proc_id, u32 rcb_num)
 	if (!params->pm_ipu_counter)
 		goto error;
 
-	retval = ipu_pm_module_stop(rcb_p->sub_type);
-	printk(KERN_ERR "@@@@ cop_module_stop( ) %s @@@@\n",
-		retval ? "Failed" : "Successful");
 	params->pm_ipu_counter--;
 
 	return PM_SUCCESS;
@@ -1995,15 +2065,28 @@ static inline int ipu_pm_rel_iva_hd(int proc_id, u32 rcb_num)
 	if (!params->pm_iva_hd_counter)
 		goto error;
 
-	params->pm_iva_hd_counter--;
+	/* Releasing SL2 */
+	/* FIXME: sl2if should be moved to a independent function */
+	if (params->pm_sl2if_counter) {
+		retval = ipu_pm_module_stop(SL2_RESOURCE);
+		if (retval)
+			return PM_UNSUPPORTED;
+		params->pm_sl2if_counter--;
+	}
 
+	retval = ipu_pm_module_stop(rcb_p->sub_type);
+	if (retval)
+		return PM_UNSUPPORTED;
+
+	params->pm_iva_hd_counter--;
+#ifdef CONFIG_OMAP_PM
 	if (params->pm_iva_hd_counter == 0 && params->pm_iss_counter == 0) {
 		retval = omap_pm_set_max_mpu_wakeup_lat(&pm_qos_handle,
 						IPU_PM_NO_MPU_LAT_CONSTRAINT);
 		if (retval)
 			goto error;
 	}
-
+#endif
 	return PM_SUCCESS;
 error:
 	return PM_UNSUPPORTED;
@@ -2040,8 +2123,9 @@ static inline int ipu_pm_rel_ivaseq0(int proc_id, u32 rcb_num)
 		goto error;
 
 	retval = ipu_pm_module_stop(rcb_p->sub_type);
-	printk(KERN_ERR "@@@@ cop_module_stop( ) %s @@@@\n",
-		retval ? "Failed" : "Successful");
+	if (retval)
+		return PM_UNSUPPORTED;
+
 	params->pm_ivaseq0_counter--;
 
 	return PM_SUCCESS;
@@ -2080,8 +2164,9 @@ static inline int ipu_pm_rel_ivaseq1(int proc_id, u32 rcb_num)
 		goto error;
 
 	retval = ipu_pm_module_stop(rcb_p->sub_type);
-	printk(KERN_ERR "@@@@ cop_module_stop( ) %s @@@@\n",
-		retval ? "Failed" : "Successful");
+	if (retval)
+		return PM_UNSUPPORTED;
+
 	params->pm_ivaseq1_counter--;
 
 	return PM_SUCCESS;
@@ -2116,18 +2201,36 @@ static inline int ipu_pm_rel_iss(int proc_id, u32 rcb_num)
 
 	pr_info("Release ISS\n");
 
+#if TMP_AUX_CLK_HACK
+	rcb_p->fill9 = AUX_CLK_MIN;
+	ipu_pm_rel_aux_clk(proc_id, rcb_num);
+#endif
 	if (!params->pm_iss_counter)
 		goto error;
 
-	params->pm_iss_counter--;
+	retval = ipu_pm_module_stop(rcb_p->sub_type);
+	if (retval)
+		return PM_UNSUPPORTED;
 
+	/* FIXME:
+	 * disable OPTFCLKEN_CTRLCLK for camera sensors
+	 * should be moved to a separate function for
+	 * independent control this also duplicates the
+	 * above call to avoid read modify write locking
+	 */
+	cm_write_mod_reg(CAM_DISABLED,
+				OMAP4430_CM2_CAM_MOD,
+				OMAP4_CM_CAM_ISS_CLKCTRL_OFFSET);
+
+	params->pm_iss_counter--;
+#ifdef CONFIG_OMAP_PM
 	if (params->pm_iva_hd_counter == 0 && params->pm_iss_counter == 0) {
 		retval = omap_pm_set_max_mpu_wakeup_lat(&pm_qos_handle,
 						IPU_PM_NO_MPU_LAT_CONSTRAINT);
 		if (retval)
 			goto error;
 	}
-
+#endif
 	return PM_SUCCESS;
 error:
 	return PM_UNSUPPORTED;
@@ -2146,6 +2249,7 @@ static inline int ipu_pm_req_cstr_fdif(int proc_id, u32 rcb_num)
 	int lat;
 	int bw;
 	u32 cstr_flags;
+	int retval;
 
 	/* get the handle to proper ipu pm object */
 	handle = ipu_pm_get_handle(proc_id);
@@ -2168,11 +2272,21 @@ static inline int ipu_pm_req_cstr_fdif(int proc_id, u32 rcb_num)
 	if (cstr_flags & PM_CSTR_PERF_MASK) {
 		perf = rcb_p->data[1];
 		pr_info("Request perfomance Cstr FDIF:%d\n", perf);
+		retval = ipu_pm_module_set_rate(rcb_p->sub_type,
+						IPU_PM_CORE,
+						perf);
+		if (retval)
+			return PM_UNSUPPORTED;
 	}
 
 	if (cstr_flags & PM_CSTR_LAT_MASK) {
 		lat = rcb_p->data[2];
 		pr_info("Request latency Cstr FDIF:%d\n", lat);
+		retval = ipu_pm_module_set_latency(rcb_p->sub_type,
+						   IPU_PM_SELF,
+						   lat);
+		if (retval)
+			return PM_UNSUPPORTED;
 	}
 
 	if (cstr_flags & PM_CSTR_BW_MASK) {
@@ -2196,6 +2310,7 @@ static inline int ipu_pm_req_cstr_ipu(int proc_id, u32 rcb_num)
 	int lat;
 	int bw;
 	u32 cstr_flags;
+	int retval;
 
 	/* get the handle to proper ipu pm object */
 	handle = ipu_pm_get_handle(proc_id);
@@ -2218,11 +2333,21 @@ static inline int ipu_pm_req_cstr_ipu(int proc_id, u32 rcb_num)
 	if (cstr_flags & PM_CSTR_PERF_MASK) {
 		perf = rcb_p->data[1];
 		pr_info("Request perfomance Cstr IPU:%d\n", perf);
+		retval = ipu_pm_module_set_rate(rcb_p->sub_type,
+						IPU_PM_CORE,
+						perf);
+		if (retval)
+			return PM_UNSUPPORTED;
 	}
 
 	if (cstr_flags & PM_CSTR_LAT_MASK) {
 		lat = rcb_p->data[2];
 		pr_info("Request latency Cstr IPU:%d\n", lat);
+		retval = ipu_pm_module_set_latency(rcb_p->sub_type,
+						   IPU_PM_CORE,
+						   lat);
+		if (retval)
+			return PM_UNSUPPORTED;
 	}
 
 	if (cstr_flags & PM_CSTR_BW_MASK) {
@@ -2246,6 +2371,7 @@ static inline int ipu_pm_req_cstr_l3_bus(int proc_id, u32 rcb_num)
 	int lat;
 	int bw;
 	u32 cstr_flags;
+	int retval;
 
 	/* get the handle to proper ipu pm object */
 	handle = ipu_pm_get_handle(proc_id);
@@ -2273,11 +2399,21 @@ static inline int ipu_pm_req_cstr_l3_bus(int proc_id, u32 rcb_num)
 	if (cstr_flags & PM_CSTR_LAT_MASK) {
 		lat = rcb_p->data[2];
 		pr_info("Request latency Cstr L3 Bus:%d\n", lat);
+		retval = ipu_pm_module_set_latency(rcb_p->sub_type,
+						   IPU_PM_CORE,
+						   lat);
+		if (retval)
+			return PM_UNSUPPORTED;
 	}
 
 	if (cstr_flags & PM_CSTR_BW_MASK) {
 		bw = rcb_p->data[3];
 		pr_info("Request bandwidth Cstr L3 Bus:%d\n", bw);
+		retval = ipu_pm_module_set_bandwidth(rcb_p->sub_type,
+						     rcb_p->sub_type,
+						     bw);
+		if (retval)
+			return PM_UNSUPPORTED;
 	}
 
 	return PM_SUCCESS;
@@ -2296,6 +2432,7 @@ static inline int ipu_pm_req_cstr_iva_hd(int proc_id, u32 rcb_num)
 	int lat;
 	int bw;
 	u32 cstr_flags;
+	int retval;
 
 	/* get the handle to proper ipu pm object */
 	handle = ipu_pm_get_handle(proc_id);
@@ -2318,11 +2455,21 @@ static inline int ipu_pm_req_cstr_iva_hd(int proc_id, u32 rcb_num)
 	if (cstr_flags & PM_CSTR_PERF_MASK) {
 		perf = rcb_p->data[1];
 		pr_info("Request perfomance Cstr IVA HD:%d\n", perf);
+		retval = ipu_pm_module_set_rate(rcb_p->sub_type,
+						rcb_p->sub_type,
+						perf);
+		if (retval)
+			return PM_UNSUPPORTED;
 	}
 
 	if (cstr_flags & PM_CSTR_LAT_MASK) {
 		lat = rcb_p->data[2];
 		pr_info("Request latency Cstr IVA HD:%d\n", lat);
+		retval = ipu_pm_module_set_latency(rcb_p->sub_type,
+						   rcb_p->sub_type,
+						   lat);
+		if (retval)
+			return PM_UNSUPPORTED;
 	}
 
 	if (cstr_flags & PM_CSTR_BW_MASK) {
@@ -2346,6 +2493,7 @@ static inline int ipu_pm_req_cstr_iss(int proc_id, u32 rcb_num)
 	int lat;
 	int bw;
 	u32 cstr_flags;
+	int retval;
 
 	/* get the handle to proper ipu pm object */
 	handle = ipu_pm_get_handle(proc_id);
@@ -2364,15 +2512,25 @@ static inline int ipu_pm_req_cstr_iss(int proc_id, u32 rcb_num)
 	/* Get the configurable constraints */
 	cstr_flags = rcb_p->data[0];
 
-	/* TODO: call the baseport APIs */
+	/* Call the baseport APIs */
 	if (cstr_flags & PM_CSTR_PERF_MASK) {
 		perf = rcb_p->data[1];
 		pr_info("Request perfomance Cstr ISS:%d\n", perf);
+		retval = ipu_pm_module_set_rate(rcb_p->sub_type,
+						IPU_PM_CORE,
+						perf);
+		if (retval)
+			return PM_UNSUPPORTED;
 	}
 
 	if (cstr_flags & PM_CSTR_LAT_MASK) {
 		lat = rcb_p->data[2];
 		pr_info("Request latency Cstr ISS:%d\n", lat);
+		retval = ipu_pm_module_set_latency(rcb_p->sub_type,
+						   IPU_PM_SELF,
+						   lat);
+		if (retval)
+			return PM_UNSUPPORTED;
 	}
 
 	if (cstr_flags & PM_CSTR_BW_MASK) {
@@ -2396,6 +2554,7 @@ static inline int ipu_pm_req_cstr_mpu(int proc_id, u32 rcb_num)
 	int lat;
 	int bw;
 	u32 cstr_flags;
+	int retval;
 
 	/* get the handle to proper ipu pm object */
 	handle = ipu_pm_get_handle(proc_id);
@@ -2418,11 +2577,21 @@ static inline int ipu_pm_req_cstr_mpu(int proc_id, u32 rcb_num)
 	if (cstr_flags & PM_CSTR_PERF_MASK) {
 		perf = rcb_p->data[1];
 		pr_info("Request perfomance Cstr MPU:%d\n", perf);
+		retval = ipu_pm_module_set_rate(rcb_p->sub_type,
+						IPU_PM_MPU,
+						perf);
+		if (retval)
+			return PM_UNSUPPORTED;
 	}
 
 	if (cstr_flags & PM_CSTR_LAT_MASK) {
 		lat = rcb_p->data[2];
 		pr_info("Request latency Cstr MPU:%d\n", lat);
+		retval = ipu_pm_module_set_latency(rcb_p->sub_type,
+						   IPU_PM_MPU,
+						   lat);
+		if (retval)
+			return PM_UNSUPPORTED;
 	}
 
 	if (cstr_flags & PM_CSTR_BW_MASK) {
@@ -2447,6 +2616,7 @@ static inline int ipu_pm_rel_cstr_fdif(int proc_id, u32 rcb_num)
 	int lat;
 	int bw;
 	u32 cstr_flags;
+	int retval;
 
 	/* get the handle to proper ipu pm object */
 	handle = ipu_pm_get_handle(proc_id);
@@ -2469,11 +2639,21 @@ static inline int ipu_pm_rel_cstr_fdif(int proc_id, u32 rcb_num)
 	if (cstr_flags & PM_CSTR_PERF_MASK) {
 		perf = rcb_p->data[1];
 		pr_info("Release perfomance Cstr FDIF:%d\n", perf);
+		retval = ipu_pm_module_set_rate(rcb_p->sub_type,
+						IPU_PM_CORE,
+						NO_FREQ_CONSTRAINT);
+		if (retval)
+			return PM_UNSUPPORTED;
 	}
 
 	if (cstr_flags & PM_CSTR_LAT_MASK) {
 		lat = rcb_p->data[2];
 		pr_info("Release latency Cstr FDIF:%d\n", lat);
+		retval = ipu_pm_module_set_latency(rcb_p->sub_type,
+						   IPU_PM_SELF,
+						   NO_LAT_CONSTRAINT);
+		if (retval)
+			return PM_UNSUPPORTED;
 	}
 
 	if (cstr_flags & PM_CSTR_BW_MASK) {
@@ -2497,6 +2677,7 @@ static inline int ipu_pm_rel_cstr_ipu(int proc_id, u32 rcb_num)
 	int lat;
 	int bw;
 	u32 cstr_flags;
+	int retval;
 
 	/* get the handle to proper ipu pm object */
 	handle = ipu_pm_get_handle(proc_id);
@@ -2519,11 +2700,21 @@ static inline int ipu_pm_rel_cstr_ipu(int proc_id, u32 rcb_num)
 	if (cstr_flags & PM_CSTR_PERF_MASK) {
 		perf = rcb_p->data[1];
 		pr_info("Release perfomance Cstr IPU:%d\n", perf);
+		retval = ipu_pm_module_set_rate(rcb_p->sub_type,
+						IPU_PM_CORE,
+						NO_FREQ_CONSTRAINT);
+		if (retval)
+			return PM_UNSUPPORTED;
 	}
 
 	if (cstr_flags & PM_CSTR_LAT_MASK) {
 		lat = rcb_p->data[2];
 		pr_info("Release latency Cstr IPU:%d\n", lat);
+		retval = ipu_pm_module_set_latency(rcb_p->sub_type,
+						   IPU_PM_CORE,
+						   NO_LAT_CONSTRAINT);
+		if (retval)
+			return PM_UNSUPPORTED;
 	}
 
 	if (cstr_flags & PM_CSTR_BW_MASK) {
@@ -2547,6 +2738,7 @@ static inline int ipu_pm_rel_cstr_l3_bus(int proc_id, u32 rcb_num)
 	int lat;
 	int bw;
 	u32 cstr_flags;
+	int retval;
 
 	/* get the handle to proper ipu pm object */
 	handle = ipu_pm_get_handle(proc_id);
@@ -2574,11 +2766,21 @@ static inline int ipu_pm_rel_cstr_l3_bus(int proc_id, u32 rcb_num)
 	if (cstr_flags & PM_CSTR_LAT_MASK) {
 		lat = rcb_p->data[2];
 		pr_info("Release latency Cstr L3 Bus:%d\n", lat);
+		retval = ipu_pm_module_set_latency(rcb_p->sub_type,
+						   IPU_PM_CORE,
+						   NO_LAT_CONSTRAINT);
+		if (retval)
+			return PM_UNSUPPORTED;
 	}
 
 	if (cstr_flags & PM_CSTR_BW_MASK) {
 		bw = rcb_p->data[3];
 		pr_info("Release bandwidth Cstr L3 Bus:%d\n", bw);
+		retval = ipu_pm_module_set_bandwidth(rcb_p->sub_type,
+						     rcb_p->sub_type,
+						     NO_BW_CONSTRAINT);
+		if (retval)
+			return PM_UNSUPPORTED;
 	}
 
 	return PM_SUCCESS;
@@ -2597,6 +2799,7 @@ static inline int ipu_pm_rel_cstr_iva_hd(int proc_id, u32 rcb_num)
 	int lat;
 	int bw;
 	u32 cstr_flags;
+	int retval;
 
 	/* get the handle to proper ipu pm object */
 	handle = ipu_pm_get_handle(proc_id);
@@ -2619,11 +2822,21 @@ static inline int ipu_pm_rel_cstr_iva_hd(int proc_id, u32 rcb_num)
 	if (cstr_flags & PM_CSTR_PERF_MASK) {
 		perf = rcb_p->data[1];
 		pr_info("Release perfomance Cstr IVA HD:%d\n", perf);
+		retval = ipu_pm_module_set_rate(rcb_p->sub_type,
+						rcb_p->sub_type,
+						NO_FREQ_CONSTRAINT);
+		if (retval)
+			return PM_UNSUPPORTED;
 	}
 
 	if (cstr_flags & PM_CSTR_LAT_MASK) {
 		lat = rcb_p->data[2];
 		pr_info("Release latency Cstr IVA HD:%d\n", lat);
+		retval = ipu_pm_module_set_latency(rcb_p->sub_type,
+						   rcb_p->sub_type,
+						   NO_LAT_CONSTRAINT);
+		if (retval)
+			return PM_UNSUPPORTED;
 	}
 
 	if (cstr_flags & PM_CSTR_BW_MASK) {
@@ -2647,6 +2860,7 @@ static inline int ipu_pm_rel_cstr_iss(int proc_id, u32 rcb_num)
 	int lat;
 	int bw;
 	u32 cstr_flags;
+	int retval;
 
 	/* get the handle to proper ipu pm object */
 	handle = ipu_pm_get_handle(proc_id);
@@ -2669,11 +2883,21 @@ static inline int ipu_pm_rel_cstr_iss(int proc_id, u32 rcb_num)
 	if (cstr_flags & PM_CSTR_PERF_MASK) {
 		perf = rcb_p->data[1];
 		pr_info("Release perfomance Cstr ISS:%d\n", perf);
+		retval = ipu_pm_module_set_rate(rcb_p->sub_type,
+						IPU_PM_CORE,
+						NO_FREQ_CONSTRAINT);
+		if (retval)
+			return PM_UNSUPPORTED;
 	}
 
 	if (cstr_flags & PM_CSTR_LAT_MASK) {
 		lat = rcb_p->data[2];
 		pr_info("Release latency Cstr ISS:%d\n", lat);
+		retval = ipu_pm_module_set_latency(rcb_p->sub_type,
+						   IPU_PM_SELF,
+						   NO_LAT_CONSTRAINT);
+		if (retval)
+			return PM_UNSUPPORTED;
 	}
 
 	if (cstr_flags & PM_CSTR_BW_MASK) {
@@ -2697,6 +2921,7 @@ static inline int ipu_pm_rel_cstr_mpu(int proc_id, u32 rcb_num)
 	int lat;
 	int bw;
 	u32 cstr_flags;
+	int retval;
 
 	/* get the handle to proper ipu pm object */
 	handle = ipu_pm_get_handle(proc_id);
@@ -2719,11 +2944,21 @@ static inline int ipu_pm_rel_cstr_mpu(int proc_id, u32 rcb_num)
 	if (cstr_flags & PM_CSTR_PERF_MASK) {
 		perf = rcb_p->data[1];
 		pr_info("Release perfomance Cstr MPU:%d\n", perf);
+		retval = ipu_pm_module_set_rate(rcb_p->sub_type,
+						IPU_PM_MPU,
+						NO_FREQ_CONSTRAINT);
+		if (retval)
+			return PM_UNSUPPORTED;
 	}
 
 	if (cstr_flags & PM_CSTR_LAT_MASK) {
 		lat = rcb_p->data[2];
 		pr_info("Release latency Cstr MPU:%d\n", lat);
+		retval = ipu_pm_module_set_latency(rcb_p->sub_type,
+						   IPU_PM_MPU,
+						   NO_LAT_CONSTRAINT);
+		if (retval)
+			return PM_UNSUPPORTED;
 	}
 
 	if (cstr_flags & PM_CSTR_BW_MASK) {
@@ -3047,14 +3282,25 @@ int ipu_pm_save_ctx(int proc_id)
 
 	/* get the handle to proper ipu pm object */
 	handle = ipu_pm_get_handle(proc_id);
-	if (WARN_ON(unlikely(handle == NULL)))
-		return -EINVAL;
+	if (unlikely(handle == NULL))
+		return 0;
 
-	/* Check if the M3 was loaded */
+	/* get M3's load flag */
 	sys_loaded = (ipu_pm_get_state(proc_id) & SYS_PROC_LOADED) >>
 								PROC_LD_SHIFT;
 	app_loaded = (ipu_pm_get_state(proc_id) & APP_PROC_LOADED) >>
 								PROC_LD_SHIFT;
+
+	/* If already down don't kill it twice */
+	if (ipu_pm_get_state(proc_id) & SYS_PROC_DOWN)
+		goto exit;
+
+#ifdef CONFIG_OMAP_PM
+	retval = omap_pm_set_max_sdma_lat(&pm_qos_handle_2,
+						IPU_PM_NO_MPU_LAT_CONSTRAINT);
+	if (retval)
+		pr_info("Unable to remove cstr on IPU\n");
+#endif
 
 	/* Because of the current scheme, we need to check
 	 * if APPM3 is enable and we need to shut it down too
@@ -3082,12 +3328,20 @@ int ipu_pm_save_ctx(int proc_id)
 
 		/* Check for APPM3, if loaded reset first */
 		if (app_loaded) {
+			pr_info("Sleep APPM3\n");
 			retval = rproc_sleep(app_rproc);
+			cm_write_mod_reg(HW_AUTO,
+					 OMAP4430_CM2_CORE_MOD,
+					 OMAP4_CM_DUCATI_CLKSTCTRL_OFFSET);
 			if (retval)
 				goto error;
 			handle->rcb_table->state_flag |= APP_PROC_DOWN;
 		}
+		pr_info("Sleep SYSM3\n");
 		retval = rproc_sleep(sys_rproc);
+		cm_write_mod_reg(HW_AUTO,
+				 OMAP4430_CM2_CORE_MOD,
+				 OMAP4_CM_DUCATI_CLKSTCTRL_OFFSET);
 		if (retval)
 			goto error;
 		handle->rcb_table->state_flag |= SYS_PROC_DOWN;
@@ -3100,7 +3354,7 @@ exit:
 	return 0;
 error:
 	mutex_unlock(ipu_pm_state.gate_handle);
-	pr_info("Aborting hibernation process\n");
+	pr_debug("Aborting hibernation process\n");
 	return -EINVAL;
 }
 EXPORT_SYMBOL(ipu_pm_save_ctx);
@@ -3127,14 +3381,30 @@ int ipu_pm_restore_ctx(int proc_id)
 	if (WARN_ON(unlikely(handle == NULL)))
 		return -EINVAL;
 
-	/* By default Ducati Hibernation is disable
-	 * enabling just the first time and if
-	 * CONFIG_SYSLINK_DUCATI_PM is defined
+	/* FIXME: This needs mor analysis.
+	 * Since the sync of IPU and MPU is done this is a safe place
+	 * to switch to HW_AUTO to allow transition of clocks to gated
+	 * supervised by HW.
 	*/
 	if (first_time) {
-		handle->rcb_table->state_flag |= ENABLE_IPU_HIB;
+		/* Enable/disable ipu hibernation*/
+#ifdef CONFIG_SYSLINK_DUCATI_PM
 		handle->rcb_table->pm_flags.hibernateAllowed = 1;
+#else
+		handle->rcb_table->pm_flags.hibernateAllowed = 0;
+#endif
+		pr_info("hibernateAllowed=%d\n",
+				handle->rcb_table->pm_flags.hibernateAllowed);
 		first_time = 0;
+		cm_write_mod_reg(HW_AUTO,
+				 OMAP4430_CM2_CORE_MOD,
+				 OMAP4_CM_DUCATI_CLKSTCTRL_OFFSET);
+#ifdef CONFIG_OMAP_PM
+		retval = omap_pm_set_max_sdma_lat(&pm_qos_handle_2,
+						IPU_PM_MM_MPU_LAT_CONSTRAINT);
+		if (retval)
+			pr_info("Unable to set cstr on IPU\n");
+#endif
 	}
 
 	/* Check if the M3 was loaded */
@@ -3155,45 +3425,41 @@ int ipu_pm_restore_ctx(int proc_id)
 
 		omap_mbox_restore_ctx(ducati_mbox);
 		iommu_restore_ctx(ducati_iommu);
+		pr_info("Wakeup SYSM3\n");
 		retval = rproc_wakeup(sys_rproc);
+		cm_write_mod_reg(HW_AUTO,
+				 OMAP4430_CM2_CORE_MOD,
+				 OMAP4_CM_DUCATI_CLKSTCTRL_OFFSET);
 		if (retval)
 			goto error;
 		handle->rcb_table->state_flag &= ~SYS_PROC_DOWN;
 		if (ipu_pm_get_state(proc_id) & APP_PROC_LOADED) {
+			pr_info("Wakeup APPM3\n");
 			retval = rproc_wakeup(app_rproc);
+			cm_write_mod_reg(HW_AUTO,
+				 OMAP4430_CM2_CORE_MOD,
+				 OMAP4_CM_DUCATI_CLKSTCTRL_OFFSET);
 			if (retval)
 				goto error;
 			handle->rcb_table->state_flag &= ~APP_PROC_DOWN;
 		}
+#ifdef CONFIG_OMAP_PM
+		retval = omap_pm_set_max_sdma_lat(&pm_qos_handle_2,
+						IPU_PM_MM_MPU_LAT_CONSTRAINT);
+		if (retval)
+			pr_info("Unable to set cstr on IPU\n");
+#endif
 	} else
 		goto error;
 exit:
 	mutex_unlock(ipu_pm_state.gate_handle);
-	return 0;
+	return retval;
 error:
 	mutex_unlock(ipu_pm_state.gate_handle);
-	pr_info("Aborting restoring process\n");
+	pr_debug("Aborting restoring process\n");
 	return -EINVAL;
 }
 EXPORT_SYMBOL(ipu_pm_restore_ctx);
-
-/*
-  Function to start a module
- *
- */
-int ipu_pm_module_start(unsigned res_type)
-{
-	return 0;
-}
-
-/*
-  Function to stop a module
- *
- */
-int ipu_pm_module_stop(unsigned res_type)
-{
-	return 0;
-}
 
 /*
   Get the default configuration for the ipu_pm module.
@@ -3275,19 +3541,6 @@ int ipu_pm_setup(struct ipu_pm_config *cfg)
 	sys_rproc = NULL;
 	app_rproc = NULL;
 
-	/* Get mailbox and iommu to save/restore */
-	/* FIXME: This is not ready for Tesla */
-	ducati_mbox = omap_mbox_get("mailbox-2", NULL);
-	if (ducati_mbox == NULL) {
-		retval = -ENOMEM;
-		goto exit;
-	}
-	ducati_iommu = iommu_get("ducati");
-	if (ducati_iommu == NULL) {
-		retval = -ENOMEM;
-		goto exit;
-	}
-
 	memcpy(&ipu_pm_state.cfg, cfg, sizeof(struct ipu_pm_config));
 	ipu_pm_state.is_setup = true;
 
@@ -3304,9 +3557,19 @@ int ipu_pm_setup(struct ipu_pm_config *cfg)
 		goto exit;
 	}
 
-	pm_gpt = omap_dm_timer_request_specific(GP_TIMER_3);
+	cm_ducati_clkstctrl = ioremap(CM_DUCATI_M3_CLKSTCTRL, sizeof(u32));
+
+	if (!cm_ducati_clkstctrl) {
+		retval = -ENOMEM;
+		goto exit;
+	}
+
+	/*Hibernation disable. GPTIMER 3 only used for hibernation*/
+	/*pm_gpt = omap_dm_timer_request_specific(GP_TIMER_3);
 	if (pm_gpt == NULL)
-		retval = -EINVAL;
+		retval = -EINVAL;*/
+	/* Reset hibernation from MPU flag */
+	mpu_hib_ipu = 0;
 
 	return retval;
 exit:
@@ -3342,27 +3605,54 @@ int ipu_pm_attach(u16 remote_proc_id, void *shared_addr)
 
 	retval = ipu_pm_init_transport(handle);
 
-	/* Get remote processor handle to save/restore */
-	if (remote_proc_id == SYS_M3) {
-		sys_rproc = omap_rproc_get("ducati-proc0");
-		if (sys_rproc == NULL) {
-			retval = -ENOMEM;
-			goto exit;
-		}
-	} else if (remote_proc_id == APP_M3) {
-		app_rproc = omap_rproc_get("ducati-proc1");
-		if (app_rproc == NULL) {
-			retval = -ENOMEM;
-			goto exit;
-		}
-	}
-
 	if (retval < 0)
 		goto exit;
 
 	/* FIXME the physical address should be calculated */
 	pr_info("ipu_pm_attach at va0x%x pa0x9cf00400\n",
 			(unsigned int)shared_addr);
+
+	/* Get remote processor handle to save/restore */
+	if (remote_proc_id == SYS_M3 && IS_ERR_OR_NULL(sys_rproc)) {
+		sys_rproc = omap_rproc_get("ducati-proc0");
+		if (sys_rproc == NULL) {
+			retval = PTR_ERR(sys_rproc);
+			pr_err("%s %d failed to get sysm3 handle",
+						__func__, __LINE__);
+			goto exit;
+		}
+	} else if (remote_proc_id == APP_M3 && IS_ERR_OR_NULL(app_rproc)) {
+		app_rproc = omap_rproc_get("ducati-proc1");
+		if (IS_ERR_OR_NULL(app_rproc)) {
+			retval = PTR_ERR(app_rproc);
+			pr_err("%s %d failed to get appm3 handle",
+						__func__, __LINE__);
+			goto exit;
+		}
+	}
+
+	/* Get iommu for save/restore */
+	if (IS_ERR_OR_NULL(ducati_iommu)) {
+		ducati_iommu = iommu_get("ducati");
+		if (IS_ERR_OR_NULL(ducati_iommu)) {
+			retval = PTR_ERR(ducati_iommu);
+			pr_err("%s %d failed to get iommu handle",
+						__func__, __LINE__);
+			goto exit;
+		}
+	}
+
+	/* Get mailbox for save/restore */
+	/* FIXME: This is not ready for Tesla */
+	if (IS_ERR_OR_NULL(ducati_mbox)) {
+		ducati_mbox = omap_mbox_get("mailbox-2", NULL);
+		if (IS_ERR_OR_NULL(ducati_mbox)) {
+			retval = PTR_ERR(ducati_mbox);
+			pr_err("%s %d failed to get mailbox handle",
+						__func__, __LINE__);
+			goto exit;
+		}
+	}
 
 	return retval;
 exit:
@@ -3383,6 +3673,22 @@ int ipu_pm_detach(u16 remote_proc_id)
 	struct ipu_pm_object *handle;
 	struct ipu_pm_params *params;
 	int retval = 0;
+
+	iommu_put(ducati_iommu);
+	ducati_iommu = NULL;
+
+	if (remote_proc_id == SYS_M3) {
+		omap_rproc_put(sys_rproc);
+		sys_rproc = NULL;
+	} else if (remote_proc_id == APP_M3) {
+		omap_rproc_put(app_rproc);
+		app_rproc = NULL;
+	}
+
+	if (!IS_ERR_OR_NULL(ducati_mbox)) {
+		omap_mbox_put(ducati_mbox, NULL);
+		ducati_mbox = NULL;
+	}
 
 	/* get the handle to proper ipu pm object */
 	handle = ipu_pm_get_handle(remote_proc_id);
@@ -3419,15 +3725,12 @@ int ipu_pm_detach(u16 remote_proc_id)
 		goto exit;
 	}
 
+	/* Reset the state_flag */
+	handle->rcb_table->state_flag = 0;
+
 	/* Deleting the handle based on remote_proc_id */
 	ipu_pm_delete(handle);
-	if (remote_proc_id == SYS_M3) {
-		omap_rproc_put(sys_rproc);
-		sys_rproc = NULL;
-	} else if (remote_proc_id == APP_M3) {
-		omap_rproc_put(app_rproc);
-		app_rproc = NULL;
-	}
+
 	return retval;
 exit:
 	pr_err("ipu_pm_detach failed handle null retval 0x%x", retval);
@@ -3475,12 +3778,11 @@ int ipu_pm_destroy(void)
 	/* Delete the wq for req/rel resources */
 	destroy_workqueue(ipu_wq);
 
-	omap_mbox_put(ducati_mbox, NULL);
-	ducati_mbox = NULL;
-	iommu_put(ducati_iommu);
-	ducati_iommu = NULL;
 	first_time = 1;
-	omap_dm_timer_free(pm_gpt);
+
+	/*Hibernation disable. GPTIMER 3 only used for hibernation*/
+	/*omap_dm_timer_free(pm_gpt);*/
+
 	return retval;
 exit:
 	if (retval < 0)
