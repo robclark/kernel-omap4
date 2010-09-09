@@ -118,4 +118,6 @@ source "drivers/platform/Kconfig"
 
 source "drivers/clk/Kconfig"
 
+source "drivers/dsp/syslink/Kconfig"
+
 endmenu

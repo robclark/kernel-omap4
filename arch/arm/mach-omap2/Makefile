@@ -146,6 +146,12 @@ obj-$(CONFIG_OMAP_IOMMU)		+= iommu2.o
 iommu-$(CONFIG_OMAP_IOMMU)		:= omap-iommu.o
 obj-y					+= $(iommu-m) $(iommu-y)
 
+ifeq ($(CONFIG_OMAP_REMOTE_PROC),y)
+obj-$(CONFIG_ARCH_OMAP2)		+= remoteproc24xx.o
+obj-$(CONFIG_ARCH_OMAP3)		+= remoteproc3xxx.o
+obj-$(CONFIG_ARCH_OMAP4)		+= remoteproc44xx.o
+endif
+
 i2c-omap-$(CONFIG_I2C_OMAP)		:= i2c.o
 obj-y					+= $(i2c-omap-m) $(i2c-omap-y)
 

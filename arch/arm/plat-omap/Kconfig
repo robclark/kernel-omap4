@@ -129,8 +129,19 @@ config OMAP_MBOX_KFIFO_SIZE
 	  This can also be changed at runtime (via the mbox_kfifo_size
 	  module parameter).
 
+config OMAP_REMOTE_PROC
+        bool "Remote Processor framework support"
+        depends on ARCH_OMAP
+        help
+          Say Y here if you want to use OMAP Remote Processor framework
+          support for DSP, IVA, Tesla and Ducati (OMAP2/3/4).
+
 config OMAP_IOMMU
 	tristate
+
+config OMAP_USER_DMM
+	tristate
+	select GENERIC_ALLOCATOR
 
 config OMAP_IOMMU_DEBUG
        tristate "Export OMAP IOMMU internals in DebugFS"
