@@ -825,7 +825,7 @@ static int ntrig_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	struct input_dev *input;
 	struct hid_report *report;
 
-	if (id->driver_data)
+	if (id->driver_data & NTRIG_DUPLICATE_USAGES)
 		hdev->quirks |= HID_QUIRK_MULTI_INPUT;
 
 	nd = kmalloc(sizeof(struct ntrig_data), GFP_KERNEL);
