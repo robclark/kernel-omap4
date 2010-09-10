@@ -828,23 +828,15 @@ static int ntrig_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	if (id->driver_data & NTRIG_DUPLICATE_USAGES)
 		hdev->quirks |= HID_QUIRK_MULTI_INPUT;
 
-	nd = kmalloc(sizeof(struct ntrig_data), GFP_KERNEL);
+	nd = kzalloc(sizeof(struct ntrig_data), GFP_KERNEL);
 	if (!nd) {
 		hid_err(hdev, "cannot allocate N-Trig data\n");
 		return -ENOMEM;
 	}
 
-	nd->reading_mt = 0;
-	nd->min_width = 0;
-	nd->min_height = 0;
 	nd->activate_slack = activate_slack;
 	nd->act_state = activate_slack;
 	nd->deactivate_slack = -deactivate_slack;
-	nd->sensor_logical_width = 0;
-	nd->sensor_logical_height = 0;
-	nd->sensor_physical_width = 0;
-	nd->sensor_physical_height = 0;
-
 	hid_set_drvdata(hdev, nd);
 
 	ret = hid_parse(hdev);
