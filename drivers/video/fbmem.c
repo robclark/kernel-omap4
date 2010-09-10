@@ -1390,7 +1390,8 @@ __releases(&registered_lock)
 
 	spin_lock(&registered_lock);
 	fb_info = registered_fb[idx];
-	fb_info->ref_count++;
+	if (fb_info)
+		fb_info->ref_count++;
 	spin_unlock(&registered_lock);
 
 	return fb_info;
