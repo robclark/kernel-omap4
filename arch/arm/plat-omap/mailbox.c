@@ -153,7 +153,7 @@ static void mbox_rx_work(struct work_struct *work)
 		WARN_ON(len != sizeof(msg));
 
 		blocking_notifier_call_chain(&mq->mbox->notifier, len,
-								(void *)msg);
+							(void *)msg);
 		spin_lock_irq(&mq->lock);
 		if (mq->full) {
 			mq->full = false;
@@ -199,7 +199,7 @@ static void __mbox_rx_interrupt(struct omap_mbox *mbox)
 			msg_rx = true;
 			if (unlikely(kfifo_avail(&mq->fifo) < sizeof(msg))) {
 				omap_mbox_disable_irq(mbox_curr, IRQ_RX);
-				rq_full = true;
+				mq->full = true;
 				goto nomem;
 			}
 
