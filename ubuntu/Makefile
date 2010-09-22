@@ -9,11 +9,11 @@ obj-$(CONFIG_BLK_DEV_COMPCACHE)	+= compcache/
 ##
 ##
 ##
-obj-$(CONFIG_DM_RAID45)		+= dm-raid4-5/
+#obj-$(CONFIG_DM_RAID45)		+= dm-raid4-5/
 ##
 ##
 ##
-obj-$(CONFIG_NDISWRAPPER)	+= ndiswrapper/
+#obj-$(CONFIG_NDISWRAPPER)	+= ndiswrapper/
 ##
 ##
 ##
@@ -29,7 +29,11 @@ obj-$(CONFIG_OMNIBOOK)		+= omnibook/
 ##
 ##
 ##
-obj-$(CONFIG_SCSI_ISCSITARGET)	+= iscsitarget/
+#obj-$(CONFIG_SCSI_ISCSITARGET)	+= iscsitarget/
+##
+##
+##
+#obj-$(CONFIG_AUFS_FS)		+= aufs/
 ##
 ##
 ##
