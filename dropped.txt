@@ -1,0 +1,42 @@
+UBUNTU: ubuntu: AUFS -- aufs2 standalone patch for linux-2.6.34
+UBUNTU: SAUCE: AppArmor: -- mainline 2010-06-23
+UBUNTU: SAUCE: AppArmor 2.4 compatibility patch
+UBUNTU: [Upstream] Input: evdev - convert to dynamic event buffer
+UBUNTU: [Upstream] Input: evdev - use driver hint to compute size of event buffer
+UBUNTU: [Upstream] Add support for the ATIF ACPI method to the radeon driver
+perf probe: Support tracing an entry of array
+perf probe: Support static and global variables
+UBUNTU: SAUCE: AppArmor: -- sync to AppArmor mainline 2010-07-27
+UBUNTU: SAUCE: AppArmor: -- sync to AppArmor mainline 2010-07-29
+UBUNTU: SAUCE: AppArmor 2.4 compatibility patch
+Input: introduce MT event slots
+x86 platform driver: intelligent power sharing driver
+UBUNTU: SAUCE: Bring in staging/lirc from 2.6.36
+UBUNTU: SAUCE: Update ir-core to linuxtv/other which should be merged for 2.6.36.
+UBUNTU: SAUCE: Bring in streamzap support from linuxtv/other
+(pre-stable) ALSA: HDA: Add Sony VAIO quirk for ALC269
+(pre-stable) ALSA: HDA: Fix front mic on Dell Precision M6500
+input: mt: Initialize slots to unused (rev2)
+mt: Add support for the Bamboo Touch trackpad
+x86, cpu: Package Level Thermal Control, Power Limit Notification definitions
+x86, hwmon: Package Level Thermal/Power: pkgtemp hwmon driver
+hwmon: Package Level Thermal/Power: thermal throttling handler
+drm/i915: fix VGA plane disable for Ironlake+
+e1000e: initial support for 82579 LOMs
+(pre-stable) ALSA: hda - Add a new hp-laptop model for Conexant 5066, tested on HP G60
+agp/intel: Support the extended physical addressing bits on Sandybridge.
+drm/i915,intel_agp: Add support for Sandybridge D0
+Revert input: mt: Add support for the Bamboo Touch trackpad
+UBUNTU: SAUCE: Input: wacom - parse the Bamboo device family
+UBUNTU: SAUCE: Input: wacom - collect device quirks into single function
+UBUNTU: SAUCE: Input: wacom - add support for the Bamboo Touch trackpad
+UBUNTU: SAUCE: Input: wacom - add a quirk for low resolution Bamboo devices
+(pre-stable) drm/i915: don't enable self-refresh on Ironlake
+PM / Runtime: Make runtime_status attribute not debug-only (v. 2)
+UBUNTU: SAUCE: ALSA: HDA: Enable internal mic on Dell E6410 and Dell E6510
+UBUNTU: SAUCE: AppArmor: allow newer tools to load policy on older kernels
+UBUNTU: SAUCE: Adding vdd_sdi regulator supply to OMAP3EVM
+Revert UBUNTU: SAUCE: AppArmor: allow newer tools to load policy on older kernels
+UBUNTU: SAUCE: AppArmor: allow newer tools to load policy on older kernels
+UBUNTU: SAUCE: ir-core: Fix null dereferences in the protocols sysfs interface
+ALSA: HDA: Enable internal speaker on Dell M101z
