@@ -40,3 +40,4 @@ Revert UBUNTU: SAUCE: AppArmor: allow newer tools to load policy on older kernel
 UBUNTU: SAUCE: AppArmor: allow newer tools to load policy on older kernels
 UBUNTU: SAUCE: ir-core: Fix null dereferences in the protocols sysfs interface
 ALSA: HDA: Enable internal speaker on Dell M101z
+UBUNTU: SAUCE: drm -- stop early access to drm devices
