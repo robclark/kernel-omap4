@@ -2509,16 +2509,27 @@ static void soc_dapm_stream_event(struct snd_soc_dapm_context *dapm,
  * Returns 0 for success else error.
  */
 int snd_soc_dapm_stream_event(struct snd_soc_pcm_runtime *rtd,
-	const char *stream, int event)
+	int dir, const char *stream, int event)
 {
-	struct snd_soc_codec *codec = rtd->codec;
+	int i;
 
 	if (stream == NULL)
 		return 0;
 
-	mutex_lock(&codec->mutex);
-	soc_dapm_stream_event(&codec->dapm, stream, event);
-	mutex_unlock(&codec->mutex);
+	if (rtd->dai_link->dynamic) {
+		for (i = 0; i < rtd->num_be[dir]; i++) {
+			struct snd_soc_platform *platform = rtd->be_rtd[i][dir]->platform;
+
+			soc_dapm_stream_event(&platform->dapm, stream, event);
+		}
+	} else {
+		struct snd_soc_codec *codec = rtd->codec;
+
+		mutex_lock(&codec->mutex);
+		soc_dapm_stream_event(&(codec->dapm), stream, event);
+		mutex_unlock(&codec->mutex);
+	}
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_stream_event);
