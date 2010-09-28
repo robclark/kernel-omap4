@@ -267,6 +267,7 @@ endif
 binary-%: pkgimg = $(bin_pkg_name)-$*
 binary-%: pkghdr = $(hdrs_pkg_name)-$*
 binary-%: dbgpkg = $(bin_pkg_name)-$*-dbgsym
+binary-%: dbgpkgdir = $(CURDIR)/debian/$(bin_pkg_name)-$*-dbgsym
 binary-%: install-%
 	dh_testdir
 	dh_testroot
@@ -333,6 +334,12 @@ ifneq ($(skipdbg),true)
 	fi
 	# Now, the package wont get into the archive, but it will get put
 	# into the debug system.
+endif
+ifneq ($(full_build),false)
+	# Clean out this flavours build directory.
+	rm -rf $(builddir)/build-$*
+	# Clean out the debugging package source directory.
+	rm -rf $(dbgpkgdir)
 endif
 
 $(stampdir)/stamp-flavours:
