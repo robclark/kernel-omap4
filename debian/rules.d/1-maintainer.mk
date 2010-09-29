@@ -109,6 +109,12 @@ endif
 	@echo "do_tools                  = $(do_tools)"
 	@echo "full_build                = $(full_build)"
 	@echo "libc_dev_version		 = $(libc_dev_version)"
+	@echo "DEB_HOST_GNU_TYPE         = $(DEB_HOST_GNU_TYPE)"
+	@echo "DEB_BUILD_GNU_TYPE        = $(DEB_BUILD_GNU_TYPE)"
+	@echo "DEB_HOST_ARCH             = $(DEB_HOST_ARCH)"
+	@echo "DEB_BUILD_ARCH            = $(DEB_BUILD_ARCH)"
+	@echo "arch                      = $(arch)"
+	@echo "kmake                     = $(kmake)"
 
 printchanges:
 	@baseCommit=$$(git log --pretty=format:'%H %s' | \

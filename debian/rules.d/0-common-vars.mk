@@ -96,7 +96,32 @@ endif
 # committing changes to the top level Makefile
 SUBLEVEL	:= $(shell echo $(release) | awk -F. '{print $$3}')
 
-arch		:= $(shell dpkg-architecture -qDEB_HOST_ARCH)
+DEB_HOST_GNU_TYPE  = $(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
+DEB_BUILD_GNU_TYPE = $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
+DEB_HOST_ARCH = $(shell dpkg-architecture -qDEB_HOST_ARCH)
+DEB_BUILD_ARCH = $(shell dpkg-architecture -qDEB_BUILD_ARCH)
+
+#
+# Detect invocations of the form 'fakeroot debian/rules binary arch=armel'
+# within an x86'en schroot. This only gets you part of the way sicne the
+# packaging phase fails, but you can at least compile the kernel quickly.
+#
+arch := $(DEB_HOST_ARCH)
+ifneq ($(arch),$(DEB_HOST_ARCH))
+	ifeq ($(arch),armel)
+		CROSS_COMPILE ?= CROSS_COMPILE=arm-linux-gnueabi-
+	endif
+endif
+
+#
+# Detect invocations of the form 'dpk-buildpackage -B -aarmel' within
+# an x86'en schroot. This is the only way to build all of the packages
+# (except for tools).
+#
+ifneq ($(DEB_BUILD_GNU_TYPE),$(DEB_HOST_GNU_TYPE))
+	CROSS_COMPILE ?= CROSS_COMPILE=$(DEB_HOST_GNU_TYPE)-
+endif
+
 abidir		:= $(CURDIR)/$(DEBIAN)/abi/$(release)-$(revision)/$(arch)
 prev_abidir	:= $(CURDIR)/$(DEBIAN)/abi/$(release)-$(prev_revision)/$(arch)
 commonconfdir	:= $(CURDIR)/$(DEBIAN)/config
@@ -191,6 +216,7 @@ conc_level		= -j$(CONCURRENCY_LEVEL)
 
 # target_flavour is filled in for each step
 kmake = make ARCH=$(build_arch) \
+	$(CROSS_COMPILE) \
 	EXTRAVERSION=-$(abinum)-$(target_flavour) \
 	CONFIG_DEBUG_SECTION_MISMATCH=y SUBLEVEL=$(SUBLEVEL) \
 	KBUILD_BUILD_VERSION="$(uploadnum)" \
@@ -198,3 +224,4 @@ kmake = make ARCH=$(build_arch) \
 ifneq ($(LOCAL_ENV_CC),)
 kmake += CC=$(LOCAL_ENV_CC) DISTCC_HOSTS=$(LOCAL_ENV_DISTCC_HOSTS)
 endif
+
