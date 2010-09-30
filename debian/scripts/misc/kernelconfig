@@ -12,11 +12,12 @@ if [ ! -f MAINTAINERS ] || [ ! -f Makefile ]; then
 fi
 
 mode=${1:?"Usage: $0 [oldconfig|editconfig]"}
+yes=0
 case "$mode" in
-    oldconfig)  ;; # All is good
-    defaultconfig)  ;; # All is good
-    editconfig) ;; # All is good
-    genconfig)  ;; # All is good
+    update*configs) mode='silentoldconfig' ;;
+    default*configs) mode='oldconfig'; yes=1 ;;
+    edit*configs) ;; # All is good
+    gen*configs)  ;; # All is good
     *) echo "$0 called with invalid mode" 1>&2
        exit 1 ;;
 esac
@@ -32,7 +33,7 @@ common_conf="$confdir/config.common.$family"
 tmpdir=`mktemp -d`
 mkdir "$tmpdir/CONFIGS"
 
-if [ "$mode" = "genconfig" ]; then
+if [ "$mode" = "genconfigs" ]; then
 	keep=1
 	mode="oldconfig"
 	test -d CONFIGS || mkdir CONFIGS
@@ -83,15 +84,7 @@ for arch in $archs; do
 			cat "$fullconf" > build/.config
 			# Call oldconfig or menuconfig
 			case "$mode" in
-			    oldconfig)
-				# Weed out incorrect config parameters
-				echo "* Run silentoldconfig on $arch/$config ..."
-				make O=`pwd`/build ARCH=$kernarch silentoldconfig ;;
-			    defaultconfig)
-				# Weed out incorrect config parameters
-				echo "* Run oldconfig on $arch/$config ..."
-				make O=`pwd`/build ARCH=$kernarch oldconfig ;;
-			    editconfig)
+			    editconfigs)
 				# Interactively edit config parameters
 				while : ; do
 					echo -n "Do you want to edit config: $arch/$config? [Y/n] "
@@ -108,8 +101,13 @@ for arch in $archs; do
 					esac
 				done
 				;;
-			    *)  # Bad!
-				exit 1 ;;
+			    *)
+				echo "* Run $mode (yes=$yes) on $arch/$config ..."
+				if [ "$yes" -eq 1 ]; then
+					yes "" | make O=`pwd`/build ARCH=$kernarch "$mode"
+				else
+					make O=`pwd`/build ARCH=$kernarch "$mode"
+				fi ;;
 			esac
 			cat build/.config > $archconfdir/$config
 			cat build/.config > "$tmpdir/CONFIGS/$arch-$config"

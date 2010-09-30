@@ -39,39 +39,14 @@ help:
 printdebian:
 	@echo "$(DEBIAN)"
 
-updateconfigs:
+updateconfigs defaultconfigs editconfigs genconfigs:
 	dh_testdir;
-	$(SHELL) $(DROOT)/scripts/misc/kernelconfig oldconfig
+	$(SHELL) $(DROOT)/scripts/misc/kernelconfig $@
 	rm -rf build
 
-defaultconfigs:
+updateportsconfigs defaultportsconfigs editportsconfigs genportsconfigs:
 	dh_testdir;
-	yes "" | $(SHELL) $(DROOT)/scripts/misc/kernelconfig defaultconfig
-	rm -rf build
-
-editconfigs:
-	dh_testdir
-	$(SHELL) $(DROOT)/scripts/misc/kernelconfig editconfig
-	rm -rf build
-
-genconfigs:
-	dh_testdir
-	$(SHELL) $(DROOT)/scripts/misc/kernelconfig genconfig
-	rm -rf build
-
-updateportsconfigs:
-	dh_testdir;
-	$(SHELL) $(DROOT)/scripts/misc/kernelconfig oldconfig ports
-	rm -rf build
-
-editportsconfigs:
-	dh_testdir
-	$(SHELL) $(DROOT)/scripts/misc/kernelconfig editconfig ports
-	rm -rf build
-
-genportsconfigs:
-	dh_testdir
-	$(SHELL) $(DROOT)/scripts/misc/kernelconfig genconfig ports
+	$(SHELL) $(DROOT)/scripts/misc/kernelconfig $@ ports
 	rm -rf build
 
 printenv:
