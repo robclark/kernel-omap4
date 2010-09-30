@@ -18,6 +18,7 @@ case "$mode" in
     default*configs) mode='oldconfig'; yes=1 ;;
     edit*configs) ;; # All is good
     gen*configs)  ;; # All is good
+    dump*configs) mode='config'; yes=1 ;;
     *) echo "$0 called with invalid mode" 1>&2
        exit 1 ;;
 esac

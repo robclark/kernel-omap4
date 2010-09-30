@@ -39,12 +39,12 @@ help:
 printdebian:
 	@echo "$(DEBIAN)"
 
-updateconfigs defaultconfigs editconfigs genconfigs:
+updateconfigs defaultconfigs editconfigs genconfigs dumpconfigs:
 	dh_testdir;
 	$(SHELL) $(DROOT)/scripts/misc/kernelconfig $@
 	rm -rf build
 
-updateportsconfigs defaultportsconfigs editportsconfigs genportsconfigs:
+updateportsconfigs defaultportsconfigs editportsconfigs genportsconfigs askconfigs:
 	dh_testdir;
 	$(SHELL) $(DROOT)/scripts/misc/kernelconfig $@ ports
 	rm -rf build
