@@ -39,6 +39,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/pci.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 #include <linux/debugfs.h>
 
 #define  MFD_HSU_A0_STEPPING	1
