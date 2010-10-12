@@ -58,3 +58,6 @@ value CONFIG_FRAMEBUFFER_CONSOLE y
 
 # Build in uinput module so that it's always available (LP: 584812)
 value CONFIG_INPUT_UINPUT y
+
+# upstart relies on getting all of the kernel arguments
+value CONFIG_INIT_PASS_ALL_PARAMS y
