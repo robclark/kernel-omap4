@@ -1,7 +1,72 @@
-linux (2.6.36-0.1) UNRELEASED; urgency=low
+linux (2.6.36-0.1) natty; urgency=low
 
+  [ Andy Whitcroft ]
 
- -- Leann Ogasawara <leann.ogasawara@canonical.com>  Mon, 20 Sep 2010 08:36:53 -0700
+  * reduce disk usage during buildd builds
+    - LP: #645653
+  * [Config] enforcer -- ensure CONFIG_INIT_PASS_ALL_PARAMS is y
+  * [Config] armel -- drop omap flavour
+
+  [ Tim Gardner ]
+
+  * Added dropped patch list
+  * more dropped patches
+  * [Config] Disable aufs, dmraid-4.5, ndis-wrapper
+  * [Config] Add support for cross compiling armel
+  * [Config] CONFIG_SCSI_QLA_ISCSI=n for armel
+  * [Upstream] drivers/serial/mfd.c: Fix ARM compile error
+  * [Config]: updateconfigs after adding brcm80211
+  * staging: brcm80211: Fix Makefile syntax error
+  * rebased to v2.6.36-rc7
+
+  [ Upstream Kernel Changes ]
+
+  * (upstream) IPS driver: don't toggle CPU turbo on unsupported CPUs
+  * (upstream) IPS driver: verify BIOS provided limits
+  * intel_ips: Print MCP limit exceeded values.
+  * Staging: Add initial release of brcm80211 - Broadcom 802.11n wireless
+    LAN driver.
+  * staging: brcm80211: Fix some initialisation failure paths
+  * staging: brcm80211: Add contact info to TODO list.
+  * staging: brcm80211: use '%pM' format to print MAC address
+  * staging: brcm80211: Fix URLs for firmware files.
+  * staging: brcm80211: fix 'ERROR: "foo * bar" should be "foo *bar"'
+  * staging: brcm80211: fix "ERROR: open brace '{' following function
+    dec..."
+  * staging: brcm80211: fix "ERROR: return is not a function, paren..."
+  * staging: brcm80211: fix "ERROR: do not use assignment in if condition"
+  * staging: brcm80211: fix "ERROR: trailing statements should be on next
+    line"
+  * staging: brcm80211: fix "ERROR: that open brace { ... prev line"
+  * staging: brcm80211: fix "ERROR: while should follow close brace '}'"
+  * staging: brcm80211: fix "ERROR: do not initialise globals to 0 or NULL"
+  * staging: brcm80211: fix "ERROR: do not initialise statics to 0 or NULL"
+  * staging: brcm80211: fix "ERROR: Macros w/ complex values ...
+    parenthesis"
+  * staging: brcm80211: fix "ERROR: Macros w/ mult. statements ... do -
+    while loop"
+  * staging: brcm80211: fix 'ERROR: "(foo*)" should be "(foo *)"'
+  * staging: brcm80211: fix "ERROR: need consistent spacing around '*'"
+  * staging: brcm80211: fix "ERROR: space prohibited after that ..."
+  * staging: brcm80211: fix "ERROR: space prohibited before ...close square
+    bracket"
+  * staging: brcm80211: fix "ERROR: space required after that close brace"
+  * staging: brcm80211: fix "ERROR: space required after that ..."
+  * staging: brcm80211: fix "ERROR: space required before that ..."
+  * staging: brcm80211: fix "ERROR: spaces prohibited around that ':' ..."
+  * staging: brcm80211: fix "ERROR: spaces required around that ..."
+  * staging: brcm80211: fix "ERROR: trailing whitespace."
+  * staging: brcm80211: fix remaining checkpatch errors.
+  * staging: brcm80211: use native ctype library
+  * staging: brcm80211: use string native library
+  * staging: brcm80211: add fullmac driver
+  * Staging: brcm80211: clean up makefile cflag lines
+  * Staging: brcm80211: remove driver specific -W options
+  * staging: brcm80211: Fix compile issue when BRCM80211_PCI is not set.
+  * staging: brcm80211: Make compiling of brcm80211.ko and brcmfmac.ko
+    mutually exclusive.
+
+ -- Andy Whitcroft <apw@canonical.com>  Tue, 12 Oct 2010 16:00:27 +0100
 
 linux (2.6.35-22.33) maverick; urgency=low
 
