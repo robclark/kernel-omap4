@@ -109,7 +109,7 @@ DEB_BUILD_ARCH = $(shell dpkg-architecture -qDEB_BUILD_ARCH)
 arch := $(DEB_HOST_ARCH)
 ifneq ($(arch),$(DEB_HOST_ARCH))
 	ifeq ($(arch),armel)
-		CROSS_COMPILE ?= CROSS_COMPILE=arm-linux-gnueabi-
+		CROSS_COMPILE ?= arm-linux-gnueabi-
 	endif
 endif
 
@@ -119,7 +119,7 @@ endif
 # (except for tools).
 #
 ifneq ($(DEB_BUILD_GNU_TYPE),$(DEB_HOST_GNU_TYPE))
-	CROSS_COMPILE ?= CROSS_COMPILE=$(DEB_HOST_GNU_TYPE)-
+	CROSS_COMPILE ?= $(DEB_HOST_GNU_TYPE)-
 endif
 
 abidir		:= $(CURDIR)/$(DEBIAN)/abi/$(release)-$(revision)/$(arch)
@@ -216,7 +216,7 @@ conc_level		= -j$(CONCURRENCY_LEVEL)
 
 # target_flavour is filled in for each step
 kmake = make ARCH=$(build_arch) \
-	$(CROSS_COMPILE) \
+	CROSS_COMPILE=$(CROSS_COMPILE) \
 	EXTRAVERSION=-$(abinum)-$(target_flavour) \
 	CONFIG_DEBUG_SECTION_MISMATCH=y SUBLEVEL=$(SUBLEVEL) \
 	KBUILD_BUILD_VERSION="$(uploadnum)" \
