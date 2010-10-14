@@ -315,14 +315,19 @@ s32 tilview_flip(struct tiler_view_t *view, bool flip_x, bool flip_y)
 		return -EPERM;
 
 	/* adjust top-left corner */
-	if (flip_x) {
-		orient ^= MASK_X_INVERT;
+	if (flip_x)
 		view->tsptr += (view->width - 1) * view->h_inc;
-	}
-	if (flip_y) {
-		orient ^= MASK_Y_INVERT;
+	if (flip_y)
 		view->tsptr += (view->height - 1) * view->v_inc;
-	}
+
+	/* flip view orientation */
+	if (orient & MASK_XY_FLIP)
+		swap(flip_x, flip_y);
+
+	if (flip_x)
+		orient ^= MASK_X_INVERT;
+	if (flip_y)
+		orient ^= MASK_Y_INVERT;
 
 	/* finally reorient view */
 	reorient(view, orient);
