@@ -115,6 +115,7 @@ ebt_stp
 ebt_ulog
 ebt_vlan
 econet
+ec_sys
 einj
 em_cmp
 em_meta
@@ -123,6 +124,7 @@ em_text
 em_u32
 e_powersaver
 eql
+erst-dbg
 esp4
 esp6
 evbug
@@ -201,7 +203,6 @@ irda
 irlan
 irnet
 iscsi_tcp
-iscsi_trgt
 isofs
 joydev
 khazad
@@ -292,6 +293,7 @@ pcnet32
 pcrypt
 phonet
 pktgen
+platform-pci
 pn_pep
 power_meter
 ppdev
@@ -400,8 +402,8 @@ ts_kmp
 tulip
 tunnel4
 tunnel6
-twofish
 twofish_common
+twofish_generic
 twofish-i586
 ufs
 usb-storage
@@ -436,6 +438,7 @@ xfrm_user
 xfs
 xor
 x_tables
+xt_CHECKSUM
 xt_CLASSIFY
 xt_cluster
 xt_comment
@@ -444,6 +447,7 @@ xt_connlimit
 xt_connmark
 xt_CONNSECMARK
 xt_conntrack
+xt_cpu
 xt_CT
 xt_dccp
 xt_dscp
@@ -453,7 +457,9 @@ xt_hashlimit
 xt_helper
 xt_hl
 xt_HL
+xt_IDLETIMER
 xt_iprange
+xt_ipvs
 xt_LED
 xt_length
 xt_limit
