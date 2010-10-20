@@ -24,6 +24,7 @@
 #include <sound/core.h>
 #include <linux/i2c.h>
 #include <sound/pcm.h>
+#include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <sound/jack.h>
 
@@ -250,6 +251,35 @@ static struct snd_soc_ops sdp4430_dmic_ops = {
 	.hw_params = sdp4430_dmic_hw_params,
 	.hw_free = sdp4430_dmic_hw_free,
 };
+
+static int mcbsp_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
+			struct snd_pcm_hw_params *params)
+{
+	struct snd_interval *channels = hw_param_interval(params,
+                                       SNDRV_PCM_HW_PARAM_CHANNELS);
+	unsigned int be_id;
+
+        be_id = rtd->dai_link->be_id;
+
+	if (be_id == OMAP_ABE_DAI_MM_FM)
+		channels->min = 2;
+	else if (be_id == OMAP_ABE_DAI_BT_VX)
+		channels->min = 1;
+
+	snd_mask_set(&params->masks[SNDRV_PCM_HW_PARAM_FORMAT -
+	                            SNDRV_PCM_HW_PARAM_FIRST_MASK],
+	                            SNDRV_PCM_FORMAT_S16_LE);
+	return 0;
+}
+
+static int dmic_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
+			struct snd_pcm_hw_params *params)
+{
+	snd_mask_set(&params->masks[SNDRV_PCM_HW_PARAM_FORMAT -
+	                            SNDRV_PCM_HW_PARAM_FIRST_MASK],
+	                            SNDRV_PCM_FORMAT_S32_LE);
+	return 0;
+}
 
 /* Headset jack */
 static struct snd_soc_jack hs_jack;
@@ -727,6 +757,7 @@ static struct snd_soc_dai_link sdp4430_dai[] = {
 
 		.no_pcm = 1, /* don't create ALSA pcm for this */
 		.no_codec = 1, /* TODO: have a dummy CODEC */
+		.be_hw_params_fixup = mcbsp_be_hw_params_fixup,
 		.ops = &sdp4430_mcbsp_ops,
 		.be_id = OMAP_ABE_DAI_BT_VX,
 	},
@@ -743,6 +774,7 @@ static struct snd_soc_dai_link sdp4430_dai[] = {
 
 		.no_pcm = 1, /* don't create ALSA pcm for this */
 		.no_codec = 1, /* TODO: have a dummy CODEC */
+		.be_hw_params_fixup = mcbsp_be_hw_params_fixup,
 		.ops = &sdp4430_mcbsp_ops,
 		.be_id = OMAP_ABE_DAI_MM_FM,
 	},
@@ -759,6 +791,7 @@ static struct snd_soc_dai_link sdp4430_dai[] = {
 
 		.no_pcm = 1, /* don't create ALSA pcm for this */
 		.no_codec = 1, /* TODO: have a dummy CODEC */
+		.be_hw_params_fixup = mcbsp_be_hw_params_fixup,
 		.ops = &sdp4430_mcbsp_ops,
 		.be_id = OMAP_ABE_DAI_MODEM,
 	},
@@ -776,6 +809,7 @@ static struct snd_soc_dai_link sdp4430_dai[] = {
 		.ops = &sdp4430_dmic_ops,
 
 		.no_pcm = 1, /* don't create ALSA pcm for this */
+		.be_hw_params_fixup = dmic_be_hw_params_fixup,
 		.be_id = OMAP_ABE_DAI_DMIC0,
 	},
 	{
@@ -792,6 +826,7 @@ static struct snd_soc_dai_link sdp4430_dai[] = {
 		.ops = &sdp4430_dmic_ops,
 
 		.no_pcm = 1, /* don't create ALSA pcm for this */
+		.be_hw_params_fixup = dmic_be_hw_params_fixup,
 		.be_id = OMAP_ABE_DAI_DMIC1,
 	},
 	{
@@ -808,6 +843,7 @@ static struct snd_soc_dai_link sdp4430_dai[] = {
 		.ops = &sdp4430_dmic_ops,
 
 		.no_pcm = 1, /* don't create ALSA pcm for this */
+		.be_hw_params_fixup = dmic_be_hw_params_fixup,
 		.be_id = OMAP_ABE_DAI_DMIC2,
 	},
 };
