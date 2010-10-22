@@ -41,3 +41,22 @@ UBUNTU: SAUCE: AppArmor: allow newer tools to load policy on older kernels
 UBUNTU: SAUCE: ir-core: Fix null dereferences in the protocols sysfs interface
 ALSA: HDA: Enable internal speaker on Dell M101z
 UBUNTU: SAUCE: drm -- stop early access to drm devices
+UBUNTU: SAUCE: libata: Add ALPM power state accounting to the AHCI driver
+UBUNTU: SAUCE: Added quirk to recognize GE0301 3G modem as an interface.
+hid: 3m: Convert to MT slots
+HID: magicmouse: don't allow hidinput to initialize the device
+HID: magicmouse: simplify touch data bit manipulation
+HID: magicmouse: simplify touch down logic
+HID: magicmouse: enable Magic Trackpad support
+UBUNTU: SAUCE: hid: ntrig: remove sysfs nodes
+UBUNTU: SAUCE: hid: ntrig: Setup input filtering manually
+UBUNTU: SAUCE: hid: ntrig: New ghost-filtering event logic
+UBUNTU: SAUCE: hid: ntrig: identify firmware version (wiggled)
+UBUNTU: (pre-stable): input: Support Clickpad devices in ClickZone mode
+UBUNTU: SAUCE: KMS: cache the EDID information of the LVDS
+UBUNTU: SAUCE: fbcon -- fix race between open and removal of framebuffers
+UBUNTU: SAUCE: fbcon -- fix OOPs triggered by race prevention fixes
+UBUNTU: SAUCE: x86: implement cs-limit nx-emulation for ia32
+UBUNTU: SAUCE: x86: more tightly confine cs-limit nx-emulation to ia32 only
+UBUNTU: SAUCE: [um] Don't use nx_enabled under UML
+UBUNTU: SAUCE: x86: brk away from exec rand area
