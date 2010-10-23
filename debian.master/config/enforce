@@ -41,7 +41,7 @@ value CONFIG_BLK_DEV_RAM_SIZE 65536
 value CONFIG_BLK_DEV_DM y
 
 # sysfs: ensure all DEPRECATED items are off
-value CONFIG_SYSFS_DEPRECATED_V2 n
+!exists CONFIG_SYSFS_DEPRECATED_V2 | value CONFIG_SYSFS_DEPRECATED_V2 n
 !exists CONFIG_SYSFS_DEPRECATED | value CONFIG_SYSFS_DEPRECATED n
 
 # automatically add local version will cause packaging failure
