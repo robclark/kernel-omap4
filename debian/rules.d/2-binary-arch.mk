@@ -351,6 +351,7 @@ $(stampdir)/stamp-flavours:
 $(stampdir)/stamp-prepare-perarch:
 	@echo "Preparing perarch ..."
 ifeq ($(do_tools),true)
+	rm -rf $(builddir)/tools-$*
 	install -d $(builddir)/tools-$*
 	for i in *; do ln -s $(CURDIR)/$$i $(builddir)/tools-$*/; done
 	rm $(builddir)/tools-$*/tools

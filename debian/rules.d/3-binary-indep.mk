@@ -86,6 +86,7 @@ install-tools:
 
 	install -m755 debian/tools/perf $(toolsbin)/perf
 
+	rm -rf $(builddir)/tools
 	install -d $(builddir)/tools
 	for i in *; do ln -s $(CURDIR)/$$i $(builddir)/tools/; done
 	rm $(builddir)/tools/tools
