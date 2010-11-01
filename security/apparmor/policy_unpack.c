@@ -580,7 +580,7 @@ static struct aa_profile *unpack_profile(struct aa_ext *e)
 			/* discard extraneous rules that this kernel will
 			 * never request
 			 */
-			if (i > AF_MAX) {
+			if (i >= AF_MAX) {
 				u16 tmp;
 				if (!unpack_u16(e, &tmp, NULL) ||
 				    !unpack_u16(e, &tmp, NULL) ||
