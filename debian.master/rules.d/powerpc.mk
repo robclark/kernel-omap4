@@ -16,4 +16,4 @@ skipdbg		= true
 skipabi		= true
 skipmodule	= true
 
-family=ports
+family=ubuntu
