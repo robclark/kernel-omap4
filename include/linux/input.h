@@ -91,13 +91,14 @@ struct input_absinfo {
  * (depending on which element was used to perform lookup).
  */
 struct input_keymap_entry {
-#define INPUT_KEYMAP_BY_INDEX	(1 << 0)
 	__u8  flags;
 	__u8  len;
 	__u16 index;
 	__u32 keycode;
 	__u8  scancode[32];
 };
+
+#define INPUT_KEYMAP_BY_INDEX	(1 << 0)
 
 #define EVIOCGVERSION		_IOR('E', 0x01, int)			/* get driver version */
 #define EVIOCGID		_IOR('E', 0x02, struct input_id)	/* get device ID */
