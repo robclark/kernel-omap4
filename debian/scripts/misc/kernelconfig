@@ -14,11 +14,11 @@ fi
 mode=${1:?"Usage: $0 [oldconfig|editconfig]"}
 yes=0
 case "$mode" in
-    update*configs) mode='silentoldconfig' ;;
+    update*configs)  mode='silentoldconfig' ;;
     default*configs) mode='oldconfig'; yes=1 ;;
-    edit*configs) ;; # All is good
-    gen*configs)  ;; # All is good
-    dump*configs) mode='config'; yes=1 ;;
+    edit*configs)    ;; # All is good
+    gen*configs)     mode='genconfigs' ;; # All is good
+    dump*configs)    mode='config'; yes=1 ;;
     *) echo "$0 called with invalid mode" 1>&2
        exit 1 ;;
 esac
