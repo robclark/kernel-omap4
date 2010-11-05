@@ -114,4 +114,4 @@ qla4xxx ?
 mvsas ?
 vmw_pvscsi ?
 ums-cypress ?
-be2scsi ?
+be2iscsi ?
