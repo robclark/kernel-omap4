@@ -678,6 +678,16 @@ unsigned long arch_align_stack(unsigned long sp)
 unsigned long arch_randomize_brk(struct mm_struct *mm)
 {
 	unsigned long range_end = mm->brk + 0x02000000;
-	return randomize_range(mm->brk, range_end, 0) ? : mm->brk;
+	unsigned long bump = 0;
+#ifdef CONFIG_X86_32
+	/* in the case of NX emulation, shove the brk segment way out of the
+	   way of the exec randomization area, since it can collide with
+	   future allocations if not. */
+	if ( (mm->get_unmapped_exec_area == arch_get_unmapped_exec_area) &&
+	     (mm->brk < 0x08000000) ) {
+		bump = (TASK_SIZE/6);
+	}
+#endif
+	return bump + (randomize_range(mm->brk, range_end, 0) ? : mm->brk);
 }
 
