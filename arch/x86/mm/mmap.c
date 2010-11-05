@@ -131,9 +131,12 @@ void arch_pick_mmap_layout(struct mm_struct *mm)
 	} else {
 		mm->mmap_base = mmap_base();
 		mm->get_unmapped_area = arch_get_unmapped_area_topdown;
+#ifdef CONFIG_X86_32
 		if (!(current->personality & READ_IMPLIES_EXEC)
+		    && !(__supported_pte_mask & _PAGE_NX)
 		    && mmap_is_ia32())
 			mm->get_unmapped_exec_area = arch_get_unmapped_exec_area;
+#endif
 		mm->unmap_area = arch_unmap_area_topdown;
 	}
 }
