@@ -41,12 +41,18 @@ void __cpuinit x86_configure_nx(void)
 void __init x86_report_nx(void)
 {
 	if (!cpu_has_nx) {
+#ifdef CONFIG_X86_32
 		if (disable_nx)
-			printk(KERN_INFO "Using x86 segment limits to approximate NX protection\n");
+			printk(KERN_INFO "NX (Execute Disable) protection: "
+			       "approximated by x86 segment limits\n");
 		else
-
+			printk(KERN_INFO "NX (Execute Disable) protection: "
+			       "approximation disabled by kernel command "
+			       "line option\n");
+#else
 		printk(KERN_NOTICE "Notice: NX (Execute Disable) protection "
 		       "missing in CPU!\n");
+#endif
 	} else {
 #if defined(CONFIG_X86_64) || defined(CONFIG_X86_PAE)
 		if (disable_nx) {
