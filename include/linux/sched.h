@@ -100,7 +100,7 @@ struct bio_list;
 struct fs_struct;
 struct perf_event_context;
 
-extern int exec_shield;
+extern int disable_nx;
 extern int print_fatal_signals;
 
 /*

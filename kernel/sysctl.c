@@ -104,17 +104,6 @@ extern int sysctl_nr_open_min, sysctl_nr_open_max;
 #ifndef CONFIG_MMU
 extern int sysctl_nr_trim_pages;
 #endif
-
-int exec_shield = 1;
-
-static int __init setup_exec_shield(char *str)
-{
-	get_option(&str, &exec_shield);
-
-	return 1;
-}
-__setup("exec-shield=", setup_exec_shield);
-
 #ifdef CONFIG_BLOCK
 extern int blk_iopoll_enabled;
 #endif
@@ -436,16 +425,6 @@ static struct ctl_table kern_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
 	},
-#ifdef CONFIG_X86_32
-	{
-		.procname	= "exec-shield",
-		.data		= &exec_shield,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= &proc_dointvec,
-	},
-#endif
-
 #ifdef CONFIG_PROC_SYSCTL
 	{
 		.procname	= "tainted",

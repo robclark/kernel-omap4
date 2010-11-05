@@ -833,7 +833,7 @@ static void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 	 *  If we have either disabled exec-shield on the boot command line,
 	 *  or we have NX, then we don't need to do this.
 	 */
-	if (exec_shield != 0) {
+	if (!disable_nx) {
 #ifdef CONFIG_X86_PAE
 		if (!test_cpu_cap(c, X86_FEATURE_NX))
 #endif

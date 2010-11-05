@@ -6,7 +6,7 @@
 #include <asm/pgtable.h>
 #include <asm/proto.h>
 
-static int disable_nx __cpuinitdata;
+int disable_nx __cpuinitdata;
 
 /*
  * noexec = on|off
@@ -24,7 +24,6 @@ static int __init noexec_setup(char *str)
 		disable_nx = 0;
 	} else if (!strncmp(str, "off", 3)) {
 		disable_nx = 1;
-		exec_shield = 0;
 	}
 	x86_configure_nx();
 	return 0;
@@ -42,7 +41,7 @@ void __cpuinit x86_configure_nx(void)
 void __init x86_report_nx(void)
 {
 	if (!cpu_has_nx) {
-		if (exec_shield)
+		if (disable_nx)
 			printk(KERN_INFO "Using x86 segment limits to approximate NX protection\n");
 		else
 
