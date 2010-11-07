@@ -259,7 +259,6 @@ static int aufs_flush_dir(struct file *file, fl_owner_t id)
 
 /* ---------------------------------------------------------------------- */
 
-#if 0
 static int au_do_fsync_dir_no_file(struct dentry *dentry, int datasync)
 {
 	int err;
@@ -304,7 +303,6 @@ static int au_do_fsync_dir_no_file(struct dentry *dentry, int datasync)
 
 	return err;
 }
-#endif
 
 static int au_do_fsync_dir(struct file *file, int datasync)
 {
@@ -344,17 +342,11 @@ static int au_do_fsync_dir(struct file *file, int datasync)
 /*
  * @file may be NULL
  */
-static int aufs_fsync_dir(struct file *file, int datasync)
+static int aufs_fsync_dir(struct file *file, struct dentry *dentry,
+			  int datasync)
 {
 	int err;
 	struct super_block *sb;
-	struct dentry *dentry;
-
-	if (!file) {
-		WARN_ON(1);
-		return -ENOTSUPP;
-	}
-	dentry = file->f_dentry;
 
 	IMustLock(dentry->d_inode);
 
@@ -363,12 +355,10 @@ static int aufs_fsync_dir(struct file *file, int datasync)
 	si_noflush_read_lock(sb);
 	if (file)
 		err = au_do_fsync_dir(file, datasync);
-/*
 	else {
 		di_write_lock_child(dentry);
 		err = au_do_fsync_dir_no_file(dentry, datasync);
 	}
-*/
 	au_cpup_attr_timesizes(dentry->d_inode);
 	di_write_unlock(dentry);
 	if (file)
