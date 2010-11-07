@@ -409,31 +409,29 @@ static int au_do_cpup_symlink(struct path *h_path, struct dentry *h_src,
 {
 	int err, symlen;
 	mm_segment_t old_fs;
-	union {
-		char *k;
-		char __user *u;
-	} sym;
+	char *sym;
 
 	err = -ENOSYS;
 	if (unlikely(!h_src->d_inode->i_op->readlink))
 		goto out;
 
 	err = -ENOMEM;
-	sym.k = __getname_gfp(GFP_NOFS);
-	if (unlikely(!sym.k))
+	sym = __getname_gfp(GFP_NOFS);
+	if (unlikely(!sym))
 		goto out;
 
 	old_fs = get_fs();
 	set_fs(KERNEL_DS);
-	symlen = h_src->d_inode->i_op->readlink(h_src, sym.u, PATH_MAX);
+	symlen = h_src->d_inode->i_op->readlink(h_src, (char __user *)sym,
+						PATH_MAX);
 	err = symlen;
 	set_fs(old_fs);
 
 	if (symlen > 0) {
-		sym.k[symlen] = 0;
-		err = vfsub_symlink(h_dir, h_path, sym.k);
+		sym[symlen] = 0;
+		err = vfsub_symlink(h_dir, h_path, sym);
 	}
-	__putname(sym.k);
+	__putname(sym);
 
  out:
 	return err;

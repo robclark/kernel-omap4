@@ -27,7 +27,7 @@
 #include <linux/limits.h>
 #include <linux/types.h>
 
-#define AUFS_VERSION	"2-standalone.tree-35-rcN-20100705"
+#define AUFS_VERSION	"2-standalone.tree-35-rcN-20100531"
 
 /* todo? move this to linux-2.6.19/include/magic.h */
 #define AUFS_SUPER_MAGIC	('a' << 24 | 'u' << 16 | 'f' << 8 | 's')
@@ -79,7 +79,6 @@ typedef __s16 aufs_bindex_t;
 #define AUFS_RDBLK_DEF		512 /* bytes */
 #define AUFS_RDHASH_DEF		32
 #define AUFS_WKQ_NAME		AUFS_NAME "d"
-#define AUFS_WKQ_PRE_NAME	AUFS_WKQ_NAME "_pre"
 #define AUFS_MFS_SECOND_DEF	30 /* seconds */
 #define AUFS_PLINK_WARN		100 /* number of plinks */
 
@@ -158,11 +157,12 @@ static inline int au_rdu_len(int nlen)
 
 union au_rdu_ent_ul {
 	struct au_rdu_ent __user	*e;
-	__u64				ul;
+	unsigned long			ul;
 };
 
 enum {
 	AufsCtlRduV_SZ,
+	AufsCtlRduV_SZ_PTR,
 	AufsCtlRduV_End
 };
 

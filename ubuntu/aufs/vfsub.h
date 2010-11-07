@@ -130,7 +130,9 @@ static inline loff_t vfsub_llseek(struct file *file, loff_t offset, int origin)
 {
 	loff_t err;
 
+	/* lockdep_off(); */
 	err = vfs_llseek(file, offset, origin);
+	/* lockdep_on(); */
 	return err;
 }
 

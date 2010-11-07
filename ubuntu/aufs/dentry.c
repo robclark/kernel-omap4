@@ -33,7 +33,7 @@ static void au_h_nd(struct nameidata *h_nd, struct nameidata *nd)
 		 * due to whiteout and branch permission.
 		 */
 		h_nd->flags &= ~(/*LOOKUP_PARENT |*/ LOOKUP_OPEN | LOOKUP_CREATE
-				 | LOOKUP_FOLLOW | LOOKUP_EXCL);
+				 | LOOKUP_FOLLOW);
 		/* unnecessary? */
 		h_nd->intent.open.file = NULL;
 	} else
