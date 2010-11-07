@@ -871,6 +871,7 @@ const struct file_operations aufs_file_fop = {
 	 * in aufs, it may be a real file and may confuse users by UDBA.
 	 */
 	/* .llseek		= generic_file_llseek, */
+	.llseek		= default_llseek,
 
 	.read		= aufs_read,
 	.write		= aufs_write,
