@@ -117,7 +117,7 @@ static void au_wkq_run(struct au_wkinfo *wkinfo, unsigned int flags)
 
 	au_dbg_verify_kthread();
 	if (flags & AuWkq_WAIT) {
-		INIT_WORK_ON_STACK(&wkinfo->wk, wkq_func);
+		INIT_WORK_ONSTACK(&wkinfo->wk, wkq_func);
 		wkq = au_wkq[AuWkq_INORMAL].wkq;
 		if (flags & AuWkq_PRE)
 			wkq = au_wkq[AuWkq_IPRE].wkq;
