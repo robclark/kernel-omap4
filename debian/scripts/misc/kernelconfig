@@ -153,9 +153,10 @@ for arch in $archs; do
 	archconfdir=$confdir/$arch
 	flavourconfigs=$(cd $archconfdir && ls config.flavour.*)
 	for config in $flavourconfigs; do
+		flavour="${config##*.}"
 		if [ -f $archconfdir/$config ]; then
 			fullconf="$tmpdir/CONFIGS/$arch-$config"
-			"$bindir/../config-check" "$fullconf" "$arch" "$config" "$sharedconfdir" "0" || let "fail=$fail+1"
+			"$bindir/../config-check" "$fullconf" "$arch" "$flavour" "$sharedconfdir" "0" || let "fail=$fail+1"
 		fi
 	done
 done
