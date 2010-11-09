@@ -64,3 +64,8 @@ value CONFIG_INIT_PASS_ALL_PARAMS y
 
 # Enabling CONFIG_IMA is vastly expensive, ensure it is off
 value CONFIG_IMA n
+
+# Ensure CONFIG_INTEL_IDLE is turned off for -virtual.
+!exists CONFIG_INTEL_IDLE | \
+	(flavour virtual & value CONFIG_INTEL_IDLE n) | \
+	value CONFIG_INTEL_IDLE y
