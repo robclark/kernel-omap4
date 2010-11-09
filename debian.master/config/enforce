@@ -69,3 +69,7 @@ value CONFIG_IMA n
 !exists CONFIG_INTEL_IDLE | \
 	(flavour virtual & value CONFIG_INTEL_IDLE n) | \
 	value CONFIG_INTEL_IDLE y
+
+# Ensure CONFIG_IPV6 is y, if this is a module we get a module load for
+# every ipv6 packet, bad.
+value CONFIG_IPV6 y
