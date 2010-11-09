@@ -61,3 +61,6 @@ value CONFIG_INPUT_UINPUT y
 
 # upstart relies on getting all of the kernel arguments
 value CONFIG_INIT_PASS_ALL_PARAMS y
+
+# Enabling CONFIG_IMA is vastly expensive, ensure it is off
+value CONFIG_IMA n
