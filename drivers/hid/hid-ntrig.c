@@ -368,6 +368,10 @@ static int ntrig_event (struct hid_device *hid, struct hid_field *field,
 				break;
 			nd->nindex = 0;
 			nd->ncol = value;
+			/* skip pen switch events */
+			if (nd->ncol == 1 &&
+			    nd->col[0].w == 10 && nd->col[0].h == 10)
+				break;
 			report_frame(input, nd);
 			break;
 		}
