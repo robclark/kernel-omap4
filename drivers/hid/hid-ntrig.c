@@ -50,6 +50,8 @@ struct ntrig_data {
 	int nrow, ncol;
 	int index, nindex;
 	int nhold;
+	bool touch;
+	bool hasmt;
 };
 
 
@@ -179,7 +181,14 @@ static int ntrig_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 			return 1;
 		}
 		return 0;
+
 	case 0xff000000:
+		switch (usage->hid) {
+		case 0xff000001:
+			/* multi-touch firmware */
+			nd->hasmt = true;
+			break;
+		}
 		/* we do not want to map these: no input-oriented meaning */
 		return -1;
 	}
@@ -333,7 +342,9 @@ static int ntrig_event (struct hid_device *hid, struct hid_field *field,
         if (hid->claimed & HID_CLAIMED_INPUT) {
 		switch (usage->hid) {
 		case HID_DG_TIPSWITCH:
-			nd->index = nd->nindex++;
+			nd->touch = value;
+			if (nd->nindex < MAX_SLOTS)
+				nd->index = nd->nindex++;
 			break;
 		case HID_GD_X:
 			nd->col[nd->index].x = value;
@@ -346,8 +357,15 @@ static int ntrig_event (struct hid_device *hid, struct hid_field *field,
 			break;
 		case HID_DG_HEIGHT:
 			nd->col[nd->index].h = value;
+			if (!nd->hasmt) {
+				nd->nindex = 0;
+				nd->ncol = nd->touch;
+				report_frame(input, nd);
+			}
 			break;
 		case HID_DG_CONTACTCOUNT: /* End of a multitouch group */
+			if (!nd->hasmt)
+				break;
 			nd->nindex = 0;
 			nd->ncol = value;
 			report_frame(input, nd);
