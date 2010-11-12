@@ -3,6 +3,7 @@
  *
  *  Copyright (c) 2008-2010 Rafi Rubin
  *  Copyright (c) 2009-2010 Stephane Chatty
+ *  Copyright (c) 2010 Canonical, Ltd.
  *
  */
 
@@ -24,57 +25,31 @@
 
 #define NTRIG_DUPLICATE_USAGES	0x001
 
+#define MAX_SLOTS		20
 #define MAX_EVENTS		120
 
 #define SN_MOVE_X		128
 #define SN_MOVE_Y		92
 #define SN_MAJOR		48
 
-static unsigned int min_width;
-static unsigned int min_height;
+#define HOLD_MIN		3
+#define HOLD_MED		7
+#define HOLD_MAX		10
 
-static unsigned int activate_slack = 1;
+#define DIV_MIN			8
+#define DIV_MED			40
+#define DIV_MAX			100
 
-static unsigned int deactivate_slack = 4;
-
-static unsigned int activation_width = 64;
-static unsigned int activation_height = 32;
+struct ntrig_contact {
+	int x, y, w, h;
+};
 
 struct ntrig_data {
-	/* Incoming raw values for a single contact */
-	__u16 x, y, w, h;
-	__u16 id;
-
-	bool tipswitch;
-	bool confidence;
-	bool first_contact_touch;
-
-	bool reading_mt;
-
-	__u8 mt_footer[4];
-	__u8 mt_foot_count;
-
-	/* The current activation state. */
-	__s8 act_state;
-
-	/* Empty frames to ignore before recognizing the end of activity */
-	__s8 deactivate_slack;
-
-	/* Frames to ignore before acknowledging the start of activity */
-	__s8 activate_slack;
-
-	/* Minimum size contact to accept */
-	__u16 min_width;
-	__u16 min_height;
-
-	/* Threshold to override activation slack */
-	__u16 activation_width;
-	__u16 activation_height;
-
-	__u16 sensor_logical_width;
-	__u16 sensor_logical_height;
-	__u16 sensor_physical_width;
-	__u16 sensor_physical_height;
+	struct ntrig_contact row[MAX_SLOTS], col[MAX_SLOTS];
+	int dmin, dmed, dmax;
+	int nrow, ncol;
+	int index, nindex;
+	int nhold;
 };
 
 
@@ -155,20 +130,9 @@ static int ntrig_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 					     f1, f2, df / SN_MOVE_X, 0);
 			input_set_abs_params(input, ABS_MT_POSITION_X,
 					     f1, f2, df / SN_MOVE_X, 0);
-			if (!nd->sensor_logical_width) {
-				nd->sensor_logical_width =
-					field->logical_maximum -
-					field->logical_minimum;
-				nd->sensor_physical_width =
-					field->physical_maximum -
-					field->physical_minimum;
-				nd->activation_width = activation_width *
-					nd->sensor_logical_width /
-					nd->sensor_physical_width;
-				nd->min_width = min_width *
-					nd->sensor_logical_width /
-					nd->sensor_physical_width;
-			}
+			nd->dmin = df / DIV_MIN;
+			nd->dmed = df / DIV_MED;
+			nd->dmax = df / DIV_MAX;
 			return 1;
 		case HID_GD_Y:
 			hid_map_usage(hi, usage, bit, max, EV_ABS, ABS_Y);
@@ -176,20 +140,6 @@ static int ntrig_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 					     f1, f2, df / SN_MOVE_Y, 0);
 			input_set_abs_params(input, ABS_MT_POSITION_Y,
 					     f1, f2, df / SN_MOVE_Y, 0);
-			if (!nd->sensor_logical_height) {
-				nd->sensor_logical_height =
-					field->logical_maximum -
-					field->logical_minimum;
-				nd->sensor_physical_height =
-					field->physical_maximum -
-					field->physical_minimum;
-				nd->activation_height = activation_height *
-					nd->sensor_logical_height /
-					nd->sensor_physical_height;
-				nd->min_height = min_height *
-					nd->sensor_logical_height /
-					nd->sensor_physical_height;
-			}
 			return 1;
 		}
 		return 0;
@@ -251,6 +201,119 @@ static int ntrig_input_mapped(struct hid_device *hdev, struct hid_input *hi,
 	return -1;
 }
 
+static bool copy_best_column(struct ntrig_data *nd, unsigned *used, int i)
+{
+	int j, jbest = -1, d, dbest;
+	for (j = 0; j < nd->ncol; ++j) {
+		if (*used & (1 << j))
+			continue;
+		d = abs(nd->row[i].x - nd->col[j].x) +
+			abs(nd->row[i].y - nd->col[j].y);
+		if (jbest < 0 || d < dbest) {
+			jbest = j;
+			dbest = d;
+		}
+	}
+	if (jbest < 0)
+		return false;
+	*used |= (1 << jbest);
+	if (nd->nrow > 2)
+		nd->col[jbest].y = (nd->row[i].y + nd->col[jbest].y) >> 1;
+	nd->row[i] = nd->col[jbest];
+	return true;
+}
+
+static bool copy_next_column(struct ntrig_data *nd, unsigned *used, int i)
+{
+	int j;
+	for (j = 0; j < nd->ncol; ++j) {
+		if (*used & (1 << j))
+			continue;
+		*used |= (1 << j);
+		nd->row[i] = nd->col[j];
+		return true;
+	}
+	return false;
+}
+
+static int ghost_distance(const struct ntrig_data *nd, int j)
+{
+	int i, d, dbest = INT_MAX;
+	for (i = 0; i < nd->nrow; ++i) {
+		d = abs(nd->row[i].x - nd->col[j].x);
+		dbest = min(dbest, d);
+		d = abs(nd->row[i].y - nd->col[j].y);
+		dbest = min(dbest, d);
+	}
+	return dbest;
+}
+
+static void discard_ghosts(struct ntrig_data *nd, unsigned *used)
+{
+	int j, d;
+	for (j = 0; j < nd->ncol; ++j) {
+		if (*used & (1 << j))
+			continue;
+		d = ghost_distance(nd, j);
+		if ((nd->nhold < HOLD_MIN && d < nd->dmin) ||
+		    (nd->nhold < HOLD_MED && d < nd->dmed) ||
+		    (nd->nhold < HOLD_MAX && d < nd->dmax))
+			*used |= (1 << j);
+	}
+}
+
+static void report_frame(struct input_dev *input, struct ntrig_data *nd)
+{
+	struct ntrig_contact *oldest = 0;
+	unsigned used = 0;
+	int i;
+
+	if (nd->nrow < nd->ncol) {
+		for (i = 0; i < nd->nrow; ++i)
+			copy_best_column(nd, &used, i);
+		if (nd->ncol > 2)
+			discard_ghosts(nd, &used);
+		while (copy_next_column(nd, &used, i))
+			i++;
+		nd->nrow = i;
+		nd->nhold++;
+	} else if (nd->nrow > nd->ncol) {
+		for (i = 0; i < nd->ncol; ++i)
+			nd->row[i] = nd->col[i];
+		nd->nrow = nd->ncol;
+		nd->nhold = 0;
+	} else {
+		unsigned used = 0;
+		for (i = 0; i < nd->nrow; ++i)
+			copy_best_column(nd, &used, i);
+		nd->nhold = 0;
+	}
+
+	for (i = 0; i < nd->nrow; ++i) {
+		struct ntrig_contact *f = &nd->row[i];
+		int wide = (f->w > f->h);
+		int major = max(f->w, f->h);
+		int minor = min(f->w, f->h);
+		if (!oldest)
+			oldest = f;
+		input_event(input, EV_ABS, ABS_MT_POSITION_X, f->x);
+		input_event(input, EV_ABS, ABS_MT_POSITION_Y, f->y);
+		input_event(input, EV_ABS, ABS_MT_ORIENTATION, wide);
+		input_event(input, EV_ABS, ABS_MT_TOUCH_MAJOR, major);
+		input_event(input, EV_ABS, ABS_MT_TOUCH_MINOR, minor);
+		input_mt_sync(input);
+	}
+
+	/* touchscreen emulation */
+	if (oldest) {
+		input_event(input, EV_KEY, BTN_TOUCH, 1);
+		input_event(input, EV_ABS, ABS_X, oldest->x);
+		input_event(input, EV_ABS, ABS_Y, oldest->y);
+	} else {
+		input_event(input, EV_KEY, BTN_TOUCH, 0);
+	}
+}
+
 /*
  * this function is called upon all reports
  * so that we can filter contact point information,
@@ -269,265 +332,26 @@ static int ntrig_event (struct hid_device *hid, struct hid_field *field,
 
         if (hid->claimed & HID_CLAIMED_INPUT) {
 		switch (usage->hid) {
-		case 0xff000001:
-			/* Tag indicating the start of a multitouch group */
-			nd->reading_mt = 1;
-			nd->first_contact_touch = 0;
-			break;
 		case HID_DG_TIPSWITCH:
-			nd->tipswitch = value;
-			/* Prevent emission of touch until validated */
-			return 1;
-		case HID_DG_CONFIDENCE:
-			nd->confidence = value;
+			nd->index = nd->nindex++;
 			break;
 		case HID_GD_X:
-			nd->x = value;
-			/* Clear the contact footer */
-			nd->mt_foot_count = 0;
+			nd->col[nd->index].x = value;
 			break;
 		case HID_GD_Y:
-			nd->y = value;
-			break;
-		case HID_DG_CONTACTID:
-			nd->id = value;
+			nd->col[nd->index].y = value;
 			break;
 		case HID_DG_WIDTH:
-			nd->w = value;
+			nd->col[nd->index].w = value;
 			break;
 		case HID_DG_HEIGHT:
-			nd->h = value;
-			/*
-			 * when in single touch mode, this is the last
-			 * report received in a finger event. We want
-			 * to emit a normal (X, Y) position
-			 */
-			if (!nd->reading_mt) {
-				/*
-				 * TipSwitch indicates the presence of a
-				 * finger in single touch mode.
-				 */
-				input_report_key(input, BTN_TOUCH,
-						 nd->tipswitch);
-				input_report_key(input, BTN_TOOL_DOUBLETAP,
-						 nd->tipswitch);
-				input_event(input, EV_ABS, ABS_X, nd->x);
-				input_event(input, EV_ABS, ABS_Y, nd->y);
-			}
+			nd->col[nd->index].h = value;
 			break;
-		case 0xff000002:
-			/*
-			 * we receive this when the device is in multitouch
-			 * mode. The first of the three values tagged with
-			 * this usage tells if the contact point is real
-			 * or a placeholder
-			 */
-
-			/* Shouldn't get more than 4 footer packets, so skip */
-			if (nd->mt_foot_count >= 4)
-				break;
-
-			nd->mt_footer[nd->mt_foot_count++] = value;
-
-			/* if the footer isn't complete break */
-			if (nd->mt_foot_count != 4)
-				break;
-
-			/* Pen activity signal. */
-			if (nd->mt_footer[2]) {
-				/*
-				 * When the pen deactivates touch, we see a
-				 * bogus frame with ContactCount > 0.
-				 * We can
-				 * save a bit of work by ensuring act_state < 0
-				 * even if deactivation slack is turned off.
-				 */
-				nd->act_state = deactivate_slack - 1;
-				nd->confidence = 0;
-				break;
-			}
-
-			/*
-			 * The first footer value indicates the presence of a
-			 * finger.
-			 */
-			if (nd->mt_footer[0]) {
-				/*
-				 * We do not want to process contacts under
-				 * the size threshold, but do not want to
-				 * ignore them for activation state
-				 */
-				if (nd->w < nd->min_width ||
-				    nd->h < nd->min_height)
-					nd->confidence = 0;
-			} else
-				break;
-
-			if (nd->act_state > 0) {
-				/*
-				 * Contact meets the activation size threshold
-				 */
-				if (nd->w >= nd->activation_width &&
-				    nd->h >= nd->activation_height) {
-					if (nd->id)
-						/*
-						 * first contact, activate now
-						 */
-						nd->act_state = 0;
-					else {
-						/*
-						 * avoid corrupting this frame
-						 * but ensure next frame will
-						 * be active
-						 */
-						nd->act_state = 1;
-						break;
-					}
-				} else
-					/*
-					 * Defer adjusting the activation state
-					 * until the end of the frame.
-					 */
-					break;
-			}
-
-			/* Discarding this contact */
-			if (!nd->confidence)
-				break;
-
-			/* emit a normal (X, Y) for the first point only */
-			if (nd->id == 0) {
-				/*
-				 * TipSwitch is superfluous in multitouch
-				 * mode.  The footer events tell us
-				 * if there is a finger on the screen or
-				 * not.
-				 */
-				nd->first_contact_touch = nd->confidence;
-				input_event(input, EV_ABS, ABS_X, nd->x);
-				input_event(input, EV_ABS, ABS_Y, nd->y);
-			}
-
-			/* Emit MT events */
-			input_event(input, EV_ABS, ABS_MT_POSITION_X, nd->x);
-			input_event(input, EV_ABS, ABS_MT_POSITION_Y, nd->y);
-
-			/*
-			 * Translate from height and width to size
-			 * and orientation.
-			 */
-			if (nd->w > nd->h) {
-				input_event(input, EV_ABS,
-						ABS_MT_ORIENTATION, 1);
-				input_event(input, EV_ABS,
-						ABS_MT_TOUCH_MAJOR, nd->w);
-				input_event(input, EV_ABS,
-						ABS_MT_TOUCH_MINOR, nd->h);
-			} else {
-				input_event(input, EV_ABS,
-						ABS_MT_ORIENTATION, 0);
-				input_event(input, EV_ABS,
-						ABS_MT_TOUCH_MAJOR, nd->h);
-				input_event(input, EV_ABS,
-						ABS_MT_TOUCH_MINOR, nd->w);
-			}
-			input_mt_sync(field->hidinput->input);
-			break;
-
 		case HID_DG_CONTACTCOUNT: /* End of a multitouch group */
-			if (!nd->reading_mt) /* Just to be sure */
-				break;
-
-			nd->reading_mt = 0;
-
-
-			/*
-			 * Activation state machine logic:
-			 *
-			 * Fundamental states:
-			 *	state >  0: Inactive
-			 *	state <= 0: Active
-			 *	state <  -deactivate_slack:
-			 *		 Pen termination of touch
-			 *
-			 * Specific values of interest
-			 *	state == activate_slack
-			 *		 no valid input since the last reset
-			 *
-			 *	state == 0
-			 *		 general operational state
-			 *
-			 *	state == -deactivate_slack
-			 *		 read sufficient empty frames to accept
-			 *		 the end of input and reset
-			 */
-
-			if (nd->act_state > 0) { /* Currently inactive */
-				if (value)
-					/*
-					 * Consider each live contact as
-					 * evidence of intentional activity.
-					 */
-					nd->act_state = (nd->act_state > value)
-							? nd->act_state - value
-							: 0;
-				else
-					/*
-					 * Empty frame before we hit the
-					 * activity threshold, reset.
-					 */
-					nd->act_state = nd->activate_slack;
-
-				/*
-				 * Entered this block inactive and no
-				 * coordinates sent this frame, so hold off
-				 * on button state.
-				 */
-				break;
-			} else { /* Currently active */
-				if (value && nd->act_state >=
-					     nd->deactivate_slack)
-					/*
-					 * Live point: clear accumulated
-					 * deactivation count.
-					 */
-					nd->act_state = 0;
-				else if (nd->act_state <= nd->deactivate_slack)
-					/*
-					 * We've consumed the deactivation
-					 * slack, time to deactivate and reset.
-					 */
-					nd->act_state =
-						nd->activate_slack;
-				else { /* Move towards deactivation */
-					nd->act_state--;
-					break;
-				}
-			}
-
-			if (nd->first_contact_touch && nd->act_state <= 0) {
-				/*
-				 * Check to see if we're ready to start
-				 * emitting touch events.
-				 *
-				 * Note: activation slack will decrease over
-				 * the course of the frame, and it will be
-				 * inconsistent from the start to the end of
-				 * the frame.  However if the frame starts
-				 * with slack, first_contact_touch will still
-				 * be 0 and we will not get to this point.
-				 */
-				input_report_key(input, BTN_TOOL_DOUBLETAP, 1);
-				input_report_key(input, BTN_TOUCH, 1);
-			} else {
-				input_report_key(input, BTN_TOOL_DOUBLETAP, 0);
-				input_report_key(input, BTN_TOUCH, 0);
-			}
+			nd->nindex = 0;
+			nd->ncol = value;
+			report_frame(input, nd);
 			break;
-
-		default:
-			/* fall-back to the generic hidinput handling */
-			return 0;
 		}
 	}
 
@@ -555,9 +379,6 @@ static int ntrig_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		return -ENOMEM;
 	}
 
-	nd->activate_slack = activate_slack;
-	nd->act_state = activate_slack;
-	nd->deactivate_slack = -deactivate_slack;
 	hid_set_drvdata(hdev, nd);
 
 	ret = hid_parse(hdev);
