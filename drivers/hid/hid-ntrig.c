@@ -24,6 +24,12 @@
 
 #define NTRIG_DUPLICATE_USAGES	0x001
 
+#define MAX_EVENTS		120
+
+#define SN_MOVE_X		128
+#define SN_MOVE_Y		92
+#define SN_MAJOR		48
+
 static unsigned int min_width;
 static unsigned int min_height;
 
@@ -128,9 +134,13 @@ err_free:
 
 static int ntrig_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 			       struct hid_field *field, struct hid_usage *usage,
-			       unsigned long **bit, int *max)
+		unsigned long **bit, int *max)
 {
 	struct ntrig_data *nd = hid_get_drvdata(hdev);
+	struct input_dev *input = hi->input;
+	int f1 = field->logical_minimum;
+	int f2 = field->logical_maximum;
+	int df = f2 - f1;
 
 	/* No special mappings needed for the pen and single touch */
 	if (field->physical)
@@ -140,12 +150,11 @@ static int ntrig_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 	case HID_UP_GENDESK:
 		switch (usage->hid) {
 		case HID_GD_X:
-			hid_map_usage(hi, usage, bit, max,
-					EV_ABS, ABS_MT_POSITION_X);
-			input_set_abs_params(hi->input, ABS_X,
-					field->logical_minimum,
-					field->logical_maximum, 0, 0);
-
+			hid_map_usage(hi, usage, bit, max, EV_ABS, ABS_X);
+			input_set_abs_params(input, ABS_X,
+					     f1, f2, df / SN_MOVE_X, 0);
+			input_set_abs_params(input, ABS_MT_POSITION_X,
+					     f1, f2, df / SN_MOVE_X, 0);
 			if (!nd->sensor_logical_width) {
 				nd->sensor_logical_width =
 					field->logical_maximum -
@@ -162,12 +171,11 @@ static int ntrig_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 			}
 			return 1;
 		case HID_GD_Y:
-			hid_map_usage(hi, usage, bit, max,
-					EV_ABS, ABS_MT_POSITION_Y);
-			input_set_abs_params(hi->input, ABS_Y,
-					field->logical_minimum,
-					field->logical_maximum, 0, 0);
-
+			hid_map_usage(hi, usage, bit, max, EV_ABS, ABS_Y);
+			input_set_abs_params(input, ABS_Y,
+					     f1, f2, df / SN_MOVE_Y, 0);
+			input_set_abs_params(input, ABS_MT_POSITION_Y,
+					     f1, f2, df / SN_MOVE_Y, 0);
 			if (!nd->sensor_logical_height) {
 				nd->sensor_logical_height =
 					field->logical_maximum -
@@ -193,22 +201,34 @@ static int ntrig_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 		case HID_DG_INPUTMODE:
 		case HID_DG_DEVICEINDEX:
 		case HID_DG_CONTACTMAX:
+		case HID_DG_CONTACTCOUNT:
+		case HID_DG_INRANGE:
+		case HID_DG_CONFIDENCE:
 			return -1;
+
+		case HID_DG_TIPSWITCH:
+			hid_map_usage(hi, usage, bit, max, EV_KEY, BTN_TOUCH);
+			input_set_capability(input, EV_KEY, BTN_TOUCH);
+			return 1;
 
 		/* width/height mapped on TouchMajor/TouchMinor/Orientation */
 		case HID_DG_WIDTH:
 			hid_map_usage(hi, usage, bit, max,
-				      EV_ABS, ABS_MT_TOUCH_MAJOR);
+					EV_ABS, ABS_MT_TOUCH_MAJOR);
+			input_set_abs_params(input, ABS_MT_TOUCH_MAJOR,
+					     f1, f2, df / SN_MAJOR, 0);
 			return 1;
 		case HID_DG_HEIGHT:
 			hid_map_usage(hi, usage, bit, max,
-				      EV_ABS, ABS_MT_TOUCH_MINOR);
-			input_set_abs_params(hi->input, ABS_MT_ORIENTATION,
+					EV_ABS, ABS_MT_TOUCH_MINOR);
+			input_set_abs_params(input, ABS_MT_TOUCH_MINOR,
+					     f1, f2, df / SN_MAJOR, 0);
+			input_set_abs_params(input, ABS_MT_ORIENTATION,
 					     0, 1, 0, 0);
+			input_set_events_per_packet(input, MAX_EVENTS);
 			return 1;
 		}
 		return 0;
-
 	case 0xff000000:
 		/* we do not want to map these: no input-oriented meaning */
 		return -1;
@@ -225,11 +245,10 @@ static int ntrig_input_mapped(struct hid_device *hdev, struct hid_input *hi,
 	if (field->physical)
 		return 0;
 
-	if (usage->type == EV_KEY || usage->type == EV_REL
-			|| usage->type == EV_ABS)
-		clear_bit(usage->code, *bit);
-
-	return 0;
+	/* tell hid-input to skip setup of these event types */
+	if (usage->type == EV_KEY || usage->type == EV_ABS)
+		set_bit(usage->type, hi->input->evbit);
+	return -1;
 }
 
 /*
@@ -564,18 +583,6 @@ static int ntrig_probe(struct hid_device *hdev, const struct hid_device_id *id)
 			input->name = "N-Trig Pen";
 			break;
 		case HID_DG_TOUCHSCREEN:
-			/* These keys are redundant for fingers, clear them
-			 * to prevent incorrect identification */
-			__clear_bit(BTN_TOOL_PEN, input->keybit);
-			__clear_bit(BTN_TOOL_FINGER, input->keybit);
-			__clear_bit(BTN_0, input->keybit);
-			__set_bit(BTN_TOOL_DOUBLETAP, input->keybit);
-			/*
-			 * The physical touchscreen (single touch)
-			 * input has a value for physical, whereas
-			 * the multitouch only has logical input
-			 * fields.
-			 */
 			input->name =
 				(hidinput->report->field[0]
 				 ->physical) ?
