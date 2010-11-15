@@ -177,6 +177,7 @@ atp870u
 atxp1
 au0828
 au8522
+aufs
 authenc
 auth_rpcgss
 autofs
@@ -904,7 +905,6 @@ ipt_NETMAP
 ipt_REDIRECT
 ipt_REJECT
 ipt_ULOG
-ipv6
 ip_vs
 ip_vs_dh
 ip_vs_ftp
@@ -1498,7 +1498,6 @@ plx_pci
 pm2fb
 pm3fb
 pm8001
-pmac_zilog
 pmc551
 pmcraid
 pmu_battery
@@ -1827,7 +1826,6 @@ sd_mod
 sdricoh_cs
 se401
 seed
-serial_core
 serial_cs
 serio_raw
 sermouse

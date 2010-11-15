@@ -262,6 +262,7 @@ aty128fb
 atyfb
 au0828
 au8522
+aufs
 authenc
 auth_rpcgss
 autofs
@@ -751,6 +752,7 @@ eth16i
 ethoc
 eurotechwdt
 evbug
+evtchn
 ewrk3
 exofs
 exportfs
@@ -1938,6 +1940,7 @@ pkgtemp
 pktgen
 pl2303
 platform_lcd
+platform-pci
 plat_nand
 plat-ram
 plip
@@ -2317,7 +2320,6 @@ scsi_tgt
 scsi_transport_fc
 scsi_transport_iscsi
 scsi_transport_sas
-scsi_transport_spi
 scsi_transport_srp
 scsi_wait_scan
 sctp
@@ -2729,7 +2731,6 @@ sworks-agp
 sx8
 sym53c416
 sym53c500_cs
-sym53c8xx
 symbolserial
 synaptics_i2c
 synclink
@@ -2971,13 +2972,8 @@ videobuf-dvb
 videobuf-vmalloc
 videocodec
 videodev
-virtio
 virtio_balloon
-virtio_blk
 virtio_console
-virtio_net
-virtio_pci
-virtio_ring
 virtio-rng
 virtual
 visor
@@ -3098,6 +3094,12 @@ x25_asy
 x38_edac
 xc5000
 xcbc
+xen-blkfront
+xen-fbfront
+xenfs
+xen-kbdfront
+xen-netfront
+xen-pcifront
 xfrm4_mode_beet
 xfrm4_mode_transport
 xfrm4_mode_tunnel

@@ -32,6 +32,7 @@ acecad
 acenic
 acerhdf
 acer-wmi
+acpi_memhotplug
 acpi_pad
 acpiphp
 acpiphp_ibm
@@ -230,6 +231,7 @@ aty128fb
 atyfb
 au0828
 au8522
+aufs
 authenc
 auth_rpcgss
 autofs
@@ -2157,7 +2159,6 @@ scsi_tgt
 scsi_transport_fc
 scsi_transport_iscsi
 scsi_transport_sas
-scsi_transport_spi
 scsi_transport_srp
 scsi_wait_scan
 sctp
@@ -2507,7 +2508,6 @@ svcrdma
 svgalib
 sx8
 sym53c500_cs
-sym53c8xx
 symbolserial
 synaptics_i2c
 synclink
@@ -2743,13 +2743,8 @@ videobuf-dvb
 videobuf-vmalloc
 videocodec
 videodev
-virtio
 virtio_balloon
-virtio_blk
 virtio_console
-virtio_net
-virtio_pci
-virtio_ring
 virtio-rng
 virtual
 visor
