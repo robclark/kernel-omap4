@@ -91,6 +91,10 @@ fs/xfs/*
 fs/ufs/*
 fs/smbfs/*
 fs/squashfs/*
+fs/nfs/*
+fs/nfs_common/*
+fs/fscache/*
+fs/lockd/*
 lib/*
 net/802/*
 net/8021q/*
@@ -124,6 +128,8 @@ net/wanrouter/*
 net/wireless/*
 net/x25/*
 net/xfrm/*
+net/sunrpc/auth_gss/auth_rpcgss.ko
+net/sunrpc/sunrpc.ko
 sound/soundcore.ko
 sound/core/*
 sound/pci/snd-ens1370.ko
