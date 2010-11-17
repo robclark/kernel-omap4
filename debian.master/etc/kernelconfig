@@ -2,6 +2,6 @@ if [ "$variant" = "ports" ]; then
 	archs=""
 	family='ports'
 else
-	archs="amd64 i386 armel powerpc"
+	archs="amd64 i386 armel powerpc ppc64"
 	family='ubuntu'
 fi
