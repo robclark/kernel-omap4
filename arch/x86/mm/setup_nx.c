@@ -42,7 +42,7 @@ void __init x86_report_nx(void)
 {
 	if (!cpu_has_nx) {
 #ifdef CONFIG_X86_32
-		if (disable_nx)
+		if (!disable_nx)
 			printk(KERN_INFO "NX (Execute Disable) protection: "
 			       "approximated by x86 segment limits\n");
 		else
