@@ -515,7 +515,6 @@ found:
 
 	return -EPERM;
 }
-EXPORT_SYMBOL_GPL(devcgroup_inode_permission);
 
 int devcgroup_inode_mknod(int mode, dev_t dev)
 {
