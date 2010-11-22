@@ -1842,12 +1842,12 @@ out:
  * needs parent already locked. Doesn't follow mounts.
  * SMP-safe.
  */
-struct dentry *lookup_hash(struct nameidata *nd)
+static struct dentry *lookup_hash(struct nameidata *nd)
 {
 	return __lookup_hash(&nd->last, nd->path.dentry, nd);
 }
 
-int __lookup_one_len(const char *name, struct qstr *this,
+static int __lookup_one_len(const char *name, struct qstr *this,
 		struct dentry *base, int len)
 {
 	unsigned long hash;
