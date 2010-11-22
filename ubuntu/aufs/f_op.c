@@ -85,6 +85,7 @@ int aufs_release_nondir(struct inode *inode __maybe_unused, struct file *file)
 		file_sb_list_del(file);
 		au_set_h_fptr(file, bindex, NULL);
 	}
+
 	au_finfo_fin(file);
 	return 0;
 }

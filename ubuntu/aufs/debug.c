@@ -21,6 +21,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/vt_kern.h>
 #include "aufs.h"
 
 int aufs_debug;
@@ -377,24 +378,10 @@ void au_dbg_verify_gen(struct dentry *parent, unsigned int sigen)
 
 void au_dbg_verify_kthread(void)
 {
-	struct task_struct *tsk = current;
-
-	if ((tsk->flags & PF_KTHREAD)
-	    && !strncmp(tsk->comm, AUFS_WKQ_NAME "/", sizeof(AUFS_WKQ_NAME))) {
+	if (current->flags & PF_WQ_WORKER) {
 		au_dbg_blocked();
-		BUG();
+		WARN_ON(1);
 	}
-}
-
-static void au_dbg_do_verify_wkq(void *args)
-{
-	BUG_ON(current_fsuid());
-	BUG_ON(rlimit(RLIMIT_FSIZE) != RLIM_INFINITY);
-}
-
-void au_dbg_verify_wkq(void)
-{
-	au_wkq_wait(au_dbg_do_verify_wkq, NULL);
 }
 
 /* ---------------------------------------------------------------------- */

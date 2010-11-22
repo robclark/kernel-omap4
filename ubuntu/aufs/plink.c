@@ -200,12 +200,40 @@ static int plink_name(char *name, int len, struct inode *inode,
 	return rlen;
 }
 
+struct au_do_plink_lkup_args {
+	struct dentry **errp;
+	struct qstr *tgtname;
+	struct dentry *h_parent;
+	struct au_branch *br;
+};
+
+static struct dentry *au_do_plink_lkup(struct qstr *tgtname,
+				       struct dentry *h_parent,
+				       struct au_branch *br)
+{
+	struct dentry *h_dentry;
+	struct mutex *h_mtx;
+
+	h_mtx = &h_parent->d_inode->i_mutex;
+	mutex_lock_nested(h_mtx, AuLsc_I_CHILD2);
+	h_dentry = au_lkup_one(tgtname, h_parent, br, /*nd*/NULL);
+	mutex_unlock(h_mtx);
+	return h_dentry;
+}
+
+static void au_call_do_plink_lkup(void *args)
+{
+	struct au_do_plink_lkup_args *a = args;
+	*a->errp = au_do_plink_lkup(a->tgtname, a->h_parent, a->br);
+}
+
 /* lookup the plink-ed @inode under the branch at @bindex */
 struct dentry *au_plink_lkup(struct inode *inode, aufs_bindex_t bindex)
 {
 	struct dentry *h_dentry, *h_parent;
 	struct au_branch *br;
 	struct inode *h_dir;
+	int wkq_err;
 	char a[PLINK_NAME_LEN];
 	struct qstr tgtname = {
 		.name	= a
@@ -218,10 +246,20 @@ struct dentry *au_plink_lkup(struct inode *inode, aufs_bindex_t bindex)
 	h_dir = h_parent->d_inode;
 	tgtname.len = plink_name(a, sizeof(a), inode, bindex);
 
-	/* always superio. */
-	mutex_lock_nested(&h_dir->i_mutex, AuLsc_I_CHILD2);
-	h_dentry = au_sio_lkup_one(&tgtname, h_parent, br);
-	mutex_unlock(&h_dir->i_mutex);
+	if (current_fsuid()) {
+		struct au_do_plink_lkup_args args = {
+			.errp		= &h_dentry,
+			.tgtname	= &tgtname,
+			.h_parent	= h_parent,
+			.br		= br
+		};
+
+		wkq_err = au_wkq_wait(au_call_do_plink_lkup, &args);
+		if (unlikely(wkq_err))
+			h_dentry = ERR_PTR(wkq_err);
+	} else
+		h_dentry = au_do_plink_lkup(&tgtname, h_parent, br);
+
 	return h_dentry;
 }
 
@@ -236,6 +274,7 @@ static int do_whplink(struct qstr *tgt, struct dentry *h_parent,
 	struct inode *h_dir;
 
 	h_dir = h_parent->d_inode;
+	mutex_lock_nested(&h_dir->i_mutex, AuLsc_I_CHILD2);
 again:
 	h_path.dentry = au_lkup_one(tgt, h_parent, br, /*nd*/NULL);
 	err = PTR_ERR(h_path.dentry);
@@ -244,6 +283,7 @@ again:
 
 	err = 0;
 	/* wh.plink dir is not monitored */
+	/* todo: is it really safe? */
 	if (h_path.dentry->d_inode
 	    && h_path.dentry->d_inode != h_dentry->d_inode) {
 		err = vfsub_unlink(h_dir, &h_path, /*force*/0);
@@ -257,6 +297,7 @@ again:
 	dput(h_path.dentry);
 
 out:
+	mutex_unlock(&h_dir->i_mutex);
 	return err;
 }
 
@@ -292,7 +333,6 @@ static int whplink(struct dentry *h_dentry, struct inode *inode,
 	tgtname.len = plink_name(a, sizeof(a), inode, bindex);
 
 	/* always superio. */
-	mutex_lock_nested(&h_dir->i_mutex, AuLsc_I_CHILD2);
 	if (current_fsuid()) {
 		struct do_whplink_args args = {
 			.errp		= &err,
@@ -306,7 +346,6 @@ static int whplink(struct dentry *h_dentry, struct inode *inode,
 			err = wkq_err;
 	} else
 		err = do_whplink(&tgtname, h_parent, h_dentry, br);
-	mutex_unlock(&h_dir->i_mutex);
 
 	return err;
 }

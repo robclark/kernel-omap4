@@ -974,8 +974,9 @@ int au_whtmp_rmdir(struct inode *dir, aufs_bindex_t bindex,
 
 	if (!err) {
 		if (au_ibstart(dir) == bindex) {
+			/* todo: dir->i_mutex is necessary */
 			au_cpup_attr_timesizes(dir);
-			drop_nlink(dir);
+			vfsub_drop_nlink(dir);
 		}
 		return 0; /* success */
 	}

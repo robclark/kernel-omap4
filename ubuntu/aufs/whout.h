@@ -45,8 +45,10 @@ int au_wh_init(struct dentry *h_parent, struct au_branch *br,
 /* diropq flags */
 #define AuDiropq_CREATE	1
 #define au_ftest_diropq(flags, name)	((flags) & AuDiropq_##name)
-#define au_fset_diropq(flags, name)	{ (flags) |= AuDiropq_##name; }
-#define au_fclr_diropq(flags, name)	{ (flags) &= ~AuDiropq_##name; }
+#define au_fset_diropq(flags, name) \
+	do { (flags) |= AuDiropq_##name; } while (0)
+#define au_fclr_diropq(flags, name) \
+	do { (flags) &= ~AuDiropq_##name; } while (0)
 
 struct dentry *au_diropq_sio(struct dentry *dentry, aufs_bindex_t bindex,
 			     unsigned int flags);

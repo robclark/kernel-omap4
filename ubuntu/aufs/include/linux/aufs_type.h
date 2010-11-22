@@ -20,14 +20,11 @@
 #define __AUFS_TYPE_H__
 
 #include <linux/ioctl.h>
-/* for those who didn't "make headers_install" */
-#ifdef __KERNEL__
 #include <linux/kernel.h>
-#endif
 #include <linux/limits.h>
 #include <linux/types.h>
 
-#define AUFS_VERSION	"2.1-standalone.tree-36-UNRELEASED-20101103"
+#define AUFS_VERSION	"2.1-standalone.tree-37-rcN-20101122"
 
 /* todo? move this to linux-2.6.19/include/magic.h */
 #define AUFS_SUPER_MAGIC	('a' << 24 | 'u' << 16 | 'f' << 8 | 's')

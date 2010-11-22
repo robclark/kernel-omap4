@@ -321,11 +321,11 @@ static int au_wbr_init(struct au_branch *br, struct super_block *sb,
 	 * a limit for rmdir/rename a dir
 	 * cf. AUFS_MAX_NAMELEN in include/linux/aufs_type.h
 	 */
-	h_dentry = path->dentry;
-	err = statfs_by_dentry(h_dentry, &kst);
+	err = vfs_statfs(path, &kst);
 	if (unlikely(err))
 		goto out;
 	err = -EINVAL;
+	h_dentry = path->dentry;
 	if (kst.f_namelen >= NAME_MAX)
 		err = au_br_init_wh(sb, br, perm, h_dentry);
 	else
@@ -354,6 +354,7 @@ static int au_br_init(struct au_branch *br, struct super_block *sb,
 	br->br_xino_upper = AUFS_XINO_TRUNC_INIT;
 	atomic_set(&br->br_xino_running, 0);
 	br->br_id = au_new_br_id(sb);
+	AuDebugOn(br->br_id < 0);
 
 	if (au_br_writable(add->perm)) {
 		err = au_wbr_init(br, sb, add->perm, &add->path);
@@ -584,15 +585,23 @@ static int test_inode_busy(struct super_block *sb, aufs_bindex_t bindex,
 			   unsigned int sigen, const unsigned int verbose)
 {
 	int err;
-	struct inode *i;
+	unsigned long long max, ull;
+	struct inode *i, **array;
 	aufs_bindex_t bstart, bend;
 
+	array = au_iarray_alloc(sb, &max);
+	err = PTR_ERR(array);
+	if (IS_ERR(array))
+		goto out;
+
 	err = 0;
-	list_for_each_entry(i, &sb->s_inodes, i_sb_list) {
-		AuDebugOn(!atomic_read(&i->i_count));
-		if (!list_empty(&i->i_dentry))
+	AuDbg("b%d\n", bindex);
+	for (ull = 0; !err && ull < max; ull++) {
+		i = array[ull];
+		if (i->i_ino == AUFS_ROOT_INO)
 			continue;
 
+		/* AuDbgInode(i); */
 		if (au_iigen(i) == sigen)
 			ii_read_lock_child(i);
 		else {
@@ -614,12 +623,13 @@ static int test_inode_busy(struct super_block *sb, aufs_bindex_t bindex,
 		    && (!S_ISDIR(i->i_mode) || bstart == bend)) {
 			err = -EBUSY;
 			AuVerbose(verbose, "busy i%lu\n", i->i_ino);
-			ii_read_unlock(i);
-			break;
+			AuDbgInode(i);
 		}
 		ii_read_unlock(i);
 	}
+	au_iarray_free(array, max);
 
+out:
 	return err;
 }
 
@@ -835,41 +845,78 @@ static int need_sigen_inc(int old, int new)
 		|| do_need_sigen_inc(new, old);
 }
 
+static unsigned long long au_farray_cb(void *a,
+				       unsigned long long max __maybe_unused,
+				       void *arg)
+{
+	unsigned long long n;
+	struct file **p, *f;
+	struct super_block *sb = arg;
+
+	n = 0;
+	p = a;
+	lg_global_lock(files_lglock);
+	do_file_list_for_each_entry(sb, f) {
+		if (au_fi(f)
+		    && !special_file(f->f_dentry->d_inode->i_mode)) {
+			get_file(f);
+			*p++ = f;
+			n++;
+			AuDebugOn(n > max);
+		}
+	} while_file_list_for_each_entry;
+	lg_global_unlock(files_lglock);
+
+	return n;
+}
+
+static struct file **au_farray_alloc(struct super_block *sb,
+				     unsigned long long *max)
+{
+	*max = atomic_long_read(&au_sbi(sb)->si_nfiles);
+	return au_array_alloc(max, au_farray_cb, sb);
+}
+
+static void au_farray_free(struct file **a, unsigned long long max)
+{
+	unsigned long long ull;
+
+	for (ull = 0; ull < max; ull++)
+		if (a[ull])
+			fput(a[ull]);
+	au_array_free(a);
+}
+
 static int au_br_mod_files_ro(struct super_block *sb, aufs_bindex_t bindex)
 {
-	int err;
-	unsigned long n, ul, bytes, files;
+	int err, do_warn;
+	unsigned long long ull, max;
 	aufs_bindex_t br_id;
-	struct file *file, *hf, **a;
+	struct file *file, *hf, **array;
 	struct dentry *dentry;
 	struct inode *inode;
 	struct au_hfile *hfile;
-	const int step_bytes = 1024, /* memory allocation unit */
-		step_files = step_bytes / sizeof(*a);
 
-	err = -ENOMEM;
-	n = 0;
-	bytes = step_bytes;
-	files = step_files;
-	a = kmalloc(bytes, GFP_NOFS);
-	if (unlikely(!a))
+	array = au_farray_alloc(sb, &max);
+	err = PTR_ERR(array);
+	if (IS_ERR(array))
 		goto out;
 
-	/* no need file_list_lock() since sbinfo is locked? defered? */
+	do_warn = 0;
 	br_id = au_sbr_id(sb, bindex);
-	do_file_list_for_each_entry(sb, file) {
-		if (special_file(file->f_dentry->d_inode->i_mode))
-			continue;
+	for (ull = 0; ull < max; ull++) {
+		file = array[ull];
 		dentry = file->f_dentry;
 		inode = dentry->d_inode;
 
-		AuDbg("%.*s\n", AuDLNPair(file->f_dentry));
+		/* AuDbg("%.*s\n", AuDLNPair(file->f_dentry)); */
 		fi_read_lock(file);
 		if (unlikely(au_test_mmapped(file))) {
 			err = -EBUSY;
+			AuDbgFile(file);
 			FiMustNoWaiters(file);
 			fi_read_unlock(file);
-			goto out_free;
+			goto out_array;
 		}
 
 		hfile = &au_fi(file)->fi_htop;
@@ -877,39 +924,33 @@ static int au_br_mod_files_ro(struct super_block *sb, aufs_bindex_t bindex)
 		if (!S_ISREG(inode->i_mode)
 		    || !(file->f_mode & FMODE_WRITE)
 		    || hfile->hf_br->br_id != br_id
-		    || !(hf->f_mode & FMODE_WRITE)) {
-			FiMustNoWaiters(file);
-			fi_read_unlock(file);
-			continue;
+		    || !(hf->f_mode & FMODE_WRITE))
+			array[ull] = NULL;
+		else {
+			do_warn = 1;
+			get_file(file);
 		}
 
 		FiMustNoWaiters(file);
 		fi_read_unlock(file);
-
-		if (n < files)
-			a[n++] = hf;
-		else {
-			void *p;
-
-			err = -ENOMEM;
-			bytes += step_bytes;
-			files += step_files;
-			p = krealloc(a, bytes, GFP_NOFS);
-			if (p) {
-				a = p;
-				a[n++] = hf;
-			} else
-				goto out_free;
-		}
-	} while_file_list_for_each_entry;
+		fput(file);
+	}
 
 	err = 0;
-	if (n)
+	if (do_warn)
 		au_warn_ima();
-	for (ul = 0; ul < n; ul++) {
+
+	for (ull = 0; ull < max; ull++) {
+		file = array[ull];
+		if (!file)
+			continue;
+
 		/* todo: already flushed? */
 		/* cf. fs/super.c:mark_files_ro() */
-		hf = a[ul];
+		/* fi_read_lock(file); */
+		hfile = &au_fi(file)->fi_htop;
+		hf = hfile->hf_file;
+		/* fi_read_unlock(file); */
 		hf->f_mode &= ~FMODE_WRITE;
 		if (!file_check_writeable(hf)) {
 			file_release_write(hf);
@@ -917,14 +958,15 @@ static int au_br_mod_files_ro(struct super_block *sb, aufs_bindex_t bindex)
 		}
 	}
 
-out_free:
-	kfree(a);
+out_array:
+	au_farray_free(array, max);
 out:
+	AuTraceErr(err);
 	return err;
 }
 
 int au_br_mod(struct super_block *sb, struct au_opt_mod *mod, int remount,
-	      int *do_update)
+	      int *do_refresh)
 {
 	int err, rerr;
 	aufs_bindex_t bindex;
@@ -999,10 +1041,11 @@ int au_br_mod(struct super_block *sb, struct au_opt_mod *mod, int remount,
 	}
 
 	if (!err) {
-		*do_update |= need_sigen_inc(br->br_perm, mod->perm);
+		*do_refresh |= need_sigen_inc(br->br_perm, mod->perm);
 		br->br_perm = mod->perm;
 	}
 
 out:
+	AuTraceErr(err);
 	return err;
 }

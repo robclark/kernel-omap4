@@ -126,6 +126,8 @@ void au_finfo_fin(struct file *file)
 {
 	struct au_finfo *finfo;
 
+	au_nfiles_dec(file->f_dentry->d_sb);
+
 	finfo = au_fi(file);
 	AuDebugOn(finfo->fi_hdir);
 	AuRwDestroy(&finfo->fi_rwsem);
@@ -158,6 +160,7 @@ int au_finfo_init(struct file *file, struct au_fidir *fidir)
 		goto out;
 
 	err = 0;
+	au_nfiles_inc(dentry->d_sb);
 	au_rw_write_lock(&finfo->fi_rwsem);
 	finfo->fi_btop = -1;
 	finfo->fi_hdir = fidir;

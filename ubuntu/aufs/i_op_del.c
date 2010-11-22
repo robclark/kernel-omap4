@@ -280,17 +280,17 @@ static void epilog(struct inode *dir, struct dentry *dentry,
 /*
  * when an error happened, remove the created whiteout and revert everything.
  */
-static int do_revert(int err, struct inode *dir, aufs_bindex_t bwh,
-		     struct dentry *wh_dentry, struct dentry *dentry,
-		     struct au_dtime *dt)
+static int do_revert(int err, struct inode *dir, aufs_bindex_t bindex,
+		     aufs_bindex_t bwh, struct dentry *wh_dentry,
+		     struct dentry *dentry, struct au_dtime *dt)
 {
 	int rerr;
 	struct path h_path = {
 		.dentry	= wh_dentry,
-		.mnt	= au_sbr_mnt(dir->i_sb, bwh)
+		.mnt	= au_sbr_mnt(dir->i_sb, bindex)
 	};
 
-	rerr = au_wh_unlink_dentry(au_h_iptr(dir, bwh), &h_path, dentry);
+	rerr = au_wh_unlink_dentry(au_h_iptr(dir, bindex), &h_path, dentry);
 	if (!rerr) {
 		au_set_dbwh(dentry, bwh);
 		au_dtime_revert(dt);
@@ -346,7 +346,7 @@ int aufs_unlink(struct inode *dir, struct dentry *dentry)
 	}
 
 	if (!err) {
-		drop_nlink(inode);
+		vfsub_drop_nlink(inode);
 		epilog(dir, dentry, bindex);
 
 		/* update target timestamps */
@@ -363,7 +363,7 @@ int aufs_unlink(struct inode *dir, struct dentry *dentry)
 	if (wh_dentry) {
 		int rerr;
 
-		rerr = do_revert(err, dir, bwh, wh_dentry, dentry, &dt);
+		rerr = do_revert(err, dir, bindex, bwh, wh_dentry, dentry, &dt);
 		if (rerr)
 			err = rerr;
 	}
@@ -451,7 +451,7 @@ int aufs_rmdir(struct inode *dir, struct dentry *dentry)
 	if (wh_dentry) {
 		int rerr;
 
-		rerr = do_revert(err, dir, bwh, wh_dentry, dentry, &dt);
+		rerr = do_revert(err, dir, bindex, bwh, wh_dentry, dentry, &dt);
 		if (rerr)
 			err = rerr;
 	}

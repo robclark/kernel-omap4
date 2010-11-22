@@ -84,8 +84,8 @@ struct file *vfsub_dentry_open(struct path *path, int flags)
 
 	path_get(path);
 	file = dentry_open(path->dentry, path->mnt,
-			flags | vfsub_fmode_to_uint(FMODE_NONOTIFY),
-			current_cred());
+			   flags /* | vfsub_fmode_to_uint(FMODE_NONOTIFY) */,
+			   current_cred());
 	if (IS_ERR(file))
 		goto out;
 
@@ -102,8 +102,9 @@ struct file *vfsub_filp_open(const char *path, int oflags, int mode)
 {
 	struct file *file;
 
-	file = filp_open(path, oflags | vfsub_fmode_to_uint(FMODE_NONOTIFY),
-			mode);
+	file = filp_open(path,
+			 oflags /* | vfsub_fmode_to_uint(FMODE_NONOTIFY) */,
+			 mode);
 	if (IS_ERR(file))
 		goto out;
 	vfsub_update_h_iattr(&file->f_path, /*did*/NULL); /*ignore*/
@@ -743,7 +744,7 @@ static void call_unlink(void *args)
 		dget(d);
 	h_inode = d->d_inode;
 	if (h_inode)
-		atomic_inc(&h_inode->i_count);
+		ihold(h_inode);
 
 	*a->errp = vfs_unlink(a->dir, d);
 	if (!*a->errp) {

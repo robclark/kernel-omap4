@@ -82,8 +82,10 @@ static void au_call_lkup_one(void *args)
 
 #define AuLkup_ALLOW_NEG	1
 #define au_ftest_lkup(flags, name)	((flags) & AuLkup_##name)
-#define au_fset_lkup(flags, name)	{ (flags) |= AuLkup_##name; }
-#define au_fclr_lkup(flags, name)	{ (flags) &= ~AuLkup_##name; }
+#define au_fset_lkup(flags, name) \
+	do { (flags) |= AuLkup_##name; } while (0)
+#define au_fclr_lkup(flags, name) \
+	do { (flags) &= ~AuLkup_##name; } while (0)
 
 struct au_do_lookup_args {
 	unsigned int		flags;
@@ -629,8 +631,9 @@ static int h_d_revalidate(struct dentry *dentry, struct inode *inode,
 	name = &dentry->d_name;
 
 	/*
-	 * Theoretically, REVAL test should be unnecessary in case of INOTIFY.
-	 * But inotify doesn't fire some necessary events,
+	 * Theoretically, REVAL test should be unnecessary in case of
+	 * {FS,I}NOTIFY.
+	 * But {fs,i}notify doesn't fire some necessary events,
 	 *	IN_ATTRIB for atime/nlink/pageio
 	 *	IN_DELETE for NFS dentry
 	 * Let's do REVAL test too.

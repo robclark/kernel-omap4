@@ -373,7 +373,7 @@ void au_update_dbend(struct dentry *dentry)
 	struct dentry *h_dentry;
 
 	bstart = au_dbstart(dentry);
-	for (bindex = au_dbend(dentry); bindex <= bstart; bindex--) {
+	for (bindex = au_dbend(dentry); bindex >= bstart; bindex--) {
 		h_dentry = au_h_dptr(dentry, bindex);
 		if (!h_dentry)
 			continue;

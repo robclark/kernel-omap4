@@ -27,13 +27,14 @@
 
 #include <linux/fs.h>
 #include <linux/lglock.h>
+#include "debug.h"
 
-/* ---------------------------------------------------------------------- */
+/* copied from linux/fs/internal.h */
 DECLARE_BRLOCK(vfsmount_lock);
-DECLARE_LGLOCK(files_lglock);
 extern void file_sb_list_del(struct file *f);
 
-/* copied from fs/file_table.c */
+/* copied from linux/fs/file_table.c */
+DECLARE_LGLOCK(files_lglock);
 #ifdef CONFIG_SMP
 /*
  * These macros iterate all files on all CPUs for a given superblock.
@@ -61,7 +62,9 @@ extern void file_sb_list_del(struct file *f);
 
 #define while_file_list_for_each_entry				\
 }
-#endif /* CONFIG_SMP */
+#endif
+
+/* ---------------------------------------------------------------------- */
 
 /* lock subclass for lower inode */
 /* default MAX_LOCKDEP_SUBCLASSES(8) is not enough */
@@ -79,6 +82,14 @@ enum {
 /* to debug easier, do not make them inlined functions */
 #define MtxMustLock(mtx)	AuDebugOn(!mutex_is_locked(mtx))
 #define IMustLock(i)		MtxMustLock(&(i)->i_mutex)
+
+/* ---------------------------------------------------------------------- */
+
+static inline void vfsub_drop_nlink(struct inode *inode)
+{
+	AuDebugOn(!inode->i_nlink);
+	drop_nlink(inode);
+}
 
 /* ---------------------------------------------------------------------- */
 

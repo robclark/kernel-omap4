@@ -35,8 +35,10 @@ enum { AuPARENT, AuCHILD, AuParentChild };
 #define AuRen_DIROPQ	(1 << 6)
 #define AuRen_CPUP	(1 << 7)
 #define au_ftest_ren(flags, name)	((flags) & AuRen_##name)
-#define au_fset_ren(flags, name)	{ (flags) |= AuRen_##name; }
-#define au_fclr_ren(flags, name)	{ (flags) &= ~AuRen_##name; }
+#define au_fset_ren(flags, name) \
+	do { (flags) |= AuRen_##name; } while (0)
+#define au_fclr_ren(flags, name) \
+	do { (flags) &= ~AuRen_##name; } while (0)
 
 struct au_ren_args {
 	struct {

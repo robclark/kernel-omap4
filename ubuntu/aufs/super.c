@@ -25,6 +25,8 @@
 #include <linux/module.h>
 #include <linux/seq_file.h>
 #include <linux/statfs.h>
+#include <linux/vmalloc.h>
+#include <linux/writeback.h>
 #include "aufs.h"
 
 /*
@@ -298,7 +300,7 @@ static int au_statfs_sum(struct super_block *sb, struct kstatfs *buf)
 	u64 blocks, bfree, bavail, files, ffree;
 	aufs_bindex_t bend, bindex, i;
 	unsigned char shared;
-	struct vfsmount *h_mnt;
+	struct path h_path;
 	struct super_block *h_sb;
 
 	blocks = 0;
@@ -310,8 +312,8 @@ static int au_statfs_sum(struct super_block *sb, struct kstatfs *buf)
 	err = 0;
 	bend = au_sbend(sb);
 	for (bindex = bend; bindex >= 0; bindex--) {
-		h_mnt = au_sbr_mnt(sb, bindex);
-		h_sb = h_mnt->mnt_sb;
+		h_path.mnt = au_sbr_mnt(sb, bindex);
+		h_sb = h_path.mnt->mnt_sb;
 		shared = 0;
 		for (i = bindex + 1; !shared && i <= bend; i++)
 			shared = (au_sbr_sb(sb, i) == h_sb);
@@ -319,7 +321,8 @@ static int au_statfs_sum(struct super_block *sb, struct kstatfs *buf)
 			continue;
 
 		/* sb->s_root for NFS is unreliable */
-		err = statfs_by_dentry(h_mnt->mnt_root, buf);
+		h_path.dentry = h_path.mnt->mnt_root;
+		err = vfs_statfs(&h_path, buf);
 		if (unlikely(err))
 			goto out;
 
@@ -343,15 +346,18 @@ out:
 static int aufs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	int err;
+	struct path h_path;
 	struct super_block *sb;
 
 	/* lock free root dinfo */
 	sb = dentry->d_sb;
 	si_noflush_read_lock(sb);
-	if (!au_opt_test(au_mntflags(sb), SUM))
+	if (!au_opt_test(au_mntflags(sb), SUM)) {
 		/* sb->s_root for NFS is unreliable */
-		err = statfs_by_dentry(au_sbr_mnt(sb, 0)->mnt_root, buf);
-	else
+		h_path.mnt = au_sbr_mnt(sb, 0);
+		h_path.dentry = h_path.mnt->mnt_root;
+		err = vfs_statfs(&h_path, buf);
+	} else
 		err = au_statfs_sum(sb, buf);
 	si_read_unlock(sb);
 
@@ -378,6 +384,91 @@ static void aufs_put_super(struct super_block *sb)
 
 	dbgaufs_si_fin(sbinfo);
 	kobject_put(&sbinfo->si_kobj);
+}
+
+/* ---------------------------------------------------------------------- */
+
+void au_array_free(void *array)
+{
+	if (array) {
+		if (!is_vmalloc_addr(array))
+			kfree(array);
+		else
+			vfree(array);
+	}
+}
+
+void *au_array_alloc(unsigned long long *hint, au_arraycb_t cb, void *arg)
+{
+	void *array;
+	unsigned long long n;
+
+	array = NULL;
+	n = 0;
+	if (!*hint)
+		goto out;
+
+	if (*hint > ULLONG_MAX / sizeof(array)) {
+		array = ERR_PTR(-EMFILE);
+		pr_err("hint %llu\n", *hint);
+		goto out;
+	}
+
+	array = kmalloc(sizeof(array) * *hint, GFP_NOFS);
+	if (unlikely(!array))
+		array = vmalloc(sizeof(array) * *hint);
+	if (unlikely(!array)) {
+		array = ERR_PTR(-ENOMEM);
+		goto out;
+	}
+
+	n = cb(array, *hint, arg);
+	AuDebugOn(n > *hint);
+
+out:
+	*hint = n;
+	return array;
+}
+
+static unsigned long long au_iarray_cb(void *a,
+				       unsigned long long max __maybe_unused,
+				       void *arg)
+{
+	unsigned long long n;
+	struct inode **p, *inode;
+	struct list_head *head;
+
+	n = 0;
+	p = a;
+	head = arg;
+	spin_lock(&inode_lock);
+	list_for_each_entry(inode, head, i_sb_list) {
+		if (!is_bad_inode(inode)
+		    && au_ii(inode)->ii_bstart >= 0) {
+			au_igrab(inode);
+			*p++ = inode;
+			n++;
+			AuDebugOn(n > max);
+		}
+	}
+	spin_unlock(&inode_lock);
+
+	return n;
+}
+
+struct inode **au_iarray_alloc(struct super_block *sb, unsigned long long *max)
+{
+	*max = atomic_long_read(&au_sbi(sb)->si_ninodes);
+	return au_array_alloc(max, au_iarray_cb, &sb->s_inodes);
+}
+
+void au_iarray_free(struct inode **a, unsigned long long max)
+{
+	unsigned long long ull;
+
+	for (ull = 0; ull < max; ull++)
+		iput(a[ull]);
+	au_array_free(a);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -806,24 +897,27 @@ out:
 
 /* ---------------------------------------------------------------------- */
 
-static int aufs_get_sb(struct file_system_type *fs_type, int flags,
-		       const char *dev_name __maybe_unused, void *raw_data,
-		       struct vfsmount *mnt)
+static struct dentry *aufs_mount(struct file_system_type *fs_type, int flags,
+				 const char *dev_name __maybe_unused,
+				 void *raw_data)
 {
-	int err;
+	struct dentry *root;
 	struct super_block *sb;
 
 	/* all timestamps always follow the ones on the branch */
 	/* mnt->mnt_flags |= MNT_NOATIME | MNT_NODIRATIME; */
-	err = get_sb_nodev(fs_type, flags, raw_data, aufs_fill_super, mnt);
-	if (!err) {
-		sb = mnt->mnt_sb;
-		si_write_lock(sb, !AuLock_FLUSH);
-		sysaufs_brs_add(sb, 0);
-		si_write_unlock(sb);
-		au_sbilist_add(sb);
-	}
-	return err;
+	root = mount_nodev(fs_type, flags, raw_data, aufs_fill_super);
+	if (IS_ERR(root))
+		goto out;
+
+	sb = root->d_sb;
+	si_write_lock(sb, !AuLock_FLUSH);
+	sysaufs_brs_add(sb, 0);
+	si_write_unlock(sb);
+	au_sbilist_add(sb);
+
+out:
+	return root;
 }
 
 static void aufs_kill_sb(struct super_block *sb)
@@ -856,7 +950,7 @@ struct file_system_type aufs_fs_type = {
 	.fs_flags	=
 		FS_RENAME_DOES_D_MOVE	/* a race between rename and others */
 		| FS_REVAL_DOT,		/* for NFS branch and udba */
-	.get_sb		= aufs_get_sb,
+	.mount		= aufs_mount,
 	.kill_sb	= aufs_kill_sb,
 	/* no need to __module_get() and module_put(). */
 	.owner		= THIS_MODULE,

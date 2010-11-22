@@ -26,25 +26,32 @@
 static const __u32 AuHfsnMask = (FS_MOVED_TO | FS_MOVED_FROM | FS_DELETE
 				 | FS_CREATE | FS_EVENT_ON_CHILD);
 static struct fsnotify_group *au_hfsn_group;
+static DECLARE_WAIT_QUEUE_HEAD(au_hfsn_wq);
 
 static void au_hfsn_free_mark(struct fsnotify_mark *mark)
 {
-#if 0
 	struct au_hnotify *hn = container_of(mark, struct au_hnotify,
 					     hn_mark);
-	au_cache_free_hnotify(hn);
-#endif
 	AuDbg("here\n");
+	hn->hn_mark_dead = 1;
+	smp_mb();
+	wake_up_all(&au_hfsn_wq);
 }
 
 static int au_hfsn_alloc(struct au_hnotify *hn, struct inode *h_inode)
 {
 	struct fsnotify_mark *mark;
 
+	hn->hn_mark_dead = 0;
 	mark = &hn->hn_mark;
 	fsnotify_init_mark(mark, au_hfsn_free_mark);
 	mark->mask = AuHfsnMask;
-	return fsnotify_add_mark(mark, au_hfsn_group, h_inode, NULL, 1);
+	/*
+	 * by udba rename or rmdir, aufs assign a new inode to the known
+	 * h_inode, so specify 1 to allow dups.
+	 */
+	return fsnotify_add_mark(mark, au_hfsn_group, h_inode, /*mnt*/NULL,
+				 /*allow_dups*/1);
 }
 
 static void au_hfsn_free(struct au_hnotify *hn)
@@ -54,6 +61,9 @@ static void au_hfsn_free(struct au_hnotify *hn)
 	mark = &hn->hn_mark;
 	fsnotify_destroy_mark(mark);
 	fsnotify_put_mark(mark);
+
+	/* TODO: bad approach */
+	wait_event(au_hfsn_wq, hn->hn_mark_dead);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -152,28 +162,21 @@ static int au_hfsn_handle_event(struct fsnotify_group *group,
 	AuDebugOn(!inode_mark);
 	hnotify = container_of(inode_mark, struct au_hnotify, hn_mark);
 	err = au_hnotify(h_dir, hnotify, mask, &h_child_qstr, h_inode);
-	fsnotify_put_mark(inode_mark);
 
 out:
 	return err;
 }
 
-/* copied from linux/fs/notify/inotify/inotify_fsnotify.c */
+/* copied from linux/fs/notify/inotify/inotify_fsnotiry.c */
 /* it should be exported to modules */
-static bool au_hfsn_should_send_event(struct fsnotify_group *group, struct inode *inode,
+static bool au_hfsn_should_send_event(struct fsnotify_group *group,
+				      struct inode *h_inode,
 				      struct fsnotify_mark *inode_mark,
 				      struct fsnotify_mark *vfsmount_mark,
 				      __u32 mask, void *data, int data_type)
 {
-	bool send;
-
 	mask = (mask & ~FS_EVENT_ON_CHILD);
-	send = (inode_mark->mask & mask);
-
-	/* find took a reference */
-	fsnotify_put_mark(inode_mark);
-
-	return send;
+	return inode_mark->mask & mask;
 }
 
 static struct fsnotify_ops au_hfsn_ops = {

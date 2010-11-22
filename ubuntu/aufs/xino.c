@@ -168,7 +168,8 @@ struct file *au_xino_create2(struct file *base_file, struct file *copy_src)
 
 	path.mnt = base_file->f_vfsmnt;
 	file = vfsub_dentry_open(&path,
-				 O_RDWR | O_CREAT | O_EXCL | O_LARGEFILE);
+				 O_RDWR | O_CREAT | O_EXCL | O_LARGEFILE
+				 /* | FMODE_NONOTIFY */);
 	if (IS_ERR(file)) {
 		pr_err("%.*s open err %ld\n", AuLNPair(name), PTR_ERR(file));
 		goto out_dput;
@@ -612,7 +613,7 @@ ino_t au_xino_new_ino(struct super_block *sb)
 
 out:
 	set_bit(free_bit, p);
-	sbinfo->si_xib_next_bit++;
+	sbinfo->si_xib_next_bit = free_bit + 1;
 	pindex = sbinfo->si_xib_last_pindex;
 	mutex_unlock(&sbinfo->si_xib_mtx);
 	ino = xib_calc_ino(pindex, free_bit);
@@ -684,7 +685,8 @@ struct file *au_xino_create(struct super_block *sb, char *fname, int silent)
 	 * hnotify is disabled so we have no notify events to ignore.
 	 * when a user specified the xino, we cannot get au_hdir to be ignored.
 	 */
-	file = vfsub_filp_open(fname, O_RDWR | O_CREAT | O_EXCL | O_LARGEFILE,
+	file = vfsub_filp_open(fname, O_RDWR | O_CREAT | O_EXCL | O_LARGEFILE
+			       /* | FMODE_NONOTIFY */,
 			       S_IRUGO | S_IWUGO);
 	if (IS_ERR(file)) {
 		if (!silent)

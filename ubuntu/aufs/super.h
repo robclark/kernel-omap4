@@ -74,6 +74,11 @@ struct au_sbinfo {
 		struct radix_tree_root	tree;
 	} au_si_pid;
 
+	/*
+	 * dirty approach to protect sb->sb_inodes and ->s_files from remount.
+	 */
+	atomic_long_t		si_ninodes, si_nfiles;
+
 	/* branch management */
 	unsigned int		si_generation;
 
@@ -81,7 +86,10 @@ struct au_sbinfo {
 	unsigned char		au_si_status;
 
 	aufs_bindex_t		si_bend;
-	aufs_bindex_t		si_last_br_id;
+
+	/* dirty trick to keep br_id plus */
+	unsigned int		si_last_br_id :
+				sizeof(aufs_bindex_t) * BITS_PER_BYTE - 1;
 	struct au_branch	**si_branch;
 
 	/* policy to select a writable branch */
@@ -205,14 +213,22 @@ static inline unsigned char au_do_ftest_si(struct au_sbinfo *sbi,
 #define AuLock_NOPLM		(1 << 5)	/* return err in plm mode */
 #define AuLock_NOPLMW		(1 << 6)	/* wait for plm mode ends */
 #define au_ftest_lock(flags, name)	((flags) & AuLock_##name)
-#define au_fset_lock(flags, name)	{ (flags) |= AuLock_##name; }
-#define au_fclr_lock(flags, name)	{ (flags) &= ~AuLock_##name; }
+#define au_fset_lock(flags, name) \
+	do { (flags) |= AuLock_##name; } while (0)
+#define au_fclr_lock(flags, name) \
+	do { (flags) &= ~AuLock_##name; } while (0)
 
 /* ---------------------------------------------------------------------- */
 
 /* super.c */
 extern struct file_system_type aufs_fs_type;
 struct inode *au_iget_locked(struct super_block *sb, ino_t ino);
+typedef unsigned long long (*au_arraycb_t)(void *array, unsigned long long max,
+					   void *arg);
+void au_array_free(void *array);
+void *au_array_alloc(unsigned long long *hint, au_arraycb_t cb, void *arg);
+struct inode **au_iarray_alloc(struct super_block *sb, unsigned long long *max);
+void au_iarray_free(struct inode **a, unsigned long long max);
 
 /* sbinfo.c */
 void au_si_free(struct kobject *kobj);
@@ -463,6 +479,28 @@ static inline unsigned int au_sigen(struct super_block *sb)
 {
 	SiMustAnyLock(sb);
 	return au_sbi(sb)->si_generation;
+}
+
+static inline void au_ninodes_inc(struct super_block *sb)
+{
+	atomic_long_inc(&au_sbi(sb)->si_ninodes);
+}
+
+static inline void au_ninodes_dec(struct super_block *sb)
+{
+	AuDebugOn(!atomic_long_read(&au_sbi(sb)->si_ninodes));
+	atomic_long_dec(&au_sbi(sb)->si_ninodes);
+}
+
+static inline void au_nfiles_inc(struct super_block *sb)
+{
+	atomic_long_inc(&au_sbi(sb)->si_nfiles);
+}
+
+static inline void au_nfiles_dec(struct super_block *sb)
+{
+	AuDebugOn(!atomic_long_read(&au_sbi(sb)->si_nfiles));
+	atomic_long_dec(&au_sbi(sb)->si_nfiles);
 }
 
 static inline struct au_branch *au_sbr(struct super_block *sb,

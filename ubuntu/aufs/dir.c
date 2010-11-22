@@ -203,10 +203,12 @@ static int aufs_release_dir(struct inode *inode __maybe_unused,
 			    struct file *file)
 {
 	struct au_vdir *vdir_cache;
+	struct super_block *sb;
 	struct au_finfo *finfo;
 	struct au_fidir *fidir;
 	aufs_bindex_t bindex, bend;
 
+	sb = file->f_dentry->d_sb;
 	finfo = au_fi(file);
 	fidir = finfo->fi_hdir;
 	if (fidir) {
@@ -426,8 +428,10 @@ out:
 #define AuTestEmpty_CALLED	(1 << 1)
 #define AuTestEmpty_SHWH	(1 << 2)
 #define au_ftest_testempty(flags, name)	((flags) & AuTestEmpty_##name)
-#define au_fset_testempty(flags, name)	{ (flags) |= AuTestEmpty_##name; }
-#define au_fclr_testempty(flags, name)	{ (flags) &= ~AuTestEmpty_##name; }
+#define au_fset_testempty(flags, name) \
+	do { (flags) |= AuTestEmpty_##name; } while (0)
+#define au_fclr_testempty(flags, name) \
+	do { (flags) &= ~AuTestEmpty_##name; } while (0)
 
 #ifndef CONFIG_AUFS_SHWH
 #undef AuTestEmpty_SHWH
@@ -625,6 +629,7 @@ int au_test_empty(struct dentry *dentry, struct au_nhash *whlist)
 
 const struct file_operations aufs_dir_fop = {
 	.owner		= THIS_MODULE,
+	.llseek		= default_llseek,
 	.read		= generic_read_dir,
 	.readdir	= aufs_readdir,
 	.unlocked_ioctl	= aufs_ioctl_dir,
