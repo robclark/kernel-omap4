@@ -2725,7 +2725,6 @@ vhci-hcd
 vhost_net
 via
 via686a
-via-agp
 via-camera
 via-cputemp
 viafb
