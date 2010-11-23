@@ -16,5 +16,4 @@ pcmcia-storage-modules
 mouse-modules
 irda-modules
 floppy-modules
-char-modules
 virtio-modules

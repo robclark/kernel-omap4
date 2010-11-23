@@ -2,4 +2,3 @@ irda-modules
 floppy-modules
 fb-modules
 virtio-modules
-char-modules

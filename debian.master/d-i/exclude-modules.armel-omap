@@ -5,7 +5,6 @@ pcmcia-storage-modules
 fb-modules
 nic-pcmcia-modules
 pcmcia-modules
-char-modules
 pata-modules
 message-modules
 virtio-modules

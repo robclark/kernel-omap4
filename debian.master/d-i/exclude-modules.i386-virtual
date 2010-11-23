@@ -8,5 +8,4 @@ input-modules
 nic-pcmcia-modules
 pcmcia-modules
 nic-usb-modules
-char-modules
 nfs-modules

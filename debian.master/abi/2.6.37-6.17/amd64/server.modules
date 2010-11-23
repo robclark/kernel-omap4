@@ -1044,8 +1044,6 @@ inftl
 initio
 input-polldev
 int51x1
-intel-agp
-intel-gtt
 intel_ips
 intel_menlow
 intel_mid_dma

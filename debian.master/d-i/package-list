@@ -1,10 +1,5 @@
 Package: kernel-image
 
-Package: char-modules
-Depends: kernel-image
-Priority: standard
-Description: Character module support
-
 Package: fat-modules
 Depends: kernel-image
 Priority: standard
