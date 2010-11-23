@@ -26,6 +26,12 @@ struct alps_data {
 	struct timer_list timer;
 };
 
+struct alps_model_quirk {
+unsigned char signature[3];
+int (*alps_model_quirk_hw_init)(void *data);
+void (*alps_model_quirk_init)(void *data);
+};
+
 #ifdef CONFIG_MOUSE_PS2_ALPS
 int alps_detect(struct psmouse *psmouse, bool set_properties);
 int alps_init(struct psmouse *psmouse);
