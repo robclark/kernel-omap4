@@ -326,7 +326,6 @@ cpia_pp
 cpia_usb
 cpqarray
 cpufreq_stats
-cpu-notifier-error-inject
 c-qcam
 cramfs
 crc32c
@@ -628,7 +627,6 @@ gluebi
 g_mass_storage
 g_midi
 g_nokia
-goku_udc
 gpio-addr-flash
 gpio-fan
 gpio_keys
@@ -762,6 +760,7 @@ hostap_plx
 hp100
 hp4x
 hpfs
+hpilo
 hpsa
 hptiop
 hso
@@ -1005,6 +1004,7 @@ ksdazzle-sir
 ksz884x
 ktti
 kvaser_pci
+kvm
 kyrofb
 l2cap
 l2tp_core
@@ -1261,6 +1261,7 @@ ncpfs
 ne2k-pci
 neofb
 net1080
+net2280
 netconsole
 netrom
 netxen_nic
@@ -1467,7 +1468,6 @@ pcmciamtd
 pcmcia_rsrc
 pcnet32
 pcnet_cs
-pcrypt
 pcspkr
 pcwd_pci
 pcwd_usb
@@ -1518,6 +1518,7 @@ ppp_synctty
 pps_core
 pps-ldisc
 pptp
+prism2_usb
 prism54
 ps2mult
 psmouse
@@ -1671,6 +1672,7 @@ rfc1201
 rfcomm
 rfd_ftl
 rio500
+riscom8
 rivafb
 rj54n1cb0c
 rmd128
@@ -2249,6 +2251,7 @@ touchwin
 tpm
 tpm_atmel
 tpm_nsc
+tps65010
 tps65023-regulator
 tps6507x
 tps6507x-regulator
