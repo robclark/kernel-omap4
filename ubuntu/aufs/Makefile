@@ -1,5 +1,3 @@
-EXTRA_CFLAGS += -I$(src)/include
-
 include ${src}/magic.mk
 ifeq (${CONFIG_AUFS_FS},m)
 include ${src}/conf.mk
