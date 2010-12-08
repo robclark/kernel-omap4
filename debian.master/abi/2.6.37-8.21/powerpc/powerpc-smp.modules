@@ -329,7 +329,6 @@ cpufreq_stats
 cpu-notifier-error-inject
 c-qcam
 cramfs
-crc32c
 crc7
 crc-ccitt
 crc-itu-t

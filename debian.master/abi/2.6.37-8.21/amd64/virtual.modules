@@ -69,7 +69,6 @@ cls_u32
 configfs
 cpuid
 cpu-notifier-error-inject
-crc32c
 crc32c-intel
 crc7
 crc-ccitt
