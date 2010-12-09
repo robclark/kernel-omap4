@@ -749,8 +749,10 @@ struct wrap_device *get_wrap_device(void *dev, int bus)
 	return wd;
 }
 
+static DEFINE_MUTEX(ndiswrapper_ioctl_mutex);
+
 /* called with loader_mutex is down */
-static int wrapper_ioctl(struct inode *inode, struct file *file,
+static long wrapper_ioctl(struct file *file,
 			 unsigned int cmd, unsigned long arg)
 {
 	struct load_driver *load_driver;
@@ -758,6 +760,8 @@ static int wrapper_ioctl(struct inode *inode, struct file *file,
 	struct load_driver_file load_bin_file;
 	int ret;
 	void __user *addr = (void __user *)arg;
+
+	mutex_lock(&ndiswrapper_ioctl_mutex);
 
 	ENTER1("cmd: %u", cmd);
 
@@ -820,6 +824,9 @@ static int wrapper_ioctl(struct inode *inode, struct file *file,
 		break;
 	}
 	complete(&loader_complete);
+
+	mutex_unlock(&ndiswrapper_ioctl_mutex);
+
 	EXIT1(return ret);
 }
 
@@ -831,7 +838,7 @@ static int wrapper_ioctl_release(struct inode *inode, struct file *file)
 
 static struct file_operations wrapper_fops = {
 	.owner          = THIS_MODULE,
-	.ioctl		= wrapper_ioctl,
+	.unlocked_ioctl	= wrapper_ioctl,
 	.release	= wrapper_ioctl_release,
 };
 
