@@ -44,7 +44,7 @@ void conn_info_show(struct seq_file *seq, struct iscsi_session *session)
 		switch (sk->sk_family) {
 		case AF_INET:
 			snprintf(buf, sizeof(buf),
-				 "%u.%u.%u.%u", NIPQUAD(inet_sk(sk)->inet_daddr));
+				 "%pI4", &inet_sk(sk)->inet_daddr);
 			break;
 		case AF_INET6:
 			snprintf(buf, sizeof(buf), "[%pI6]",
