@@ -11,7 +11,7 @@
 #define	MAX_NR_TARGETS	(1UL << 30)
 
 static LIST_HEAD(target_list);
-static DECLARE_MUTEX(target_list_sem);
+static DEFINE_SEMAPHORE(target_list_sem);
 static u32 next_target_id;
 static u32 nr_targets;
 
@@ -157,7 +157,7 @@ static int iscsi_target_create(struct target_info *info, u32 tid)
 
 	strncpy(target->name, name, sizeof(target->name) - 1);
 
-	init_MUTEX(&target->target_sem);
+	sema_init(&target->target_sem, 1);
 	spin_lock_init(&target->session_list_lock);
 
 	INIT_LIST_HEAD(&target->session_list);

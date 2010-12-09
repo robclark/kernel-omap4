@@ -9,7 +9,7 @@
 #include "iscsi.h"
 #include "iscsi_dbg.h"
 
-static DECLARE_MUTEX(ioctl_sem);
+static DEFINE_SEMAPHORE(ioctl_sem);
 
 struct proc_entries {
 	const char *name;
