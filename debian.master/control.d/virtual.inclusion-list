@@ -92,6 +92,7 @@ fs/ufs/*
 fs/smbfs/*
 fs/squashfs/*
 fs/nfs/*
+fs/nfsd/*
 fs/nfs_common/*
 fs/fscache/*
 fs/lockd/*
