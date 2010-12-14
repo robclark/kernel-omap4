@@ -30,6 +30,7 @@
 #include <linux/dma-mapping.h>		/* dma_alloc_coherent */
 #include <linux/pagemap.h>		/* page_cache_release() */
 #include <linux/slab.h>
+#include <linux/sched.h>
 
 #include <mach/dmm.h>
 #include "tmm.h"
