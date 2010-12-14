@@ -2328,6 +2328,7 @@ u32 ipu_pm_get_state(int proc_id)
 
 	return handle->rcb_table->state_flag;
 }
+EXPORT_SYMBOL(ipu_pm_get_state);
 
 /*
   Function to get ipu pm object
