@@ -170,7 +170,7 @@ module_param(global_cursor_default, int, S_IRUGO | S_IWUSR);
 static int cur_default = CUR_DEFAULT;
 module_param(cur_default, int, S_IRUGO | S_IWUSR);
 
-int vt_handoff = -1;
+int vt_handoff = 0;
 module_param_named(handoff, vt_handoff, int, S_IRUGO | S_IWUSR);
 
 /*
@@ -2941,8 +2941,8 @@ static int __init con_init(void)
 		mod_timer(&console_timer, jiffies + (blankinterval * HZ));
 	}
 
-	if (vt_handoff >= 0) {
-		currcons = vt_handoff;
+	if (vt_handoff > 0 && vt_handoff <= MAX_NR_CONSOLES) {
+		currcons = vt_handoff - 1;
 		vc_cons[currcons].d = vc = kzalloc(sizeof(struct vc_data), GFP_NOWAIT);
 		INIT_WORK(&vc_cons[currcons].SAK_work, vc_SAK);
 		visual_init(vc, currcons, 1);
@@ -2950,7 +2950,7 @@ static int __init con_init(void)
 		vc_init(vc, vc->vc_rows, vc->vc_cols, 0, KD_TRANSPARENT);
 	}
 	for (currcons = 0; currcons < MIN_NR_CONSOLES; currcons++) {
-		if (currcons == vt_handoff)
+		if (currcons == vt_handoff - 1)
 			continue;
 		vc_cons[currcons].d = vc = kzalloc(sizeof(struct vc_data), GFP_NOWAIT);
 		INIT_WORK(&vc_cons[currcons].SAK_work, vc_SAK);
@@ -2961,10 +2961,10 @@ static int __init con_init(void)
 			currcons || !vc->vc_sw->con_save_screen, KD_TEXT);
 	}
 	currcons = fg_console = 0;
-	if (vt_handoff >= 0) {
-		printk(KERN_INFO "vt handoff: transparent VT on %d\n",
+	if (vt_handoff > 0) {
+		printk(KERN_INFO "vt handoff: transparent VT on vt#%d\n",
 								vt_handoff);
-		currcons = fg_console = vt_handoff;
+		currcons = fg_console = vt_handoff - 1;
 	}
 	master_display_fg = vc = vc_cons[currcons].d;
 	set_origin(vc);
