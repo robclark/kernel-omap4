@@ -442,6 +442,7 @@ donauboe
 dpt_i2o
 drm
 drm_kms_helper
+drx397xD
 ds1621
 ds1682
 ds2482
@@ -522,6 +523,7 @@ ebt_snat
 ebt_stp
 ebt_ulog
 ebt_vlan
+ec100
 econet
 edac_core
 eeprom
@@ -773,6 +775,7 @@ i2400m
 i2400m-sdio
 i2400m-usb
 i2c-algo-pca
+i2c-algo-pcf
 i2c-ali1535
 i2c-ali1563
 i2c-ali15x3
@@ -938,12 +941,14 @@ irtty-sir
 ir-usb
 iscsi_boot_sysfs
 iscsi_tcp
+iscsi_trgt
 isight_firmware
 isl29003
 isl29020
 isl6271a-regulator
 isl6405
 isl6421
+isl6423
 isofs
 isp116x-hcd
 isp1362-hcd
@@ -1036,6 +1041,7 @@ ledtrig-gpio
 legousbtower
 lgdt3305
 lgdt330x
+lgs8gl5
 lgs8gxx
 lib80211
 lib80211_crypt_ccmp
@@ -1754,7 +1760,9 @@ s3fb
 s5h1409
 s5h1411
 s5h1420
+s5h1432
 s6e63m0
+s921
 saa6588
 saa6752hs
 saa7110
@@ -2197,6 +2205,7 @@ tda18271
 tda665x
 tda7432
 tda8083
+tda8261
 tda826x
 tda827x
 tda8290
@@ -2267,6 +2276,7 @@ ttm
 ttpci-eeprom
 ttusb_dec
 ttusbdecfe
+tua6100
 tulip
 tuner
 tuner-simple
