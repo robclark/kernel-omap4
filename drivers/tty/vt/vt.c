@@ -2905,9 +2905,10 @@ static int __init con_init(void)
 	unsigned int currcons = 0, i;
 
 	if (screen_info.flags & VIDEO_FLAGS_HANDOFF) {
-		printk(KERN_INFO "vt handoff: grub requested handoff (vt#8)\n");
-		if (vt_handoff == -1)
+		if (vt_handoff == 0)
 			vt_handoff = 8;
+		printk(KERN_INFO "vt handoff: grub requested handoff (vt#%d)\n",
+			vt_handoff);
 	}
 
 	console_lock();
