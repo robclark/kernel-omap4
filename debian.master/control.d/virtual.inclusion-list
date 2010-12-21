@@ -22,6 +22,7 @@ drivers/input/touchscreen/usbtouchscreen.ko
 drivers/input/xen-kbdfront.ko
 drivers/md/*
 drivers/message/fusion*
+drivers/misc/vmw_balloon.ko
 drivers/net/8390.ko
 drivers/net/8139too.ko
 drivers/net/8139cp.ko
