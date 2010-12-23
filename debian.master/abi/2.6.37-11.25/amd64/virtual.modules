@@ -424,6 +424,7 @@ vgastate
 video
 virtio_balloon
 vmac
+vmw_balloon
 vmw_pvscsi
 vmxnet3
 wanrouter
