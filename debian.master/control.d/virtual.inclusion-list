@@ -97,6 +97,7 @@ fs/nfsd/*
 fs/nfs_common/*
 fs/fscache/*
 fs/lockd/*
+fs/autofs4/autofs4.ko
 lib/*
 net/802/*
 net/8021q/*
