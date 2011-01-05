@@ -8,6 +8,7 @@ linux (2.6.37-12.26) UNRELEASED; urgency=low
 
   * rebase to v2.6.37-rc8
   * rebase to mainline 989d873fc5b6a96695b97738dea8d9f02a60f8ab
+  * rebase to v2.6.37 final
 
  -- Andy Whitcroft <apw@canonical.com>  Thu, 23 Dec 2010 18:34:13 +0000
 
