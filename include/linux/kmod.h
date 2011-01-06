@@ -83,6 +83,8 @@ int call_usermodehelper_exec(struct subprocess_info *info, enum umh_wait wait);
    to call call_usermodehelper_exec */
 void call_usermodehelper_freeinfo(struct subprocess_info *info);
 
+extern void populate_rootfs_wait(void);
+
 static inline int
 call_usermodehelper_fns(char *path, char **argv, char **envp,
 			enum umh_wait wait,
@@ -91,6 +93,8 @@ call_usermodehelper_fns(char *path, char **argv, char **envp,
 {
 	struct subprocess_info *info;
 	gfp_t gfp_mask = (wait == UMH_NO_WAIT) ? GFP_ATOMIC : GFP_KERNEL;
+
+	populate_rootfs_wait();
 
 	info = call_usermodehelper_setup(path, argv, envp, gfp_mask);
 

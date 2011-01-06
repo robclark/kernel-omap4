@@ -572,6 +572,12 @@ static void __init clean_rootfs(void)
 
 LIST_HEAD(populate_rootfs_domain);
 
+void populate_rootfs_wait(void)
+{
+	async_synchronize_full_domain(&populate_rootfs_domain);
+}
+EXPORT_SYMBOL(populate_rootfs_wait);
+
 static void __init async_populate_rootfs(void)
 {
 	char *err = unpack_to_rootfs(__initramfs_start, __initramfs_size);
