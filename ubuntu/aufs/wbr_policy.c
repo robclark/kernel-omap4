@@ -232,8 +232,7 @@ static int au_wbr_nonopq(struct dentry *dentry, aufs_bindex_t bindex)
 	if (unlikely(err))
 		goto out;
 	parent = dget_parent(dentry);
-	err = au_dcsub_pages_rev(&dpages, parent, /*do_include*/0, /*test*/NULL,
-				 /*arg*/NULL);
+	err = au_dcsub_pages_rev_aufs(&dpages, parent, /*do_include*/0);
 	if (unlikely(err))
 		goto out_free;
 

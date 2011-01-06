@@ -24,7 +24,7 @@
 #include <linux/limits.h>
 #include <linux/types.h>
 
-#define AUFS_VERSION	"2.1-standalone.tree-37-rcN-20101122"
+#define AUFS_VERSION	"2.1-standalone.tree-37-rcN-20101220"
 
 /* todo? move this to linux-2.6.19/include/magic.h */
 #define AUFS_SUPER_MAGIC	('a' << 24 | 'u' << 16 | 'f' << 8 | 's')
@@ -73,11 +73,13 @@ typedef __s16 aufs_bindex_t;
 #define AUFS_XINO_TRUNC_STEP	4  /* blocks */
 #define AUFS_DIRWH_DEF		3
 #define AUFS_RDCACHE_DEF	10 /* seconds */
+#define AUFS_RDCACHE_MAX	3600 /* seconds */
 #define AUFS_RDBLK_DEF		512 /* bytes */
 #define AUFS_RDHASH_DEF		32
 #define AUFS_WKQ_NAME		AUFS_NAME "d"
 #define AUFS_WKQ_PRE_NAME	AUFS_WKQ_NAME "_pre"
-#define AUFS_MFS_SECOND_DEF	30 /* seconds */
+#define AUFS_MFS_DEF_SEC	30 /* seconds */
+#define AUFS_MFS_MAX_SEC	3600 /* seconds */
 #define AUFS_PLINK_WARN		100 /* number of plinks */
 
 /* pseudo-link maintenace under /proc */

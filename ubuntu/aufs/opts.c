@@ -299,7 +299,7 @@ static int au_wbr_mfs_sec(substring_t *arg, char *str,
 	int n, err;
 
 	err = 0;
-	if (!match_int(arg, &n) && 0 <= n && n <= MAX_SEC_IN_JIFFIES)
+	if (!match_int(arg, &n) && 0 <= n && n <= AUFS_MFS_MAX_SEC)
 		create->mfs_second = n;
 	else {
 		pr_err("bad integer in %s\n", str);
@@ -334,7 +334,7 @@ au_wbr_create_val(char *str, struct au_opt_wbr_create *create)
 		/*FALLTHROUGH*/
 	case AuWbrCreate_MFS:
 	case AuWbrCreate_PMFS:
-		create->mfs_second = AUFS_MFS_SECOND_DEF;
+		create->mfs_second = AUFS_MFS_DEF_SEC;
 		break;
 	case AuWbrCreate_MFSV:
 	case AuWbrCreate_PMFSV:
@@ -929,9 +929,16 @@ int au_opts_parse(struct super_block *sb, char *str, struct au_opts *opts)
 			break;
 
 		case Opt_rdcache:
-			if (unlikely(match_int(&a->args[0], &opt->rdcache)
-				     || opt->rdcache > MAX_SEC_IN_JIFFIES))
+			if (unlikely(match_int(&a->args[0], &n))) {
+				pr_err("bad integer in %s\n", opt_str);
 				break;
+			}
+			if (unlikely(n > AUFS_RDCACHE_MAX)) {
+				pr_err("rdcache must be smaller than %d\n",
+				       AUFS_RDCACHE_MAX);
+				break;
+			}
+			opt->rdcache = n;
 			err = 0;
 			opt->type = token;
 			break;
@@ -1265,8 +1272,7 @@ static int au_opt_br(struct super_block *sb, struct au_opt *opt,
 				au_ftest_opts(opts->flags, REMOUNT));
 		if (!err) {
 			err = 1;
-			au_fset_opts(opts->flags, REFRESH_DIR);
-			au_fset_opts(opts->flags, REFRESH_NONDIR);
+			au_fset_opts(opts->flags, REFRESH);
 		}
 		break;
 
@@ -1277,8 +1283,7 @@ static int au_opt_br(struct super_block *sb, struct au_opt *opt,
 		if (!err) {
 			err = 1;
 			au_fset_opts(opts->flags, TRUNC_XIB);
-			au_fset_opts(opts->flags, REFRESH_DIR);
-			au_fset_opts(opts->flags, REFRESH_NONDIR);
+			au_fset_opts(opts->flags, REFRESH);
 		}
 		break;
 
@@ -1289,10 +1294,8 @@ static int au_opt_br(struct super_block *sb, struct au_opt *opt,
 				&do_refresh);
 		if (!err) {
 			err = 1;
-			if (do_refresh) {
-				au_fset_opts(opts->flags, REFRESH_DIR);
-				au_fset_opts(opts->flags, REFRESH_NONDIR);
-			}
+			if (do_refresh)
+				au_fset_opts(opts->flags, REFRESH);
 		}
 		break;
 	}
@@ -1451,10 +1454,11 @@ int au_opts_mount(struct super_block *sb, struct au_opts *opts)
 {
 	int err;
 	unsigned int tmp;
-	aufs_bindex_t bend;
+	aufs_bindex_t bindex, bend;
 	struct au_opt *opt;
 	struct au_opt_xino *opt_xino, xino;
 	struct au_sbinfo *sbinfo;
+	struct au_branch *br;
 
 	SiMustWriteLock(sb);
 
@@ -1515,8 +1519,18 @@ int au_opts_mount(struct super_block *sb, struct au_opts *opts)
 	}
 
 	/* restore udba */
+	tmp &= AuOptMask_UDBA;
 	sbinfo->si_mntflags &= ~AuOptMask_UDBA;
-	sbinfo->si_mntflags |= (tmp & AuOptMask_UDBA);
+	sbinfo->si_mntflags |= tmp;
+	bend = au_sbend(sb);
+	for (bindex = 0; bindex <= bend; bindex++) {
+		br = au_sbr(sb, bindex);
+		err = au_hnotify_reset_br(tmp, br, br->br_perm);
+		if (unlikely(err))
+			AuIOErr("hnotify failed on br %d, %d, ignored\n",
+				bindex, err);
+		/* go on even if err */
+	}
 	if (au_opt_test(tmp, UDBA_HNOTIFY)) {
 		struct inode *dir = sb->s_root->d_inode;
 		au_hn_reset(dir, au_hi_flags(dir, /*isdir*/1) & ~AuHi_XINO);
@@ -1565,9 +1579,9 @@ int au_opts_remount(struct super_block *sb, struct au_opts *opts)
 	}
 
 	/* will be handled by the caller */
-	if (!au_ftest_opts(opts->flags, REFRESH_DIR)
+	if (!au_ftest_opts(opts->flags, REFRESH)
 	    && (opts->given_udba || au_opt_test(sbinfo->si_mntflags, XINO)))
-		au_fset_opts(opts->flags, REFRESH_DIR);
+		au_fset_opts(opts->flags, REFRESH);
 
 	AuDbg("status 0x%x\n", opts->flags);
 	return err;

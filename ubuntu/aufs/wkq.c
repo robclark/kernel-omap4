@@ -160,6 +160,10 @@ int au_wkq_do_wait(unsigned int flags, au_wkq_func_t func, void *args)
 
 }
 
+/*
+ * Note: dget/dput() in func for aufs dentries are not supported. It will be a
+ * problem in a concurrent umounting.
+ */
 int au_wkq_nowait(au_wkq_func_t func, void *args, struct super_block *sb)
 {
 	int err;

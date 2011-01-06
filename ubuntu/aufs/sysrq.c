@@ -24,6 +24,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 /* #include <linux/sysrq.h> */
+#include <linux/writeback.h>
 #include "aufs.h"
 
 /* ---------------------------------------------------------------------- */
@@ -42,18 +43,45 @@ static void sysrq_sb(struct super_block *sb)
 	printk(KERN_WARNING "si=%lx\n", sysaufs_si_id(sbinfo));
 	printk(KERN_WARNING AUFS_NAME ": superblock\n");
 	au_dpri_sb(sb);
+
+#if 0
 	printk(KERN_WARNING AUFS_NAME ": root dentry\n");
 	au_dpri_dentry(sb->s_root);
 	printk(KERN_WARNING AUFS_NAME ": root inode\n");
 	au_dpri_inode(sb->s_root->d_inode);
+#endif
+
 #if 0
-	struct inode *i;
-	printk(KERN_WARNING AUFS_NAME ": isolated inode\n");
-	spin_lock(&inode_lock);
-	list_for_each_entry(i, &sb->s_inodes, i_sb_list)
-		if (list_empty(&i->i_dentry))
-			au_dpri_inode(i);
-	spin_unlock(&inode_lock);
+	do {
+		int err, i, j, ndentry;
+		struct au_dcsub_pages dpages;
+		struct au_dpage *dpage;
+
+		err = au_dpages_init(&dpages, GFP_ATOMIC);
+		if (unlikely(err))
+			break;
+		err = au_dcsub_pages(&dpages, sb->s_root, NULL, NULL);
+		if (!err)
+			for (i = 0; i < dpages.ndpage; i++) {
+				dpage = dpages.dpages + i;
+				ndentry = dpage->ndentry;
+				for (j = 0; j < ndentry; j++)
+					au_dpri_dentry(dpage->dentries[j]);
+			}
+		au_dpages_free(&dpages);
+	} while (0);
+#endif
+
+#if 1
+	{
+		struct inode *i;
+		printk(KERN_WARNING AUFS_NAME ": isolated inode\n");
+		spin_lock(&inode_lock);
+		list_for_each_entry(i, &sb->s_inodes, i_sb_list)
+			if (1 || list_empty(&i->i_dentry))
+				au_dpri_inode(i);
+		spin_unlock(&inode_lock);
+	}
 #endif
 	printk(KERN_WARNING AUFS_NAME ": files\n");
 	lg_global_lock(files_lglock);
@@ -80,10 +108,12 @@ static void au_sysrq(int key __maybe_unused)
 {
 	struct au_sbinfo *sbinfo;
 
+	lockdep_off();
 	spin_lock(&au_sbilist.spin);
 	list_for_each_entry(sbinfo, &au_sbilist.head, si_list)
 		sysrq_sb(sbinfo->si_sb);
 	spin_unlock(&au_sbilist.spin);
+	lockdep_on();
 }
 
 static struct sysrq_key_op au_sysrq_op = {

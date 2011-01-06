@@ -179,7 +179,7 @@ struct au_sbinfo {
  * then try refreshing dirs at access time again.
  * if it is false, refreshing dirs at access time is unnecesary
  */
-#define AuSi_FAILED_REFRESH_DIRS	1
+#define AuSi_FAILED_REFRESH_DIR	1
 static inline unsigned char au_do_ftest_si(struct au_sbinfo *sbi,
 					   unsigned int flag)
 {
@@ -212,6 +212,7 @@ static inline unsigned char au_do_ftest_si(struct au_sbinfo *sbi,
 #define AuLock_DIR		(1 << 4)	/* target is a dir */
 #define AuLock_NOPLM		(1 << 5)	/* return err in plm mode */
 #define AuLock_NOPLMW		(1 << 6)	/* wait for plm mode ends */
+#define AuLock_GEN		(1 << 7)	/* test digen/iigen */
 #define au_ftest_lock(flags, name)	((flags) & AuLock_##name)
 #define au_fset_lock(flags, name) \
 	do { (flags) |= AuLock_##name; } while (0)

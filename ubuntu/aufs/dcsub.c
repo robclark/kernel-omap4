@@ -98,7 +98,8 @@ static int au_dpages_append(struct au_dcsub_pages *dpages,
 		dpages->ndpage++;
 	}
 
-	dpage->dentries[dpage->ndentry++] = dget(dentry);
+	/* d_count can be zero */
+	dpage->dentries[dpage->ndentry++] = dget_locked(dentry);
 	return 0; /* success */
 
 out:
@@ -120,8 +121,7 @@ repeat:
 resume:
 	if (this_parent->d_sb == sb
 	    && !IS_ROOT(this_parent)
-	    && atomic_read(&this_parent->d_count)
-	    && this_parent->d_inode
+	    && au_di(this_parent)
 	    && (!test || test(this_parent, arg))) {
 		err = au_dpages_append(dpages, this_parent, GFP_ATOMIC);
 		if (unlikely(err))
@@ -133,14 +133,12 @@ resume:
 		struct dentry *dentry = list_entry(tmp, struct dentry,
 						   d_u.d_child);
 		next = tmp->next;
-		if (/*d_unhashed(dentry) || */!dentry->d_inode)
-			continue;
 		if (!list_empty(&dentry->d_subdirs)) {
 			this_parent = dentry;
 			goto repeat;
 		}
 		if (dentry->d_sb == sb
-		    && atomic_read(&dentry->d_count)
+		    && au_di(dentry)
 		    && (!test || test(dentry, arg))) {
 			err = au_dpages_append(dpages, dentry, GFP_ATOMIC);
 			if (unlikely(err))
@@ -183,6 +181,18 @@ out:
 	spin_unlock(&dcache_lock);
 
 	return err;
+}
+
+static inline int au_dcsub_dpages_aufs(struct dentry *dentry, void *arg)
+{
+	return au_di(dentry) && dentry->d_sb == arg;
+}
+
+int au_dcsub_pages_rev_aufs(struct au_dcsub_pages *dpages,
+			    struct dentry *dentry, int do_include)
+{
+	return au_dcsub_pages_rev(dpages, dentry, do_include,
+				  au_dcsub_dpages_aufs, dentry->d_sb);
 }
 
 int au_test_subdir(struct dentry *d1, struct dentry *d2)

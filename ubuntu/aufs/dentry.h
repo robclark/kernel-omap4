@@ -29,10 +29,9 @@
 #include <linux/aufs_type.h>
 #include "rwsem.h"
 
-/* make a single member structure for future use */
-/* todo: remove this structure */
 struct au_hdentry {
 	struct dentry		*hd_dentry;
+	aufs_bindex_t		hd_id;
 };
 
 struct au_dinfo {
@@ -58,11 +57,15 @@ int au_h_verify(struct dentry *h_dentry, unsigned int udba, struct inode *h_dir,
 int au_lkup_dentry(struct dentry *dentry, aufs_bindex_t bstart, mode_t type,
 		   struct nameidata *nd);
 int au_lkup_neg(struct dentry *dentry, aufs_bindex_t bindex);
-int au_refresh_hdentry(struct dentry *dentry, mode_t type);
+int au_refresh_dentry(struct dentry *dentry, struct dentry *parent);
 int au_reval_dpath(struct dentry *dentry, unsigned int sigen);
 
 /* dinfo.c */
 void au_di_init_once(void *_di);
+struct au_dinfo *au_di_alloc(struct super_block *sb, unsigned int lsc);
+void au_di_free(struct au_dinfo *dinfo);
+void au_di_swap(struct au_dinfo *a, struct au_dinfo *b);
+void au_di_cp(struct au_dinfo *dst, struct au_dinfo *src);
 int au_di_init(struct dentry *dentry);
 void au_di_fin(struct dentry *dentry);
 int au_di_realloc(struct au_dinfo *dinfo, int nbr);
@@ -82,6 +85,8 @@ aufs_bindex_t au_dbtaildir(struct dentry *dentry);
 
 void au_set_h_dptr(struct dentry *dentry, aufs_bindex_t bindex,
 		   struct dentry *h_dentry);
+int au_digen_test(struct dentry *dentry, unsigned int sigen);
+int au_dbrange_test(struct dentry *dentry);
 void au_update_digen(struct dentry *dentry);
 void au_update_dbrange(struct dentry *dentry, int do_put_zero);
 void au_update_dbstart(struct dentry *dentry);
@@ -104,7 +109,8 @@ enum {
 	AuLsc_DI_CHILD3,	/* copyup dirs */
 	AuLsc_DI_PARENT,
 	AuLsc_DI_PARENT2,
-	AuLsc_DI_PARENT3
+	AuLsc_DI_PARENT3,
+	AuLsc_DI_TMP		/* temp for replacing dinfo */
 };
 
 /*

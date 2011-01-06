@@ -145,8 +145,11 @@ static int do_open_dir(struct file *file, int flags)
 
 	FiMustWriteLock(file);
 
-	err = 0;
 	dentry = file->f_dentry;
+	err = au_alive_dir(dentry);
+	if (unlikely(err))
+		goto out;
+
 	file->f_version = dentry->d_inode->i_version;
 	bindex = au_dbstart(dentry);
 	au_set_fbstart(file, bindex);
@@ -176,6 +179,7 @@ static int do_open_dir(struct file *file, int flags)
 	au_set_fbstart(file, -1);
 	au_set_fbend_dir(file, -1);
 
+out:
 	return err;
 }
 
@@ -388,7 +392,9 @@ static int aufs_readdir(struct file *file, void *dirent, filldir_t filldir)
 	err = au_reval_and_lock_fdi(file, reopen_dir, /*wlock*/1);
 	if (unlikely(err))
 		goto out;
-	err = au_vdir_init(file);
+	err = au_alive_dir(dentry);
+	if (!err)
+		err = au_vdir_init(file);
 	di_downgrade_lock(dentry, AuLock_IR);
 	if (unlikely(err))
 		goto out_unlock;

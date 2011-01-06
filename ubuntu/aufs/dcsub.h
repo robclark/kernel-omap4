@@ -26,6 +26,7 @@
 #ifdef __KERNEL__
 
 #include <linux/dcache.h>
+#include <linux/fs.h>
 #include <linux/types.h>
 
 struct dentry;
@@ -50,6 +51,8 @@ int au_dcsub_pages(struct au_dcsub_pages *dpages, struct dentry *root,
 		   au_dpages_test test, void *arg);
 int au_dcsub_pages_rev(struct au_dcsub_pages *dpages, struct dentry *dentry,
 		       int do_include, au_dpages_test test, void *arg);
+int au_dcsub_pages_rev_aufs(struct au_dcsub_pages *dpages,
+			    struct dentry *dentry, int do_include);
 int au_test_subdir(struct dentry *d1, struct dentry *d2);
 
 /* ---------------------------------------------------------------------- */
@@ -57,6 +60,40 @@ int au_test_subdir(struct dentry *d1, struct dentry *d2);
 static inline int au_d_removed(struct dentry *d)
 {
 	return !IS_ROOT(d) && d_unhashed(d);
+}
+
+static inline int au_d_hashed_positive(struct dentry *d)
+{
+	int err;
+	struct inode *inode = d->d_inode;
+	err = 0;
+	if (unlikely(d_unhashed(d) || !inode || !inode->i_nlink))
+		err = -ENOENT;
+	return err;
+}
+
+static inline int au_d_alive(struct dentry *d)
+{
+	int err;
+	struct inode *inode;
+	err = 0;
+	if (!IS_ROOT(d))
+		err = au_d_hashed_positive(d);
+	else {
+		inode = d->d_inode;
+		if (unlikely(au_d_removed(d) || !inode || !inode->i_nlink))
+			err = -ENOENT;
+	}
+	return err;
+}
+
+static inline int au_alive_dir(struct dentry *d)
+{
+	int err;
+	err = au_d_alive(d);
+	if (unlikely(err || IS_DEADDIR(d->d_inode)))
+		err = -ENOENT;
+	return err;
 }
 
 #endif /* __KERNEL__ */

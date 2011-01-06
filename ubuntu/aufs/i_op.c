@@ -95,6 +95,11 @@ static int aufs_permission(struct inode *inode, int mask)
 	sb = inode->i_sb;
 	si_read_lock(sb, AuLock_FLUSH);
 	ii_read_lock_child(inode);
+#if 0
+	err = au_iigen_test(inode, au_sigen(sb));
+	if (unlikely(err))
+		goto out;
+#endif
 
 	if (!isdir || write_mask) {
 		err = au_busy_or_stale();
@@ -170,11 +175,18 @@ static struct dentry *aufs_lookup(struct inode *dir, struct dentry *dentry,
 	if (unlikely(err))
 		goto out_si;
 
+	npositive = 0; /* suppress a warning */
 	parent = dentry->d_parent; /* dir inode is locked */
 	di_read_lock_parent(parent, AuLock_IR);
-	npositive = au_lkup_dentry(dentry, au_dbstart(parent), /*type*/0, nd);
+	err = au_alive_dir(parent);
+	if (!err)
+		err = au_digen_test(parent, au_sigen(sb));
+	if (!err) {
+		npositive = au_lkup_dentry(dentry, au_dbstart(parent),
+					   /*type*/0, nd);
+		err = npositive;
+	}
 	di_read_unlock(parent, AuLock_IR);
-	err = npositive;
 	ret = ERR_PTR(err);
 	if (unlikely(err < 0))
 		goto out_unlock;
@@ -211,10 +223,9 @@ static int au_wr_dir_cpup(struct dentry *dentry, struct dentry *parent,
 	struct dentry *h_parent;
 	struct inode *h_dir;
 
-	if (add_entry) {
-		au_update_dbstart(dentry);
+	if (add_entry)
 		IMustLock(parent->d_inode);
-	} else
+	else
 		di_write_lock_parent(parent);
 
 	err = 0;
@@ -231,8 +242,11 @@ static int au_wr_dir_cpup(struct dentry *dentry, struct dentry *parent,
 		err = au_lkup_neg(dentry, bcpup);
 		/* todo: no unlock here */
 		mutex_unlock(&h_dir->i_mutex);
-		if (bstart < bcpup && au_dbstart(dentry) < 0) {
-			au_set_dbstart(dentry, 0);
+
+		AuDbg("bcpup %d\n", bcpup);
+		if (!err) {
+			if (!dentry->d_inode)
+				au_set_h_dptr(dentry, bstart, NULL);
 			au_update_dbrange(dentry, /*do_put_zero*/0);
 		}
 	}
@@ -242,6 +256,7 @@ static int au_wr_dir_cpup(struct dentry *dentry, struct dentry *parent,
 	if (!err)
 		err = bcpup; /* success */
 
+	AuTraceErr(err);
 	return err;
 }
 
@@ -296,15 +311,22 @@ int au_wr_dir(struct dentry *dentry, struct dentry *src_dentry,
 		bcpup = args->force_btgt;
 		AuDebugOn(au_test_ro(sb, bcpup, dentry->d_inode));
 	}
+
 	AuDbg("bstart %d, bcpup %d\n", bstart, bcpup);
 	err = bcpup;
 	if (bcpup == bstart)
 		goto out; /* success */
-	else if (bstart < bcpup)
-		au_update_dbrange(dentry, /*do_put_zero*/1);
 
 	/* copyup the new parent into the branch we process */
 	err = au_wr_dir_cpup(dentry, parent, add_entry, bcpup, bstart);
+	if (err >= 0) {
+		if (!dentry->d_inode) {
+			au_set_h_dptr(dentry, bstart, NULL);
+			au_set_dbstart(dentry, bcpup);
+			au_set_dbend(dentry, bcpup);
+		}
+		AuDebugOn(add_entry && !au_h_dptr(dentry, bcpup));
+	}
 
 out:
 	dput(parent);
@@ -455,6 +477,7 @@ int au_pin(struct au_pin *pin, struct dentry *dentry, aufs_bindex_t bindex,
  *		  unhashed.
  * for ->setattr(), ia->ia_file is passed from ftruncate only.
  */
+/* todo: consolidate with do_refresh() and simple_reval_dpath() */
 static int au_reval_for_attr(struct dentry *dentry, unsigned int sigen)
 {
 	int err;
@@ -463,13 +486,10 @@ static int au_reval_for_attr(struct dentry *dentry, unsigned int sigen)
 
 	err = 0;
 	inode = dentry->d_inode;
-	if (au_digen(dentry) != sigen || au_iigen(inode) != sigen) {
+	if (au_digen_test(dentry, sigen)) {
 		parent = dget_parent(dentry);
 		di_read_lock_parent(parent, AuLock_IR);
-		/* returns a number of positive dentries */
-		err = au_refresh_hdentry(dentry, inode->i_mode & S_IFMT);
-		if (err >= 0)
-			err = au_refresh_hinode(inode, dentry);
+		err = au_refresh_dentry(dentry, parent);
 		di_read_unlock(parent, AuLock_IR);
 		dput(parent);
 	}
@@ -515,7 +535,7 @@ static int au_pin_and_icpup(struct dentry *dentry, struct iattr *ia,
 		au_fset_wrdir(wr_dir_args.flags, ISDIR);
 	/* plink or hi_wh() case */
 	ibstart = au_ibstart(inode);
-	if (bstart != ibstart)
+	if (bstart != ibstart && !au_test_ro(inode->i_sb, ibstart, inode))
 		wr_dir_args.force_btgt = ibstart;
 	err = au_wr_dir(dentry, /*src_dentry*/NULL, &wr_dir_args);
 	if (unlikely(err < 0))
@@ -692,6 +712,8 @@ static int aufs_setattr(struct dentry *dentry, struct iattr *ia)
 out_unlock:
 	mutex_unlock(&a->h_inode->i_mutex);
 	au_unpin(&a->pin);
+	if (unlikely(err))
+		au_update_dbstart(dentry);
 out_dentry:
 	di_write_unlock(dentry);
 	if (file) {
@@ -753,12 +775,18 @@ static int aufs_getattr(struct vfsmount *mnt __maybe_unused,
 	/* support fstat(2) */
 	if (!au_d_removed(dentry) && !udba_none) {
 		unsigned int sigen = au_sigen(sb);
-		if (au_digen(dentry) == sigen && au_iigen(inode) == sigen)
+		err = au_digen_test(dentry, sigen);
+		if (!err) {
 			di_read_lock_child(dentry, AuLock_IR);
-		else {
+			err = au_dbrange_test(dentry);
+			if (unlikely(err))
+				goto out_unlock;
+		} else {
 			AuDebugOn(IS_ROOT(dentry));
 			di_write_lock_child(dentry);
-			err = au_reval_for_attr(dentry, sigen);
+			err = au_dbrange_test(dentry);
+			if (!err)
+				err = au_reval_for_attr(dentry, sigen);
 			di_downgrade_lock(dentry, AuLock_IR);
 			if (unlikely(err))
 				goto out_unlock;
@@ -839,10 +867,15 @@ static int aufs_readlink(struct dentry *dentry, char __user *buf, int bufsiz)
 {
 	int err;
 
-	aufs_read_lock(dentry, AuLock_IR);
-	err = h_readlink(dentry, au_dbstart(dentry), buf, bufsiz);
+	err = aufs_read_lock(dentry, AuLock_IR | AuLock_GEN);
+	if (unlikely(err))
+		goto out;
+	err = au_d_hashed_positive(dentry);
+	if (!err)
+		err = h_readlink(dentry, au_dbstart(dentry), buf, bufsiz);
 	aufs_read_unlock(dentry, AuLock_IR);
 
+out:
 	return err;
 }
 
@@ -860,11 +893,17 @@ static void *aufs_follow_link(struct dentry *dentry, struct nameidata *nd)
 	if (unlikely(!buf.k))
 		goto out;
 
-	aufs_read_lock(dentry, AuLock_IR);
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
-	err = h_readlink(dentry, au_dbstart(dentry), buf.u, PATH_MAX);
-	set_fs(old_fs);
+	err = aufs_read_lock(dentry, AuLock_IR | AuLock_GEN);
+	if (unlikely(err))
+		goto out_name;
+
+	err = au_d_hashed_positive(dentry);
+	if (!err) {
+		old_fs = get_fs();
+		set_fs(KERNEL_DS);
+		err = h_readlink(dentry, au_dbstart(dentry), buf.u, PATH_MAX);
+		set_fs(old_fs);
+	}
 	aufs_read_unlock(dentry, AuLock_IR);
 
 	if (err >= 0) {
@@ -873,8 +912,9 @@ static void *aufs_follow_link(struct dentry *dentry, struct nameidata *nd)
 		nd_set_link(nd, buf.k);
 		return NULL; /* success */
 	}
-	__putname(buf.k);
 
+out_name:
+	__putname(buf.k);
 out:
 	path_put(&nd->path);
 	AuTraceErr(err);

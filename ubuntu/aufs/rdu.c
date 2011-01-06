@@ -162,14 +162,14 @@ static int au_rdu(struct file *file, struct aufs_rdu *rdu)
 	if (unlikely(err))
 		goto out;
 #endif
-	err = -ENOENT;
-	if (unlikely(IS_DEADDIR(inode)))
-		goto out_mtx;
 
 	arg.sb = inode->i_sb;
 	err = si_read_lock(arg.sb, AuLock_FLUSH | AuLock_NOPLM);
 	if (unlikely(err))
 		goto out_mtx;
+	err = au_alive_dir(dentry);
+	if (unlikely(err))
+		goto out_si;
 	/* todo: reval? */
 	fi_read_lock(file);
 
@@ -215,6 +215,7 @@ static int au_rdu(struct file *file, struct aufs_rdu *rdu)
 
 out_unlock:
 	fi_read_unlock(file);
+out_si:
 	si_read_unlock(arg.sb);
 out_mtx:
 	mutex_unlock(&inode->i_mutex);

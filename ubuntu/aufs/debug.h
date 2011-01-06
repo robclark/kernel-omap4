@@ -132,6 +132,8 @@ void au_dbg_sleep_jiffy(int jiffy);
 struct iattr;
 void au_dbg_iattr(struct iattr *ia);
 
+#define au_dbg_verify_dinode(d) __au_dbg_verify_dinode(d, __func__, __LINE__)
+void __au_dbg_verify_dinode(struct dentry *dentry, const char *func, int line);
 void au_dbg_verify_dir_parent(struct dentry *dentry, unsigned int sigen);
 void au_dbg_verify_nondir_parent(struct dentry *dentry, unsigned int sigen);
 void au_dbg_verify_gen(struct dentry *parent, unsigned int sigen);
@@ -196,6 +198,7 @@ void au_debug_sbinfo_init(struct au_sbinfo *sbinfo);
 	AuInfo("%s\n", sym);				\
 } while (0)
 #else
+AuStubVoid(au_dbg_verify_dinode, struct dentry *dentry)
 AuStubVoid(au_dbg_verify_dir_parent, struct dentry *dentry, unsigned int sigen)
 AuStubVoid(au_dbg_verify_nondir_parent, struct dentry *dentry,
 	   unsigned int sigen)

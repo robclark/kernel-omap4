@@ -79,7 +79,7 @@ struct au_ren_args {
 	struct au_hinode *src_hinode;
 	struct path h_path;
 	struct au_nhash whlist;
-	aufs_bindex_t btgt;
+	aufs_bindex_t btgt, src_bwh, src_bdiropq;
 
 	unsigned int flags;
 
@@ -110,6 +110,7 @@ static void au_ren_rev_diropq(int err, struct au_ren_args *a)
 	au_hn_imtx_lock_nested(a->src_hinode, AuLsc_I_CHILD);
 	rerr = au_diropq_remove(a->src_dentry, a->btgt);
 	au_hn_imtx_unlock(a->src_hinode);
+	au_set_dbdiropq(a->src_dentry, a->src_bdiropq);
 	if (rerr)
 		RevertFailure("remove diropq %.*s", AuDLNPair(a->src_dentry));
 }
@@ -180,30 +181,9 @@ static void au_ren_rev_whsrc(int err, struct au_ren_args *a)
 
 	a->h_path.dentry = a->src_wh_dentry;
 	rerr = au_wh_unlink_dentry(a->src_h_dir, &a->h_path, a->src_dentry);
+	au_set_dbwh(a->src_dentry, a->src_bwh);
 	if (rerr)
 		RevertFailure("unlink %.*s", AuDLNPair(a->src_wh_dentry));
-}
-
-static void au_ren_rev_drop(struct au_ren_args *a)
-{
-	struct dentry *d, *h_d;
-	int i;
-	aufs_bindex_t bend, bindex;
-
-	for (i = 0; i < AuSrcDst; i++) {
-		d = a->sd[i].dentry;
-		d_drop(d);
-		bend = au_dbend(d);
-		for (bindex = au_dbstart(d); bindex <= bend; bindex++) {
-			h_d = au_h_dptr(d, bindex);
-			if (h_d)
-				d_drop(h_d);
-		}
-	}
-
-	au_update_dbstart(a->dst_dentry);
-	if (a->thargs)
-		d_drop(a->h_dst);
 }
 #undef RevertFailure
 
@@ -254,6 +234,9 @@ static int au_ren_or_cpup(struct au_ren_args *a)
 			au_set_dbstart(d, a->src_bstart);
 		}
 	}
+	if (!err && a->h_dst)
+		/* it will be set to dinfo later */
+		dget(a->h_dst);
 
 	return err;
 }
@@ -292,6 +275,7 @@ static int au_ren_diropq(struct au_ren_args *a)
 	struct dentry *diropq;
 
 	err = 0;
+	a->src_bdiropq = au_dbdiropq(a->src_dentry);
 	a->src_hinode = au_hi(a->src_inode, a->btgt);
 	au_hn_imtx_lock_nested(a->src_hinode, AuLsc_I_CHILD);
 	diropq = au_diropq_create(a->src_dentry, a->btgt);
@@ -320,6 +304,8 @@ static int do_rename(struct au_ren_args *a)
 
 	/* create whiteout for src_dentry */
 	if (au_ftest_ren(a->flags, WHSRC)) {
+		a->src_bwh = au_dbwh(a->src_dentry);
+		AuDebugOn(a->src_bwh >= 0);
 		a->src_wh_dentry
 			= au_wh_create(a->src_dentry, a->btgt, a->src_h_parent);
 		err = PTR_ERR(a->src_wh_dentry);
@@ -425,6 +411,7 @@ out_rename:
 		au_ren_rev_rename(err, a);
 	else
 		au_ren_rev_cpup(err, a);
+	dput(a->h_dst);
 out_whtmp:
 	if (a->thargs)
 		au_ren_rev_whtmp(err, a);
@@ -434,7 +421,6 @@ out_whdst:
 out_whsrc:
 	if (a->src_wh_dentry)
 		au_ren_rev_whsrc(err, a);
-	au_ren_rev_drop(a);
 out_success:
 	dput(a->src_wh_dentry);
 	dput(a->dst_wh_dentry);
@@ -685,11 +671,8 @@ static void au_ren_refresh_dir(struct au_ren_args *a)
 		/* is this updating defined in POSIX? */
 		au_cpup_attr_timesizes(a->src_inode);
 		au_cpup_attr_nlink(dir, /*force*/1);
-		if (a->dst_inode) {
-			clear_nlink(a->dst_inode);
-			au_cpup_attr_timesizes(a->dst_inode);
-		}
 	}
+
 	if (au_ibstart(dir) == a->btgt)
 		au_cpup_attr_timesizes(dir);
 
@@ -710,6 +693,31 @@ static void au_ren_refresh(struct au_ren_args *a)
 	struct dentry *d, *h_d;
 	struct inode *i, *h_i;
 	struct super_block *sb;
+
+	d = a->dst_dentry;
+	d_drop(d);
+	if (a->h_dst)
+		/* already dget-ed by au_ren_or_cpup() */
+		au_set_h_dptr(d, a->btgt, a->h_dst);
+
+	i = a->dst_inode;
+	if (i) {
+		if (!au_ftest_ren(a->flags, ISDIR))
+			vfsub_drop_nlink(i);
+		else {
+			vfsub_dead_dir(i);
+			au_cpup_attr_timesizes(i);
+		}
+		au_update_dbrange(d, /*do_put_zero*/1);
+	} else {
+		bend = a->btgt;
+		for (bindex = au_dbstart(d); bindex < bend; bindex++)
+			au_set_h_dptr(d, bindex, NULL);
+		bend = au_dbend(d);
+		for (bindex = a->btgt + 1; bindex <= bend; bindex++)
+			au_set_h_dptr(d, bindex, NULL);
+		au_update_dbrange(d, /*do_put_zero*/0);
+	}
 
 	d = a->src_dentry;
 	au_set_dbwh(d, -1);
@@ -866,7 +874,7 @@ int aufs_rename(struct inode *_src_dir, struct dentry *_src_dentry,
 	}
 
 	err = -ENOTDIR;
-	flags = AuLock_FLUSH | AuLock_NOPLM;
+	flags = AuLock_FLUSH | AuLock_NOPLM | AuLock_GEN;
 	if (S_ISDIR(a->src_inode->i_mode)) {
 		au_fset_ren(a->flags, ISDIR);
 		if (unlikely(a->dst_inode && !S_ISDIR(a->dst_inode->i_mode)))
@@ -879,13 +887,33 @@ int aufs_rename(struct inode *_src_dir, struct dentry *_src_dentry,
 	if (unlikely(err))
 		goto out_free;
 
+	err = au_d_hashed_positive(a->src_dentry);
+	if (unlikely(err))
+		goto out_unlock;
+	err = -ENOENT;
+	if (a->dst_inode) {
+		/*
+		 * If it is a dir, VFS unhash dst_dentry before this
+		 * function. It means we cannot rely upon d_unhashed().
+		 */
+		if (unlikely(!a->dst_inode->i_nlink))
+			goto out_unlock;
+		if (!S_ISDIR(a->dst_inode->i_mode)) {
+			err = au_d_hashed_positive(a->dst_dentry);
+			if (unlikely(err))
+				goto out_unlock;
+		} else if (unlikely(IS_DEADDIR(a->dst_inode)))
+			goto out_unlock;
+	} else if (unlikely(d_unhashed(a->dst_dentry)))
+		goto out_unlock;
+
 	au_fset_ren(a->flags, ISSAMEDIR); /* temporary */
 	di_write_lock_parent(a->dst_parent);
 
 	/* which branch we process */
 	err = au_ren_wbr(a);
 	if (unlikely(err < 0))
-		goto out_unlock;
+		goto out_parent;
 	a->br = au_sbr(a->dst_dentry->d_sb, a->btgt);
 	a->h_path.mnt = a->br->br_mnt;
 
@@ -959,17 +987,24 @@ out_hdir:
 	au_ren_unlock(a);
 out_children:
 	au_nhash_wh_free(&a->whlist);
-out_unlock:
-	if (unlikely(err && au_ftest_ren(a->flags, ISDIR))) {
-		au_update_dbstart(a->dst_dentry);
-		d_drop(a->dst_dentry);
+	if (err && a->dst_inode && a->dst_bstart != a->btgt) {
+		AuDbg("bstart %d, btgt %d\n", a->dst_bstart, a->btgt);
+		au_set_h_dptr(a->dst_dentry, a->btgt, NULL);
+		au_set_dbstart(a->dst_dentry, a->dst_bstart);
 	}
+out_parent:
 	if (!err)
 		d_move(a->src_dentry, a->dst_dentry);
+	else {
+		au_update_dbstart(a->dst_dentry);
+		if (!a->dst_inode)
+			d_drop(a->dst_dentry);
+	}
 	if (au_ftest_ren(a->flags, ISSAMEDIR))
 		di_write_unlock(a->dst_parent);
 	else
 		di_write_unlock2(a->src_parent, a->dst_parent);
+out_unlock:
 	aufs_read_and_write_unlock2(a->dst_dentry, a->src_dentry);
 out_free:
 	iput(a->dst_inode);

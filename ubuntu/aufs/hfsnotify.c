@@ -25,7 +25,6 @@
 /* FS_IN_IGNORED is unnecessary */
 static const __u32 AuHfsnMask = (FS_MOVED_TO | FS_MOVED_FROM | FS_DELETE
 				 | FS_CREATE | FS_EVENT_ON_CHILD);
-static struct fsnotify_group *au_hfsn_group;
 static DECLARE_WAIT_QUEUE_HEAD(au_hfsn_wq);
 
 static void au_hfsn_free_mark(struct fsnotify_mark *mark)
@@ -38,10 +37,18 @@ static void au_hfsn_free_mark(struct fsnotify_mark *mark)
 	wake_up_all(&au_hfsn_wq);
 }
 
-static int au_hfsn_alloc(struct au_hnotify *hn, struct inode *h_inode)
+static int au_hfsn_alloc(struct au_hinode *hinode)
 {
+	struct au_hnotify *hn;
+	struct super_block *sb;
+	struct au_branch *br;
 	struct fsnotify_mark *mark;
+	aufs_bindex_t bindex;
 
+	hn = hinode->hi_notify;
+	sb = hn->hn_aufs_inode->i_sb;
+	bindex = au_br_index(sb, hinode->hi_id);
+	br = au_sbr(sb, bindex);
 	hn->hn_mark_dead = 0;
 	mark = &hn->hn_mark;
 	fsnotify_init_mark(mark, au_hfsn_free_mark);
@@ -50,14 +57,16 @@ static int au_hfsn_alloc(struct au_hnotify *hn, struct inode *h_inode)
 	 * by udba rename or rmdir, aufs assign a new inode to the known
 	 * h_inode, so specify 1 to allow dups.
 	 */
-	return fsnotify_add_mark(mark, au_hfsn_group, h_inode, /*mnt*/NULL,
-				 /*allow_dups*/1);
+	return fsnotify_add_mark(mark, br->br_hfsn_group, hinode->hi_inode,
+				 /*mnt*/NULL, /*allow_dups*/1);
 }
 
-static void au_hfsn_free(struct au_hnotify *hn)
+static void au_hfsn_free(struct au_hinode *hinode)
 {
+	struct au_hnotify *hn;
 	struct fsnotify_mark *mark;
 
+	hn = hinode->hi_notify;
 	mark = &hn->hn_mark;
 	fsnotify_destroy_mark(mark);
 	fsnotify_put_mark(mark);
@@ -167,6 +176,7 @@ out:
 	return err;
 }
 
+/* isn't it waste to ask every registered 'group'? */
 /* copied from linux/fs/notify/inotify/inotify_fsnotiry.c */
 /* it should be exported to modules */
 static bool au_hfsn_should_send_event(struct fsnotify_group *group,
@@ -186,24 +196,44 @@ static struct fsnotify_ops au_hfsn_ops = {
 
 /* ---------------------------------------------------------------------- */
 
-static int __init au_hfsn_init(void)
+static void au_hfsn_fin_br(struct au_branch *br)
+{
+	if (br->br_hfsn_group)
+		fsnotify_put_group(br->br_hfsn_group);
+}
+
+static int au_hfsn_init_br(struct au_branch *br, int perm)
+{
+	br->br_hfsn_group = NULL;
+	br->br_hfsn_ops = au_hfsn_ops;
+	return 0;
+}
+
+static int au_hfsn_reset_br(unsigned int udba, struct au_branch *br, int perm)
 {
 	int err;
 
 	err = 0;
-	au_hfsn_group = fsnotify_alloc_group(&au_hfsn_ops);
-	if (IS_ERR(au_hfsn_group)) {
-		err = PTR_ERR(au_hfsn_group);
-		pr_err("fsnotify_alloc_group() failed, %d\n", err);
+	if (udba != AuOpt_UDBA_HNOTIFY
+	    || !au_br_hnotifyable(perm)) {
+		au_hfsn_fin_br(br);
+		br->br_hfsn_group = NULL;
+		goto out;
 	}
 
+	if (br->br_hfsn_group)
+		goto out;
+
+	br->br_hfsn_group = fsnotify_alloc_group(&br->br_hfsn_ops);
+	if (IS_ERR(br->br_hfsn_group)) {
+		err = PTR_ERR(br->br_hfsn_group);
+		pr_err("fsnotify_alloc_group() failed, %d\n", err);
+		br->br_hfsn_group = NULL;
+	}
+
+out:
 	AuTraceErr(err);
 	return err;
-}
-
-static void au_hfsn_fin(void)
-{
-	fsnotify_put_group(au_hfsn_group);
 }
 
 const struct au_hnotify_op au_hnotify_op = {
@@ -211,6 +241,7 @@ const struct au_hnotify_op au_hnotify_op = {
 	.alloc		= au_hfsn_alloc,
 	.free		= au_hfsn_free,
 
-	.fin		= au_hfsn_fin,
-	.init		= au_hfsn_init
+	.reset_br	= au_hfsn_reset_br,
+	.fin_br		= au_hfsn_fin_br,
+	.init_br	= au_hfsn_init_br
 };

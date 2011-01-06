@@ -75,6 +75,9 @@ void au_set_h_iptr(struct inode *inode, aufs_bindex_t bindex,
 		struct super_block *sb = inode->i_sb;
 		struct au_branch *br;
 
+		AuDebugOn(inode->i_mode
+			  && (h_inode->i_mode & S_IFMT)
+			  != (inode->i_mode & S_IFMT));
 		if (bindex == iinfo->ii_bstart)
 			au_cpup_igen(inode, h_inode);
 		br = au_sbr(sb, bindex);
@@ -88,7 +91,7 @@ void au_set_h_iptr(struct inode *inode, aufs_bindex_t bindex,
 
 		if (au_ftest_hi(flags, HNOTIFY)
 		    && au_br_hnotifyable(br->br_perm)) {
-			err = au_hn_alloc(hinode, inode, h_inode);
+			err = au_hn_alloc(hinode, inode);
 			if (unlikely(err))
 				AuIOErr1("au_hn_alloc() %d\n", err);
 		}
@@ -117,16 +120,15 @@ void au_update_iigen(struct inode *inode)
 void au_update_ibrange(struct inode *inode, int do_put_zero)
 {
 	struct au_iinfo *iinfo;
+	aufs_bindex_t bindex, bend;
 
 	iinfo = au_ii(inode);
-	if (!iinfo || iinfo->ii_bstart < 0)
+	if (!iinfo)
 		return;
 
 	IiMustWriteLock(inode);
 
-	if (do_put_zero) {
-		aufs_bindex_t bindex;
-
+	if (do_put_zero && iinfo->ii_bstart >= 0) {
 		for (bindex = iinfo->ii_bstart; bindex <= iinfo->ii_bend;
 		     bindex++) {
 			struct inode *h_i;
@@ -138,20 +140,20 @@ void au_update_ibrange(struct inode *inode, int do_put_zero)
 	}
 
 	iinfo->ii_bstart = -1;
-	while (++iinfo->ii_bstart <= iinfo->ii_bend)
-		if (iinfo->ii_hinode[0 + iinfo->ii_bstart].hi_inode)
+	iinfo->ii_bend = -1;
+	bend = au_sbend(inode->i_sb);
+	for (bindex = 0; bindex <= bend; bindex++)
+		if (iinfo->ii_hinode[0 + bindex].hi_inode) {
+			iinfo->ii_bstart = bindex;
 			break;
-	if (iinfo->ii_bstart > iinfo->ii_bend) {
-		iinfo->ii_bstart = -1;
-		iinfo->ii_bend = -1;
-		return;
-	}
-
-	iinfo->ii_bend++;
-	while (0 <= --iinfo->ii_bend)
-		if (iinfo->ii_hinode[0 + iinfo->ii_bend].hi_inode)
-			break;
-	AuDebugOn(iinfo->ii_bstart > iinfo->ii_bend || iinfo->ii_bend < 0);
+		}
+	if (iinfo->ii_bstart >= 0)
+		for (bindex = bend; bindex >= iinfo->ii_bstart; bindex--)
+			if (iinfo->ii_hinode[0 + bindex].hi_inode) {
+				iinfo->ii_bend = bindex;
+				break;
+			}
+	AuDebugOn(iinfo->ii_bstart > iinfo->ii_bend);
 }
 
 /* ---------------------------------------------------------------------- */

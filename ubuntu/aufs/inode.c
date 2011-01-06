@@ -39,37 +39,39 @@ static void au_refresh_hinode_attr(struct inode *inode, int do_version)
 		inode->i_version++;
 }
 
-int au_refresh_hinode_self(struct inode *inode, int do_attr)
+static int au_ii_refresh(struct inode *inode, int *update)
 {
 	int err, e;
+	umode_t type;
 	aufs_bindex_t bindex, new_bindex;
-	unsigned char update;
-	struct au_hinode *p, *q, tmp;
 	struct super_block *sb;
 	struct au_iinfo *iinfo;
+	struct au_hinode *p, *q, tmp;
 
 	IiMustWriteLock(inode);
 
-	update = 0;
+	*update = 0;
 	sb = inode->i_sb;
+	type = inode->i_mode & S_IFMT;
 	iinfo = au_ii(inode);
 	err = au_ii_realloc(iinfo, au_sbend(sb) + 1);
 	if (unlikely(err))
 		goto out;
 
+	AuDebugOn(iinfo->ii_bstart < 0);
 	p = iinfo->ii_hinode + iinfo->ii_bstart;
-	err = 0;
 	for (bindex = iinfo->ii_bstart; bindex <= iinfo->ii_bend;
 	     bindex++, p++) {
 		if (!p->hi_inode)
 			continue;
 
+		AuDebugOn(type != (p->hi_inode->i_mode & S_IFMT));
 		new_bindex = au_br_index(sb, p->hi_id);
 		if (new_bindex == bindex)
 			continue;
 
 		if (new_bindex < 0) {
-			update = 1;
+			*update = 1;
 			au_hiput(p);
 			p->hi_inode = NULL;
 			continue;
@@ -93,30 +95,43 @@ int au_refresh_hinode_self(struct inode *inode, int do_attr)
 	e = au_dy_irefresh(inode);
 	if (unlikely(e && !err))
 		err = e;
-	if (do_attr)
-		au_refresh_hinode_attr(inode, update && S_ISDIR(inode->i_mode));
 
 out:
+	AuTraceErr(err);
+	return err;
+}
+
+int au_refresh_hinode_self(struct inode *inode)
+{
+	int err, update;
+
+	err = au_ii_refresh(inode, &update);
+	if (!err)
+		au_refresh_hinode_attr(inode, update && S_ISDIR(inode->i_mode));
+
+	AuTraceErr(err);
 	return err;
 }
 
 int au_refresh_hinode(struct inode *inode, struct dentry *dentry)
 {
-	int err, e;
+	int err, e, update;
 	unsigned int flags;
+	umode_t mode;
 	aufs_bindex_t bindex, bend;
-	unsigned char isdir, update;
+	unsigned char isdir;
 	struct au_hinode *p;
 	struct au_iinfo *iinfo;
 
-	err = au_refresh_hinode_self(inode, /*do_attr*/0);
+	err = au_ii_refresh(inode, &update);
 	if (unlikely(err))
 		goto out;
 
 	update = 0;
 	iinfo = au_ii(inode);
 	p = iinfo->ii_hinode + iinfo->ii_bstart;
-	isdir = S_ISDIR(inode->i_mode);
+	mode = (inode->i_mode & S_IFMT);
+	isdir = S_ISDIR(mode);
 	flags = au_hi_flags(inode, isdir);
 	bend = au_dbend(dentry);
 	for (bindex = au_dbstart(dentry); bindex <= bend; bindex++) {
@@ -127,6 +142,7 @@ int au_refresh_hinode(struct inode *inode, struct dentry *dentry)
 		if (!h_d || !h_d->d_inode)
 			continue;
 
+		AuDebugOn(mode != (h_d->d_inode->i_mode & S_IFMT));
 		if (iinfo->ii_bstart <= bindex && bindex <= iinfo->ii_bend) {
 			h_i = au_h_iptr(inode, bindex);
 			if (h_i) {
@@ -147,7 +163,8 @@ int au_refresh_hinode(struct inode *inode, struct dentry *dentry)
 	e = au_dy_irefresh(inode);
 	if (unlikely(e && !err))
 		err = e;
-	au_refresh_hinode_attr(inode, update && isdir);
+	if (!err)
+		au_refresh_hinode_attr(inode, update && isdir);
 
 out:
 	AuTraceErr(err);
@@ -227,14 +244,17 @@ out:
 	return err;
 }
 
-/* successful returns with iinfo write_locked */
-static int reval_inode(struct inode *inode, struct dentry *dentry, int *matched)
+/*
+ * successful returns with iinfo write_locked
+ * minus: errno
+ * zero: success, matched
+ * plus: no error, but unmatched
+ */
+static int reval_inode(struct inode *inode, struct dentry *dentry)
 {
 	int err;
 	aufs_bindex_t bindex, bend;
 	struct inode *h_inode, *h_dinode;
-
-	*matched = 0;
 
 	/*
 	 * before this function, if aufs got any iinfo lock, it must be only
@@ -245,16 +265,15 @@ static int reval_inode(struct inode *inode, struct dentry *dentry, int *matched)
 	if (unlikely(inode->i_ino == parent_ino(dentry)))
 		goto out;
 
-	err = 0;
+	err = 1;
 	ii_write_lock_new_child(inode);
 	h_dinode = au_h_dptr(dentry, au_dbstart(dentry))->d_inode;
 	bend = au_ibend(inode);
 	for (bindex = au_ibstart(inode); bindex <= bend; bindex++) {
 		h_inode = au_h_iptr(inode, bindex);
 		if (h_inode && h_inode == h_dinode) {
-			*matched = 1;
 			err = 0;
-			if (au_iigen(inode) != au_digen(dentry))
+			if (au_iigen_test(inode, au_digen(dentry)))
 				err = au_refresh_hinode(inode, dentry);
 			break;
 		}
@@ -307,7 +326,7 @@ struct inode *au_new_inode(struct dentry *dentry, int must_new)
 	struct super_block *sb;
 	struct mutex *mtx;
 	ino_t h_ino, ino;
-	int err, match;
+	int err;
 	aufs_bindex_t bstart;
 
 	sb = dentry->d_sb;
@@ -355,23 +374,33 @@ new_ino:
 			goto out; /* success */
 		}
 
-		ii_write_unlock(inode);
+		/*
+		 * iget_failed() calls iput(), but we need to call
+		 * ii_write_unlock() after iget_failed(). so dirty hack for
+		 * i_count.
+		 */
+		atomic_inc(&inode->i_count);
 		iget_failed(inode);
-		goto out_err;
-	} else if (!must_new) {
+		ii_write_unlock(inode);
+		au_xino_write(sb, bstart, h_ino, /*ino*/0);
+		/* ignore this error */
+		goto out_iput;
+	} else if (!must_new && !IS_DEADDIR(inode) && inode->i_nlink) {
 		/*
 		 * horrible race condition between lookup, readdir and copyup
 		 * (or something).
 		 */
 		if (mtx)
 			mutex_unlock(mtx);
-		err = reval_inode(inode, dentry, &match);
+		err = reval_inode(inode, dentry);
+		if (unlikely(err < 0)) {
+			mtx = NULL;
+			goto out_iput;
+		}
+
 		if (!err) {
 			mtx = NULL;
 			goto out; /* success */
-		} else if (match) {
-			mtx = NULL;
-			goto out_iput;
 		} else if (mtx)
 			mutex_lock(mtx);
 	}
@@ -392,7 +421,6 @@ new_ino:
 
 out_iput:
 	iput(inode);
-out_err:
 	inode = ERR_PTR(err);
 out:
 	if (mtx)

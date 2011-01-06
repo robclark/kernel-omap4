@@ -33,6 +33,8 @@ static void au_br_do_free(struct au_branch *br)
 	struct au_wbr *wbr;
 	struct au_dykey **key;
 
+	au_hnotify_fin_br(br);
+
 	if (br->br_xino.xi_file)
 		fput(br->br_xino.xi_file);
 	mutex_destroy(&br->br_xino.xi_nondir_mtx);
@@ -124,13 +126,17 @@ static struct au_branch *au_br_alloc(struct super_block *sb, int new_nbranch,
 	if (unlikely(!add_branch))
 		goto out;
 
+	err = au_hnotify_init_br(add_branch, perm);
+	if (unlikely(err))
+		goto out_br;
+
 	add_branch->br_wbr = NULL;
 	if (au_br_writable(perm)) {
 		/* may be freed separately at changing the branch permission */
 		add_branch->br_wbr = kmalloc(sizeof(*add_branch->br_wbr),
 					     GFP_NOFS);
 		if (unlikely(!add_branch->br_wbr))
-			goto out_br;
+			goto out_hnotify;
 	}
 
 	err = au_sbr_realloc(au_sbi(sb), new_nbranch);
@@ -143,6 +149,8 @@ static struct au_branch *au_br_alloc(struct super_block *sb, int new_nbranch,
 
 	kfree(add_branch->br_wbr);
 
+out_hnotify:
+	au_hnotify_fin_br(add_branch);
 out_br:
 	kfree(add_branch);
 out:
@@ -548,11 +556,18 @@ static int test_dentry_busy(struct dentry *root, aufs_bindex_t bindex,
 		for (j = 0; !err && j < ndentry; j++) {
 			d = dpage->dentries[j];
 			AuDebugOn(!atomic_read(&d->d_count));
-			inode = d->d_inode;
-			if (au_digen(d) == sigen && au_iigen(inode) == sigen)
+			if (!au_digen_test(d, sigen)) {
 				di_read_lock_child(d, AuLock_IR);
-			else {
+				if (unlikely(au_dbrange_test(d))) {
+					di_read_unlock(d, AuLock_IR);
+					continue;
+				}
+			} else {
 				di_write_lock_child(d);
+				if (unlikely(au_dbrange_test(d))) {
+					di_write_unlock(d);
+					continue;
+				}
 				err = au_reval_dpath(d, sigen);
 				if (!err)
 					di_downgrade_lock(d, AuLock_IR);
@@ -562,14 +577,18 @@ static int test_dentry_busy(struct dentry *root, aufs_bindex_t bindex,
 				}
 			}
 
+			/* AuDbgDentry(d); */
+			inode = d->d_inode;
 			bstart = au_dbstart(d);
 			bend = au_dbend(d);
 			if (bstart <= bindex
 			    && bindex <= bend
 			    && au_h_dptr(d, bindex)
-			    && (!S_ISDIR(inode->i_mode) || bstart == bend)) {
+			    && ((inode && !S_ISDIR(inode->i_mode))
+				|| bstart == bend)) {
 				err = -EBUSY;
 				AuVerbose(verbose, "busy %.*s\n", AuDLNPair(d));
+				AuDbgDentry(d);
 			}
 			di_read_unlock(d, AuLock_IR);
 		}
@@ -606,7 +625,8 @@ static int test_inode_busy(struct super_block *sb, aufs_bindex_t bindex,
 			ii_read_lock_child(i);
 		else {
 			ii_write_lock_child(i);
-			err = au_refresh_hinode_self(i, /*do_attr*/1);
+			err = au_refresh_hinode_self(i);
+			au_iigen_dec(i);
 			if (!err)
 				ii_downgrade_lock(i);
 			else {
@@ -830,7 +850,7 @@ static void au_warn_ima(void)
 {
 #ifdef CONFIG_IMA
 	/* since it doesn't support mark_files_ro() */
-	AuWarn1("RW -> RO makes IMA to produce wrong message");
+	AuWarn1("RW -> RO makes IMA to produce wrong message\n");
 #endif
 }
 
@@ -893,7 +913,6 @@ static int au_br_mod_files_ro(struct super_block *sb, aufs_bindex_t bindex)
 	unsigned long long ull, max;
 	aufs_bindex_t br_id;
 	struct file *file, *hf, **array;
-	struct dentry *dentry;
 	struct inode *inode;
 	struct au_hfile *hfile;
 
@@ -906,8 +925,6 @@ static int au_br_mod_files_ro(struct super_block *sb, aufs_bindex_t bindex)
 	br_id = au_sbr_id(sb, bindex);
 	for (ull = 0; ull < max; ull++) {
 		file = array[ull];
-		dentry = file->f_dentry;
-		inode = dentry->d_inode;
 
 		/* AuDbg("%.*s\n", AuDLNPair(file->f_dentry)); */
 		fi_read_lock(file);
@@ -919,6 +936,7 @@ static int au_br_mod_files_ro(struct super_block *sb, aufs_bindex_t bindex)
 			goto out_array;
 		}
 
+		inode = file->f_dentry->d_inode;
 		hfile = &au_fi(file)->fi_htop;
 		hf = hfile->hf_file;
 		if (!S_ISREG(inode->i_mode)
@@ -951,7 +969,9 @@ static int au_br_mod_files_ro(struct super_block *sb, aufs_bindex_t bindex)
 		hfile = &au_fi(file)->fi_htop;
 		hf = hfile->hf_file;
 		/* fi_read_unlock(file); */
+		spin_lock(&hf->f_lock);
 		hf->f_mode &= ~FMODE_WRITE;
+		spin_unlock(&hf->f_lock);
 		if (!file_check_writeable(hf)) {
 			file_release_write(hf);
 			mnt_drop_write(hf->f_vfsmnt);

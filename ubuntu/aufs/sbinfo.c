@@ -87,7 +87,6 @@ int au_si_alloc(struct super_block *sb)
 	INIT_RADIX_TREE(&sbinfo->au_si_pid.tree, GFP_ATOMIC | __GFP_NOFAIL);
 
 	atomic_long_set(&sbinfo->si_ninodes, 0);
-
 	atomic_long_set(&sbinfo->si_nfiles, 0);
 
 	sbinfo->si_bend = -1;
@@ -221,15 +220,26 @@ int si_write_lock(struct super_block *sb, int flags)
 int aufs_read_lock(struct dentry *dentry, int flags)
 {
 	int err;
+	struct super_block *sb;
 
-	err = si_read_lock(dentry->d_sb, flags);
-	if (!err) {
-		if (au_ftest_lock(flags, DW))
-			di_write_lock_child(dentry);
-		else
-			di_read_lock_child(dentry, flags);
+	sb = dentry->d_sb;
+	err = si_read_lock(sb, flags);
+	if (unlikely(err))
+		goto out;
+
+	if (au_ftest_lock(flags, DW))
+		di_write_lock_child(dentry);
+	else
+		di_read_lock_child(dentry, flags);
+
+	if (au_ftest_lock(flags, GEN)) {
+		err = au_digen_test(dentry, au_sigen(sb));
+		AuDebugOn(!err && au_dbrange_test(dentry));
+		if (unlikely(err))
+			aufs_read_unlock(dentry, flags);
 	}
 
+out:
 	return err;
 }
 
@@ -257,10 +267,29 @@ void aufs_write_unlock(struct dentry *dentry)
 int aufs_read_and_write_lock2(struct dentry *d1, struct dentry *d2, int flags)
 {
 	int err;
+	unsigned int sigen;
+	struct super_block *sb;
 
-	err = si_read_lock(d1->d_sb, flags);
-	if (!err)
-		di_write_lock2_child(d1, d2, au_ftest_lock(flags, DIR));
+	sb = d1->d_sb;
+	err = si_read_lock(sb, flags);
+	if (unlikely(err))
+		goto out;
+
+	di_write_lock2_child(d1, d2, au_ftest_lock(flags, DIR));
+
+	if (au_ftest_lock(flags, GEN)) {
+		sigen = au_sigen(sb);
+		err = au_digen_test(d1, sigen);
+		AuDebugOn(!err && au_dbrange_test(d1));
+		if (!err) {
+			err = au_digen_test(d2, sigen);
+			AuDebugOn(!err && au_dbrange_test(d2));
+		}
+		if (unlikely(err))
+			aufs_read_and_write_unlock2(d1, d2);
+	}
+
+out:
 	return err;
 }
 

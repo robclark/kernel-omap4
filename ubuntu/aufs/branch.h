@@ -81,6 +81,11 @@ struct au_branch {
 	blkcnt_t		br_xino_upper;	/* watermark in blocks */
 	atomic_t		br_xino_running;
 
+#ifdef CONFIG_AUFS_HFSNOTIFY
+	struct fsnotify_group	*br_hfsn_group;
+	struct fsnotify_ops	br_hfsn_ops;
+#endif
+
 #ifdef CONFIG_SYSFS
 	/* an entry under sysfs per mount-point */
 	char			br_name[8];
