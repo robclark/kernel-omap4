@@ -169,7 +169,6 @@ aiptek
 aircable
 airo
 airo_cs
-ak881x
 ak8975
 alauda
 ali-agp
@@ -599,7 +598,6 @@ dpt_i2o
 drbd
 drm
 drm_kms_helper
-drx397xD
 ds1621
 ds1682
 ds2482
@@ -695,7 +693,6 @@ ebt_snat
 ebt_stp
 ebt_ulog
 ebt_vlan
-ec100
 echo
 econet
 ec_sys
@@ -1365,7 +1362,6 @@ ledtrig-timer
 legousbtower
 lgdt3305
 lgdt330x
-lgs8gl5
 lgs8gxx
 lib80211
 lib80211_crypt_ccmp
@@ -1940,6 +1936,7 @@ pkgtemp
 pktgen
 pl2303
 platform_lcd
+platform-pci
 plat_nand
 plat-ram
 plip
@@ -2238,10 +2235,8 @@ s526
 s5h1409
 s5h1411
 s5h1420
-s5h1432
 s626
 s6e63m0
-s921
 saa6588
 saa6752hs
 saa7110
@@ -2321,7 +2316,6 @@ scsi_tgt
 scsi_transport_fc
 scsi_transport_iscsi
 scsi_transport_sas
-scsi_transport_spi
 scsi_transport_srp
 scsi_wait_scan
 sctp
@@ -2734,7 +2728,6 @@ sworks-agp
 sx8
 sym53c416
 sym53c500_cs
-sym53c8xx
 symbolserial
 synaptics_i2c
 synclink
@@ -2868,7 +2861,6 @@ turbografx
 tvaudio
 tveeprom
 tvp5150
-tvp7002
 tw9910
 twidjoy
 twofish_common
@@ -2976,13 +2968,8 @@ videobuf-dvb
 videobuf-vmalloc
 videocodec
 videodev
-virtio
 virtio_balloon
-virtio_blk
 virtio_console
-virtio_net
-virtio_pci
-virtio_ring
 virtio-rng
 virtual
 visor
@@ -3103,6 +3090,13 @@ x25_asy
 x38_edac
 xc5000
 xcbc
+xen-blkfront
+xen-evtchn
+xen-fbfront
+xenfs
+xen-kbdfront
+xen-netfront
+xen-pcifront
 xfrm4_mode_beet
 xfrm4_mode_transport
 xfrm4_mode_tunnel

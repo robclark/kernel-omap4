@@ -144,7 +144,6 @@ aiptek
 aircable
 airo
 airo_cs
-ak881x
 ak8975
 alauda
 ali-ircc
@@ -550,7 +549,6 @@ dpt_i2o
 drbd
 drm
 drm_kms_helper
-drx397xD
 ds1621
 ds1682
 ds2482
@@ -636,7 +634,6 @@ ebt_snat
 ebt_stp
 ebt_ulog
 ebt_vlan
-ec100
 echo
 econet
 ec_sys
@@ -1278,7 +1275,6 @@ ledtrig-timer
 legousbtower
 lgdt3305
 lgdt330x
-lgs8gl5
 lgs8gxx
 lib80211
 lib80211_crypt_ccmp
@@ -1715,6 +1711,7 @@ pata_cmd640
 pata_cmd64x
 pata_cs5520
 pata_cs5530
+pata_cs5536
 pata_cypress
 pata_efar
 pata_hpt366
@@ -2084,10 +2081,8 @@ s526
 s5h1409
 s5h1411
 s5h1420
-s5h1432
 s626
 s6e63m0
-s921
 saa6588
 saa6752hs
 saa7110
@@ -2644,7 +2639,6 @@ turbografx
 tvaudio
 tveeprom
 tvp5150
-tvp7002
 tw9910
 twidjoy
 twofish_common
