@@ -6,7 +6,7 @@ Standards-Version: 3.8.4.0
 Build-Depends: debhelper (>= 5), cpio, module-init-tools, kernel-wedge (>= 2.24ubuntu1), makedumpfile [amd64 i386], device-tree-compiler [powerpc], libelf-dev, binutils-dev, rsync, libdw-dev
 Build-Depends-Indep: xmlto, docbook-utils, ghostscript, transfig, bzip2, sharutils, asciidoc
 Build-Conflicts: findutils (= 4.4.1-1ubuntu1)
-Vcs-Git: http://kernel.ubuntu.com/git-repos/ubuntu/ubuntu-maverick.git
+Vcs-Git: http://kernel.ubuntu.com/git-repos/ubuntu/ubuntu-natty.git
 
 Package: SRCPKGNAME-source-PKGVER
 Architecture: all
