@@ -67,7 +67,7 @@ endif
 		$(pkgdir)/boot/config-$(abi_release)-$*
 	install -m644 $(abidir)/$* \
 		$(pkgdir)/boot/abi-$(abi_release)-$*
-	install -m644 $(builddir)/build-$*/System.map \
+	install -m600 $(builddir)/build-$*/System.map \
 		$(pkgdir)/boot/System.map-$(abi_release)-$*
 ifeq ($(no_dumpfile),)
 	makedumpfile -g $(pkgdir)/boot/vmcoreinfo-$(abi_release)-$* \
