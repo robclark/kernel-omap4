@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2010 Junjiro R. Okajima
+ * Copyright (C) 2005-2011 Junjiro R. Okajima
  *
  * This program, aufs is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -99,7 +99,7 @@ static int au_dpages_append(struct au_dcsub_pages *dpages,
 	}
 
 	/* d_count can be zero */
-	dpage->dentries[dpage->ndentry++] = dget_locked(dentry);
+	dpage->dentries[dpage->ndentry++] = dget_dlock(dentry);
 	return 0; /* success */
 
 out:
@@ -109,13 +109,17 @@ out:
 int au_dcsub_pages(struct au_dcsub_pages *dpages, struct dentry *root,
 		   au_dpages_test test, void *arg)
 {
-	int err;
-	struct dentry *this_parent = root;
+	int err, locked = 0;
+	unsigned int seq;
+	struct dentry *this_parent;
 	struct list_head *next;
 	struct super_block *sb = root->d_sb;
 
 	err = 0;
-	spin_lock(&dcache_lock);
+	seq = read_seqbegin(&rename_lock);
+again:
+	this_parent = root;
+	spin_lock(&this_parent->d_lock);
 repeat:
 	next = this_parent->d_subdirs.next;
 resume:
@@ -132,28 +136,62 @@ resume:
 		struct list_head *tmp = next;
 		struct dentry *dentry = list_entry(tmp, struct dentry,
 						   d_u.d_child);
+
 		next = tmp->next;
+		spin_lock_nested(&dentry->d_lock, DENTRY_D_LOCK_NESTED);
 		if (!list_empty(&dentry->d_subdirs)) {
+			spin_unlock(&this_parent->d_lock);
+			spin_release(&dentry->d_lock.dep_map, 1, _RET_IP_);
 			this_parent = dentry;
+			spin_acquire(&this_parent->d_lock.dep_map, 0, 1,
+				     _RET_IP_);
 			goto repeat;
 		}
 		if (dentry->d_sb == sb
 		    && au_di(dentry)
-		    && (!test || test(dentry, arg))) {
+		    && (!test || test(dentry, arg)))
 			err = au_dpages_append(dpages, dentry, GFP_ATOMIC);
-			if (unlikely(err))
-				goto out;
-		}
+		spin_unlock(&dentry->d_lock);
+		if (unlikely(err))
+			goto out;
 	}
 
 	if (this_parent != root) {
-		next = this_parent->d_u.d_child.next;
-		this_parent = this_parent->d_parent; /* dcache_lock is locked */
+		struct dentry *tmp;
+		struct dentry *child;
+
+		tmp = this_parent->d_parent;
+		rcu_read_lock();
+		spin_unlock(&this_parent->d_lock);
+		child = this_parent;
+		this_parent = tmp;
+		spin_lock(&this_parent->d_lock);
+		/* might go back up the wrong parent if we have had a rename
+		 * or deletion */
+		if (this_parent != child->d_parent ||
+		    (!locked && read_seqretry(&rename_lock, seq))) {
+			spin_unlock(&this_parent->d_lock);
+			rcu_read_unlock();
+			goto rename_retry;
+		}
+		rcu_read_unlock();
+		next = child->d_u.d_child.next;
 		goto resume;
 	}
+
 out:
-	spin_unlock(&dcache_lock);
+	spin_unlock(&this_parent->d_lock);
+	if (!locked) {
+		if (!err && read_seqretry(&rename_lock, seq))
+			goto rename_retry;
+	} else
+		write_sequnlock(&rename_lock);
 	return err;
+
+rename_retry:
+	locked = 1;
+	write_seqlock(&rename_lock);
+	goto again;
 }
 
 int au_dcsub_pages_rev(struct au_dcsub_pages *dpages, struct dentry *dentry,
@@ -162,14 +200,19 @@ int au_dcsub_pages_rev(struct au_dcsub_pages *dpages, struct dentry *dentry,
 	int err;
 
 	err = 0;
-	spin_lock(&dcache_lock);
+	write_seqlock(&rename_lock);
 	if (do_include && (!test || test(dentry, arg))) {
 		err = au_dpages_append(dpages, dentry, GFP_ATOMIC);
 		if (unlikely(err))
 			goto out;
 	}
+
+	/*
+	 * vfsmount_lock is unnecessary since this is a traverse in a single
+	 * mount
+	 */
 	while (!IS_ROOT(dentry)) {
-		dentry = dentry->d_parent; /* dcache_lock is locked */
+		dentry = dentry->d_parent; /* rename_lock is locked */
 		if (!test || test(dentry, arg)) {
 			err = au_dpages_append(dpages, dentry, GFP_ATOMIC);
 			if (unlikely(err))
@@ -178,8 +221,7 @@ int au_dcsub_pages_rev(struct au_dcsub_pages *dpages, struct dentry *dentry,
 	}
 
 out:
-	spin_unlock(&dcache_lock);
-
+	write_sequnlock(&rename_lock);
 	return err;
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2010 Junjiro R. Okajima
+ * Copyright (C) 2005-2011 Junjiro R. Okajima
  *
  * This program, aufs is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -209,17 +209,21 @@ static int hn_gen_by_inode(char *name, unsigned int nlen, struct inode *inode,
 	if (!isdir) {
 		AuDebugOn(!name);
 		au_iigen_dec(inode);
-		spin_lock(&dcache_lock);
+		spin_lock(&inode->i_lock);
 		list_for_each_entry(d, &inode->i_dentry, d_alias) {
+			spin_lock(&d->d_lock);
 			dname = &d->d_name;
 			if (dname->len != nlen
-			    && memcmp(dname->name, name, nlen))
+			    && memcmp(dname->name, name, nlen)) {
+				spin_unlock(&d->d_lock);
 				continue;
+			}
 			err = 0;
 			au_digen_dec(d);
+			spin_unlock(&d->d_lock);
 			break;
 		}
-		spin_unlock(&dcache_lock);
+		spin_unlock(&inode->i_lock);
 	} else {
 		au_fset_si(au_sbi(inode->i_sb), FAILED_REFRESH_DIR);
 		d = d_find_alias(inode);
@@ -228,9 +232,14 @@ static int hn_gen_by_inode(char *name, unsigned int nlen, struct inode *inode,
 			goto out;
 		}
 
+		spin_lock(&d->d_lock);
 		dname = &d->d_name;
-		if (dname->len == nlen && !memcmp(dname->name, name, nlen))
+		if (dname->len == nlen && !memcmp(dname->name, name, nlen)) {
+			spin_unlock(&d->d_lock);
 			err = hn_gen_tree(d);
+			spin_lock(&d->d_lock);
+		}
+		spin_unlock(&d->d_lock);
 		dput(d);
 	}
 
@@ -366,23 +375,27 @@ static struct dentry *lookup_wlock_by_name(char *name, unsigned int nlen,
 		return NULL;
 
 	dentry = NULL;
-	spin_lock(&dcache_lock);
+	spin_lock(&parent->d_lock);
 	list_for_each_entry(d, &parent->d_subdirs, d_u.d_child) {
 		/* AuDbg("%.*s\n", AuDLNPair(d)); */
+		spin_lock_nested(&d->d_lock, DENTRY_D_LOCK_NESTED);
 		dname = &d->d_name;
 		if (dname->len != nlen || memcmp(dname->name, name, nlen))
-			continue;
+			goto cont_unlock;
 		if (au_di(d))
 			au_digen_dec(d);
 		else
-			continue;
-		if (!atomic_read(&d->d_count))
-			continue;
+			goto cont_unlock;
+		if (d->d_count) {
+			dentry = dget_dlock(d);
+			spin_unlock(&d->d_lock);
+			break;
+		}
 
-		dentry = dget(d);
-		break;
+	cont_unlock:
+		spin_unlock(&d->d_lock);
 	}
-	spin_unlock(&dcache_lock);
+	spin_unlock(&parent->d_lock);
 	dput(parent);
 
 	if (dentry)

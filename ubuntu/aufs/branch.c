@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2010 Junjiro R. Okajima
+ * Copyright (C) 2005-2011 Junjiro R. Okajima
  *
  * This program, aufs is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -555,7 +555,7 @@ static int test_dentry_busy(struct dentry *root, aufs_bindex_t bindex,
 		ndentry = dpage->ndentry;
 		for (j = 0; !err && j < ndentry; j++) {
 			d = dpage->dentries[j];
-			AuDebugOn(!atomic_read(&d->d_count));
+			AuDebugOn(!d->d_count);
 			if (!au_digen_test(d, sigen)) {
 				di_read_lock_child(d, AuLock_IR);
 				if (unlikely(au_dbrange_test(d))) {

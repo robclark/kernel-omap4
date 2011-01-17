@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2010 Junjiro R. Okajima
+ * Copyright (C) 2005-2011 Junjiro R. Okajima
  *
  * This program, aufs is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -46,10 +46,18 @@ static struct inode *aufs_alloc_inode(struct super_block *sb __maybe_unused)
 	return NULL;
 }
 
+static void aufs_destroy_inode_cb(struct rcu_head *head)
+{
+	struct inode *inode = container_of(head, struct inode, i_rcu);
+
+	INIT_LIST_HEAD(&inode->i_dentry);
+	au_cache_free_icntnr(container_of(inode, struct au_icntnr, vfs_inode));
+}
+
 static void aufs_destroy_inode(struct inode *inode)
 {
 	au_iinfo_fin(inode);
-	au_cache_free_icntnr(container_of(inode, struct au_icntnr, vfs_inode));
+	call_rcu(&inode->i_rcu, aufs_destroy_inode_cb);
 }
 
 struct inode *au_iget_locked(struct super_block *sb, ino_t ino)
@@ -899,8 +907,6 @@ static void aufs_kill_sb(struct super_block *sb)
 			au_plink_put(sb, /*verbose*/1);
 		au_xino_clr(sb);
 		aufs_write_unlock(sb->s_root);
-
-		au_plink_maint_leave(sbinfo);
 		au_nwt_flush(&sbinfo->si_nowait);
 	}
 	generic_shutdown_super(sb);

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2010 Junjiro R. Okajima
+ * Copyright (C) 2005-2011 Junjiro R. Okajima
  *
  * This program, aufs is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -827,11 +827,9 @@ int au_do_h_d_reval(struct dentry *h_dentry, struct nameidata *nd,
 	int (*reval)(struct dentry *, struct nameidata *);
 
 	err = 0;
-	reval = NULL;
-	if (h_dentry->d_op)
-		reval = h_dentry->d_op->d_revalidate;
-	if (!reval)
+	if (!(h_dentry->d_flags & DCACHE_OP_REVALIDATE))
 		goto out;
+	reval = h_dentry->d_op->d_revalidate;
 
 	AuDbg("b%d\n", bindex);
 	if (au_test_fs_null_nd(h_dentry->d_sb))
@@ -914,6 +912,7 @@ static int h_d_revalidate(struct dentry *dentry, struct inode *inode,
 			continue;
 
 		AuDbg("b%d, %.*s\n", bindex, AuDLNPair(h_dentry));
+		/* spin_lock(&h_dentry->d_lock); */
 		h_name = &h_dentry->d_name;
 		if (unlikely(do_udba
 			     && !is_root
@@ -924,8 +923,10 @@ static int h_d_revalidate(struct dentry *dentry, struct inode *inode,
 			AuDbg("unhash 0x%x 0x%x, %.*s %.*s\n",
 				  unhashed, d_unhashed(h_dentry),
 				  AuDLNPair(dentry), AuDLNPair(h_dentry));
+			/* spin_unlock(&h_dentry->d_lock); */
 			goto err;
 		}
+		/* spin_unlock(&h_dentry->d_lock); */
 
 		err = au_do_h_d_reval(h_dentry, nd, dentry, bindex);
 		if (unlikely(err))
@@ -1043,6 +1044,10 @@ static int aufs_d_revalidate(struct dentry *dentry, struct nameidata *nd)
 	unsigned char do_udba;
 	struct super_block *sb;
 	struct inode *inode;
+
+	/* todo: support rcu-walk? */
+	if (nd && (nd->flags & LOOKUP_RCU))
+		return -ECHILD;
 
 	valid = 0;
 	if (unlikely(!au_di(dentry)))

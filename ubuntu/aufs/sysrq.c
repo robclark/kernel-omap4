@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2010 Junjiro R. Okajima
+ * Copyright (C) 2005-2011 Junjiro R. Okajima
  *
  * This program, aufs is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -60,6 +60,7 @@ static void sysrq_sb(struct super_block *sb)
 		err = au_dpages_init(&dpages, GFP_ATOMIC);
 		if (unlikely(err))
 			break;
+		/* no way, it requires si write lock */
 		err = au_dcsub_pages(&dpages, sb->s_root, NULL, NULL);
 		if (!err)
 			for (i = 0; i < dpages.ndpage; i++) {

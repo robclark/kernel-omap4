@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2010 Junjiro R. Okajima
+ * Copyright (C) 2005-2011 Junjiro R. Okajima
  *
  * This program, aufs is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -309,7 +309,7 @@ int si_pid_test_slow(struct super_block *sb)
 	p = radix_tree_lookup(&au_sbi(sb)->au_si_pid.tree, current->pid);
 	rcu_read_unlock();
 
-	return (long)p;
+	return (long)!!p;
 }
 
 void si_pid_set_slow(struct super_block *sb)
@@ -324,7 +324,7 @@ void si_pid_set_slow(struct super_block *sb)
 	AuDebugOn(err);
 	spin_lock(&sbinfo->au_si_pid.tree_lock);
 	err = radix_tree_insert(&sbinfo->au_si_pid.tree, current->pid,
-				(void *)1);
+				/*any valid ptr*/sb);
 	spin_unlock(&sbinfo->au_si_pid.tree_lock);
 	AuDebugOn(err);
 	radix_tree_preload_end();
@@ -341,5 +341,4 @@ void si_pid_clr_slow(struct super_block *sb)
 	spin_lock(&sbinfo->au_si_pid.tree_lock);
 	p = radix_tree_delete(&sbinfo->au_si_pid.tree, current->pid);
 	spin_unlock(&sbinfo->au_si_pid.tree_lock);
-	AuDebugOn(1 != (long)p);
 }

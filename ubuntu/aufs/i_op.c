@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2010 Junjiro R. Okajima
+ * Copyright (C) 2005-2011 Junjiro R. Okajima
  *
  * This program, aufs is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@
 #include <linux/uaccess.h>
 #include "aufs.h"
 
-static int h_permission(struct inode *h_inode, int mask,
+static int h_permission(struct inode *h_inode, int mask, unsigned int flags,
 			struct vfsmount *h_mnt, int brperm)
 {
 	int err;
@@ -52,11 +52,11 @@ static int h_permission(struct inode *h_inode, int mask,
 		&& write_mask && !(mask & MAY_READ))
 	    || !h_inode->i_op->permission) {
 		/* AuLabel(generic_permission); */
-		err = generic_permission(h_inode, mask,
+		err = generic_permission(h_inode, mask, flags,
 					 h_inode->i_op->check_acl);
 	} else {
 		/* AuLabel(h_inode->permission); */
-		err = h_inode->i_op->permission(h_inode, mask);
+		err = h_inode->i_op->permission(h_inode, mask, flags);
 		AuTraceErr(err);
 	}
 
@@ -82,7 +82,7 @@ out:
 	return err;
 }
 
-static int aufs_permission(struct inode *inode, int mask)
+static int aufs_permission(struct inode *inode, int mask, unsigned int flags)
 {
 	int err;
 	aufs_bindex_t bindex, bend;
@@ -91,6 +91,10 @@ static int aufs_permission(struct inode *inode, int mask)
 	struct inode *h_inode;
 	struct super_block *sb;
 	struct au_branch *br;
+
+	/* todo: support rcu-walk? */
+	if (flags & IPERM_FLAG_RCU)
+		return -ECHILD;
 
 	sb = inode->i_sb;
 	si_read_lock(sb, AuLock_FLUSH);
@@ -112,7 +116,8 @@ static int aufs_permission(struct inode *inode, int mask)
 		err = 0;
 		bindex = au_ibstart(inode);
 		br = au_sbr(sb, bindex);
-		err = h_permission(h_inode, mask, br->br_mnt, br->br_perm);
+		err = h_permission(h_inode, mask, flags, br->br_mnt,
+				   br->br_perm);
 		if (write_mask
 		    && !err
 		    && !special_file(h_inode->i_mode)) {
@@ -138,7 +143,7 @@ static int aufs_permission(struct inode *inode, int mask)
 				break;
 
 			br = au_sbr(sb, bindex);
-			err = h_permission(h_inode, mask, br->br_mnt,
+			err = h_permission(h_inode, mask, flags, br->br_mnt,
 					   br->br_perm);
 		}
 	}

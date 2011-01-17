@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010 Junjiro R. Okajima
+ * Copyright (C) 2010-2011 Junjiro R. Okajima
  *
  * This program, aufs is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -187,6 +187,7 @@ static void dy_aop(struct au_dykey *key, const void *h_op,
 	DySetAop(bmap);
 	DySetAop(invalidatepage);
 	DySetAop(releasepage);
+	DySetAop(freepage);
 	/* these two will be changed according to an aufs mount option */
 	DySetAop(direct_IO);
 	DySetAop(get_xip_mem);

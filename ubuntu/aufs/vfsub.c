@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2010 Junjiro R. Okajima
+ * Copyright (C) 2005-2011 Junjiro R. Okajima
  *
  * This program, aufs is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -729,8 +729,7 @@ static void call_unlink(void *args)
 	struct unlink_args *a = args;
 	struct dentry *d = a->path->dentry;
 	struct inode *h_inode;
-	const int stop_sillyrename = (au_test_nfs(d->d_sb)
-				      && atomic_read(&d->d_count) == 1);
+	const int stop_sillyrename = au_test_nfs(d->d_sb);
 
 	IMustLock(a->dir);
 

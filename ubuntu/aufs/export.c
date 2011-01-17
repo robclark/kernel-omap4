@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2010 Junjiro R. Okajima
+ * Copyright (C) 2005-2011 Junjiro R. Okajima
  *
  * This program, aufs is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -85,6 +85,7 @@ enum {
 
 static int au_test_anon(struct dentry *dentry)
 {
+	/* note: read d_flags without d_lock */
 	return !!(dentry->d_flags & DCACHE_DISCONNECTED);
 }
 
@@ -227,14 +228,18 @@ static struct dentry *decode_by_ino(struct super_block *sb, ino_t ino,
 	if (!dir_ino || S_ISDIR(inode->i_mode))
 		dentry = d_find_alias(inode);
 	else {
-		spin_lock(&dcache_lock);
-		list_for_each_entry(d, &inode->i_dentry, d_alias)
+		spin_lock(&inode->i_lock);
+		list_for_each_entry(d, &inode->i_dentry, d_alias) {
+			spin_lock(&d->d_lock);
 			if (!au_test_anon(d)
 			    && d->d_parent->d_inode->i_ino == dir_ino) {
-				dentry = dget_locked(d);
+				dentry = dget_dlock(d);
+				spin_unlock(&d->d_lock);
 				break;
 			}
-		spin_unlock(&dcache_lock);
+			spin_unlock(&d->d_lock);
+		}
+		spin_unlock(&inode->i_lock);
 	}
 	if (unlikely(dentry && au_digen_test(dentry, sigen))) {
 		dput(dentry);
