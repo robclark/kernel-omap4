@@ -4,6 +4,10 @@ linux (2.6.37-12.27) UNRELEASED; urgency=low
   CHANGELOG: Use the printchanges target to see the curent changes.
   CHANGELOG: Use the insertchanges target to create the final log.
 
+  [ Upstream Kernel Changes ]
+
+  * mark the start of v2.6.38 versioning
+
  -- Andy Whitcroft <apw@canonical.com>  Sun, 09 Jan 2011 13:44:52 +0000
 
 linux (2.6.37-12.26) natty; urgency=low
