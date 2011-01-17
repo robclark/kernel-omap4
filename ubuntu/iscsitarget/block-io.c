@@ -162,7 +162,7 @@ blockio_open_path(struct iet_volume *volume, const char *path)
 	if (!bio_data->path)
 		return -ENOMEM;
 
-	bdev = open_bdev_exclusive(path, flags, THIS_MODULE);
+	bdev = blkdev_get_by_path(path, flags | FMODE_EXCL, THIS_MODULE);
 	if (IS_ERR(bdev)) {
 		err = PTR_ERR(bdev);
 		eprintk("Can't open device %s, error %d\n", path, err);
@@ -253,7 +253,7 @@ blockio_detach(struct iet_volume *volume)
 	int flags = FMODE_READ | (LUReadonly(volume) ? 0 : FMODE_WRITE);
 
 	if (bio_data->bdev)
-		close_bdev_exclusive(bio_data->bdev, flags);
+		blkdev_put(bio_data->bdev, flags | FMODE_EXCL);
 	kfree(bio_data->path);
 
 	kfree(volume->private);
