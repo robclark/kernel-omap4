@@ -347,7 +347,7 @@ int yama_path_link(struct dentry *old_dentry, struct path *new_dir,
 	if (cred->fsuid != inode->i_uid &&
 	    (!S_ISREG(mode) || (mode & S_ISUID) ||
 	     ((mode & (S_ISGID | S_IXGRP)) == (S_ISGID | S_IXGRP)) ||
-	     (generic_permission(inode, MAY_READ | MAY_WRITE, NULL))) &&
+	     (generic_permission(inode, MAY_READ | MAY_WRITE, 0, NULL))) &&
 	    !capable(CAP_FOWNER)) {
 		char name[sizeof(current->comm)];
 		printk_ratelimited(KERN_INFO "non-accessible hardlink"
