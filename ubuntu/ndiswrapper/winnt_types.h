@@ -138,7 +138,7 @@
 
 #endif
 
-#define packed __attribute__((packed))
+// #define packed __attribute__((packed))
 #define no_warn_unused __attribute__((unused))
 
 typedef u8	BOOLEAN;

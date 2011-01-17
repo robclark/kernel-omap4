@@ -691,7 +691,7 @@ typedef PIMAGE_THUNK_DATA64 PIMAGE_THUNK_DATA;
 
 /* Import module directory */
 
-typedef struct packed _IMAGE_IMPORT_DESCRIPTOR {
+typedef struct __packed _IMAGE_IMPORT_DESCRIPTOR {
 	union {
 		DWORD	Characteristics; /* 0 for terminating null
 					  * import descriptor */
