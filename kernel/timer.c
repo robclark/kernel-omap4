@@ -41,6 +41,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 
+#include <asm/byteorder.h>
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
 #include <asm/div64.h>
@@ -53,6 +54,14 @@
 u64 jiffies_64 __cacheline_aligned_in_smp = INITIAL_JIFFIES;
 
 EXPORT_SYMBOL(jiffies_64);
+
+#ifdef CONFIG_X86
+#if defined(__LITTLE_ENDIAN) || (BITS_PER_LONG >= 64)
+asm(".global jiffies; jiffies = jiffies_64");
+#else
+asm(".global jiffies; jiffies = jiffies_64 + 4");
+#endif
+#endif
 
 /*
  * per-CPU timer vector definitions:
