@@ -7,7 +7,7 @@ linux (2.6.38-1.27) UNRELEASED; urgency=low
   [ Upstream Kernel Changes ]
 
   * mark the start of v2.6.38 versioning
-  * rebase from v2.6.37 to v2.6.38-rc1
+  * rebase v2.6.37 to v2.6.38-rc1 + 2b1caf6ed7b888c95a1909d343799672731651a5
     - LP: #689886
     - LP: #702125
 
