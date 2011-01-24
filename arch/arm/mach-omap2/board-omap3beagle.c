@@ -237,7 +237,7 @@ static struct platform_device beagle_dss_device = {
 };
 
 static struct regulator_consumer_supply beagle_vdac_supply =
-	REGULATOR_SUPPLY("vdda_dac", "omapdss");
+	REGULATOR_SUPPLY("vdda_dac", "omapdss_venc");
 
 static struct regulator_consumer_supply beagle_vdvi_supply =
 	REGULATOR_SUPPLY("vdds_dsi", "omapdss");

@@ -204,7 +204,7 @@ static struct platform_device devkit8000_dss_device = {
 };
 
 static struct regulator_consumer_supply devkit8000_vdda_dac_supply =
-	REGULATOR_SUPPLY("vdda_dac", "omapdss");
+	REGULATOR_SUPPLY("vdda_dac", "omapdss_venc");
 
 static uint32_t board_keymap[] = {
 	KEY(0, 0, KEY_1),
