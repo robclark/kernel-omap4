@@ -485,8 +485,8 @@ static struct regulator_init_data omap3_stalker_vpll2 = {
 		.valid_ops_mask		= REGULATOR_CHANGE_MODE
 		| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &omap3_stalker_vpll2_supply,
+	.num_consumer_supplies	= ARRAY_SIZE(omap3_stalker_vpll2_supplies),
+	.consumer_supplies	= omap3_stalker_vpll2_supplies,
 };
 
 static struct twl4030_platform_data omap3stalker_twldata = {

@@ -509,8 +509,8 @@ static struct regulator_init_data igep2_vpll2 = {
 		.valid_ops_mask		= REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= 1,
-	.consumer_supplies	= &igep2_vpll2_supply,
+	.num_consumer_supplies	= ARRAY_SIZE(igep2_vpll2_supplies),
+	.consumer_supplies	= igep2_vpll2_supplies,
 };
 
 static void __init igep2_display_init(void)
