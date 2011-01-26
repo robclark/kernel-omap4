@@ -21,6 +21,7 @@
 #include <linux/serial_core.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 
 #include <linux/dmaengine.h>
 #include <linux/pch_dma.h>
