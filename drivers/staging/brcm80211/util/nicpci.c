@@ -17,6 +17,7 @@
 #include <linux/delay.h>
 #include <linux/string.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include <bcmdefs.h>
 #include <osl.h>
 #include <bcmutils.h>

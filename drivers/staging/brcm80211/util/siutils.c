@@ -17,6 +17,7 @@
 #include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
+#include <linux/slab.h>
 #include <bcmdefs.h>
 #ifdef BRCM_FULLMAC
 #include <linux/netdevice.h>
