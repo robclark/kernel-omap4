@@ -24,6 +24,7 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/pch_dma.h>
+#include <linux/slab.h>
 
 #define DRV_NAME "pch-dma"
 
