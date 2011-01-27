@@ -504,7 +504,7 @@ int au_br_add(struct super_block *sb, struct au_opt_add *add, int remount)
 
 	/*
 	 * this test/set prevents aufs from handling unnecesary notify events
-	 * of xino files, in a case of re-adding a writable branch which was
+	 * of xino files, in case of re-adding a writable branch which was
 	 * once detached from aufs.
 	 */
 	if (au_xino_brid(sb) < 0

@@ -54,10 +54,13 @@ struct file *au_h_open(struct dentry *dentry, aufs_bindex_t bindex, int flags,
 	h_inode = h_dentry->d_inode;
 	if (au_test_nfsd() && !h_inode)
 		goto out;
-	if (unlikely((!d_unhashed(dentry) && au_d_removed(h_dentry))
-		     || !h_inode
-		     /* || !dentry->d_inode->i_nlink */
-		    ))
+	spin_lock(&h_dentry->d_lock);
+	err = (!d_unhashed(dentry) && d_unlinked(h_dentry))
+		|| !h_inode
+		/* || !dentry->d_inode->i_nlink */
+		;
+	spin_unlock(&h_dentry->d_lock);
+	if (unlikely(err))
 		goto out;
 
 	sb = dentry->d_sb;
@@ -461,7 +464,7 @@ static void au_do_refresh_dir(struct file *file)
 	}
 
 	p = fidir->fd_hfile;
-	if (!au_test_mmapped(file) && !au_d_removed(file->f_dentry)) {
+	if (!au_test_mmapped(file) && !d_unlinked(file->f_dentry)) {
 		bend = au_sbend(sb);
 		for (finfo->fi_btop = 0; finfo->fi_btop <= bend;
 		     finfo->fi_btop++, p++)
@@ -525,7 +528,7 @@ static int refresh_file(struct file *file, int (*reopen)(struct file *file))
 	need_reopen = 1;
 	if (!au_test_mmapped(file))
 		err = au_file_refresh_by_inode(file, &need_reopen);
-	if (!err && need_reopen && !au_d_removed(dentry))
+	if (!err && need_reopen && !d_unlinked(dentry))
 		err = reopen(file);
 	if (!err) {
 		au_update_figen(file);

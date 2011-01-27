@@ -912,7 +912,7 @@ static int h_d_revalidate(struct dentry *dentry, struct inode *inode,
 			continue;
 
 		AuDbg("b%d, %.*s\n", bindex, AuDLNPair(h_dentry));
-		/* spin_lock(&h_dentry->d_lock); */
+		spin_lock(&h_dentry->d_lock);
 		h_name = &h_dentry->d_name;
 		if (unlikely(do_udba
 			     && !is_root
@@ -923,10 +923,10 @@ static int h_d_revalidate(struct dentry *dentry, struct inode *inode,
 			AuDbg("unhash 0x%x 0x%x, %.*s %.*s\n",
 				  unhashed, d_unhashed(h_dentry),
 				  AuDLNPair(dentry), AuDLNPair(h_dentry));
-			/* spin_unlock(&h_dentry->d_lock); */
+			spin_unlock(&h_dentry->d_lock);
 			goto err;
 		}
-		/* spin_unlock(&h_dentry->d_lock); */
+		spin_unlock(&h_dentry->d_lock);
 
 		err = au_do_h_d_reval(h_dentry, nd, dentry, bindex);
 		if (unlikely(err))

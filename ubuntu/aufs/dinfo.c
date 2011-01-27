@@ -128,7 +128,6 @@ int au_di_init(struct dentry *dentry)
 	if (dinfo) {
 		atomic_set(&dinfo->di_generation, au_sigen(sb));
 		/* smp_mb(); */ /* atomic_set */
-		d_set_d_op(dentry, &aufs_dop);
 		dentry->d_fsdata = dinfo;
 	} else
 		err = -ENOMEM;

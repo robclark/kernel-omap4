@@ -60,7 +60,6 @@ static void sysrq_sb(struct super_block *sb)
 		err = au_dpages_init(&dpages, GFP_ATOMIC);
 		if (unlikely(err))
 			break;
-		/* no way, it requires si write lock */
 		err = au_dcsub_pages(&dpages, sb->s_root, NULL, NULL);
 		if (!err)
 			for (i = 0; i < dpages.ndpage; i++) {

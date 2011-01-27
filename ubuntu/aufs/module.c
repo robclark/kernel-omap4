@@ -45,6 +45,7 @@ static int __init au_cache_init(void)
 {
 	au_cachep[AuCache_DINFO] = AuCacheCtor(au_dinfo, au_di_init_once);
 	if (au_cachep[AuCache_DINFO])
+		/* SLAB_DESTROY_BY_RCU */
 		au_cachep[AuCache_ICNTNR] = AuCacheCtor(au_icntnr,
 							au_icntnr_init_once);
 	if (au_cachep[AuCache_ICNTNR])

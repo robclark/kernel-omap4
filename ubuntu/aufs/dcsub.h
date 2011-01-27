@@ -57,11 +57,6 @@ int au_test_subdir(struct dentry *d1, struct dentry *d2);
 
 /* ---------------------------------------------------------------------- */
 
-static inline int au_d_removed(struct dentry *d)
-{
-	return !IS_ROOT(d) && d_unhashed(d);
-}
-
 static inline int au_d_hashed_positive(struct dentry *d)
 {
 	int err;
@@ -81,7 +76,7 @@ static inline int au_d_alive(struct dentry *d)
 		err = au_d_hashed_positive(d);
 	else {
 		inode = d->d_inode;
-		if (unlikely(au_d_removed(d) || !inode || !inode->i_nlink))
+		if (unlikely(d_unlinked(d) || !inode || !inode->i_nlink))
 			err = -ENOENT;
 	}
 	return err;

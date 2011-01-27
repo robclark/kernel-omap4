@@ -109,15 +109,13 @@ out:
 int au_dcsub_pages(struct au_dcsub_pages *dpages, struct dentry *root,
 		   au_dpages_test test, void *arg)
 {
-	int err, locked = 0;
-	unsigned int seq;
+	int err;
 	struct dentry *this_parent;
 	struct list_head *next;
 	struct super_block *sb = root->d_sb;
 
 	err = 0;
-	seq = read_seqbegin(&rename_lock);
-again:
+	write_seqlock(&rename_lock);
 	this_parent = root;
 	spin_lock(&this_parent->d_lock);
 repeat:
@@ -166,14 +164,6 @@ resume:
 		child = this_parent;
 		this_parent = tmp;
 		spin_lock(&this_parent->d_lock);
-		/* might go back up the wrong parent if we have had a rename
-		 * or deletion */
-		if (this_parent != child->d_parent ||
-		    (!locked && read_seqretry(&rename_lock, seq))) {
-			spin_unlock(&this_parent->d_lock);
-			rcu_read_unlock();
-			goto rename_retry;
-		}
 		rcu_read_unlock();
 		next = child->d_u.d_child.next;
 		goto resume;
@@ -181,17 +171,8 @@ resume:
 
 out:
 	spin_unlock(&this_parent->d_lock);
-	if (!locked) {
-		if (!err && read_seqretry(&rename_lock, seq))
-			goto rename_retry;
-	} else
-		write_sequnlock(&rename_lock);
+	write_sequnlock(&rename_lock);
 	return err;
-
-rename_retry:
-	locked = 1;
-	write_seqlock(&rename_lock);
-	goto again;
 }
 
 int au_dcsub_pages_rev(struct au_dcsub_pages *dpages, struct dentry *dentry,
