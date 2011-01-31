@@ -72,6 +72,7 @@ endif
 ifeq ($(no_dumpfile),)
 	makedumpfile -g $(pkgdir)/boot/vmcoreinfo-$(abi_release)-$* \
 		-x $(builddir)/build-$*/vmlinux
+	chmod 0600 $(pkgdir)/boot/vmcoreinfo-$(abi_release)-$*
 endif
 
 	$(build_cd) $(kmake) $(build_O) modules_install \
@@ -92,6 +93,7 @@ endif
 ifeq ($(no_dumpfile),)
 	makedumpfile -g $(pkgdir)/boot/vmcoreinfo-$(abi_release)-$* \
 		-x $(builddir)/build-$*/vmlinux
+	chmod 0600 $(pkgdir)/boot/vmcoreinfo-$(abi_release)-$*
 endif
 	rm -f $(pkgdir)/lib/modules/$(abi_release)-$*/build
 	rm -f $(pkgdir)/lib/modules/$(abi_release)-$*/source
@@ -275,7 +277,7 @@ binary-%: install-%
 	dh_installchangelogs -p$(pkgimg)
 	dh_installdocs -p$(pkgimg)
 	dh_compress -p$(pkgimg)
-	dh_fixperms -p$(pkgimg)
+	dh_fixperms -p$(pkgimg) -X/boot/
 	dh_installdeb -p$(pkgimg)
 	dh_shlibdeps -p$(pkgimg)
 	dh_gencontrol -p$(pkgimg)
@@ -298,7 +300,7 @@ ifneq ($(skipsub),true)
 		dh_installchangelogs -p$$pkg;		\
 		dh_installdocs -p$$pkg;			\
 		dh_compress -p$$pkg;			\
-		dh_fixperms -p$$pkg;			\
+		dh_fixperms -p$$pkg -X/boot/;		\
 		dh_shlibdeps -p$$pkg;			\
 		dh_installdeb -p$$pkg;			\
 		dh_gencontrol -p$$pkg;			\
