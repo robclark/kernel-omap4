@@ -7,7 +7,7 @@ linux (2.6.38-2.29) UNRELEASED; urgency=low
   [ Upstream Kernel Changes ]
 
   * rebase from v2.6.38-rc2 + c723fdab8aa728dc2bf0da6a0de8bb9c3f588d84
-    to v2.6.38-rc2 + 70d1f365568e0cdbc9f4ab92428e1830fdb09ab0
+    to v2.6.38-rc3
 
  -- Andy Whitcroft <apw@canonical.com>  Fri, 28 Jan 2011 16:30:32 +0000
 
