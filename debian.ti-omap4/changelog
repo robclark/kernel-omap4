@@ -1,3 +1,15 @@
+linux-ti-omap4 (2.6.38-1200.1) natty; urgency=low
+
+  * First compile
+
+ -- Tim Gardner <tim.gardner@canonical.com>  Mon, 07 Feb 2011 21:18:48 +0000
+
+linux-ti-omap4 (2.6.38-1200.0) natty; urgency=low
+
+  * Initial ti-omap4 development branch
+
+ -- Tim Gardner <tim.gardner@canonical.com>  Mon, 07 Feb 2011 12:43:19 -0700
+
 linux-ti-omap4 (2.6.35-1101.4) natty; urgency=low
 
   [ Ricardo Salveti de Araujo ]
