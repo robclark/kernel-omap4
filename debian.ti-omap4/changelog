@@ -1,0 +1,1555 @@
+linux-ti-omap4 (2.6.35-1101.4) natty; urgency=low
+
+  [ Ricardo Salveti de Araujo ]
+
+  * [Config] enabling CONFIG_TASK_ options for iotop to work
+    - LP: #694461
+
+ --  Tim Gardner <tim.gardner@canonical.com>  Wed, 05 Jan 2011 07:18:15 -0700
+
+linux-ti-omap4 (2.6.35-1101.3) natty; urgency=low
+
+  [ Bryan Wu ]
+
+  * merge patches from TI 2.6.35 release
+    - Power Management support
+    - USB OTG
+    - Audio updates
+
+ -- Bryan Wu <bryan.wu@canonical.com>  Tue, 14 Dec 2010 12:33:43 +0800
+
+linux-ti-omap4 (2.6.35-1100.2) natty; urgency=low
+
+  [ Tim Gardner ]
+
+  * [Config] Fix FTBS caused by new binutils
+
+ --  Tim Gardner <tim.gardner@canonical.com>  Fri, 10 Dec 2010 08:27:32 -0700
+
+linux-ti-omap4 (2.6.35-1100.1) natty; urgency=low
+
+  * First Natty upload, based on 2.6.35-903.19
+
+ --  Tim Gardner <tim.gardner@canonical.com>  Tue, 07 Dec 2010 06:51:54 -0700
+
+linux-ti-omap4 (2.6.35-1100.0) UNRELEASED; urgency=low
+
+  * First Natty changelog entry
+
+ --  Tim Gardner <tim.gardner@canonical.com>  Tue, 07 Dec 2010 06:51:54 -0700
+
+linux-ti-omap4 (2.6.35-903.19) maverick-proposed; urgency=low
+
+  [ Upstream Kernel Changes ]
+
+  * smsc95xx: generate random MAC address once, not every ifup
+    - LP: #673504, #673509
+
+ --  Tim Gardner <tim.gardner@canonical.com>  Tue, 16 Nov 2010 18:28:52 -0700
+
+linux-ti-omap4 (2.6.35-903.18) maverick-proposed; urgency=low
+
+  [ Bryan Wu ]
+
+  * [Config] enable CONFIG_SCSI_MULTI_LUN to support multislot USB card
+    reader for ti-omap4
+    - LP: #672635
+
+ --  Tim Gardner <tim.gardner@canonical.com>  Mon, 08 Nov 2010 21:29:43 +0000
+
+linux-ti-omap4 (2.6.35-903.17) maverick-proposed; urgency=low
+
+  [ Upstream Kernel Changes ]
+
+  * wlan: register wlan device only on pandaboard
+    - LP: #665039
+
+ --  Tim Gardner <tim.gardner@canonical.com>  Fri, 22 Oct 2010 14:14:45 +0100
+
+linux-ti-omap4 (2.6.35-903.16) maverick-proposed; urgency=low
+
+  [ Liam Girdwood ]
+
+  * ARM: Change maximum ABE volume values
+    - LP: #637947
+  * ARM: Expose sdp4430/panda driver names to userspace
+    - LP: #637947
+
+ -- Stefan Bader <stefan.bader@canonical.com>  Thu, 14 Oct 2010 16:54:30 +0200
+
+linux-ti-omap4 (2.6.35-903.15) maverick; urgency=low
+
+  [ Bryan Wu ]
+
+  * [Config] enable passing all kernel command line to init
+    - LP: #586386
+
+  [ Tim Gardner ]
+
+  * [Config] Add support for cross compiling armel
+
+ --  Tim Gardner <tim.gardner@canonical.com>  Fri, 08 Oct 2010 23:39:54 +0100
+
+linux-ti-omap4 (2.6.35-903.14) maverick; urgency=low
+
+  [ Bryan Wu ]
+
+  * SAUCE: ASoC: disable those debug message in soc core code
+
+  [ Upstream Kernel Changes ]
+
+  * ASoC: OMAP4: Add missing changes from merge
+  * ASoC: TWL6040: Add digital_mute callback
+  * ASoC: Add DMIC legacy PCM for testing.
+  * ASoC: SDP4430 - wait 20 seconds before HS power off.
+  * ASoC: SDP4430 - Add DMIC specific hw_params()
+  * ASoC: core - add FE playback and capture channels config
+  * ASoC: SDP4430 - add FE supported channels in DAI link
+  * ASoC: OMAP PCM - the codec_dai channels info is invalid for FEs
+  * ASoC: ABE - Low power mmap() part 1
+  * ASoC: core - make pcm_new() pass only snd_soc_pcm_runtime
+  * ASoC: ABE DSP - mmap() support part 2
+  * OMAP: McPDM - add irq and phys_base platform data
+  * ASoC: McPDM - fix IRQ platform data detection
+  * OMAP4: devices - remove ABE AESS platform device.
+  * OMAP: devices - add support for AESS device.
+  * ASoC: McPDM - remove IRQ and phys_base from plat header
+  * ASoC: ABE DSP - get pdev resources and register IRQ handler
+  * ASoC: SDP4430 - update ABE dsp name to aess to match hw_mod
+  * ASoC: HAL: remove the io_remap hack
+  * ASoC: core - only schedule resume work once.
+  * ASoC: McPDM - Split out McPDM into 4 logical DAIs
+  * ASoC: ABE DAI - Add ref counting for BE DAIs
+  * ASoC: SDP4430 - Use new McPDM BE DAIs
+  * ASoC: ABE AESS - Use mixer readback for volumes
+  * ASoC: ABE DAI - Add Nice mute sequence for playback
+  * OMAP: PM: Enable hwmod data for audio driver
+  * ASoC: ABE DSP: Use pm_runtime to enable/disable clocks
+  * ARM: PM: Fix mcpdm hwmod name
+  * ASoC: TWL6040: Clear interrupt status at boot time
+  * ASoC: McPDM: Revert changes for mcpdm_request
+  * ASoC: core - make sure we recover from BE startup errors
+  * ASoC: McPDM - add DC offset call and cleanup ref counting
+  * ASoC: ABE - make sure trigger has completed before we shutdown
+  * ASoC: OMAP ABE DAI - Add yet more logic to manage HAL ports.
+  * ASoC: McPDM - Make sure we only disable McPDM when safe to do so
+  * ASoC: ABE DAI - make sure trigger is pending before we call
+  * ASoC: OMAP: Undefine DEBUG
+  * ASoC: ABE DSP: update to HAL 08.05
+  * ASSoC: twl6040 - HS jack detection workaround reminder.
+  * ASoC: ABE DSP - Fix the BT/MODEM VX_UL graph
+  * ASoC: DAPM - Make sure debug makes more sense
+  * ASoC: McPDM - Delay McPDM shutdown after HS
+  * ASoC: ABE DAI - continue checking all BE substreams.
+  * ASoC: twl6040 - disable mute as ramp does the same thing atm
+  * HAL: Fix types for router ul config
+  * ASoC: ABE DSP - Update to match HAL bugfix for router typedef
+  * ASoC: ABE DAI: Fix main port selection
+  * ARM: MFD: Vibra fix for TWL6040
+  * ASoC: TWL6040: Disable SYS_NIRQ safe mode
+  * ASoC: ABE DAI: Remove 44.1KHz from abe playback capabilities
+  * ASoc: ABE DAI - Update Back End port mute/unmute for McPDM port
+  * ASoc: ABE DAI - Update Front End port mute/unmute for MM DL port
+  * ASoc: ABE DAI - Update Front End port mute/unmute for TONES DL port
+  * ASoc: ABE DSP - Update Mixer DL1 constrol with correct constant
+  * ASoC: ABE HAL - Update gain control to implement mute/unmute on HAL
+    08.00
+  * ASoC: ABE DAI - Update ABE Front End mute unmute with new ABE functions
+  * ASoc: ABE DSP: Update McPDM control for downlink path.
+  * ASoC: ABE DAI: Remove compilation warnings
+  * ASoC: OMAP4: ABE buffer size contrainst only for omap4
+  * ASoC: twl6040: Enable plug detection interrupts
+  * ASoC: twl6040: Defer audio interrupt handling
+  * ASoC: twl6040: Fix jack detection in early audio interrupt
+  * ASoC: ABE DSP: Update mixer controls range to -120/30dB
+  * ASoC: ABE DSP: Update PM for ABE control.
+  * ASoc: ABE DAI - Update Front End port mute/unmute for VOICE DL port
+  * ASoC: omap-abe: Fix trigger completion handling after XRUNs
+  * ASoC: ABE DSP: Remove build warnings
+  * ASoC: ABE DSP: Add support for equalizers
+  * ASoC: twl6040: Add step size and delay for volume ramp
+  * ASoC: core - add support for driver and longnames
+  * ASoC: SDP4430 - Add longname for driver.
+  * ASoC: ABE DAI - serialise the FE calls with a mutex.
+  * ASoC: core - BE standalone DAI ops - add locking and ref counting
+  * ASoC: core - Make driver name == card->name
+  * ASoC: ABE DAI: Always set PDM_DL when disabling DAI_PDM_UL
+  * ASoc: ABE DSP: Correct disable port with abe port.
+  * ASoC: SDP4430 - Fix Mic bias for Panda - REBASE
+
+ --  Tim Gardner <tim.gardner@canonical.com>  Wed, 06 Oct 2010 13:38:17 +0100
+
+linux-ti-omap4 (2.6.35-903.13) maverick; urgency=low
+
+  [ Bryan Wu ]
+
+  * SAUCE: Fix a buidling error when turn off CONFIG_SMP
+    - LP: #647890
+  * [Config] Enable CONFIG_VMSPLIT_2G=y for OMAP4
+    - LP: #633227
+
+  [ Ricardo Salveti de Araujo ]
+
+  * [Config] OMAP: Enable needed Errata for OMAP4 to work with DMA based
+    device drivers
+
+  [ Upstream Kernel Changes ]
+
+  * ARM: do not define VMALLOC_END relative to PAGE_OFFSET
+
+ --  Tim Gardner <tim.gardner@canonical.com>  Thu, 30 Sep 2010 17:04:40 +0100
+
+linux-ti-omap4 (2.6.35-903.12) maverick; urgency=low
+
+  [ Lee Jones ]
+
+  * [Config] Enable CONFIG_HIGH_RES_TIMERS=y
+
+  [ Upstream Kernel Changes ]
+
+  * DRM: enable DRM build for SGX DDK
+  * omap4: pm-debug: Fix the pwrdomain clockdomain counters
+  * omap4: pm: Fix the cpuidle barriers and restore CPUx state
+  * omap4: pm: Mask Secure interrupt which gate lowpower states
+  * Optimize kernel configuration
+  * bounce: call flush_dcache_page() after bounce_copy_vec()
+
+ --  Tim Gardner <tim.gardner@canonical.com>  Mon, 13 Sep 2010 21:31:12 +0100
+
+linux-ti-omap4 (2.6.35-903.11) maverick; urgency=low
+
+  [ Andy Whitcroft ]
+
+  * ensure the common headers are built on armel
+    - LP: #632235
+
+ -- Andy Whitcroft <apw@canonical.com>  Wed, 08 Sep 2010 10:40:27 +0100
+
+linux-ti-omap4 (2.6.35-903.10) maverick; urgency=low
+
+  [ Andy Whitcroft ]
+
+  * correct the headers dependancy and select minimal packages
+    - LP: #632235
+
+ -- Andy Whitcroft <apw@canonical.com>  Tue, 07 Sep 2010 19:40:51 +0100
+
+linux-ti-omap4 (2.6.35-903.9) maverick; urgency=low
+
+  [ Ricardo Salveti de Araujo ]
+
+  * [Config] Change CONFIG_LEDS_TRIGGER_HEARTBEAT from module to built-in
+
+  [ Upstream Kernel Changes ]
+
+  * Revert "Fix detection loop issue on some monitors"
+  * OMAP4: board-omap4panda.c: adding leds status1 and status2
+  * SDP4430: fix wlan board config
+  * Deactivate SW errata related to ES1.0
+  * Assigning correct address to vma struct
+  * Fix this build warning when CONFIG_PANEL_PICO_DLP is disabled:
+  * Fix this compile warning when building with CONFIG_OMAP2_DSS_HDMI
+  * Kernel changes for hwmod and omap_device initialization for GPU.
+  * omap:iodmm-exclude Tiler buffers from mapped information
+  * SYSLINK:IPU-PM: avoiding down_timeout when failing
+  * omap:iodmm-allow unconditional cache flush
+  * SYSLINK: notify - increase reserved events to 4
+  * OMAP4: file_permissions: Setting to 644 file permissions
+  * omap4: Disable auto gating for PER M3 divider
+  * OMAP4:DSS:HDMI:fix HDMI state in HPD
+  * OMAP:DSS:HDMI:Patch to dump HDMI registers
+  * OMAP4:DSS:HDMI: don't handle DISCONNECT if we've already got a CONNECT
+  * OMAP4: PandaBoard: add board revision reporting
+  * OMAP4: PandaBoard: EHCI nreset based on board revision
+  * omap4: pandaboard: code cleanup
+  * omap4: pandaboard: remove unused includes
+  * omap: panda: fix build break with DSS/HDMI disabled
+  * SYSLINK: ipc- check queue validity in messageq_put
+  * SYSLINK: ipc - Remove _ON_STACK from recovery completion declarations
+  * TILER: Fix when get element from empty list
+  * TILER: Don't assign mem struct inside kernel list
+
+ -- Leann Ogasawara <leann.ogasawara@canonical.com>  Thu, 02 Sep 2010 12:00:32 -0700
+
+linux-ti-omap4 (2.6.35-903.8) maverick; urgency=low
+
+  [ Bryan Wu ]
+
+  * rebase to TI 2.6.35 based integration OMAP4 L24.9 release.
+  * add back and sync with Ubuntu packaging stuff
+  * update 2.6.35 omap4 config options
+
+  [ Sebastien Jan ]
+
+  * [Config] Deactivate ES1.0 support
+
+ --  Bryan Wu <bryan.wu@canonical.com>  Thu, 26 Aug 2010 17:37:35 +0800
+
+linux-ti-omap4 (2.6.34-903.7) maverick; urgency=low
+
+  [ Sebastien Jan ]
+
+  * [Config] update kernel config for OMAP4 ES2.0 support
+  * [Config] Deactivate ARM errata 430973
+  * [Config] Enable dynamic ES1.0 support
+
+  [ Upstream Kernel Changes ]
+
+  * Revert "SYSLINK: Make Syslink Loadable Modules Makefiles"
+  * Revert "SYSLINK: IPC - Make Syslink Loadable Modules"
+  * Revert "SYSLINK:IPU-PM: add i2c support"
+  * Revert "SYSLINK:IPU-PM: functions prototypes for ipu_pm"
+  * Revert "SYSLINK:IPU-PM: Definitions of ipu_pm functions"
+  * Revert "SYSLINK:IPU-PM: changes to match ipu_pm new code"
+  * Revert "SYSLINK:IPU-PM: enabling by default ipu_pm"
+  * Revert "SYSLINK:IPU-PM: build changes for ipu_pm support"
+  * Revert "SYSLINK:IPU-PM: add definitions for IPU-PM functions"
+  * Revert "SYSLINK:IPU-PM: add prototypes for IPU-PM functions"
+  * Revert "SYSLINK:IPU-PM: add notifications function call"
+  * Revert "SYSLINK:IPU-PM: register the IPU PM events"
+  * Revert "SYSLINK:IPU-PM: Add IPU PM code to kernel via Menuconfig"
+  * hsmmc: setup further transfers only on block completion interrupt
+  * omap4: Update id.c and cpu.h for es2.0
+  * timers: The 12 timer is a secure timer and is meant for emu boards. So
+    making the timer count 11
+  * usb: musb: Enable the maximum supported burst mode for dma
+  * usb: musb: dynamic dma mode bug fix
+  * OMAP3 PRCM: convert OMAP3 PRCM macros to the _SHIFT/_MASK suffixes
+  * OMAP3 PM: CPUFreq driver for OMAP3
+  * omap: pm: introduce opp accessor functions
+  * omap: opp: make opp_get_opp_id robust
+  * omap: opp: documentation update
+  * omap: opp: twl/tps: Introduce TWL/TPS-specific code
+  * omap3: pm: remove OPP interfaces from OMAP PM layer
+  * omap3: introduce cpufreq
+  * omap3: board: enable opp tables
+  * omap3: cpufreq: allow default opp table init
+  * OMAP3: PM: Adding voltage driver support for OMAP3
+  * OMAP3: PM: Adding smartreflex driver support.
+  * OMAP3: PM: Adding smartreflex device file.
+  * OMAP3: PM: Adding smartreflex hwmod data
+  * OMAP3: PM: Adding smartreflex class3 driver
+  * OMAP3: PM: Adding T2 enabling of smartreflex support
+  * OMAP: PM: Allowing an early init of pm debugfs driver.
+  * OMAP3: PM: Adding debug support to Voltage and Smartreflex drivers
+  * omap4: Fix the build break due to SR patches
+  * omap4: es2: Remove the errata fixes from build
+  * omap4: es1: Create a KCONFIG entry to keep ES1.0 kernel working
+  * Board changes for the pressure sensor
+  * Pressure sensor update
+  * BMP085 update The wait time is optimised. As long is architecture
+    dependent using u32
+  * omap4: ES2.0: Remove autoconf whitespace warining in the build
+  * omap4: temp: Remove the un-necessary added code from board file
+  * Add GPIO LED support
+  * Add support for PWM LED
+  * Enable LED driver in defconfig
+  * NFS: Fix another nfs_wb_page() deadlock
+  * NFS: Don't run nfs_access_cache_shrinker() when the mask is GFP_NOFS
+  * NFS: Clean up nfs_access_zap_cache()
+  * NFS: Don't call iput() in nfs_access_cache_shrinker
+  * NFS: Fix a lock imbalance typo in nfs_access_cache_shrinker
+  * NFS: Ensure that we mark the inode as dirty if we exit early from
+    commit
+  * OMAP4:ES2 workaround for CMD line reset.
+  * ARM: delta change from Remove the domain switching on ARMv6k/v7 CPUs
+  * Board changes for digital compass
+  * Digital compass defconfig changes
+  * Driver changes for the digital compass
+  * TWL6030: regulator: Implement a WA for normal power up of VAUX3
+  * defconfig: Sync up defconfig
+  * omap4: hack: ES version detection
+  * Fixing some error handling
+  * OMAP4: PM: Update register bitshits and masks for ES2
+  * OMAP4: PM: Define additional registers for ES2
+  * OMAP4: clocks: Update clock tree for ES2
+  * OMAP4: powerdomain: Update DSS logic state
+  * OMAP4: powerdomain: Add support to read previous pwst entered
+  * OMAP4: PM: l4_per pwrdm does not support OFF
+  * OMAP4: clockdomain: Fix the sequence for clockdomain enable
+  * OMAP: hwmod or prm: Add 2 helper functions for rmw and read inside the
+    PRM
+  * OMAP: hwmod: Add HW reset management support in hwmod framework
+  * OMAP4: hwmod: Add HW reset data for dsp, iva and ipu
+  * OMAP: hwmod: Add omap_device_reset api
+  * omap4:incorporate dm timer support
+  * omap4:incorporate dm timer support
+  * omap4:incorporate dm timer support
+  * 0001-clocknamefix-as-per-hwname
+  * omap4:HSMMC : Removing Clock enable and disable
+  * omap4:hsmmc: Remove Card detect feature
+  * Adding card detect callback function and card detect configuration
+    function for MMC1 Controller.
+  * omap:hsmmc: Intially enable clocks with NO RUNTIME
+  * omap:hsmmc : remove MMC controller reset
+  * omap3:hsmmc: Hwmod changes
+  * omap4:hsmmc: Updating hwmod data with MMC base and register offsets
+  * omap:hsmmc: Register Offset handling made generic
+  * OMAP HSMMC: fix a racing case between kmmcd and omap_hsmmc_suspend
+  * omap4:hsmmc: Adding ADMA support
+  * omap:hsmmc: Enabling Aggressive clock and power saving
+  * HDMOD: Clean up
+  * Omap4:hsmmc: Always Set MMC2 Controller voltage at 3V
+  * TILER: Renamed SiTA tcm files to *tcm_sita*
+  * TILER: Limit the amount of pages available in the free page stack
+  * tiler: Ensure the pat refill has correct data before programming it
+  * TILER: Replace dsb calls with wmb for es2.0
+  * SYSLINK: ipc - multiproc module migrated to SysLink 2.0
+  * SYSLINK: ipc - sharedregion module migrated to SysLink 2.0
+  * SYSLINK: ipc - nameserver migrated to SysLink 2.0 version
+  * SYSLINK: ipc - nameserver_remotenotify migrated to SysLink 2.0 version
+  * SYSLINK: ipc - gate module added
+  * SYSLINK: ipc - gate infrastructure headers added
+  * SYSLINK: ipc - gatemp module created
+  * SYSLINK: ipc - listmp updated for SysLink 2.0
+  * SYSLINK: ipc - heapbufmp module created from heapbuf module
+  * SYSLINK: ipc - created heapmemmp module
+  * SYSLINK: ipc - heap updated for SysLink 2.0
+  * SYSLINK: ipc - updated gatepeterson for SysLink 2.0
+  * SYSLINK: ipc - gatepeterson uses IOBJECT
+  * SYSLINK: ipc - added transportshm module
+  * SYSLINK: ipc - transportshm setup module added for SysLink 2.0
+  * SYSLINK: ipc - messageq module migrated to SysLink-2.0
+  * SYSLINK: notify - notify module migrated to SysLink-2.0
+  * SYSLINK: notify - add omap4 notify setup proxy implementation
+  * SYSLINK: notify - notify ducati driver updated for SysLink-2.0
+  * SYSLINK: ipc - added ipc module from SysLink 2.0
+  * SYSLINK: ipc - update ipc driver interface file for SysLink 2.0
+  * SYSLINK: ipc - add ipc_proc_sync_finish synchronization
+  * SYSLINK: ipc - Updated platform module to SysLink 2.0
+  * SYSLINK: ipc - compile fixes for platform
+  * SYSLINK: ipc - platform_mem_destroy not calling iounmap
+  * SYSLINK: ipc - Update platform file to support code regions
+  * SYSLINK: ipc - adjust platform to support 2 heaps
+  * SYSLINK: ipc - change nameserver_remotenotify notify_event_id
+  * SYSLINK: ipc - change wait_clear mode in nameserver_remotenotify
+  * SYSLINK: ipc - fix for occasional <module>_open failures
+  * SYSLINK: ipc - change transportshm notify_event_id
+  * SYSLINK: notify - add support for AppM3
+  * SYSLINK: ipc - added gatehwspinlock for SysLink 2.0
+  * SYSLINK: ipc - enable hwspinlock module.
+  * SYSLINK: ipc - update Kbuild for multicore_ipc
+  * SYSLINK: ipc - resolve build issues due to heap interface change
+  * SYSLINK: procmgr - correct the proc_id value for AppM3.
+  * SYSLINK: procmgr - fix checkpatch warnings & file mode
+  * SYSLINK: procmgr- procmgr_attach should have a ref count
+  * SYSLINK: procmgr - resolve 2.6.34 kernel migration issues
+  * SYSLINK: notify - resolve 2.6.34 kernel migration issues
+  * SYSLINK: ipc - resolve 2.6.34 kernel migration issues
+  * ARM: Initial Proc support.
+  * omap:iommu-char driver interface for tlb entries
+  * SYSLINK: ipc - remove platform memory sections hard-coding
+  * SYSLINK: ipc - add reference counting to memory mapping
+  * SYSLINK:PROC-fix the assert sequence steps
+  * IOMMU remove clock functions from iommu module
+  * ARM:OMAP:remoteproc - Patch to disable CAP_SYS_ADMIN check
+  * SYSLINK:IPU-PM: include the ipu_pm in the ipc process
+  * SYSLINK:IPU-PM: include the ipu_pm in the platform process
+  * SYSLINK:IPU-PM: functions definitions for ipu_pm
+  * SYSLINK: ipc - Make syslink loadable modules for SysLink 2.0
+  * SYSLINK: ipc - Make syslink loadable modules makefiles for SysLink 2.0
+  * omap: iommu- fix issues when building as modules
+  * SYSLINK:IPU-PM: Changes to compile in modules
+  * SYSLINK:IPU-PM: ipu_pm build changes to compile in modules
+  * SYSLINK:IPU-PM: cleanup and improvements on ipu_pm module
+  * SYSLINK:IPU-PM: api for regulators support
+  * SYSLINK: IOMMU - Patch to disable CAP_SYS_ADMIN check for iommu driver
+  * omap:iommu-update the device clock names
+  * SYSLINK:IPC: transport add protection to transport functions
+  * Fix compile error for OMAPDSS
+  * OMAP4:DSS:HDMI:Board file change to correct setting for HDMI
+  * OMAP4:DSS:HDMI:Patch to remove raw read and write to gpio calls
+  * Remove divider ratio setting in the HDMI_WP_VIDEO_SIZE register
+  * OMAP4: mmc: host: wl1283: Support for MMC5 controller TI WLAN
+  * omap_hsmmc: improve interrupt synchronisation
+  * OMAP4:defconfig: Enable Bluetooth and dependent components
+  * TI-ST: Handle mute/unmute in FM drv correctly
+  * TI-ST: Handle FREQ in units of 62.5Hz in FM driver
+  * OMAP4:defconfig:Enable uInput support for BT AVRCP.
+  * OMAP4: multicore_ipc: Changing file permissions
+  * OMAP4: hmc5843: Changing file permissions
+  * omap4: clocks: Keep GPT clock enabled all the time
+  * ASoC: OMAP4: PM clean-up
+  * OMAP4: PM: Add runtime_pm framework API calls.
+  * ASoC: AESS: Move PM registration from codec driver
+  * ASoC: OMAP: Make bool the config_voice_call flag
+  * ASoC: OMAP: Modify McBSP configuration sequences
+  * ASoC: SDP4430: Configure mclk for phoenix
+  * ASoC: OMAP4: Add clk_div for mcbsp configuration
+  * ASoC: OMAP4: Set the correct mcbsp configuration
+  * ASoC: ABE-TWL6040: Remove not needed mixer configurations
+  * ASoC: ABE-TWL6040: Correct initialisation of PDM port
+  * ASOC: ABE-TWL6040: Add off mode analog capture
+  * ASoC: ABE-TWL6040: Vx port should use stereo format
+  * ASoC: ABE-TWL6040: Using stream flag to start ABE port
+  * ASoC: OMAP: Fix start/stop sequences for McBSP
+  * ASoC: OMAP: PDM_UL stop sequence workaround
+  * ASoC: OMAP: Configure McBSP as slave
+  * OMAP4: PM: Update PM defconfig
+  * arm: omap1/2/3/4: convert clocksource to a platform_driver
+  * add timer32 driver interface for userspace
+  * omap4: dmtimer: allow multiple clock source
+  * mmc: csd version check updated to support MMC v4.41
+  * Update the keypad name as per the name in the hwmod database
+  * OMAP: DSS: Remove 8x upscale limitation.
+  * OMAP: DSS2/V4L2: V4L2 WB fixes, ES2.0 changes
+  * OMAP4:DSS Add checksum when writing AVI infoframe for HDMI
+  * omap_vout: changes for xoverlay
+  * Fix incorrect rotation for 90 and 270 degrees
+  * TILER: Corrrect PAT array allocation error handling
+  * TILER: Set the free page stack cap to 128MB
+  * ARM: errata: TLBIASIDIS and TLBIMVAIS operations can broadcast a faulty
+    ASID
+  * ARM: flush_ptrace_access: invalidate all I-caches
+  * OMAP4: omap_4430sdp_defconfig: Aligning defconfig
+  * OMAP4: Clocks: Enable keyboard funtional clock
+  * HAL0654: Removing files
+  * ASoC: ABE: Update to HAL0654
+  * ASoC: TWL6040: Modify the IRQ handler
+  * ASoC: McPDM: Enable wd reset for ES2.0
+  * ARM: OMAP4: Define a valid gpio for twl6040
+  * ASoC: TWL6040: Enable automatic power for phoenix 1.1
+  * ASoC: SDP4430: Configure TPS61305 to provide VDDHF
+  * SYSLINK: iommu temp hack set twl to false by default
+  * omap:hwmod-hwspinlock-enable
+  * omap:hwspinlock-define HWSPINLOCK base address
+  * omap:hwspinlock-added hwspinlock driver
+  * omap:hwspinlock-add build support
+  * omap:hwspinlocks-ensure the order of registration
+  * SYSLINK: ipc - modify the default number of gate resources
+  * SYSLINK: ipc - adapt gatehwspinlock module to use hwspinlock driver
+  * SYSLINK: ipc- resource cleanup ioctl changes
+  * SYSLINK: ipc- resource cleanup multiproc changes
+  * SYSLINK: ipc- resource cleanup nameserver changes
+  * SYSLINK: ipc- resource cleanup heapbufmp changes
+  * SYSLINK: ipc- resource cleanup sharedregion changes
+  * SYSLINK: ipc- resource cleanup gatemp changes
+  * SYSLINK: ipc- resource cleanup listmp changes
+  * SYSLINK: ipc- resource cleanup messageq changes
+  * SYSLINK: ipc- resource cleanup sysipc changes
+  * SYSLINK: ipc- resource cleanup heapmemmp changes
+  * SYSLINK: ipc- resource cleanup notify changes
+  * SYSLINK: ipc- resource cleanup proc4430 changes
+  * SYSLINK: ipc- resource cleanup procmgr changes
+  * SYSLINK:IPU-PM: change board-4430sdp for regulators
+  * SYSLINK:IPU-PM: change api for regulators
+  * SYSLINK:IPU-PM: changes in I2C to use HWspinlocks
+  * OMAP4: RLS_NOTES: Adding L24.8 release notes
+  * Align with kernel-omap4 branch
+  * Panda board-file upgrades
+  * ASoc: McPDM : Use kernel function to get revision id in order to enble
+    McPDM watchdog
+  * Dynamic support for ES1.0 and ES2.0
+
+ --  Bryan Wu <bryan.wu@canonical.com>  Tue, 27 Jul 2010 13:22:38 +0800
+
+linux-ti-omap4 (2.6.34-902.6) maverick; urgency=low
+
+  [ Upstream Kernel Changes ]
+
+  * Stop ARM boards crashing when CUPS is loaded
+    - LP: #601226
+
+ --  Tim Gardner <tim.gardner@canonical.com>>  Sat, 17 Jul 2010 16:40:36 +0100
+
+linux-ti-omap4 (2.6.34-901.5) maverick; urgency=low
+
+  [ Lee Jones ]
+
+  * SAUCE: Load SysLink modules on start-up on OMAP4 devices
+  * SAUCE: SysLink: Add a module alias for udev
+
+  [ Sebastien Jan ]
+
+  * SAUCE: smsc95xx: fix macaddr parameter parsing
+
+  [ Upstream Kernel Changes ]
+
+  * SYSLINK:IPU-PM: solve circular dependencies ipu_pm
+  * TILER: Move dma_alloc_coherent call to tiler init
+
+ --  Tim Gardner <tim.gardner@canonical.com>  Thu, 15 Jul 2010 15:05:56 +0100
+
+linux-ti-omap4 (2.6.34-901.4) maverick; urgency=low
+
+  [ Upstream Kernel Changes ]
+
+  * Revert "Fix spurious segmentation faults"
+  * ARM: Remove the domain switching on ARMv6k/v7 CPUs - update
+  * omap: Register pandaboard for uncompress traces
+
+ --  Tim Gardner <tim.gardner@canonical.com>  Tue, 06 Jul 2010 06:47:56 -0600
+
+linux-ti-omap4 (2.6.34-901.3) maverick; urgency=low
+
+  [ Sebastien Jan ]
+
+  * [Config]: Increase VRAM size to 32MB
+  * [Config]: Activate block IO actions tracing
+
+  [ Upstream Kernel Changes ]
+
+  * Fix spurious segmentation faults
+
+ --  Tim Gardner <tim.gardner@canonical.com>  Thu, 01 Jul 2010 08:18:00 -0600
+
+linux-ti-omap4 (2.6.34-901.2) maverick; urgency=low
+
+  [ Sebastien Jan ]
+
+  * [Config] Fix configuration settings
+
+  [ Tim Gardner ]
+
+  * [Config] Fix Vcs-git entry
+
+  [ Upstream Kernel Changes ]
+
+  * Revert "ASoC: ABE: Fixes for hal 6.22"
+  * timer: fix for timer crash
+  * Serial: Hold an port lock while updating console.
+  * Serial: Use IIR reg to identify rx line irq.
+  * ASoC: ABE-TWL6040: Correct ABE initialization
+  * ASoC: OMAP: Correct ABE initialization
+  * ASoC: ABE: Support for pause resume
+  * ASoC: OMAP: Stop the codec after all stream are closed
+  * ASoC: ABE-TWL6040: Add digital_mute callback
+  * ASoC: Remove codec active flag
+  * Fix import of merge from audio branch
+  * ASoC: ABE: Correct implementation of hp filter
+  * ASoC: ABE-TWL6040: Mute the correct path
+  * smsc95xx: Add module parameter to override MAC address
+
+ --  Tim Gardner <tim.gardner@canonical.com>>  Mon, 28 Jun 2010 14:35:42 +0100
+
+linux-ti-omap4 (2.6.34-900.1) maverick; urgency=low
+
+  * Initial Texas Instruments OMAP4 kernel for 2.6.34
+    UBUNTU: [Config] Debian commonization bits from ubuntu-debian
+    UBUNTU: [Config] Remove debian.master
+    re-activate SDP4430 platform
+    UBUNTU: SAUCE: fix changelog for our target release - maverick
+    UBUNTU: CONFIG: import panda board config
+    Add OMAP4 Panda defconfig
+    add panda support for audio
+    Panda ES1 fixes for MUSB
+    Add OMAP4 Panda board support
+    BUG: using smp_processor_id() in preemptible code
+    UBUNTU: ignore abi and modules
+    KS8851: Add support for EEPROM MAC address
+    UBUNTU: New package name: 2.6.34-900
+    UBUNTU: [Config] align config with omap_4430sdp_defconfig
+    UBUNTU: [Config] Update to 2.6.34 kernel config
+    Deactivate CONFIG_MODVERSIONS
+    UBUNTU: [Config] d-i: exclude nfs-modules check for omap4
+    Ubuntu config: activate /proc/config
+    Ubuntu config: activate omap4 flags
+    Ubuntu config: deactivate DEBUG_LL and PRINTK_TIME
+    UBUNTU: CONFIG: OMAP4: Built-in SysLink driver
+    UBUNTU: CONFIG: OMAP4: disable 8250 serial driver
+    UBUNTU: CONFIG: OMAP4: disable earlyprintk
+    UBUNTU: CONFIG: OMAP4: disable power management
+    UBUNTU: CONFIG: OMAP4: disable cgroups
+    UBUNTU: CONFIG: OMAP4 fix some configs
+    UBUNTU: CONFIG: turn off LOCALVERSION_AUTO
+    UBUNTU: CONFIG: disable KGDB
+    UBUNTU: CONFIG: Disable SysLink for linkage error
+    UBUNTU: CONFIG: Disable CONFIG_CPU_FREQ for omap4 until fixed the compile issue
+    UBUNTU: CONFIG: import omap4 default configs
+    UBUNTU: SAUCE: OMAP4 initial debian packaging
+    UBUNTU: [Config] enable CONFIG_UNUSED_SYMBOLS
+    UBUNTU: abi-check -- be more forgiving of the ABI element type
+    UBUNTU: Bump ABI
+    UBUNTU: Start new release
+    UBUNTU: Ubuntu-2.6.33-500.6
+    UBUNTU: [Config] Compile-in support for MTD-NAND
+    UBUNTU: [Config] Add bootloader = flash-kernel
+    UBUNTU: [Config] Compile in FRAMEBUFFER_CONSOLE
+    UBUNTU: [Config] Disable APM and enable PM_RUNTIME
+    UBUNTU: [Config] Compile in RTC driver
+    UBUNTU: [Config] Switch to PREEMPTION_VOLUNTARY
+    UBUNTU: [Config] Switch to 32KHz timer instead of MPU timer
+    UBUNTU: [Config] Bump Ramdisk size to 64M and add an enfore rule
+    UBUNTU: Start new release
+    UBUNTU: Ubuntu-2.6.33-500.5
+    UBUNTU: SAUCE: move RLIMIT_CORE pipe dumper marker to 1
+    UBUNTU: [Config] Disable sound driver for AM3517-EVM boards
+    UBUNTU: [Config] Enable EHCI port
+    Revert "UBUNTU: [Config] Enable USB OTG mode"
+    UBUNTU: [Config] Disable RAMZSWAP
+    UBUNTU: Start new release
+    UBUNTU: Ubuntu-2.6.33-500.4
+    UBUNTU: Start new release
+    UBUNTU: [Config] Enable various ethernet drivers
+    UBUNTU: [Config] Enable USB OTG mode
+    UBUNTU: [Config] Configure DSS2 based on beagle defconfig
+    UBUNTU: [Config] USB_STORAGE and ATA drivers can be a modules
+    UBUNTU: [Config] Fix d-i modules
+    UBUNTU: [Config] Update configuration for new aufs2
+    UBUNTU: SAUCE: Upgrade aufs2 to latest version for 2.6.33
+    UBUNTU: [Config] Compile-in display subsystem
+    UBUNTU: Ubuntu-2.6.33-500.3
+    UBUNTU: [Config] Enable AUFS and COMPCACHE
+    UBUNTU: SAUCE: Re-export the symbols for aufs
+    UBUNTU: SAUCE: Add the ubuntu/ drivers to omap
+    UBUNTU: [Config] Fix the debug package name to end in -dbgsym
+    UBUNTU: Start new release
+    UBUNTU: Ubuntu-2.6.33-500.2
+    UBUNTU: full source build is not required
+    UBUNTU: disable tools packages as not support on armel
+    UBUNTU: debian -- resync debian support with master branch as at 2010-03-17
+    UBUNTU: [Config] Make unncessary filesytems as modules
+    UBUNTU: [Config] Disable CONFIG_OMAP_MUX to allow booting on Beagleboard
+    UBUNTU: [Config] Add a default cmdline for OMAP
+    UBUNTU: [Config] Enable EARLY_PRINTK for now
+    UBUNTU: [Config] Enable booting on beagleboard
+    UBUNTU: Start new release
+    UBUNTU: getabis -- fix configuration to point to correct source package
+    UBUNTU: Ubuntu-2.6.33-500.1
+    UBUNTU: Ubuntu-2.6.33-500.1
+    UBUNTU: [Config] udeb fixes for packaging
+    UBUNTU: [Config] OMAP ASoC drivers need to be compiled in
+    UBUNTU: [Config] Enable several OMAP3 drivers
+    UBUNTU: [Config] SECURITY_FILE_CAPABILITIES dissapeared in 2.6.33
+    UBUNTU: [Config] Add support for TI OMAP3
+    UBUNTU: ubuntu: AppArmor -- update to mainline 2010-03-04
+    OMAP4: RLS_NOTES: Updating proper MMC & eMMC slot number
+    OMAP4: RLS_NOTES: Adding RLS NOTES for L24.7
+    SYSLINK: ipc - fix for occasional module_open failures
+    Merge branch 'display-next' of git://dev.omapzoom.org/pub/scm/axelcx/kernel-display into L24.7
+    HDMI HPD IRQ handler
+    V4L2: Replace spinlock with spinlock_irqsave and restore.
+    Make tearing effect optional by using a bootarg
+    DSS2: Use external tearing in panel-taal
+    Setting VRAM param in bootargs
+    OMAP4: eresing unnecesary files: piggy.gzip and vmlinux
+    Fix a bug by making suspend interrupt available in device mode.
+    musb_core: make disconnect and suspend interrupts work again
+    OMAP4: omapfb-main_permissions: Putting proper permissions
+    OMAP4: hsmmc_permissions: Putting proper file permissions.
+    Merge branch 'display-next' of git://dev.omapzoom.org/pub/scm/axelcx/kernel-display into L24x7
+    Use pgprot_noncached API in OMAPFB
+    DPI change to fix build error when DSI PLL enabled
+    V4L2:Merge FIX Correctly Assign Overalys to Vout devices for OMAP4
+    Enabling FAKE VSYNC in OMAP4430SDP defconfig
+    OMAP4: omap_4430sdp_defconfig: Aligning vs .config
+    Merge branch 'dmm_til_1.0' of git://dev.omapzoom.org/pub/scm/dsin/tiler-omap4 into L24x7
+    TILER: Extend and move SiTA div points
+    TILER: Clear PAT irq and status registers after refill
+    TILER: Fix rotated tiler address calculation.
+    TILER: Include slab header for kmalloc/kfree calls
+    TILER: Set correct file permissions
+    TILER: Fix klocwork defects in tiler_reservex() and tiler_exit()
+    TILER: Fixed issue with tiler_alloc_packed for 16/32-bit buffers.
+    TILER: Enable media support
+    OMAP4: omap-4430board.c: Erasing re-definition
+    TILER: Relocate entries to the media Kconfig file
+    TILER: Added reference counting and cleanup. Fixed query bugs.
+    TILER: Cleaned up SiTA container manager algorithm code
+    TILER: Added support for auto-packing of tiler blocks.
+    TILER: Renamed dmm_mem.c to tmm_pat.c to reflect what it is.
+    TILER: Added support for multiple containers and PAT instances.
+    TILER: Renamed SiTA tcm files to *tcm_sita*
+    TILER: Separated SiTA TCM implementation from TCM definition
+    TILER: Consolidated PAT programming
+    TILER: Use TCM features for tiler space allocations.
+    TILER: Update to Linux sizeof conventions and formatting.
+    TILER: Initial TCM code cleanup
+    TILER: Initial reorganization of TCM files.
+    Fixed Bugs, Added memset to sita_pvt in sita_init, updated utils to copy new fields in insert_element
+    Fixed bugs in sita_init
+    Moved to New Tiler APIs defined in tcm.h, add multi-continer support Signed-off-by: R Ramachandra <r.ramachandra@ti.com>
+    Export latest dmm header to mach directory Signed-off-by: David Sin <davidsin@ti.com>
+    Renamed files with shorter names
+    free buf info struct if copy_to/copy_from check fails
+    add NULL checks before returning from dmm_get_page(s) function
+    TILER: Corrected parameter checking in tiler_alloc_packed_nv12.
+    new APIs to optimize the freeing of used dmm pages
+    don't dereference sysptr in tiler_alloc_packed function
+    correct rot/pack API mismatches; add missing API prototypes
+    create separate module for tiler area manager (tam)
+    enable find buffer logic with new algo
+    tiler driver support for new tiler container algo
+    add dmm/tiler headers to omap include dir
+    move error code enums into 2d alloc header
+    remove unused dmm function declarations
+    Relocate TILER macro def
+    Remove unused dmm status and error structures
+    enable query block
+    add d2c logic to tiler drv; rework dmm pat refill function
+    add support to map existing user buffer into tiler
+    add rotation, packing, and map 1d code
+    replace page stack logic with new one using kernel lists
+    additional code corrections to pass next series of mem mgr tests
+    enable tiler_alloc, mmap, and tiler_free to pass initial tests
+    add logic to setup PAT and TILER orientation
+    basic tiler driver
+    re-format function spacing
+    replace types with kernel macros
+    basic dmm driver
+    Merge branch 'Wlan-next' of git://dev.omapzoom.org/pub/scm/pradeep/wlan-1283 into L24x7
+    OMAP4: board-4430sdp.c: Adding WLAN configuration
+    This modification is required when we build Wlan with supplicant
+    OMAP4: sdio: add TI 128x vendor + device id's
+    OMAP4: sdio: added structure embedded_sdio_data
+    mmc: host: wl1283: Support for MMC5 controller TI WLAN
+    OMAP4: mmc: core: wl1283: add embedded sdio card quirks
+    sdio: support for WLAN class and sans patch for embedded SDIO
+    OMAP4: sdio: WLAN-1283 configuration
+    OMAP4: sdio: WLAN-device registration/reset, Makefile entry
+    OMAP4: Kconfig modifications for 1283
+    omap: hsmmc funtionality breaks when CONFIG_PM not define
+    OMAP4: omap_4430sdp_defconfig: Aligning .config and defconfig
+    PATCH omap: hsmmc funtionality breaks when CONFIG_PM not define
+    Merge branch 'omap4_next' of git://dev.omapzoom.org/pub/scm/santosh/kernel-omap4-base into L24x7
+    Merge branch 'audio-for-24.7' of git://dev.omapzoom.org/pub/scm/misael/kernel-audio into L24x7
+    OMAP4: omap_4430sdp_defconfig: Fix to avoid overrite of definitions
+    ASoC: HDMI: Use ASoC framework to set dma_data
+    ASoC: ABE-TWL6040: Set default volumes to minimum
+    Merge branch 'display-next' of git://dev.omapzoom.org/pub/scm/axelcx/kernel-display into L24x7
+    Fix warnings in omap_wb.c
+    V4L2: Add source files for WB capture device
+    DSS2: Fixes in DSS2 files for correct writeback functionality
+    OMAP4: Add wb device in devices.c
+    V4L2: Writeback changes for omap_vout.c and omap_voutdef.h
+    V4L2 : Add writeback related structures in Videodev2.h
+    OMAP4: board_4430sdp: Naming properly &sdp4430_dss_device
+    OMAP: serial: Disable serial 8250 suspend/resume
+    OMAP: hwmod: if IDLEST fields are not set, use module defaults
+    Enabling PicoDLP in OMAP4 defconfig
+    Enabling DSS in OMAP4 defconfig
+    Implementing DSS context save restore
+    Use pgprot_dmacoherent API in OMAPFB
+    Remove compiler warning from Writeback related patches
+    Remove compiler warning from pico DLP related patches
+    Remove compiler warning from Board4430 file
+    Remove compiler warning from HDMI related patches
+    OMAP4: Adding MMC3/4/5 controller's support
+    OMAP4:HSMMC:Enabling power saving
+    HSMMC: Updating hwmod clock enable and idle calls
+    OMAP3: HSMMC : Correcting the name in hwmod
+    OMAP4: FIX HSMMC Controller base
+    OMAP3_OMAP4:HSMMC:Updating the attribute flags with capabilities
+    OMAP2/3 MMC: initial conversion to runtime PM
+    OMAP: MMC (core): split device registration by OMAP
+    MMC: OMAP HS-MMC: convert to dev_pm_ops
+    OMAP2/3: hwmod: Add basic HSMMC hardware modules
+    Revert "OMAP: PM: use omap_device API for suspend/resume"
+    Merge branch 'omap4_next' of git://dev.omapzoom.org/pub/scm/santosh/kernel-omap4-base into L24x7
+    Merge branch 'btfm_next' of git://dev.omapzoom.org/pub/scm/raja/L24x-btfm into L24x7
+    DSS2: Disable lcd_en to in case of framedone timeout
+    DSS2 Adds HDMI,DSI1,DSI2,DPI2 in wait_for_vsync
+    DISPC Merge Fix Missing if OMAP3 checks
+    FB: Add tiler support
+    FB Temp Not to call update
+    omap4: fb: Adds missing display update call when panning
+    MM: Add support for ioremapping multiple strided areas
+    V4L2: Temporarily write the correct value of global_alpha
+    DSS2: Support RGB32 format for video1 pipeline on OMAP4
+    DSS2: printks replaced with DSSDBG in dispc.c
+    V4L2: picoDLP changes for omap_vout_isr
+    V4L2: hdmi changes for omap_vout_isr
+    V4L2: Merge Fix change MAX_OVERLAYS and vout to overlay assignment for OMAP4
+    OMAP4: configure devices.c to create extra vout object for OMAP4
+    DSS2 : Remove Taal suspend resume functionality
+    DSS2 Merge Fix omap4 supported modes to overlays
+    OMAP: hwmod: remove unnessesary noice in omap_device and omap_hwmod
+    OMAP: i2c: Add runtime api support in i2c driver
+    OMAP: omap_device: add flag to disable automatic bus-level suspend/resume
+    OMAP: PM: use omap_device API for suspend/resume
+    OMAP: PM: initial runtime PM core support
+    platform_bus: allow custom extensions to system PM methods
+    Fix board changes for BH1780 and TMP105
+    OMAP4: PM: Reset Register bits correction
+    ASoC: ABE: Add shutdown function for tones
+    ASoC: SDP4430: Add Aux/FM input pins
+    ASoC: ABE-TWL6040: Add analog FM support
+    OMAP4: omap_4430sdp_defconfig: Fix overrite of MEDIA_SUPPORT
+    Merge branch 'audio-for-24.7' of git://dev.omapzoom.org/pub/scm/misael/kernel-audio into L24x7
+    OMAP4: syslink_file_permissions: Changing file permissions to 644
+    OMAP4: omap_4430sdp_defconfig: Fix to avoid overrite SPI configurations
+    Merge branch 'syslink-v2.6.34-rc6_24_7' of git://dev.omapzoom.org/pub/scm/tisyslink/kernel-syslink into L24x7
+    OMAP4: proximity_driver: File permissions
+    ARM: OMAP4: Enable BCI, GPADC in omap_4430sdp_defconfig
+    add support for BQ24156 AC charger driver
+    add support for RT GPADC conversion
+    add support for backup battery
+    POWER: TWL6030: Battery charger driver
+    MFD: TWL6030: Add Support for GPADC
+    omap4: mmc: Fix the regulator resource for MMC2
+    Board changes for temperature sensor
+    Revert "Board changes for temperature sensor"
+    MAP4:defconfig: Enable Bluetooth and dependent components
+    serial: TTY: Adding new ldisc for TI BT/FM/GPS chips
+    drivers: misc: Adding FM driver common header
+    drivers: misc: Adding FM driver Char module sources
+    drivers: misc: Adding FM driver v4l2 i/f module sources
+    drivers: misc: Adding FM driver Mixer interface sources
+    drivers: misc: Adding FM driver core sources
+    drivers: misc: Adding FM driver ST interface module
+    drivers: misc: Adding ST based BT driver sources
+    drivers: misc: Adding ST-FM header file source
+    drivers: misc: Adding ST header file sources
+    drivers: misc: Adding ST HCI LL PM protocol sources
+    drivers: misc: Adding ST Core sources
+    drivers: misc: Adding ST init manager sources
+    drivers: misc: Kconfig, Makefile change for ST
+    OMAP4: 4430SDP: Adding wl128x platform device.
+    Writeback pipeline support in OMAP4 DSS
+    OMAP4 : HDMI specific sysfs control to support Hot plug detect
+    OMAP4:HDMI Library changes to support hot plug detect
+    OMAP4 : HDMI driver changes to support Hot Plug Detect
+    Overlay check for TV when switching as TV in OMAP4 doesnt support Downscaling
+    Modify pico to add suspend and resume support also modify enable and disable
+    DSS changes for pico DLP
+    pico_DLP changes in display.h
+    Makefile and kconfig changes to include pico_DLP
+    Board-4430sdp.c file change to include Pico DLP panel
+    DPI changes to include the channel to accommodate LCD2
+    Add Pico DLP panel to OMAP4
+    HDMI 9/9 Library to enable the HDMI hardware in OMAP4
+    HDMI 8/9 EDID related sysfs controls
+    HDMI 7/9 Makefile change to include hdmi_lib.c build
+    HDMI 6/9 Makefile and kconfig change
+    HDMI 5/9 Add HDMI support in dss2
+    HDMI 4/9 Add HDMI related dss funtion
+    HDMI 3/9 Modify display.h to include hdmi
+    HDMI 2/9 Modify board file to add support for HDMI
+    HDMI 1/9 Add HDMI driver in OMAP4 DSS
+    DSI:Merge FIX-set default update mode as auto_updtae
+    V4L2: Merge FIX-Replace virtaddr with phyaddr in omap_vout_mmap
+    DSI:Merge FIX- set DSI DDRCLKALWAYSON and COMPLEXIO GO bit
+    usb: musb: Dynamic dma channel allocation in gadget driver
+    usb: musb: Unmapping the dma buffer when switching to PIO mode
+    omap4: Enable KEYPAD in pm-defconfig
+    omap4: pm: Add omap4_pm_defconfig
+    omap4: Enable 'Unix domain sockets' support in OMAP4430 defconfig
+    OMAP4: Keyboard: Linux Input Sync Up
+    OMAP4: hsmmc: Fix the init if CONFIG_MMC_OMAP_HS is not set
+    Defconfig changes for tmp105
+    Board changes for temperature sensor
+    Add support for TMP105
+    ASoC:ABE: Remove sample rate converter
+    ASoC: ABE-TWL6040: Reduce ditigal gains
+    ASoC: SDP4430: Remove build warnings.
+    ASoC: TWL6040: Jack detection in codec
+    ASoC: SDP4430: Add jack detection for machine driver
+    ASoC: ABE: Enable MM_UL2 instead of MM_UL port
+    ASoC: ABE: Initialize abe mixers
+    ASoC: ABE: High pass filter for handsfree
+    ASoC: ABE-TWL6040: Remove build warnings from codec
+    ASoC: ABE: Add voice call test configuration
+    ASoC: McBSP: Add Support for McBSP interfaces in OMAP4
+    OMAP4: McPDM: Remove build warnings on McPDM driver
+    ASoC: ABE: Support for mono playback
+    OMAP4: ABE: Add PM support for ABE module
+    ASoC: ABE: Remove build warnings
+    ASoC: OMAP4: Move trigger handling to ABE
+    ASoC: ABE-TWL6040: Correct widget handling for drivers
+    ASoC: ABE-TWL6040: Initial mixer configuration
+    ARM: OMAP4: Enable HDMI audio by default in defconfig
+    ASoC: HDMI: Change wrapper function names
+    ARM: OMAP4: Enable audio ALSA support for sdp4430
+    ASoC: ABE-TWL6040: Add ABE digital mixers in DL path
+    ASOC: OMAP4: Fix Audio DMA transaction Error
+    ASoC: ABE-TWL6040: Enable aess_clk only when needed.
+    ASoC: HDMI: Map HDMI module audio functions to HDMI dai
+    ASoC: OMAP4: HDMI Audio driver fix for Stereo
+    ASoC: SDP4430: Add HDMI dai to machine driver
+    ASoC: OMAP4: HDMI: Add support for HDMI interface
+    ASoC: OMAP4: Fixes for fullduplex test
+    ASoC: OMAP4: Avoid multiple McPDM interface requests
+    ASoC: ABE-TWL6040: Explicitly enable aess_clks
+    ASoC: OMAP4: Add ABE DAI driver
+    ASoC: ABE-TWL6040: Adding ABE dais
+    ASoC: ABE-TWL6040: Moving twl6040.c to abe-twl6040.c
+    ASoC: ABE: Fixes for hal 6.22
+    ASoC: ABE: Use ioremap to get ABE virtual address
+    ASoC: ABE: Add audio HAL06.22
+    ASoC: ABE: Add coefficients files for audio backend v6.22
+    ASoC: SDP4430: Set sysclk at init
+    ASoC: OMAP4: Buffer size should be a multiple of 24
+    ARM: OMAP4: TWL6040 codec platform data
+    ARM: OMAP4: Add PM support for McPDM driver
+    ASoC: McPDM: Add macro OMAP_MCPDM
+    ARM: OMAP4: Register driver when OMAP_MCPDM is selected
+    ASoC: TWL6040: Fix playback with 19.2 Mhz MCLK
+    ASoC: sdp4430 - add sdp4430 pcm ops to DAI.
+    ASoC: TWL6040: Enable earphone path in codec
+    ASoC: SDP4430: Add support for Earphone speaker
+    ASoC: SDP4430: Add sdp4430 machine driver
+    ARM: McBSP: Add support for omap4 in McBSP driver
+    ARM: McBSP: Fix request for irq in OMAP4
+    OMAP: McBSP: Add 32-bit mode support
+    ASoC: TWL6040: use of kzalloc/kfree requires the include of slab.h
+    ASoC: Fix file permission of soc/codecs/twl6040.c
+    ASoC: TWL6040: Change twl macro
+    ASoC: TWL6040: Add twl6040 codec driver
+    OMAP4: PMIC: Rename twl6030_codec as twl6040_codec
+    ASoC: McPDM: Change pdm functional clock name
+    ASoC: McPDM: Use tabs for indentation in header
+    ASoC: McPDM: Use tabs for indentation
+    SYSLINK:IPC-rename heap functions to avoid name collision
+    Revert "ARM: Defer the L_PTE_EXEC flag setting to update_mmu_cache() on SMP"
+    OMAP4: hwmod: Add offset to DMA requests line number
+    OMAP: Remove temporay hack to avoid disabling clock.
+    Serial: Enable clocks back if disbaled during init.
+    DISPC uv_scaling changes in plane_info functions
+    DISPC scale coef 5-3taps
+    DISPC Add FIR configuration
+    SYSLINK IPC Message transport add protection to transport functions
+    SYSLINK IPC messageq transport check the listmp handle
+    SYSLINK:PROCMGR: Put SYS_M3 in reset before MMU unmap
+    SYSLINK: Make Syslink Loadable Modules Makefiles
+    SYSLINK: IPC - Make Syslink Loadable Modules
+    V4L2 Temp Not to call Update
+    V4L2 crop support with streaming
+    V4L2 Multi Display Support in ISR
+    V4L2 Add Tiler Support voutdef.h
+    V4L2 Add Tiler Support in vout.c
+    V4L2 Add Tiler Rotation enum
+    V4L2 Exclude VRFB for OMAP4
+    OMAP4 V4L2: Make VRFB depend on OMAP2,3
+    OMAP3: HWMOD: GPTIMER corrections
+    Vaibhav V4L2 patches
+    DSS2 Tiler Support
+    DSS2 NV12 support in dispc.c
+    DSS2 NV12,RGB color mode display.h
+    DSS2 NV12 changes in manager.c
+    DSS: Change PLL calls in dpi.c brought by introducing DSI2
+    DSS: Modify core.c to intialize DSI2
+    DSS2: Change fake_vysnc_irq to generate VSYNC2 for DSI2
+    OMAP4: Add board information for secondary lcd
+    DSS: modify select_clock_source functions for enabling DSI2 clocks
+    DSS: Panel-Taal: Add enum changes to enable secondary lcd
+    DSI: Incorporate changes to enable DSI2 in dsi.c
+    DSI: Introduce new enum to differentiate between DSI1 and DSI2
+    OMAP4 DSS2 Add Zorder support
+    DSS2:Merge FIX-<fix function calls to dispc_set_clock_div in interface drivers>
+    DSS2:Merge FIX-<Remove extra return statement in display.c>
+    DSS2:Merge FIX-<Correct dss_recheck_connections in overlay.c>
+    DSS2:Merge FIX-<Wait for VSYNC2 when channel is lcd2 in manager.c>
+    DSS2:Merge FIX-<change function declarations in dss.h and display.h>
+    DSS2:Merge FIX-<Write to correct registers based on DSS_CHANNEL in dispc.c>
+    SYSLINK:IPU-PM: add i2c support
+    SYSLINK:IPU-PM: functions prototypes for ipu_pm
+    SYSLINK:IPU-PM: Definitions of ipu_pm functions
+    SYSLINK:IPU-PM: changes to match ipu_pm new code
+    SYSLINK:IPU-PM: enabling by default ipu_pm
+    SYSLINK:IPU-PM: build changes for ipu_pm support
+    Patch for creating more than one FB
+    OMAP4: merge fix board file
+    Update defconfig for BH1780 Ambient Light driver
+    Update board file for BH1780
+    misc: ROHM BH1780GLI Ambient light sensor Driver
+    omap4: Disable the 8250 serial driver in defconfig
+    omap-Serial: Enable omap-serial driver by default
+    ARM: Defer the L_PTE_EXEC flag setting to update_mmu_cache() on SMP
+    OMAP4: Add support for Overlay Manager 3 in DSS2
+    OMAP4: Enable VIDEO 3 pipeline functionality in DSS2.
+    OMAP4 video 3 pipeline register definitions for enabling VIDEO 3 pipeline in DSS2.
+    OMAP4: changes in display.h for enabling VIDEO 3 pipeline in DSS2.
+    DSS2 : Changes for auto-update mode for panel-taal on OMAP4
+    DSS2 : Panel-taal config changes for OMAP4
+    OMAP4430SDP : clock changes for DSI PLL on OMAP4
+    OMAP4430SDP : Backlight changes for primary lcd on OMAP4
+    DSS2 : IRQ handler for DSI on OMAP4
+    DSS2 : OMAP4 cnfiguration changes for dsi
+    DSI Regulator for omap3 DSI
+    DSI Add DSI for OMAP4
+    OMAP4 dispc merge bit change DISPC bit for OMAP4 is corrected
+    OMAP4 dss base address Changes the dss base address for OMAP4
+    OMAP4 dispc base address Changes the dispc base address for OMAP4
+    OMAP4 dsi base address Changes the dsi base address for OMAP4
+    DSS2-TEMP-no clk API calls
+    OMAP4 irq for DSS OMAP4 does not handle irqs at DSS level, instead seperate lines for dispc
+    DSS2-TEMP-no clk for OMAP4
+    OMAP4 add taalpanel support
+    DSS2 VRFB depends on OMAP2,3
+    DSS2 OMAP4 support
+    OMAP3630: DSS2: Updating MAX divider value
+    OMAP: DSS2: Add ACX565AKM Panel Driver
+    OMAP: DSS2: TPO-TD03MTEA1: fix Kconfig dependency
+    OMAP: LCD LS037V7DW01: Add Backlight driver support
+    OMAP: DSS2: Taal: Fix DSI bus locking problem
+    OMAP: DSS2: Taal: add mutex to protect panel data
+    OMAP: DSS2: Make partial update width even
+    OMAP: DSS2: Fix device disable when driver is not loaded
+    OMAP: DSS2: VENC: don't call platform_enable/disable() twice
+    OMAP: DSS2: check lock_fb_info() return value
+    OMAP: DSS2: fix lock_fb_info() and omapfb_lock() locking order
+    OMAP: DSS2: Use vdds_sdi regulator supply in SDI
+    OMAP: DSS2: Remove redundant enable/disable calls from SDI
+    OMAP: DSS2: Add Kconfig option for DPI display type
+    Update defconfig for CMA3000 Accelerometer driver
+    Platform changes for CMA3000 Accelerometer driver
+    input: CMA3000 Accelerometer Driver
+    Revert "CMA3000 Accelerometer Driver"
+    Revert "Correct permission mode for new files"
+    SYSLINK:iommu-disable twl
+    omap: iommu-add functionality to get TLB miss interrupt
+    omap: iommu-update irq mask to be specific about twl and tlb
+    TILER: Fix rotated tiler address calculation.
+    TILER: Include slab header for kmalloc/kfree calls
+    TILER: Set correct file permissions
+    TILER: Fix klocwork defects in tiler_reservex() and tiler_exit()
+    TILER: Fixed issue with tiler_alloc_packed for 16/32-bit buffers.
+    TILER: Enable media support
+    TILER: Relocate entries to the media Kconfig file
+    TILER: Added reference counting and cleanup. Fixed query bugs.
+    TILER: Cleaned up SiTA container manager algorithm code
+    TILER: Added support for auto-packing of tiler blocks.
+    TILER: Renamed dmm_mem.c to tmm_pat.c to reflect what it is.
+    TILER: Added support for multiple containers and PAT instances.
+    TILER: Renamed SiTA tcm files to *tcm_sita*
+    TILER: Separated SiTA TCM implementation from TCM definition
+    TILER: Consolidated PAT programming
+    TILER: Use TCM features for tiler space allocations.
+    TILER: Update to Linux sizeof conventions and formatting.
+    TILER: Initial TCM code cleanup
+    TILER: Initial reorganization of TCM files.
+    Fixed Bugs, Added memset to sita_pvt in sita_init, updated utils to copy new fields in insert_element
+    Fixed bugs in sita_init
+    Moved to New Tiler APIs defined in tcm.h, add multi-continer support Signed-off-by: R Ramachandra <r.ramachandra@ti.com>
+    Export latest dmm header to mach directory Signed-off-by: David Sin <davidsin@ti.com>
+    Renamed files with shorter names
+    free buf info struct if copy_to/copy_from check fails
+    add NULL checks before returning from dmm_get_page(s) function
+    TILER: Corrected parameter checking in tiler_alloc_packed_nv12.
+    new APIs to optimize the freeing of used dmm pages
+    don't dereference sysptr in tiler_alloc_packed function
+    correct rot/pack API mismatches; add missing API prototypes
+    create separate module for tiler area manager (tam)
+    enable find buffer logic with new algo
+    tiler driver support for new tiler container algo
+    add dmm/tiler headers to omap include dir
+    move error code enums into 2d alloc header
+    remove unused dmm function declarations
+    Relocate TILER macro def
+    Remove unused dmm status and error structures
+    enable query block
+    add d2c logic to tiler drv; rework dmm pat refill function
+    add support to map existing user buffer into tiler
+    add rotation, packing, and map 1d code
+    replace page stack logic with new one using kernel lists
+    additional code corrections to pass next series of mem mgr tests
+    enable tiler_alloc, mmap, and tiler_free to pass initial tests
+    add logic to setup PAT and TILER orientation
+    basic tiler driver
+    re-format function spacing
+    replace types with kernel macros
+    basic dmm driver
+    OMAP4: Hack for not disabling the clocks
+    OMAP4: Correcting the gp timer clock info in the hwmod data base.
+    OMAP: Convert dual mode timer into a platform driver.
+    OMAP1: Dual mode timer device registration.
+    OMAP2/3/4 : Dual mode timer device registration.
+    OMAP3: Add hwmod data for OMAP3 dual mode timers
+    Fix board data to support device only, host only and OTG roles.
+    Fix TWL6030 module name in MUSB driver.
+    SYSLINK: mailbox - comment out mailbox clocks for OMAP4
+    omap: iommu- update ducati mmu irq define name
+    SYSLINK: kernel 2.6.34 migration changes
+    omap: mailbox: convert block api to kfifo
+    omap iommu: introduce iteration macro for iotlb entry scan
+    OMAP:iommu- add TLB preservation support
+    OMAP:iommu - missing check for TLB valid entry
+    OMAP:iommu support for OMAP4
+    OMAP:iommu renamed omap3-iommu to omap-iommu
+    SYSLINK: ListMP KW fix for release 24.6
+    SYSLINK: Proc4430 module KW defect fixed for release 24.6
+    SYSLINK:proc-remove annoying printk
+    SYSLINK:IPU-PM: add definitions for IPU-PM functions
+    SYSLINK:IPU-PM: add prototypes for IPU-PM functions
+    SYSLINK:IPU-PM: add notifications function call
+    SYSLINK:IPU-PM: register the IPU PM events
+    SYSLINK:IPU-PM: Add IPU PM code to kernel via Menuconfig
+    SYSLINK remove the mutex protection while sending the mailbox messages
+    omap: mailbox: rwlocks to spinlock: compilation fix
+    omap: mailbox: convert block api to kfifo
+    omap: mailbox: fix reverse likeliness
+    omap: mailbox cleanup: split MODULE_AUTHOR line
+    omap: mailbox cleanup: convert rwlocks to spinlock
+    SYSLINK: proc-config option to load base image
+    SYSLINK: notify-payload getting manipulated in notify isr
+    SYSLINK: ipc - messageq transport remove waiting for Ducati to clear the flag
+    SYSLINK: auto select mailbox framework when notify is selected
+    Revert "ARM: dma-mapping: remove dmac_clean_range and dmac_inv_range"
+    ARM: UNOFFICIAL_USER_DMA_API
+    syslink: better handling for interrupted system calls
+    SYSLINK: notify - remove notify_dispatcher from build
+    SYSLINK: remove unused code
+    SYSLINK: remove tesla related file
+    SYSLINK: ipc - remove execute permission on syslink header files
+    Syslink: Fix the page attributes set in mmpa for ARMv7 architectures
+    SYSLINK:notify-remove redunant check in notify send event
+    omap: mailbox: mbox_tx work done directly
+    SYSLINK: ipc - fixes for critical nameserver bugs
+    SYSLINK: ipc - gatepeterson_open handles error cases properly
+    SYSLINK: procmgr - remove compile warnings in ducatienabler
+    SYSLINK: procmgr - remove module section mismatch warning
+    SYSLINK: ipc - reference count for shared regions
+    SYSLINK: 2.6.33 migration - remove duplicate page_to_phys definition
+    SYSLINK: 2.6.33 migration - adjust for include files move to plat
+    SYSLINK: 2.6.33 migration - adjust for location of autoconf.h
+    OMAP4:Mailbox-retries in case of FIFO full
+    SYSLINK: fix error with handling of return code in case of interrupted system call
+    SYSLINK: Stabilize IPC for multithreaded applications
+    SYSLINK: ipc - call notify send event with true sycn flag
+    Syslink: Enable Syslink modules as default built
+    SysLink Notify kernel KW-fixes
+    SYSLINK: ipc - kw defect fixes #2
+    SYSLINK: procmgr - kw defect fixes
+    SYSLINK: notify - kw defect fixes
+    SYSLINK: sysmgr - kw defect fixes
+    SYSLINK: ipc - kw defect fixes
+    SYSLINK:IPC don't use down_timeout to wait forever
+    SYSLINK: ipc - sysmgr acknowledges handshakes
+    SYSLINK: enable MMU fault notification in Ducati
+    SYSLINK: proc4430 - ensure correct ducati reset sequence
+    SYSLINK: procmgr - format the MMU dump properly.
+    SYSLINK:proc-add VM_RESERVED flag to prevent swapping
+    SYSLINK: sysmgr - adjust ducati memory map for 512MB
+    SYSLINK: procmgr - adjust ducati memory map for 512MB
+    enable mailbox framework
+    SYSLINK:proc-use OMAP2_L4_IO_ADDRESS instead of IO_ADDRESS
+    SYSLINK PROCMGR Fix to support multiple load/run of ducati samples
+    SYSLINK: sysmgr - ioctl call to stopcallback sets return status
+    SYSLINK: procmgr - Removed extra ducati_destroy call from proc4430_destroy
+    SYSLINK:proc-fix in ducati enabler hw mmu module
+    SYSLINK: ipc - conditional check added before printing some traces
+    SYSLINK: sysmgr - changes to update to new memory map
+    SYSLINK: Ducati fix for 16MB TLB updated
+    SYSLINK: procmgr - adjust memory map for SDC
+    SYSLINK:ipc-de-couple sysmanager from Proc module
+    SYSLINK NOTIFY Patch to fix premature read ioctl exit, iounmap related memory leak.
+    SYSLINK NOTIFY Patch to cleanup notify_ducati module
+    SYSLINK:proc-changes to proc start and stop
+    revert back to hw_mmu to test TLB entry changes in mmu
+    SYSLINK: ipc - platform cleanup loads config info
+    SYSLINK:ipc:notify drv read fix
+    SYSLINK:ipc-fix compile warning in platform_destroy
+    SYSLINK: procmgr - Converted the procmgr driver module to platform driver model.
+    SYSLINK: ipc - fixes/ additions in ducatienabler and notify_ducati driver.
+    SYSLINK: ipc - fix in notify_dispatcher.
+    SYSLINK: ipc - fix in platform_mem.
+    SYSLINK: ipc - fixes in proc4430 and platform.
+    SYSLINK: ipc - heapbuf_close frees obj
+    SYSLINK: notify - ducatidrv frees event listener
+    SYSLINK: ipc - cleanup for platform_mem
+    SYSLINK: proc4430 - Reserve memory alignment
+    SYSLINK: ipc - Enable SWDMM memory region in SysMgr
+    SYSLINK: ipc - Fixed cleanup order of operations
+    SYSLINK: sysmgr - Updated error message strings
+    Syslink-Fixed platform heapbuf cleanup order
+    SYSLINK: PROCMGR - Patch to move to syslink version 2.0.0.12
+    SYSLINK NOTIFY Patch to migrate Notify module to Syslink version 2.0.0.12
+    SYSLINK: ipc - bug fixes incorporated from SysLink 2.00.00.12
+    SYSLINK:proc-add virt to phys and map tiler functionality
+    SYSLINK IPC Patch to accomodate the use of multiple heaps
+    SYSLINK: ipc - removed gt_traces in remaining IPC modules
+    SYSLINK: ipc - removed gt_traces from messageq modules
+    SYSLINK: ipc - removed gt_traces from listmp modules
+    SYSLINK: ipc - removed gt_traces from messageq_transportshm & heapbuf modules
+    SYSLINK IPC-SYSMGR Patch to cleanup modules in the platform_destroy() function.
+    SYSLINK: ipc - minor fix in heapbuf
+    SYSINK:IPC-make sysmanager option default
+    SYSLINK: ipc - fixes in messageq and nameserver_remotenotify
+    add UART mapping to ducati
+    SYSLINK NOTIFY DUCATI Patch to fix notifyshm driver open call.
+    SYSLINK platform attach proc handles
+    Subject: SYSLINK SysMgr setup for AppM3
+    SYSLINK Procmgr add proc id param for Proc stop.
+    SYSLINK:notify-fix the notify setup bug
+    SYSLINK:notify-fix checkpatch warnings
+    SYSLINK:notify-move the mailbox init to setup
+    SYSLINK:ipc-fixes to sys manager
+    SYSINK:ipc-add sys manager config option
+    Subject: SYSLINK fixes for shutdown stage
+    SYSLINK:ipc-sys manager structure fixes
+    SYSLINK:sys manager changes and bug fixes
+    SYSLINK: ipc - sharedregion fixes for sysmgr validation
+    SYSLINK: ipc - fix messageq create and delete
+    SYSLINK: ipc - Add SysMgr & SysMemMgr
+    SYSLINK: ipc - fix listmp_sharedmemory list initialization
+    SYSLINK: ipc - fix issues with nameserver_get functions
+    SYSLINK: ipc - fix heapbuf issues in open, create & delete
+    SYSLINK: procmgr - correct static physical memory address
+    SYSLINK:ipc-listmp sharedmemory delete procid check
+    SYSLINK:ipc-gatepeterson open shared address fix
+    MAILBOX select mailbox driver by default ver 2
+    Syslink IPC SharedRegion Fix
+    MAILBOX select mailbox driver by default
+    SYSLINK: ipc - decrement reference count properly.
+    SYSLINK NOTIFY MODULE Patch to fix the WARN_ON in notify_register()
+    SYSLINK Notify-Ducati Adds support to use open source mailbox changes.
+    SYSLINK NOTIFY DUCATI - Removes notify ducati module's dependency on Notify dispatcher in the Kconfig.
+    SYSLINK:ipc-fixes for sharedregion_get_table_info
+    SYSLINK DUCATI change the the proc control structure
+    Syslink IPC MultiProc Fix
+    SYSLINK Proc4430 added dependancy on IOMMU
+    SYSLINK: procmgr - relocated procmgr.h
+    SYSLINK Notify-Ducati Adds syslink specific atomic functions to check and set driver state.
+    SYSLINK Notify IPC migrations to include syslink specific atomic calls
+    SYSLINK Notify - Adds IPC migrations to the Notify driver module.
+    SYSLINK ProcMgr fix for Procmgr Start procid
+    SYSLINK:proc changes to adapt to sys manager and ipc
+    SYSLINK Ducati reduce the DMM pool size
+    SYSLINK Heapbuf aligned with IPC 50 and Syslink 2_00_00_08 changes
+    Syslink IPC ListMP, messageQ aligned with 2_00_00_08
+    Syslink IPC GatePeterson aligned with Syslink drop 2_00_00_06
+    ARM OMAP4 Syslink Utils Platform mem module
+    ARM OMAP4 Syslink IPC ListMP, ListMP SharedMem Changes
+    ARM OMAP4 Syslink IPC MessageQ, MessageQ Transport Changes
+    ARM OMAP4 Syslink IPC Shared Region Changes
+    ARM OMAP4 Syslink IPC NameServer,NameServer Notify Changes
+    ARM OMAP4 Syslink IPC Multiproc
+    ARM OMAP4 Syslink atomic function header
+    SYSLINK:proc-adapt proc module to iommu module
+    SYSLINK:proc-changed the procmgr ioctl base
+    SYSLINK:notify-fix ioctl issue with 2.6.31 kernel
+    fix ipc compile errors
+    SYSLINK Proc reduce the default DMM pool size
+    SYSLINK: ipc - remove a WARN_ON in sharedregion module
+    SYSLINK: ipc - nameserver_get returns properly for nameserver_get_local
+    SYSLINK: ipc - remove unnecessary printks
+    ARM OMAP4 Syslink IPC heapbuf destroy fix
+    SYSLINK proc remove unnecessary WARN_ON
+    SYSLINK: ipc - fixes in nameserver_remotenotify callback
+    ARM OMAP4 Syslink IPC gatepeterson, nameserver remote notify fix
+    SYSLINK: Reorganize Syslink Kconfig
+    SYSLINK:proc-print l4 info and fix tlb entries print
+    SYSLINK:proc-start and stop functionality
+    SYSLINK:proc-add l4entries and fix checkpatch warnings
+    Syslink: Notify - Patch uses Multiproc API in the Notify module.
+    SysLink : Notify - Patch to add udev support for ipcnotify and ducati notify modules.
+    Syslink: Notify Module This patch allows the notify module to be configured for SysM3 and AppM3
+    SYSLINK: ipc - fix the invalid comparision in sharedregion_add
+    ARM OMAP4 Syslink IPC MessageQ, Notify Fix
+    PROCMGR: updated with couple of changes for procmgr unmap Updated the ducatienabler.c file to get the procmgr Ummap function working. also updated the procmgr_drv.c file with a minor update
+    Syslink: Notify,various fixes on Notify driver to support notify functionality on the kernel/user side
+    SYSLINK: ipc - fix messageq bugs
+    Syslink: Patch to resolve issues in IPC components nameserver, nameserver notify and messageQ.
+    Syslink: Patch to resolve Notify shared memory configuration issue.
+    Syslink: Patch to resolve Notify structure padding issue.
+    Syslink: Patch to resolve multiple ISR invocation
+    SYSLINK: notify-remove white spaces
+    Patch to re-organize notify shm data structures
+    SYSLINK: ipc - heapbuf bug fixes
+    SYSLINK: ipc - replaced mutex with gatepeterson in listmp_sharedmemory
+    SYSLINK: ipc - remove extra member from listmp_params
+    SYSLINK: ipc - fix listmp_sharedmemory issues in heapbuf_open and heapbuf_create
+    SYSLINK: ipc - fix for listmp_sharedmemory_destroy
+    SYSLINK: ipc - bug fixes for listmp_sharedmemory_open and api_status
+    SYSLINK: ipc - minor fixes in sharedregion and gatepeterson driver
+    OMAP4 syslink ipc add notify dependancy in Kconfig
+    SYSLINK: ipc - minor bug fixes in listmp_sharedmemory module
+    OMAP4 syslink ducati header file format
+    OMAP4 syslink header file cleanup 2
+    OMAP4 Syslink header file cleanup
+    OMAP4 syslink dispatcher code format fix
+    OMAP4 Syslink Notify driver fix format
+    SYSLINK: ipc - fixed return status for gatepeterson_open
+    OMAP4 Syslink proc module code format fix
+    SYSLINK:proc-dmm fixes for user space buffers
+    SYSLINK: proc4430 - store physical address into user virtual address
+    SYSLINK:proc-fix the map attributes for DMM.
+    SYSLINK: ipc - exported multiproc functions
+    SYSLINK:proc-fixes to proc module
+    SYSLINK: procmgr - added copy_from_user for mem_entries
+    SYSLINK: ipc - fixed the setup api issues with messageq
+    OMAP4 Syslink ducati driver coding format fix
+    OMAP4 Syslink remove unused file
+    OMAP4 Syslink notify driver coding format fix
+    OMAP4 Syslink dispatcher code format fix
+    ARM OMAP Syslink proc manager open fix
+    SYSLINK:proc-added proc4430 attach and detach
+    SYSLINK:proc-fix the issue with mem entries
+    ARM OMAP Syslink IPC removal of multiple header inclusions
+    ARM: OMAP Syslink IPC ioctl module variable name changes
+    OMAP4 Syslink ducati driver checkpatch fix
+    OMAP4 syslink dispatcher checkpatch fixes
+    SYSLINK-Proc-fixes in proc4430 driver
+    ARM: OMAP Syslink IPC ioctl module fixes
+    OMAP4 Syslink use kernel bitops functions
+    OMAP4 Syslink remove unused file
+    OMAP4 Syslink mailbox header cleanup
+    OMAP4: Syslink dispatcher header files cleanup
+    OMAP4 syslink ducati header file format changes
+    SYSLINK: ipc - fixed api return status in messageq and listmo
+    SYSLINK: ipc - renamed omap_ipc to syslink_ipc
+    SYSLINK: ipc - removed OsalSemaphore
+    IPC SharedRegion module fixes
+    IPC GatePeterson module fixes
+    IPC HeapBuf module fixes
+    OMAP4 syslink remove unused files
+    Cleanup for ducati ioctl
+    PROCMGR - fix unregistering the module
+    Updated OMAP4 IRQ definitions in notify dispatcher
+    remove tesla driver from syslink
+    Chech patch fixes in ducati driver Chech patch fixes in ducati driver
+    syslink: corrected checkpatch warnings in ipc modules
+    syslink: messageq and multiproc synched to IPC-b33
+    proc4430_translate_addr implementation
+    procmgr: updated with a fix for a minor issue Updated with a fix for a minor issue with the procmgr_create the procmgr state table was not getting updated with the procmgr handle
+    IPC Added IOCTL I/F for NameServer Remote Notify modules This is to sync with the latest syslink drop(version 2.0)
+    IPC_Fix_Nameserver_And_Multiproc This includes the fixes in nameserver and multiproc modules during testing.
+    Fix a minor bug in proc module Fix a minor bug in proc module
+    notify disable fix notify disable fix
+    Fix issues with notify_disable/restore Fix issues with notify_disable/restore
+    fixed checkpatch warning in proc4430
+    ProcMgr: Resolved few bugs within the ioctl function. resolved few bugs observed within the ioctl function
+    updated dmm start and size information for DUCATI
+    plug dmm with proc module
+    removed bug on that is not needed
+    syslink: corrected the signature of the notify callback functions in ipc
+    SYSLINK: IPC support for OMAP4
+    OMAP3: hwmod: add omap_hwmods for UART1,2,3
+    Serial: Update UART HWMOD layer.
+    OMAP: UART: omap_device converions, remove implicit 8520 assumptions
+    serial: Add OMAP high-speed UART driver
+    Proximity: Board changes for the proximity sensor
+    SFH7741 defconfig changes
+    SFH7741 : Proximity switch changes
+    OMAP4: GPIO: Add gpio dev_attr to hwmod struct
+    RTC: TWL6030: Don't use i2c burst read for OMAP4
+    OMAP: i2c: Fix max number of controllers
+    OMAP4 HSMMC: Adding Card detect support for MMC1
+    OMAP HSMMC: Adding flag to determine Card detect type
+    OMAP4 HSMMC: Enable HSMMC support
+    OMAP4 HSMMC: Adding PBIAS Configuration for MMC1 controller
+    OMAP4 HSMMC: Adding hsmmc support to board file
+    OMAP4 HSMMC: Adding dummy interface clocks for HSMMC
+    Fix omap3_defconfig build error
+    ARMv7: Fix typo in commit 8f4d29bc
+    OMAP3: I2C: Convert i2c driver to use omap_device/omap_hwmod
+    OMAP: I2C: split device registration; convert OMAP2+ to omap_device
+    OMAP3: hwmod: add I2C hwmods for OMAP3430
+    OMAP: GPIO: Fix OMAP4 GPIO reg access issues
+    OMAP: GPIO: Remove omap_gpio_init()
+    OMAP: GPIO: Implement GPIO as a platform device
+    OMAP: GPIO: Introduce support for OMAP2PLUS chip GPIO init
+    OMAP: GPIO: add GPIO hwmods structures for OMAP243X
+    OMAP: GPIO: add GPIO hwmods structures for OMAP242X
+    OMAP: GPIO: add GPIO hwmods structures for OMAP3
+    OMAP: GPIO: Introduce support for OMAP7xx chip GPIO init
+    OMAP: GPIO: Introduce support for OMAP16xx chip GPIO init
+    OMAP: GPIO: Introduce support for OMAP15xx chip GPIO init
+    OMAP: GPIO: Include platform_data structure for GPIO
+    OMAP: GPIO: Modify init() in preparation for platform device implementation
+    omap4: Fix multi-omap boot with reset un-used clocks
+    ARMv7: Use the Inner Shareable I-cache on MP
+    MCBSP: Fix the read and the write calls
+    Remove the following warning
+    MCBSP: Frame sync fix
+    MCBSP DMA support patch
+    MCSPI: ditectory change
+    Board support changes for spi test
+    McSPI slave support
+    USB: MUSB: Fix enumeration when device connected at boot up.
+    USB: MUSB: Add phoenix initialization under OMAP4.
+    USB : MUSB : Phoenix settings for Host mode
+    USB : MUSB : Phoenix settings for USB device mode
+    This patch adds CONFIG_ARCH_OMAP4 macro within MUSB driver.
+    This patch updates the Makefile to build the MUSB driver for OMAP4. It also sets the Kconfig options for OMAP4.
+    Program the OTG_INTERFSEL register based on transcevier type passed from board file.
+    Remove hack to disable MUSB from board file
+    Revert "USB: MUSB: Set transceiver interface type" Take the USB patches in Greg's queue. This reverts commit 3f78c9561bcc429483ed0e4580a2bdef4bdfb981.
+    Revert "USB: MUSB: Enable MUSB for OMAP4 in Kconfig" Take the USB patches in Greg's queue. This reverts commit 9820ae36962e2ea963e6531b8bf718c6c47831b0.
+    Revert "USB: MUSB: Add OMAP4 support in MUSB driver" Take the USB patches in Greg's queue. This reverts commit 14191d218e04d35c85e41d24a476e6bb545cbfbf.
+    Revert "USB : MUSB : Phoenix settings for USB device mode" Rebase as per patches in Greg's queue. This reverts commit c2e4bc7b9ea58592edecd0f0956c684e6a854eb4.
+    Revert "USB : MUSB : Phoenix settings for Host mode" Rebase as per patches in Greg's queue. This reverts commit 0d1bed47a9bef6ee35d573762f2b0e640e555fc8.
+    Revert "USB: MUSB: Add phoenix initialization under OMAP4." Rebase as per patches in Greg's queue. This reverts commit cc32231c8cb88a867ed2dd988c693448a0723146.
+    Revert "USB: MUSB: Fix enumeration when device connected at boot up." Rebase as per patches in Greg's queue. This reverts commit 1fee74df577a2582a20f81617174ca66d3b9ad8d.
+    Revert "omap3: fix build break when building for 3430" Not needed with USB patches from Greg's queue This reverts commit 05c5a515661c59574f9f9311c229f7cc904d5997.
+    OMAP4: Defconfig: Enable Touchscreen
+    OMAP4: Touchscreen: Board Support
+    OMAP4: Touchscreen: Header File Dependency
+    OMAP4: Touchscreen: Controller Identification
+    OMAP4: Touchscreen: Initial Driver Support
+    OMAP4: Keyboard kernel configuration
+    OMAP4: Keyboard board support
+    OMAP4: Keyboard controller support
+    Input: matrix_keypad: Device driver interfaces
+    OMAP4: Ethernet: GPIO Handling
+    Revert "ARM: Defer the L_PTE_EXEC flag setting to update_mmu_cache() on SMP"
+    OMAP4: PM: Fix prm/cm accessor api's for register access
+    twl6030: regulator: Remove vsel tables and use formula for calculation
+    omap3: fix build break when building for 3430
+    Revert "ARM : OMAP4 : Add USB support to 4430 SDP board file"
+    sDMA: descriptor autoloading feature
+    Revert "sDMA: Descriptor autoloading feature"
+    OMAP: clocks: DEFAULT_RATE flag missing in rate structs
+    OMAP4: PRCM: Enable DPLL autoidle and autogating for post dividers
+    OMAP4: suspend: Basic system suspend supporting wfi
+    OMAP4: net: Add suspend/resume hooks
+    OMAP4: CPUidle: Basic CPUidle support for OMAP4
+    ARM: Add cpu_idle_wait() support for ARM architecture
+    omap4: hotplug: Basic CPU HOTPLUG support
+    omap4: Add smc API to read AuxCoreBoot0 register
+    OMAP4: PRCM: Add offset defines for all PRM registers
+    OMAP4: PRCM: Add offset defines for all CM registers
+    OMAP4: PRCM: Remove duplicate definition of base
+    OMAP4: PRM: Remove MPU internal code name and apply PRCM naming convention
+    OMAP4: CM: Remove non-functional registers in ES1.0
+    OMAP4 powerdomain: Support LOWPOWERSTATECHANGE for powerdomains
+    OMAP4 clockdomain: Fix omap2_clkdm_clk_enable/disable api for 44xx
+    OMAP4 powerdomain: Fix pwrsts flags for ALWAYS ON domains
+    OMAP: timers: Fix clock source names for OMAP4
+    OMAP4 clock: Support clk_set_parent
+    OMAP: hwmod: Temp fixes to get hwmod registers work
+    OMAP4: hwmod: Add remaining hwmod support for
+    OMAP: hwmod: Temporary disable dependency
+    OMAP4: hwmod: Enable omap_device build for OMAP4
+    OMAP4: hwmod: Enable omap_hwmod build for OMAP4
+    OMAP4: hwmod: Add partial hwmod support for
+    OMAP: HWMOD: Replace WARN by pr_warning for clockdomain check
+    OMAP: HWMOD: Rename OMAP hwmod name for the MPU
+    OMAP: HWMOD: Do not exit the iteration if one clock init failed
+    OMAP: HWMOD: Replace WARN by pr_warning after clock lookup
+    OMAP: HWMOD: Remove IS_ERR check with omap_clk_get_by_name return value
+    OMAP: HWMOD: Fix wrong pointer iteration in oh->slaves
+    OMAP4: HWMOD: Replace OCPIF_HAS_IDLEST by HWMOD_NO_IDLEST
+    OMAP4: HWMOD & CM: Implement the omap4_cm_wait_module_ready function
+    OMAP: CM: Move MAX_MODULE_READY_TIME to cm.h
+    OMAP4: HWMOD: Replace module & device offsets by absolute clkctrl address
+    ARM: Enable userpsace THUMB options
+    omap4: errata: axi2ocp errata work-around for ES1.0
+    Correct permission mode for new files
+    CMA3000 Accelerometer Driver
+    Proximity : Proximity sensor enable in kernel config
+    USB: Avoid DMA mapping of control transfer buffers.
+    ARM: Improve the L2 cache performance when PL310 is used
+    KS8851: Destroy ethernet work queue in exit path
+    KS8851: Use dedicated work queue for ethernet.
+    USB: MUSB: Fix enumeration when device connected at boot up.
+    USB: MUSB: Add phoenix initialization under OMAP4.
+    Fix for bus width which improves SD card's peformance.
+    OMAP: Add printk and correct LL debug
+    sDMA: Descriptor autoloading feature
+    USB : MUSB : Phoenix settings for Host mode
+    USB : MUSB : Phoenix settings for USB device mode
+    OMAP4: Enable Mentor USB options in defconfig
+    USB: MUSB: Add OMAP4 support in MUSB driver
+    USB: MUSB: Enable MUSB for OMAP4 in Kconfig
+    USB: MUSB: Set transceiver interface type
+    ARM : OMAP4 : Add USB support to 4430 SDP board file
+    SRAM: hack it to non-cached for EMU
+    Remove the domain switching on ARMv6k/v7 CPUs
+    Add "nol2x0" early param to avoid initialisation of the L2 controller
+    Correct the cpu_architecture() function for ARMv7
+    smsc911x: Add spinlocks around registers access
+    Call flush_dcache_page in usb_stor_access_xfer_buf
+    ARM: Defer the L_PTE_EXEC flag setting to update_mmu_cache() on SMP
+    ARM: Assume new page cache pages have dirty D-cache
+    ARM: Use lazy cache flushing on ARMv7 SMP systems
+    OMAP4: Networking: Defconfig Support
+    OMAP4: Ethernet: KS8851 Board Support
+    OMAP4: SPI: Fix Driver Kconfig
+    omap: i2c: Add i2c support on omap4 platform
+    omap4: add i2c1 peripherals data
+    omap4: Enable RTC and regulator support
+    omap4: Add i2c board support on omap4430 sdp platform
+    omap4: Move SOC specific code from board file
+
+ -- Sebastien JAN <s-jan@ti.com>  Thu, 10 Jun 2010 16:56:00 +0200

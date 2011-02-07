@@ -1,0 +1,9 @@
+arch="armel"
+supported="TI OMAP4"
+desc="TI OMAP4-based systems"
+target="Targeted towards boards such as Blazeboard, Pandaboard, etc."
+bootloader="flash-kernel"
+provides=""
+section_image="universe/admin"
+do_debug="Yes"
+
