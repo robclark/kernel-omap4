@@ -43,6 +43,13 @@
 
 #define OMAP_MMC_MAX_SLOTS	2
 
+/* omap_hwmod integration data */
+#define OMAP_HSMMC_SUPPORTS_DUAL_VOLT	BIT(1)
+
+struct mmc_dev_attr {
+	u8 flags;
+};
+
 struct omap_mmc_platform_data {
 	/* back-link to device */
 	struct device *dev;
