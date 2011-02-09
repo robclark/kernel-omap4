@@ -30,13 +30,21 @@
 MODULE_DESCRIPTION("WMI hotkeys driver for Dell All-In-One series");
 MODULE_LICENSE("GPL");
 
-#define EVENT_GUID	"284A0E6B-380E-472A-921F-E52786257FB4"
+#define EVENT_GUID1 "284A0E6B-380E-472A-921F-E52786257FB4"
+#define EVENT_GUID2 "02314822-307C-4F66-bf0E-48AEAEB26CC8"
 
-MODULE_ALIAS("wmi:"EVENT_GUID);
+static char *dell_wmi_aio_guids[] = {
+	EVENT_GUID1,
+	EVENT_GUID2,
+	NULL
+};
 
 /* Temporary workaround until the WMI sysfs interface goes in.
    Borrowed from acer-wmi */
 MODULE_ALIAS("dmi:*:*Dell*:*:");
+
+MODULE_ALIAS("wmi:"EVENT_GUID1);
+MODULE_ALIAS("wmi:"EVENT_GUID2);
 
 struct key_entry {
 	char type;		/* See KE_* below */
@@ -116,10 +124,24 @@ static int dell_wmi_aio_setkeycode(struct input_dev *dev, int scancode,
 	return -EINVAL;
 }
 
+static void dell_wmi_aio_handle_key(unsigned int scancode)
+{
+	static struct key_entry *key;
+
+	key = dell_wmi_aio_get_entry_by_scancode(scancode);
+	if (key) {
+		input_report_key(dell_wmi_aio_input_dev, key->keycode, 1);
+		input_sync(dell_wmi_aio_input_dev);
+		input_report_key(dell_wmi_aio_input_dev, key->keycode, 0);
+		input_sync(dell_wmi_aio_input_dev);
+	} else if (scancode)
+		pr_info(AIO_PREFIX "Unknown key %x pressed\n",
+			scancode);
+}
+
 static void dell_wmi_aio_notify(u32 value, void *context)
 {
 	struct acpi_buffer response = { ACPI_ALLOCATE_BUFFER, NULL };
-	static struct key_entry *key;
 	union acpi_object *obj;
 	acpi_status status;
 
@@ -130,21 +152,23 @@ static void dell_wmi_aio_notify(u32 value, void *context)
 	}
 
 	obj = (union acpi_object *)response.pointer;
+	if (obj) {
+		unsigned int scancode;
 
-	if (obj && obj->type == ACPI_TYPE_INTEGER) {
-		int scancode = obj->integer.value;
-
-		key = dell_wmi_aio_get_entry_by_scancode(scancode);
-		if (key) {
-			input_report_key(dell_wmi_aio_input_dev,
-					 key->keycode, 1);
-			input_sync(dell_wmi_aio_input_dev);
-			input_report_key(dell_wmi_aio_input_dev,
-					 key->keycode, 0);
-			input_sync(dell_wmi_aio_input_dev);
-		} else if (scancode)
-			pr_info(AIO_PREFIX "Unknown key %x pressed\n",
-				scancode);
+		switch (obj->type) {
+		case ACPI_TYPE_INTEGER:
+			/* Most All-In-One correctly return integer scancode */
+			scancode = obj->integer.value;
+			dell_wmi_aio_handle_key(scancode);
+			break;
+		case ACPI_TYPE_BUFFER:
+			/* Broken machines return the scancode in a buffer */
+			if (obj->buffer.pointer && obj->buffer.length > 0) {
+				scancode = obj->buffer.pointer[0];
+				dell_wmi_aio_handle_key(scancode);
+			}
+			break;
+		}
 	}
 	kfree(obj);
 }
@@ -188,17 +212,30 @@ static int __init dell_wmi_aio_input_setup(void)
 	return 0;
 }
 
+static char *dell_wmi_aio_find(void)
+{
+	int i;
+
+	for (i = 0; dell_wmi_aio_guids[i] != NULL; i++)
+		if (wmi_has_guid(dell_wmi_aio_guids[i]))
+			return dell_wmi_aio_guids[i];
+
+	return NULL;
+}
+
 static int __init dell_wmi_aio_init(void)
 {
 	int err;
+	char *guid;
 
-	if (wmi_has_guid(EVENT_GUID)) {
+	guid = dell_wmi_aio_find();
+	if (guid) {
 		err = dell_wmi_aio_input_setup();
 
 		if (err)
 			return err;
 
-		err = wmi_install_notify_handler(EVENT_GUID,
+		err = wmi_install_notify_handler(guid,
 						 dell_wmi_aio_notify, NULL);
 		if (err) {
 			input_unregister_device(dell_wmi_aio_input_dev);
@@ -215,8 +252,11 @@ static int __init dell_wmi_aio_init(void)
 
 static void __exit dell_wmi_aio_exit(void)
 {
-	if (wmi_has_guid(EVENT_GUID)) {
-		wmi_remove_notify_handler(EVENT_GUID);
+	char *guid;
+
+	guid = dell_wmi_aio_find();
+	if (guid) {
+		wmi_remove_notify_handler(guid);
 		input_unregister_device(dell_wmi_aio_input_dev);
 	}
 }
