@@ -428,10 +428,11 @@ int au_h_verify(struct dentry *h_dentry, unsigned int udba, struct inode *h_dir,
 	int err;
 
 	err = 0;
-	if (udba == AuOpt_UDBA_REVAL) {
+	if (udba == AuOpt_UDBA_REVAL
+	    && !au_test_fs_remote(h_dentry->d_sb)) {
 		IMustLock(h_dir);
 		err = (h_dentry->d_parent->d_inode != h_dir);
-	} else if (udba == AuOpt_UDBA_HNOTIFY)
+	} else if (udba != AuOpt_UDBA_NONE)
 		err = au_h_verify_dentry(h_dentry, h_parent, br);
 
 	return err;
@@ -1053,9 +1054,12 @@ static int aufs_d_revalidate(struct dentry *dentry, struct nameidata *nd)
 	if (unlikely(!au_di(dentry)))
 		goto out;
 
+	inode = dentry->d_inode;
+	if (inode && is_bad_inode(inode))
+		goto out;
+
 	valid = 1;
 	sb = dentry->d_sb;
-	inode = dentry->d_inode;
 	/*
 	 * todo: very ugly
 	 * i_mutex of parent dir may be held,

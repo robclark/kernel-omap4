@@ -98,7 +98,7 @@ static int au_dpages_append(struct au_dcsub_pages *dpages,
 		dpages->ndpage++;
 	}
 
-	/* d_count can be zero */
+	AuDebugOn(!dentry->d_count);
 	dpage->dentries[dpage->ndentry++] = dget_dlock(dentry);
 	return 0; /* success */
 
@@ -124,6 +124,7 @@ resume:
 	if (this_parent->d_sb == sb
 	    && !IS_ROOT(this_parent)
 	    && au_di(this_parent)
+	    && this_parent->d_count
 	    && (!test || test(this_parent, arg))) {
 		err = au_dpages_append(dpages, this_parent, GFP_ATOMIC);
 		if (unlikely(err))
@@ -137,18 +138,22 @@ resume:
 
 		next = tmp->next;
 		spin_lock_nested(&dentry->d_lock, DENTRY_D_LOCK_NESTED);
-		if (!list_empty(&dentry->d_subdirs)) {
-			spin_unlock(&this_parent->d_lock);
-			spin_release(&dentry->d_lock.dep_map, 1, _RET_IP_);
-			this_parent = dentry;
-			spin_acquire(&this_parent->d_lock.dep_map, 0, 1,
-				     _RET_IP_);
-			goto repeat;
+		if (dentry->d_count) {
+			if (!list_empty(&dentry->d_subdirs)) {
+				spin_unlock(&this_parent->d_lock);
+				spin_release(&dentry->d_lock.dep_map, 1,
+					     _RET_IP_);
+				this_parent = dentry;
+				spin_acquire(&this_parent->d_lock.dep_map, 0, 1,
+					     _RET_IP_);
+				goto repeat;
+			}
+			if (dentry->d_sb == sb
+			    && au_di(dentry)
+			    && (!test || test(dentry, arg)))
+				err = au_dpages_append(dpages, dentry,
+						       GFP_ATOMIC);
 		}
-		if (dentry->d_sb == sb
-		    && au_di(dentry)
-		    && (!test || test(dentry, arg)))
-			err = au_dpages_append(dpages, dentry, GFP_ATOMIC);
 		spin_unlock(&dentry->d_lock);
 		if (unlikely(err))
 			goto out;
@@ -182,11 +187,14 @@ int au_dcsub_pages_rev(struct au_dcsub_pages *dpages, struct dentry *dentry,
 
 	err = 0;
 	write_seqlock(&rename_lock);
-	if (do_include && (!test || test(dentry, arg))) {
+	spin_lock(&dentry->d_lock);
+	if (do_include
+	    && dentry->d_count
+	    && (!test || test(dentry, arg)))
 		err = au_dpages_append(dpages, dentry, GFP_ATOMIC);
-		if (unlikely(err))
-			goto out;
-	}
+	spin_unlock(&dentry->d_lock);
+	if (unlikely(err))
+		goto out;
 
 	/*
 	 * vfsmount_lock is unnecessary since this is a traverse in a single
@@ -194,11 +202,13 @@ int au_dcsub_pages_rev(struct au_dcsub_pages *dpages, struct dentry *dentry,
 	 */
 	while (!IS_ROOT(dentry)) {
 		dentry = dentry->d_parent; /* rename_lock is locked */
-		if (!test || test(dentry, arg)) {
+		spin_lock(&dentry->d_lock);
+		if (dentry->d_count
+		    && (!test || test(dentry, arg)))
 			err = au_dpages_append(dpages, dentry, GFP_ATOMIC);
-			if (unlikely(err))
-				break;
-		}
+		spin_unlock(&dentry->d_lock);
+		if (unlikely(err))
+			break;
 	}
 
 out:

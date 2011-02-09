@@ -207,12 +207,10 @@ static int aufs_release_dir(struct inode *inode __maybe_unused,
 			    struct file *file)
 {
 	struct au_vdir *vdir_cache;
-	struct super_block *sb;
 	struct au_finfo *finfo;
 	struct au_fidir *fidir;
 	aufs_bindex_t bindex, bend;
 
-	sb = file->f_dentry->d_sb;
 	finfo = au_fi(file);
 	fidir = finfo->fi_hdir;
 	if (fidir) {
