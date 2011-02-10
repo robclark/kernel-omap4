@@ -325,8 +325,7 @@ static s32 tiler_mmap(struct file *filp, struct vm_area_struct *vma)
 }
 
 /* ioctl handler */
-static s32 tiler_ioctl(struct inode *ip, struct file *filp, u32 cmd,
-			unsigned long arg)
+static long tiler_ioctl(struct file *filp, u32 cmd, unsigned long arg)
 {
 	pgd_t *pgd;
 	pmd_t *pmd;
@@ -608,10 +607,10 @@ static s32 tiler_release(struct inode *ip, struct file *filp)
 
 /* tiler driver file operations */
 static const struct file_operations tiler_fops = {
-	.open    = tiler_open,
-	.ioctl   = tiler_ioctl,
+	.open = tiler_open,
+	.unlocked_ioctl = tiler_ioctl,
 	.release = tiler_release,
-	.mmap    = tiler_mmap,
+	.mmap = tiler_mmap,
 };
 
 /* initialize tiler interface */
