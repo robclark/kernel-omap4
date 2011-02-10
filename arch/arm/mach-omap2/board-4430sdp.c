@@ -481,6 +481,12 @@ static struct regulator_init_data sdp4430_vusb = {
 	},
 };
 
+static struct regulator_init_data sdp4430_clk32kg = {
+	.constraints = {
+		.valid_ops_mask		= REGULATOR_CHANGE_STATUS,
+	},
+};
+
 static struct twl4030_codec_audio_data twl6040_audio = {
 	/* single-step ramp for headset and handsfree */
 	.left_step_hs	= 0x0f,
@@ -517,6 +523,7 @@ static struct twl4030_platform_data sdp4430_twldata = {
 	.vaux1		= &sdp4430_vaux1,
 	.vaux2		= &sdp4430_vaux2,
 	.vaux3		= &sdp4430_vaux3,
+	.clk32kg	= &sdp4430_clk32kg,
 	.usb		= &omap4_usbphy_data,
 
 	/* children */

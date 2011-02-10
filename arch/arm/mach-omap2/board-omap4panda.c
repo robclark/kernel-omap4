@@ -370,6 +370,12 @@ static struct regulator_init_data omap4_panda_vusb = {
 	},
 };
 
+static struct regulator_init_data omap4_panda_clk32kg = {
+	.constraints = {
+		.valid_ops_mask		= REGULATOR_CHANGE_STATUS,
+	},
+};
+
 static struct twl4030_codec_audio_data twl6040_audio = {
 	/* single-step ramp for headset and handsfree */
 	.left_step_hs   = 0x0f,
@@ -398,6 +404,7 @@ static struct twl4030_platform_data omap4_panda_twldata = {
 	.vusb		= &omap4_panda_vusb,
 	.vaux2		= &omap4_panda_vaux2,
 	.vaux3		= &omap4_panda_vaux3,
+	.clk32kg	= &omap4_panda_clk32kg,
 	.usb		= &omap4_usbphy_data,
 
 	/* children */
