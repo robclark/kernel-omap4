@@ -33,7 +33,7 @@ static u32 cache_limit = CONFIG_TILER_CACHE_LIMIT << 20;
 
 param_check_uint(cache, &cache_limit);
 module_param_call(cache, param_set_mem, param_get_uint, &cache_limit, 0644);
-__MODULE_PARM_TYPE(cache, "uint")
+__MODULE_PARM_TYPE(cache, "uint");
 MODULE_PARM_DESC(cache, "Cache free pages if total memory is under this limit");
 
 /* global state - statically initialized */
