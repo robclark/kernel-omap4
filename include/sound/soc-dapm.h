@@ -504,6 +504,7 @@ struct snd_soc_dapm_context {
 	struct device *dev; /* from parent - for debug */
 	struct snd_soc_codec *codec; /* parent codec */
 	struct snd_soc_platform *platform; /*parent platform */
+	int (*stream_event)(struct snd_soc_dapm_context *dapm);
 	struct snd_soc_card *card; /* parent card */
 
 	/* used during DAPM updates */

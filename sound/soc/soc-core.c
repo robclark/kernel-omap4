@@ -3543,6 +3543,7 @@ int snd_soc_register_platform(struct device *dev,
 	platform->dapm.bias_level = SND_SOC_BIAS_OFF;
 	platform->dapm.dev = dev;
 	platform->dapm.platform = platform;
+	platform->dapm.stream_event = platform_drv->stream_event;
 	platform->dev = dev;
 	platform->driver = platform_drv;
 
@@ -3660,6 +3661,7 @@ int snd_soc_register_codec(struct device *dev,
 	codec->dev = dev;
 	codec->driver = codec_drv;
 	codec->num_dai = num_dai;
+	codec->dapm.stream_event = codec_drv->stream_event;
 	mutex_init(&codec->mutex);
 
 	/* allocate CODEC register cache */
