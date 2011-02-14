@@ -527,9 +527,10 @@ static snd_pcm_uframes_t siu_pcm_pointer_dma(struct snd_pcm_substream *ss)
 	return bytes_to_frames(ss->runtime, ptr);
 }
 
-static int siu_pcm_new(struct snd_card *card, struct snd_soc_dai *dai,
-		       struct snd_pcm *pcm)
+static int siu_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
+	struct snd_card *card = rtd->card->snd_card;
+	struct snd_pcm *pcm = rtd->pcm;
 	/* card->dev == socdev->dev, see snd_soc_new_pcms() */
 	struct siu_info *info = siu_i2s_data;
 	struct platform_device *pdev = to_platform_device(card->dev);
