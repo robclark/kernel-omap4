@@ -147,9 +147,12 @@ iommu-$(CONFIG_OMAP_IOMMU)		:= omap-iommu.o
 obj-y					+= $(iommu-m) $(iommu-y)
 
 ifeq ($(CONFIG_OMAP_REMOTE_PROC),y)
-obj-$(CONFIG_ARCH_OMAP2)		+= remoteproc24xx.o
-obj-$(CONFIG_ARCH_OMAP3)		+= remoteproc3xxx.o
+#obj-$(CONFIG_ARCH_OMAP2)		+= remoteproc24xx.o
+#obj-$(CONFIG_ARCH_OMAP3)		+= remoteproc3xxx.o
 obj-$(CONFIG_ARCH_OMAP4)		+= remoteproc44xx.o
+obj-$(CONFIG_MPU_SYSLINK_IPC)		+= ipu_drv.o
+obj-$(CONFIG_MPU_SYSLINK_IPC)		+= ipu_dev.o
+obj-$(CONFIG_MPU_SYSLINK_IPC)		+= ipu_utility.o
 endif
 
 i2c-omap-$(CONFIG_I2C_OMAP)		:= i2c.o
@@ -248,6 +251,7 @@ obj-y					+= $(nand-m) $(nand-y)
 
 smc91x-$(CONFIG_SMC91X)			:= gpmc-smc91x.o
 obj-y					+= $(smc91x-m) $(smc91x-y)
+obj-$(CONFIG_ARCH_OMAP4)		+= hwspinlocks.o
 
 smsc911x-$(CONFIG_SMSC911X)		:= gpmc-smsc911x.o
 obj-y					+= $(smsc911x-m) $(smsc911x-y)
