@@ -32,17 +32,13 @@ MODULE_DESCRIPTION("WMI hotkeys driver for Dell All-In-One series");
 MODULE_LICENSE("GPL");
 
 #define EVENT_GUID1 "284A0E6B-380E-472A-921F-E52786257FB4"
-#define EVENT_GUID2 "02314822-307C-4F66-bf0E-48AEAEB26CC8"
+#define EVENT_GUID2 "02314822-307C-4F66-BF0E-48AEAEB26CC8"
 
 static char *dell_wmi_aio_guids[] = {
 	EVENT_GUID1,
 	EVENT_GUID2,
 	NULL
 };
-
-/* Temporary workaround until the WMI sysfs interface goes in.
-   Borrowed from acer-wmi */
-MODULE_ALIAS("dmi:*:*Dell*:*:");
 
 MODULE_ALIAS("wmi:"EVENT_GUID1);
 MODULE_ALIAS("wmi:"EVENT_GUID2);
