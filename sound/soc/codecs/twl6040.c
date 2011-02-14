@@ -1282,13 +1282,17 @@ static struct snd_pcm_hw_constraint_list hp_constraints = {
 static int twl6040_startup(struct snd_pcm_substream *substream,
 			struct snd_soc_dai *dai)
 {
+	/* TODO: Add constraint for backends */
+#if 0
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_codec *codec = rtd->codec;
+
 	struct twl6040_data *priv = snd_soc_codec_get_drvdata(codec);
 
 	snd_pcm_hw_constraint_list(substream->runtime, 0,
 				SNDRV_PCM_HW_PARAM_RATE,
 				priv->sysclk_constraints);
+#endif
 
 	return 0;
 }
