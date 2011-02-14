@@ -1690,7 +1690,7 @@ int __init omap_hwmod_setup_one(const char *oh_name)
  * to struct clk pointers for each registered omap_hwmod.  Also calls
  * _setup() on each hwmod.  Returns 0 upon success.
  */
-static int __init omap_hwmod_setup_all(void)
+static int __init omap_hwmod_late_init(void)
 {
 	int r;
 
@@ -1710,7 +1710,7 @@ static int __init omap_hwmod_setup_all(void)
 
 	return 0;
 }
-core_initcall(omap_hwmod_setup_all);
+core_initcall(omap_hwmod_late_init);
 
 /**
  * omap_hwmod_enable - enable an omap_hwmod
