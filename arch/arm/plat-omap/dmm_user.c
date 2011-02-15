@@ -42,7 +42,7 @@ static atomic_t		num_of_iovmmus;
 static struct class	*omap_dmm_class;
 static dev_t		omap_dmm_dev;
 
-static int omap_dmm_ioctl(struct inode *inode, struct file *filp,
+static long omap_dmm_ioctl(struct file *filp,
 				unsigned int cmd, unsigned long args)
 {
 	struct iodmm_struct *obj;
@@ -166,7 +166,7 @@ static const struct file_operations omap_dmm_fops = {
 	.owner		=	THIS_MODULE,
 	.open		=	omap_dmm_open,
 	.release	=	omap_dmm_release,
-	.ioctl		=	omap_dmm_ioctl,
+	.unlocked_ioctl	=	omap_dmm_ioctl,
 };
 
 static int __devinit omap_dmm_probe(struct platform_device *pdev)

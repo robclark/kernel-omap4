@@ -116,8 +116,7 @@ static void _resume_stub(void)
 /* arg should encode the IPU-managed HWMOD
  * to be suspended, 0 for system wide
  */
-static int ipu_pm_ioctl(struct inode *inode, struct file *filp,
-					unsigned int cmd, unsigned long arg)
+static long ipu_pm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	int ret = 0;
 	/* struct omap_ipu_pm *ipu_pm = filp->private_data; */
@@ -168,7 +167,7 @@ static int is_driver_init;
 
 static const struct file_operations ipm_pm_fops = {
 		.owner = THIS_MODULE,
-		.ioctl = ipu_pm_ioctl,
+		.unlocked_ioctl = ipu_pm_ioctl,
 		.open  = NULL,
 };
 

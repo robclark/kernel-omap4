@@ -314,7 +314,7 @@ static int omap_rproc_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static int omap_rproc_ioctl(struct inode *inode, struct file *filp,
+static long omap_rproc_ioctl(struct file *filp,
 					unsigned int cmd, unsigned long arg)
 {
 	int rc = 0;
@@ -383,7 +383,7 @@ static int omap_rproc_mmap(struct file *filp, struct vm_area_struct *vma)
 static const struct file_operations omap_rproc_fops = {
 	.open		=	omap_rproc_open,
 	.release	=	omap_rproc_release,
-	.ioctl		=	omap_rproc_ioctl,
+	.unlocked_ioctl	=	omap_rproc_ioctl,
 	.mmap		=	omap_rproc_mmap,
 	.owner		=	THIS_MODULE,
 };
