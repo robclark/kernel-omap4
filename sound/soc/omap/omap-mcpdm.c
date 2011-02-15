@@ -33,6 +33,7 @@
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/slab.h>
+#include <linux/pm_runtime.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -43,6 +44,7 @@
 #include <plat/dma.h>
 #include <plat/mcpdm.h>
 #include <plat/mcbsp.h>
+#include <plat/omap_hwmod.h>
 #include "omap-mcpdm.h"
 #include "omap-pcm.h"
 
@@ -388,11 +390,10 @@ static int omap_mcpdm_request(struct omap_mcpdm *mcpdm)
 	int ret;
 	int ctrl;
 
-	pdev = container_of(mcpdm->dev, struct platform_device, dev);
+	pdev = to_platform_device(mcpdm->dev);
 	pdata = pdev->dev.platform_data;
 
-	if (pdata->device_enable)
-		pdata->device_enable(pdev);
+	pm_runtime_get_sync(&pdev->dev);
 
 	spin_lock(&mcpdm->lock);
 
@@ -426,8 +427,7 @@ static int omap_mcpdm_request(struct omap_mcpdm *mcpdm)
 	return 0;
 
 err:
-	if (pdata->device_idle)
-		pdata->device_idle(pdev);
+	pm_runtime_put_sync(&pdev->dev);
 	return ret;
 }
 
@@ -448,8 +448,7 @@ static void omap_mcpdm_free(struct omap_mcpdm *mcpdm)
 	mcpdm->free = 1;
 	spin_unlock(&mcpdm->lock);
 
-	if (pdata->device_idle)
-		pdata->device_idle(pdev);
+	pm_runtime_put_sync(&pdev->dev);
 
 	free_irq(mcpdm->irq, (void *)mcpdm);
 }
@@ -619,38 +618,39 @@ static struct snd_soc_dai_driver omap_mcpdm_dai = {
 static __devinit int asoc_mcpdm_probe(struct platform_device *pdev)
 {
 	struct omap_mcpdm *mcpdm;
-	struct resource *res;
+	struct omap_hwmod *oh;
 	int ret = 0;
 
-	mcpdm = kzalloc(sizeof(struct omap_mcpdm), GFP_KERNEL);
-	if (!mcpdm) {
-		ret = -ENOMEM;
-		goto exit;
+	oh = omap_hwmod_lookup("omap-mcpdm-dai");
+	if (oh == NULL) {
+		dev_err(&pdev->dev, "no hwmod device found\n");
+		return -ENODEV;
 	}
+
+	mcpdm = kzalloc(sizeof(struct omap_mcpdm), GFP_KERNEL);
+	if (!mcpdm)
+		return -ENOMEM;
+
 	platform_set_drvdata(pdev, mcpdm);
 	mcpdm->downlink = &omap_mcpdm_links[0];
 	mcpdm->uplink = &omap_mcpdm_links[1];
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res == NULL) {
-		dev_err(&pdev->dev, "no resource\n");
-		goto err_resource;
-	}
-
 	spin_lock_init(&mcpdm->lock);
 	mcpdm->free = 1;
 
-	mcpdm->io_base = ioremap(res->start, resource_size(res));
+	mcpdm->io_base = omap_hwmod_get_mpu_rt_va(oh);
 	if (!mcpdm->io_base) {
 		ret = -ENOMEM;
-		goto err_resource;
+		goto err;
 	}
 
 	mcpdm->irq = platform_get_irq(pdev, 0);
 	if (mcpdm->irq < 0) {
 		ret = mcpdm->irq;
-		goto err_irq;
+		goto err;
 	}
+
+	pm_runtime_enable(&pdev->dev);
 
 	mcpdm->dev = &pdev->dev;
 
@@ -658,11 +658,8 @@ static __devinit int asoc_mcpdm_probe(struct platform_device *pdev)
 	if (ret == 0)
 		return 0;
 
-err_irq:
-	iounmap(mcpdm->io_base);
-err_resource:
+err:
 	kfree(mcpdm);
-exit:
 	return ret;
 }
 
@@ -671,11 +668,7 @@ static int __devexit asoc_mcpdm_remove(struct platform_device *pdev)
 	struct omap_mcpdm *mcpdm = platform_get_drvdata(pdev);
 
 	snd_soc_unregister_dai(&pdev->dev);
-
-	if (pdata->device_shutdown)
-		pdata->device_shutdown(pdev);
-	iounmap(mcpdm->io_base);
-
+	pm_runtime_put_sync(&pdev->dev);
 	kfree(mcpdm);
 	return 0;
 }
