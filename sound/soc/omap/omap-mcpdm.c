@@ -69,6 +69,10 @@ struct omap_mcpdm {
 	int up_channels;
 	int dl_active;
 	int ul_active;
+
+	/* DC offset */
+	int dl1_offset;
+	int dl2_offset;
 };
 
 static struct omap_mcpdm_link omap_mcpdm_links[] = {
@@ -455,24 +459,25 @@ static void omap_mcpdm_free(struct omap_mcpdm *mcpdm)
 /* Enable/disable DC offset cancelation for the analog
  * headset path (PDM channels 1 and 2).
  */
-static int omap_mcpdm_set_offset(struct omap_mcpdm *mcpdm,
-		int offset1, int offset2)
+static int omap_mcpdm_set_offset(struct omap_mcpdm *mcpdm)
 {
 	int offset;
 
-	if ((offset1 > DN_OFST_MAX) || (offset2 > DN_OFST_MAX))
+	if ((mcpdm->dl1_offset > DN_OFST_MAX) ||
+	    (mcpdm->dl2_offset > DN_OFST_MAX))
 		return -EINVAL;
 
-	offset = (offset1 << DN_OFST_RX1) | (offset2 << DN_OFST_RX2);
+	offset = (mcpdm->dl1_offset << DN_OFST_RX1) |
+		 (mcpdm->dl2_offset << DN_OFST_RX2);
 
 	/* offset cancellation for channel 1 */
-	if (offset1)
+	if (mcpdm->dl1_offset)
 		offset |= DN_OFST_RX1_EN;
 	else
 		offset &= ~DN_OFST_RX1_EN;
 
 	/* offset cancellation for channel 2 */
-	if (offset2)
+	if (mcpdm->dl2_offset)
 		offset |= DN_OFST_RX2_EN;
 	else
 		offset &= ~DN_OFST_RX2_EN;
@@ -680,6 +685,10 @@ static __devinit int asoc_mcpdm_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 
 	mcpdm->dev = &pdev->dev;
+
+	/* TODO: values will be different per device, read from FS */
+	mcpdm->dl1_offset = 0x1F;
+	mcpdm->dl2_offset = 0x1F;
 
 	ret = snd_soc_register_dais(&pdev->dev, omap_mcpdm_dai,
 				    ARRAY_SIZE(omap_mcpdm_dai));
