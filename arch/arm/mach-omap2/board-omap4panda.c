@@ -27,6 +27,7 @@
 #include <linux/i2c/twl.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/fixed.h>
+#include <linux/wl12xx.h>
 
 #include <mach/hardware.h>
 #include <mach/omap4-common.h>
@@ -50,6 +51,7 @@
 #define HDMI_GPIO_HPD 60 /* Hot plug pin for HDMI */
 #define HDMI_GPIO_LS_OE 41 /* Level shifter for HDMI */
 #define GPIO_WIFI_PMENA		43
+#define GPIO_WIFI_IRQ		53
 
 static struct gpio_led gpio_leds[] = {
 	{
@@ -211,6 +213,15 @@ static struct omap2_hsmmc_info mmc[] = {
 		.gpio_wp	= -EINVAL,
 		.gpio_cd	= -EINVAL,
 	},
+	{
+		.name		= "wl1271",
+		.mmc		= 5,
+		.caps		= MMC_CAP_4_BIT_DATA | MMC_CAP_POWER_OFF_CARD,
+		.gpio_wp	= -EINVAL,
+		.gpio_cd	= -EINVAL,
+		.ocr_mask	= MMC_VDD_165_195,
+		.nonremovable	= true,
+	},
 	{}	/* Terminator */
 };
 
@@ -250,6 +261,12 @@ static struct platform_device omap_vwlan_device = {
 	.dev = {
 		.platform_data = &panda_vwlan,
 	},
+};
+
+struct wl12xx_platform_data omap_panda_wlan_data  __initdata = {
+	.irq = OMAP_GPIO_IRQ(GPIO_WIFI_IRQ),
+	/* PANDA ref clock is 38.4 MHz */
+	.board_ref_clock = 2,
 };
 
 static int omap4_twl6030_hsmmc_late_init(struct device *dev)
@@ -624,6 +641,9 @@ static void __init omap4_panda_init(void)
 	if (omap_rev() == OMAP4430_REV_ES1_0)
 		package = OMAP_PACKAGE_CBL;
 	omap4_mux_init(board_mux, package);
+
+	if (wl12xx_set_platform_data(&omap_panda_wlan_data))
+		pr_err("error setting wl12xx data\n");
 
 	omap4_panda_i2c_init();
 	platform_add_devices(panda_devices, ARRAY_SIZE(panda_devices));
