@@ -426,6 +426,7 @@ struct omap_hwmod_omap4_prcm {
 #define _HWMOD_STATE_ENABLED			4
 #define _HWMOD_STATE_IDLE			5
 #define _HWMOD_STATE_DISABLED			6
+#define _HWMOD_STATE_LAST                       _HWMOD_STATE_DISABLED
 
 /**
  * struct omap_hwmod_class - the type of an IP block
@@ -455,7 +456,8 @@ struct omap_hwmod_class {
 	const char				*name;
 	struct omap_hwmod_class_sysconfig	*sysc;
 	u32					rev;
-	int					(*pre_shutdown)(struct omap_hwmod *oh);
+	int					(*pre_shutdown)
+						(struct omap_hwmod *oh);
 	int					(*reset)(struct omap_hwmod *oh);
 };
 
