@@ -62,8 +62,7 @@ static int proc_mgr_drv_open(struct inode *inode, struct file *filp);
 static int proc_mgr_drv_release(struct inode *inode, struct file *filp);
 
 /* Linux driver function to invoke the APIs through ioctl. */
-static int proc_mgr_drv_ioctl(struct inode *inode,
-				 struct file *filp,
+static long proc_mgr_drv_ioctl(struct file *filp,
 				 unsigned int cmd,
 				 unsigned long args);
 
@@ -90,7 +89,7 @@ static int __devexit proc_mgr_remove(struct platform_device *pdev);
  */
 static const struct file_operations procmgr_fops = {
 	.open  =  proc_mgr_drv_open,
-	.ioctl =  proc_mgr_drv_ioctl,
+	.unlocked_ioctl =  proc_mgr_drv_ioctl,
 	.release = proc_mgr_drv_release,
 	.mmap = proc_mgr_drv_mmap,
 } ;
@@ -159,7 +158,7 @@ err:
 /*
 * Linux driver function to invoke the APIs through ioctl.
  */
-static int proc_mgr_drv_ioctl(struct inode *inode, struct file *filp,
+static long proc_mgr_drv_ioctl(struct file *filp,
 			unsigned int cmd, unsigned long args)
 {
 	int retval = 0;

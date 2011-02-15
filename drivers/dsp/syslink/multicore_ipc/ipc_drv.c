@@ -239,7 +239,7 @@ err:
  *  This function  provides IO interface  to the
  *  ipc driver
  */
-static int ipc_ioctl(struct inode *ip, struct file *filp, u32 cmd, ulong arg)
+static long ipc_ioctl(struct file *filp, u32 cmd, ulong arg)
 {
 	s32 retval = 0;
 	void __user *argp = (void __user *)arg;
@@ -267,7 +267,7 @@ exit:
 static const struct file_operations ipc_fops = {
 	.open = ipc_open,
 	.release = ipc_release,
-	.ioctl = ipc_ioctl,
+	.unlocked_ioctl = ipc_ioctl,
 	.read = notify_drv_read,
 	.mmap = notify_drv_mmap,
 };

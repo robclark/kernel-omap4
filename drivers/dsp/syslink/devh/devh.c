@@ -65,8 +65,8 @@ static int omap_devh_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static int omap_devh_ioctl(struct inode *inode, struct file *filp,
-					unsigned int cmd, unsigned long arg)
+static long omap_devh_ioctl(struct file *filp, unsigned int cmd,
+						unsigned long arg)
 {
 	int rc = 0;
 	struct omap_devh *devh = filp->private_data;
@@ -117,7 +117,7 @@ static int omap_devh_ioctl(struct inode *inode, struct file *filp,
 static const struct file_operations omap_devh_fops = {
 	.open		=	omap_devh_open,
 	.release	=	omap_devh_release,
-	.ioctl		=	omap_devh_ioctl,
+	.unlocked_ioctl	=	omap_devh_ioctl,
 	.owner		=	THIS_MODULE,
 };
 

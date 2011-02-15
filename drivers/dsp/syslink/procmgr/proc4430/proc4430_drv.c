@@ -66,8 +66,7 @@ static int proc4430_drv_open(struct inode *inode, struct file *filp);
 static int proc4430_drv_release(struct inode *inode, struct file *filp);
 
 /* Linux driver function to invoke the APIs through ioctl. */
-static int proc4430_drv_ioctl(struct inode *inode,
-			struct file *filp, unsigned int cmd,
+static long proc4430_drv_ioctl(struct file *filp, unsigned int cmd,
 			unsigned long args);
 
 /* Linux driver function to map memory regions to user space. */
@@ -97,7 +96,7 @@ struct proc4430_process_context {
 static const struct file_operations proc_4430_fops = {
 	.open = proc4430_drv_open,
 	.release = proc4430_drv_release,
-	.ioctl = proc4430_drv_ioctl,
+	.unlocked_ioctl = proc4430_drv_ioctl,
 	.mmap = proc4430_drv_mmap,
 };
 
@@ -141,7 +140,7 @@ err:
   Linux driver function to invoke the APIs through ioctl.
  *
  */
-static int proc4430_drv_ioctl(struct inode *inode, struct file *filp,
+static long proc4430_drv_ioctl(struct file *filp,
 		unsigned int cmd, unsigned long args)
 {
 	int retval = 0;
