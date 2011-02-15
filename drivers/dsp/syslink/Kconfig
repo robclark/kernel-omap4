@@ -38,7 +38,7 @@ config  SYSLINK_DUCATI_PM
 config  SYSLINK_IPU_SELF_HIBERNATION
 	bool "Enable IPU Self hibernation"
 	depends on SYSLINK_DUCATI_PM
-	default y
+	default n
 	help
 	  IPU will hibernate by it self after a configurable time, this
 	  controls the self hibernation, IPU will hibernate when a system

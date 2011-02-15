@@ -17,6 +17,7 @@
 
 #include <mach/irqs.h>
 #include <plat/omap_hwmod.h>
+#include <plat/common.h>
 #include <plat/omap_device.h>
 #include <plat/omap-pm.h>
 #include <linux/platform_device.h>
@@ -89,7 +90,7 @@ inline int ipu_pm_module_set_rate(unsigned rsrc,
 				  unsigned target_rsrc,
 				  unsigned rate)
 {
-	int ret;
+	int ret = 0;
 	unsigned target;
 	struct device *dp;
 	struct omap_ipupm_mod_platform_data *pd;
@@ -114,8 +115,9 @@ inline int ipu_pm_module_set_rate(unsigned rsrc,
 		} else
 			dp = pd[target].dev;
 	}
-
+#ifdef CONFIG_OMAP_PM
 	ret = omap_device_set_rate(pd[rsrc].dev, dp, rate);
+#endif
 	if (ret)
 		pr_err("device set rate failed %s", pd[target_rsrc].oh_name);
 err_ret:

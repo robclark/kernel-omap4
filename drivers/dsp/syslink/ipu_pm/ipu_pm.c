@@ -355,8 +355,8 @@ static char *aux_clk_name[NUM_AUX_CLK] = {
 
 static char *aux_clk_source_name[] = {
 	"sys_clkin_ck",
-	"dpll_core_m3_ck",
-	"dpll_per_m3_ck",
+	"dpll_core_m3x2_ck",
+	"dpll_per_m3x2_ck",
 	NULL
 } ;
 
@@ -627,8 +627,11 @@ static void ipu_pm_work(struct work_struct *work)
 		/* set retval for each iteration asumming error */
 		retval = PM_UNSUPPORTED;
 		spin_lock_irq(&handle->lock);
-		kfifo_out(&handle->fifo, &im, sizeof(im));
+		retval = kfifo_out(&handle->fifo, &im, sizeof(im));
 		spin_unlock_irq(&handle->lock);
+
+		if (retval == 0)
+			break;
 
 		/* Get the payload */
 		pm_msg.whole = im.pm_msg;
@@ -1425,9 +1428,9 @@ static inline int ipu_pm_get_iss(struct ipu_pm_object *handle,
 	 * independent control this also duplicates the
 	 * above call to avoid read modify write locking.
 	 */
-	cm_write_mod_reg((OPTFCLKEN | CAM_ENABLED),
+	/*cm_write_mod_reg((OPTFCLKEN | CAM_ENABLED),
 					OMAP4430_CM2_CAM_MOD,
-					OMAP4_CM_CAM_ISS_CLKCTRL_OFFSET);
+					OMAP4_CM_CAM_ISS_CLKCTRL_OFFSET);*/
 
 #ifdef CONFIG_OMAP_PM
 	pr_debug("Request MPU wakeup latency\n");
@@ -1728,11 +1731,11 @@ static inline int ipu_pm_rel_fdif(struct ipu_pm_object *handle,
 
 #ifdef SR_WA
 	/* Make sure the clock domain is in idle if not softreset */
-	if ((cm_read_mod_reg(OMAP4430_CM2_CAM_MOD,
+	/*if ((cm_read_mod_reg(OMAP4430_CM2_CAM_MOD,
 			OMAP4_CM_CAM_CLKSTCTRL_OFFSET)) & 0x400) {
 		__raw_writel(__raw_readl(fdifHandle + 0x10) | 0x1,
 							fdifHandle + 0x10);
-	}
+	}*/
 #endif
 
 	params->pm_fdif_counter--;
@@ -1922,11 +1925,11 @@ static inline int ipu_pm_rel_iss(struct ipu_pm_object *handle,
 
 #ifdef SR_WA
 	/* Make sure the clock domain is in idle if not softreset */
-	if ((cm_read_mod_reg(OMAP4430_CM2_CAM_MOD,
+	/*if ((cm_read_mod_reg(OMAP4430_CM2_CAM_MOD,
 			OMAP4_CM_CAM_CLKSTCTRL_OFFSET)) & 0x100) {
 		__raw_writel(__raw_readl(issHandle + 0x10) | 0x1,
 							issHandle + 0x10);
-	}
+	}*/
 #endif
 
 	/* FIXME:
@@ -1935,9 +1938,9 @@ static inline int ipu_pm_rel_iss(struct ipu_pm_object *handle,
 	 * independent control this also duplicates the
 	 * above call to avoid read modify write locking
 	 */
-	cm_write_mod_reg(CAM_DISABLED,
+	/*cm_write_mod_reg(CAM_DISABLED,
 				OMAP4430_CM2_CAM_MOD,
-				OMAP4_CM_CAM_ISS_CLKCTRL_OFFSET);
+				OMAP4_CM_CAM_ISS_CLKCTRL_OFFSET);*/
 	params->pm_iss_counter--;
 	pr_debug("Release ISS\n");
 
@@ -2481,18 +2484,18 @@ int ipu_pm_save_ctx(int proc_id)
 		if (app_loaded) {
 			pr_info("Sleep APPM3\n");
 			retval = rproc_sleep(app_rproc);
-			cm_write_mod_reg(HW_AUTO,
+			/*cm_write_mod_reg(HW_AUTO,
 					 OMAP4430_CM2_CORE_MOD,
-					 OMAP4_CM_DUCATI_CLKSTCTRL_OFFSET);
+					 OMAP4_CM_DUCATI_CLKSTCTRL_OFFSET);*/
 			if (retval)
 				goto error;
 			handle->rcb_table->state_flag |= APP_PROC_DOWN;
 		}
 		pr_info("Sleep SYSM3\n");
 		retval = rproc_sleep(sys_rproc);
-		cm_write_mod_reg(HW_AUTO,
+		/*cm_write_mod_reg(HW_AUTO,
 				 OMAP4430_CM2_CORE_MOD,
-				 OMAP4_CM_DUCATI_CLKSTCTRL_OFFSET);
+				 OMAP4_CM_DUCATI_CLKSTCTRL_OFFSET);*/
 		if (retval)
 			goto error;
 		handle->rcb_table->state_flag |= SYS_PROC_DOWN;
@@ -2558,9 +2561,9 @@ int ipu_pm_restore_ctx(int proc_id)
 		pr_debug("hibernateAllowed=%d\n",
 				handle->rcb_table->pm_flags.hibernateAllowed);
 		first_time = 0;
-		cm_write_mod_reg(HW_AUTO,
+		/*cm_write_mod_reg(HW_AUTO,
 				 OMAP4430_CM2_CORE_MOD,
-				 OMAP4_CM_DUCATI_CLKSTCTRL_OFFSET);
+				 OMAP4_CM_DUCATI_CLKSTCTRL_OFFSET);*/
 #ifdef CONFIG_OMAP_PM
 		retval = omap_pm_set_max_sdma_lat(&pm_qos_handle_2,
 						IPU_PM_MM_MPU_LAT_CONSTRAINT);
@@ -2596,18 +2599,18 @@ int ipu_pm_restore_ctx(int proc_id)
 
 		pr_info("Wakeup SYSM3\n");
 		retval = rproc_wakeup(sys_rproc);
-		cm_write_mod_reg(HW_AUTO,
+		/*cm_write_mod_reg(HW_AUTO,
 				 OMAP4430_CM2_CORE_MOD,
-				 OMAP4_CM_DUCATI_CLKSTCTRL_OFFSET);
+				 OMAP4_CM_DUCATI_CLKSTCTRL_OFFSET);*/
 		if (retval)
 			goto error;
 		handle->rcb_table->state_flag &= ~SYS_PROC_DOWN;
 		if (ipu_pm_get_state(proc_id) & APP_PROC_LOADED) {
 			pr_info("Wakeup APPM3\n");
 			retval = rproc_wakeup(app_rproc);
-			cm_write_mod_reg(HW_AUTO,
+			/*cm_write_mod_reg(HW_AUTO,
 				 OMAP4430_CM2_CORE_MOD,
-				 OMAP4_CM_DUCATI_CLKSTCTRL_OFFSET);
+				 OMAP4_CM_DUCATI_CLKSTCTRL_OFFSET);*/
 			if (retval)
 				goto error;
 			handle->rcb_table->state_flag &= ~APP_PROC_DOWN;
