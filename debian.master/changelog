@@ -57,6 +57,7 @@ linux (2.6.38-3.30) natty; urgency=low
   * rebase from v2.6.38-rc3 to v2.6.38-rc4.
     - LP: #701271
     - LP: #708521
+    - LP: #710371
 
  -- Andy Whitcroft <apw@canonical.com>  Tue, 08 Feb 2011 02:07:18 +0000
 
