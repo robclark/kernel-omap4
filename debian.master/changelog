@@ -9,6 +9,7 @@ linux (2.6.38-4.31) UNRELEASED; urgency=low
   * rebase from v2.6.38-rc4 to v2.6.38-rc5
     - LP: #579276
     - LP: #715877
+    - LP: #713769
   * resync with Maverick Ubuntu-2.6.35-27.47
 
  -- Andy Whitcroft <apw@canonical.com>  Fri, 11 Feb 2011 17:24:09 +0000
