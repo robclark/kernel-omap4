@@ -6,7 +6,7 @@ linux (2.6.38-4.31) UNRELEASED; urgency=low
 
   [ Major Kernel Changes ]
 
-  * rebase from v2.6.38-rc4 to 795abaf1e4e188c4171e3cd3dbb11a9fcacaf505
+  * rebase from v2.6.38-rc4 to v2.6.38-rc5
     - LP: #579276
     - LP: #715877
   * resync with Maverick Ubuntu-2.6.35-27.47
