@@ -6642,6 +6642,7 @@ EXPORT_SYMBOL_GPL drivers/bluetooth/btmrvl 0x5ddcef3c	btmrvl_remove_card
 EXPORT_SYMBOL_GPL drivers/bluetooth/btmrvl 0x839531d8	btmrvl_enable_ps
 EXPORT_SYMBOL_GPL drivers/bluetooth/btmrvl 0x921488b4	btmrvl_send_module_cfg_cmd
 EXPORT_SYMBOL_GPL drivers/char/tpm/tpm 0x085eb139	tpm_dev_vendor_release
+EXPORT_SYMBOL_GPL drivers/char/tpm/tpm 0x0e2c1871	tpm_show_timeouts
 EXPORT_SYMBOL_GPL drivers/char/tpm/tpm 0x19387004	tpm_show_enabled
 EXPORT_SYMBOL_GPL drivers/char/tpm/tpm 0x237b78b9	tpm_remove_hardware
 EXPORT_SYMBOL_GPL drivers/char/tpm/tpm 0x2ca29d66	tpm_continue_selftest

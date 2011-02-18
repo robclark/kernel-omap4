@@ -7521,6 +7521,7 @@ EXPORT_SYMBOL_GPL drivers/bluetooth/btmrvl 0xe4a1a9c4	btmrvl_check_evtpkt
 EXPORT_SYMBOL_GPL drivers/char/scx200_gpio 0x18ef24b9	scx200_gpio_ops
 EXPORT_SYMBOL_GPL drivers/char/tpm/tpm 0x104717db	tpm_calc_ordinal_duration
 EXPORT_SYMBOL_GPL drivers/char/tpm/tpm 0x11d95d3f	tpm_show_pcrs
+EXPORT_SYMBOL_GPL drivers/char/tpm/tpm 0x20fe1487	tpm_show_timeouts
 EXPORT_SYMBOL_GPL drivers/char/tpm/tpm 0x28edc2db	tpm_pm_suspend
 EXPORT_SYMBOL_GPL drivers/char/tpm/tpm 0x39d0e9eb	tpm_show_temp_deactivated
 EXPORT_SYMBOL_GPL drivers/char/tpm/tpm 0x432b935e	tpm_show_enabled

@@ -7491,6 +7491,7 @@ EXPORT_SYMBOL_GPL drivers/char/tpm/tpm 0x13330054	tpm_show_caps_1_2
 EXPORT_SYMBOL_GPL drivers/char/tpm/tpm 0x144a71c1	tpm_show_owned
 EXPORT_SYMBOL_GPL drivers/char/tpm/tpm 0x16dd008b	tpm_show_pcrs
 EXPORT_SYMBOL_GPL drivers/char/tpm/tpm 0x1e5e1b42	tpm_remove_hardware
+EXPORT_SYMBOL_GPL drivers/char/tpm/tpm 0x2d2bfe2e	tpm_show_timeouts
 EXPORT_SYMBOL_GPL drivers/char/tpm/tpm 0x378b7ec8	tpm_continue_selftest
 EXPORT_SYMBOL_GPL drivers/char/tpm/tpm 0x6fb579b9	tpm_release
 EXPORT_SYMBOL_GPL drivers/char/tpm/tpm 0x7479e50c	tpm_show_temp_deactivated
