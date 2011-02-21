@@ -57,6 +57,7 @@ linux (2.6.38-4.31) natty; urgency=low
     - LP: #579276
     - LP: #715877
     - LP: #713769
+    - LP: #716811
   * resync with Maverick Ubuntu-2.6.35-27.47
 
  -- Andy Whitcroft <apw@canonical.com>  Fri, 11 Feb 2011 17:24:09 +0000
