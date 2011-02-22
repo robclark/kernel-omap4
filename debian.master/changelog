@@ -11,6 +11,7 @@ linux (2.6.38-5.32) UNRELEASED; urgency=low
     - LP: #719524
     - LP: #721126
     - LP: #719691
+    - LP: #722689
 
  -- Andy Whitcroft <apw@canonical.com>  Fri, 18 Feb 2011 15:15:38 +0000
 
