@@ -2069,15 +2069,9 @@ static int omap_pm_abe_get_dev_context_loss_count(struct device *dev)
 
 static int __devinit abe_engine_probe(struct platform_device *pdev)
 {
-	struct omap_hwmod *oh;
 	struct omap4_abe_dsp_pdata *pdata = pdev->dev.platform_data;
+	struct resource *res;
 	int ret = -EINVAL, i;
-
-	oh = omap_hwmod_lookup("omap-aess-audio");
-	if (oh == NULL) {
-		dev_err(&pdev->dev, "no hwmod device found\n");
-		return -ENODEV;
-	}
 
 	abe = kzalloc(sizeof(struct abe_data), GFP_KERNEL);
 	if (abe == NULL)
@@ -2088,7 +2082,13 @@ static int __devinit abe_engine_probe(struct platform_device *pdev)
 	for (i = 0; i < ABE_ROUTES_UL + 2; i++)
 		abe->router[i] = ZERO_labelID;
 
-	abe->io_base = omap_hwmod_get_mpu_rt_va(oh);
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (res == NULL) {
+		dev_err(&pdev->dev, "no resource\n");
+		goto err;
+	}
+
+	abe->io_base = ioremap(res->start, resource_size(res));
 	if (!abe->io_base) {
 		ret = -ENOMEM;
 		goto err;
@@ -2097,7 +2097,7 @@ static int __devinit abe_engine_probe(struct platform_device *pdev)
 	abe->irq = platform_get_irq(pdev, 0);
 	if (abe->irq < 0) {
 		ret = abe->irq;
-		goto err;
+		goto err_irq;
 	}
 
 #if defined(CONFIG_PM)
@@ -2121,6 +2121,8 @@ static int __devinit abe_engine_probe(struct platform_device *pdev)
 	if (ret == 0)
 		return 0;
 
+err_irq:
+	iounmap(abe->io_base);
 err:
 	kfree(abe);
 	return ret;
@@ -2131,6 +2133,7 @@ static int __devexit abe_engine_remove(struct platform_device *pdev)
 	struct abe_data *priv = dev_get_drvdata(&pdev->dev);
 
 	snd_soc_unregister_platform(&pdev->dev);
+	iounmap(priv->io_base);
 	kfree(priv);
 	return 0;
 }
