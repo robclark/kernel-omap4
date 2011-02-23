@@ -355,6 +355,8 @@ static struct omap_hwmod_class_sysconfig uart_sysc = {
 			   SYSC_HAS_AUTOIDLE),
 	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
 	.sysc_fields    = &omap_hwmod_sysc_type1,
+<<<<<<< HEAD
+=======
 };
 
 static struct omap_hwmod_class uart_class = {
