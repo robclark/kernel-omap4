@@ -9,3 +9,4 @@ nic-pcmcia-modules
 pcmcia-modules
 nic-usb-modules
 nfs-modules
+speakup-modules
