@@ -1884,10 +1884,10 @@ static int abe_ping_pong_init(struct snd_pcm_hw_params *params,
 
 	period_size = params_period_bytes(params);
 
-	/*Adding ping pong buffer subroutine*/
-	abe_add_subroutine(&abe_irq_pingpong_player_id,
-				(abe_subroutine2) abe_irq_pingpong_subroutine,
-				SUB_0_PARAM, (u32 *)0);
+	/* Adding ping pong buffer subroutine */
+	abe_plug_subroutine(&abe_irq_pingpong_player_id,
+			(abe_subroutine2) abe_irq_pingpong_subroutine,
+			SUB_0_PARAM, (u32 *)0);
 
 	/* Connect a Ping-Pong cache-flush protocol to MM_DL port */
 	abe_connect_irq_ping_pong_port(MM_DL_PORT, &format,
