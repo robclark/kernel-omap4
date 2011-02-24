@@ -644,6 +644,10 @@ struct twl4030_codec_audio_data {
 	unsigned int check_defaults:1;
 	unsigned int reset_registers:1;
 	unsigned int hs_extmute:1;
+	u16 left_step_hs;
+	u16 right_step_hs;
+	u16 left_step_hf;
+	u16 right_step_hf;
 	void (*set_hs_extmute)(int mute);
 };
 
