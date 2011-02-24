@@ -2343,7 +2343,7 @@ unsigned long dispc_fclk_rate(void)
 >>>>>>> OMAP2PLUS: DSS2: Make members of dss_clk_source generic
 	else
 #ifdef CONFIG_OMAP2_DSS_DSI
-		r = dsi_get_dsi1_pll_rate();
+		r = dsi_get_pll_hsdiv_dispc_rate();
 #else
 	BUG();
 #endif
