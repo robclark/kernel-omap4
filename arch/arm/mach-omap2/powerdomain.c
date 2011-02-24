@@ -14,6 +14,7 @@
  */
 #undef DEBUG
 
+#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/list.h>
@@ -222,6 +223,8 @@ struct powerdomain *pwrdm_lookup(const char *name)
 
 	return pwrdm;
 }
+
+EXPORT_SYMBOL_GPL(pwrdm_lookup);
 
 /**
  * pwrdm_for_each - call function on each registered clockdomain

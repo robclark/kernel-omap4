@@ -18,6 +18,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA
  */
+#include <linux/module.h>
 #include "abe_main.h"
 #ifndef abe_dat_c
 #define abe_dat_c
@@ -582,6 +583,8 @@ u32 abe_global_sequence_mask;
 abe_seq_t abe_active_sequence[MAXACTIVESEQUENCE][MAXSEQUENCESTEPS];
 /* index of the plugged subroutine doing ping-pong cache-flush DMEM accesses */
 u32 abe_irq_pingpong_player_id;
+EXPORT_SYMBOL_GPL(abe_irq_pingpong_player_id);
+
 /* index of the plugged subroutine doing acoustics protection adaptation */
 u32 abe_irq_aps_adaptation_id;
 /* base addresses of the ping pong buffers in bytes addresses */

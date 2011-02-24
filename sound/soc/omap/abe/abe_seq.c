@@ -18,6 +18,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA
  */
+#include <linux/module.h>
 #include "abe_main.h"
 /**
  * abe_null_subroutine
@@ -98,6 +99,9 @@ void abe_add_subroutine(u32 *id, abe_subroutine2 f, u32 nparam, u32 *params)
 		}
 	}
 }
+
+EXPORT_SYMBOL_GPL(abe_add_subroutine);
+
 /**
  * abe_add_sequence
  * @id: returned sequence index after pluging a new sequence (index in the tables)
