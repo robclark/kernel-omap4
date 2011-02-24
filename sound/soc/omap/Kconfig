@@ -13,6 +13,7 @@ config SND_OMAP_SOC_MCPDM
 	tristate
 
 config SND_OMAP_SOC_ABE
+	select SND_DYNAMIC_MINORS
 	tristate
 
 config SND_OMAP_SOC_DMIC
