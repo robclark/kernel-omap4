@@ -276,7 +276,7 @@ int vfsub_mknod(struct inode *dir, struct path *path, int mode, dev_t dev)
 
 	d = path->dentry;
 	path->dentry = d->d_parent;
-	err = security_path_mknod(path, d, mode, dev);
+	err = security_path_mknod(path, d, mode, new_encode_dev(dev));
 	path->dentry = d;
 	if (unlikely(err))
 		goto out;
