@@ -482,7 +482,11 @@ static struct regulator_init_data sdp4430_vusb = {
 };
 
 static struct twl4030_codec_audio_data twl6040_audio = {
-	/* Add audio only data */
+	/* single-step ramp for headset and handsfree */
+	.left_step_hs	= 0x0f,
+	.right_step_hs	= 0x0f,
+	.left_step_hf	= 0x1d,
+	.right_step_hf	= 0x1d,
 };
 
 static struct twl4030_codec_vibra_data twl6040_vibra = {
