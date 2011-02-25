@@ -741,7 +741,7 @@ static void playback_abe_work(struct work_struct *work)
 	}
 	mutex_unlock(&mcpdm->mutex);
 
-	if (!mcpdm->free && !mcpdm->ul_active)
+	if (!mcpdm->free && !mcpdm->ul_active && !mcpdm->dl_active)
 		omap_mcpdm_free(mcpdm);
 
 }
