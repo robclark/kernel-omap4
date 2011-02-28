@@ -7,6 +7,7 @@ linux (2.6.38-6.33) UNRELEASED; urgency=low
   [ Major Kernel Changes ]
 
   * rebase from v2.6.38-rc6 to 493f3358cb289ccf716c5a14fa5bb52ab75943e5
+    - LP: #721389
 
  -- Andy Whitcroft <apw@canonical.com>  Wed, 23 Feb 2011 12:35:56 +0000
 
