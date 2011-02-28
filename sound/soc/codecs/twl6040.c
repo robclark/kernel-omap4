@@ -1340,7 +1340,7 @@ static int twl6040_hw_params(struct snd_pcm_substream *substream,
 	struct twl6040 *twl6040 = codec->control_data;
 	struct twl6040_data *priv = snd_soc_codec_get_drvdata(codec);
 	unsigned int sysclk;
-	int rate;
+	int rate, ret;
 
 	/* nothing to do for high-perf pll, it supports only 48 kHz */
 	if (priv->pll == TWL6040_HPPLL_ID)
@@ -1366,7 +1366,13 @@ static int twl6040_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	return twl6040_set_pll(twl6040, TWL6040_LPPLL_ID, priv->clk_in, sysclk);
+	ret = twl6040_set_pll(twl6040, TWL6040_LPPLL_ID, priv->clk_in, sysclk);
+	if (ret)
+		return ret;
+
+	priv->sysclk = twl6040_get_sysclk(twl6040);
+
+	return 0;
 }
 
 static int twl6040_prepare(struct snd_pcm_substream *substream,
