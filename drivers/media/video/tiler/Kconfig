@@ -88,7 +88,7 @@ config TILER_SECURITY
 config TILER_SSPTR_ID
         int "Use SSPtr for id"
         range 0 1
-        default 0
+        default 1
         depends on TI_TILER
         help
            This option sets the default behavior for TILER block ids.  It can
