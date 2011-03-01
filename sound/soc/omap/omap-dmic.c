@@ -33,8 +33,6 @@
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
-#include <linux/i2c.h>
-#include <linux/i2c/twl.h>
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/slab.h>
@@ -234,12 +232,8 @@ static int omap_dmic_dai_startup(struct snd_pcm_substream *substream,
 {
 	struct omap_dmic *dmic = snd_soc_dai_get_drvdata(dai);
 
-	if (!dmic->active++) {
+	if (!dmic->active++)
 		pm_runtime_get_sync(dmic->dev);
-		/* Enable DMIC bias */
-		/* TODO: convert this over to DAPM */
-		twl_i2c_write_u8(TWL_MODULE_AUDIO_VOICE, 0x55, 0x0B);
-	}
 
 	return 0;
 }
@@ -249,12 +243,8 @@ static void omap_dmic_dai_shutdown(struct snd_pcm_substream *substream,
 {
 	struct omap_dmic *dmic = snd_soc_dai_get_drvdata(dai);
 
-	if (!--dmic->active) {
-		/* Disable DMIC bias */
-		/* TODO: convert this over to DAPM */
-		twl_i2c_write_u8(TWL_MODULE_AUDIO_VOICE, 0x44, 0x0B);
+	if (!--dmic->active)
 		pm_runtime_put_sync(dmic->dev);
-	}
 }
 
 static int omap_dmic_dai_hw_params(struct snd_pcm_substream *substream,
