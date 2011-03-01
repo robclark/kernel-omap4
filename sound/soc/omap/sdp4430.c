@@ -328,6 +328,9 @@ static const struct snd_kcontrol_new sdp4430_controls[] = {
 /* SDP4430 machine DAPM */
 static const struct snd_soc_dapm_widget sdp4430_twl6040_dapm_widgets[] = {
 	SND_SOC_DAPM_MIC("Ext Mic", NULL),
+	SND_SOC_DAPM_MIC("Ext DMic0", NULL),
+	SND_SOC_DAPM_MIC("Ext DMic1", NULL),
+	SND_SOC_DAPM_MIC("Ext DMic2", NULL),
 	SND_SOC_DAPM_SPK("Ext Spk", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
 	SND_SOC_DAPM_HP("Headset Stereophone", NULL),
@@ -336,10 +339,19 @@ static const struct snd_soc_dapm_widget sdp4430_twl6040_dapm_widgets[] = {
 };
 
 static const struct snd_soc_dapm_route audio_map[] = {
-	/* External Mics: MAINMIC, SUBMIC with bias*/
+	/* External Mics: MAINMIC, SUBMIC and DMICs with bias */
 	{"MAINMIC", NULL, "Main Mic Bias"},
 	{"SUBMIC", NULL, "Main Mic Bias"},
 	{"Main Mic Bias", NULL, "Ext Mic"},
+
+	{"DMIC0", NULL, "Digital Mic1 Bias"},
+	{"Digital Mic1 Bias", NULL, "Ext DMic0"},
+
+	{"DMIC1", NULL, "Digital Mic1 Bias"},
+	{"Digital Mic1 Bias", NULL, "Ext DMic1"},
+
+	{"DMIC2", NULL, "Digital Mic1 Bias"},
+	{"Digital Mic1 Bias", NULL, "Ext DMic2"},
 
 	/* External Speakers: HFL, HFR */
 	{"Ext Spk", NULL, "HFL"},
@@ -384,6 +396,9 @@ static int sdp4430_twl6040_init_hs(struct snd_soc_pcm_runtime *rtd)
 
 	/* SDP4430 connected pins */
 	snd_soc_dapm_enable_pin(dapm, "Ext Mic");
+	snd_soc_dapm_enable_pin(dapm, "Ext DMic0");
+	snd_soc_dapm_enable_pin(dapm, "Ext DMic1");
+	snd_soc_dapm_enable_pin(dapm, "Ext DMic2");
 	snd_soc_dapm_enable_pin(dapm, "Ext Spk");
 	snd_soc_dapm_enable_pin(dapm, "AFML");
 	snd_soc_dapm_enable_pin(dapm, "AFMR");
@@ -392,6 +407,9 @@ static int sdp4430_twl6040_init_hs(struct snd_soc_pcm_runtime *rtd)
 
 	/* allow modem audio paths to run during suspend */
 	snd_soc_dapm_ignore_suspend(dapm, "Ext Mic");
+	snd_soc_dapm_ignore_suspend(dapm, "Ext DMic0");
+	snd_soc_dapm_ignore_suspend(dapm, "Ext DMic1");
+	snd_soc_dapm_ignore_suspend(dapm, "Ext DMic2");
 	snd_soc_dapm_ignore_suspend(dapm, "Ext Spk");
 	snd_soc_dapm_ignore_suspend(dapm, "AFML");
 	snd_soc_dapm_ignore_suspend(dapm, "AFMR");
