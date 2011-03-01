@@ -1012,6 +1012,20 @@ static const struct snd_kcontrol_new hfr_mux_controls =
 static const struct snd_kcontrol_new ep_driver_switch_controls =
 	SOC_DAPM_SINGLE("Switch", TWL6040_REG_EARCTL, 0, 1, 0);
 
+/* AVADC clock priority */
+static const char *twl6040_dmic_volt_texts[] = {
+	"1.80V", "1.85V"
+};
+
+static const struct soc_enum twl6040_dmic_volt_enum[] = {
+	SOC_ENUM_SINGLE(TWL6040_REG_DMICBCTL, 2,
+			ARRAY_SIZE(twl6040_dmic_volt_texts),
+			twl6040_dmic_volt_texts),
+	SOC_ENUM_SINGLE(TWL6040_REG_DMICBCTL, 6,
+			ARRAY_SIZE(twl6040_dmic_volt_texts),
+			twl6040_dmic_volt_texts),
+};
+
 /* Headset power mode */
 static const char *twl6040_headset_power_texts[] = {
 	"Low-Power", "High-Perfomance",
@@ -1068,6 +1082,9 @@ static const struct snd_kcontrol_new twl6040_snd_controls[] = {
 		TWL6040_REG_HFLGAIN, TWL6040_REG_HFRGAIN, 0, 0x1D, 1, hf_tlv),
 	SOC_SINGLE_TLV("Earphone Playback Volume",
 		TWL6040_REG_EARCTL, 1, 0xF, 1, ep_tlv),
+
+	SOC_ENUM("Digital Mic Bias 1 Voltage", twl6040_dmic_volt_enum[0]),
+	SOC_ENUM("Digital Mic Bias 2 Voltage", twl6040_dmic_volt_enum[1]),
 
 	SOC_ENUM_EXT("Headset Power Mode", twl6040_headset_power_enum,
 		twl6040_headset_power_get_enum,
