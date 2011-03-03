@@ -1961,7 +1961,7 @@ int snd_soc_dapm_new_widgets(struct snd_soc_dapm_context *dapm)
 		}
 
 		/* Read the initial power state from the device */
-		if (w->reg >= 0) {
+		if (w->reg >= 0 && w->codec) {
 			val = snd_soc_read(w->codec, w->reg);
 			val &= 1 << w->shift;
 			if (w->invert)
