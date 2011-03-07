@@ -1894,7 +1894,6 @@ pppoe
 pppox
 ppp_synctty
 pps_core
-pps_gen_parport
 pps-ldisc
 pps_parport
 pptp
