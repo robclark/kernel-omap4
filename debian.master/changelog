@@ -6,7 +6,8 @@ linux (2.6.38-6.33) UNRELEASED; urgency=low
 
   [ Major Kernel Changes ]
 
-  * rebase from v2.6.38-rc6 to v2.6.38-rc7
+  * rebase from v2.6.38-rc6 to v2.6.38-rc7 +
+    fb62c00a6d8942775abc23d1621db1252e2d93d1
     - LP: #721389
     - LP: #722925
     - LP: #723672
