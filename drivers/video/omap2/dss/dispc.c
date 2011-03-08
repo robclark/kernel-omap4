@@ -2342,6 +2342,7 @@ unsigned long dispc_fclk_rate(void)
 	unsigned long r = 0;
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 	if (dss_get_dispc_clk_source() == DSS_SRC_DSS1_ALWON_FCLK)
 		r = dss_clk_get_rate(DSS_CLK_FCK1);
 =======
@@ -2350,10 +2351,19 @@ unsigned long dispc_fclk_rate(void)
 >>>>>>> OMAP2PLUS: DSS2: Make members of dss_clk_source generic
 	else
 #ifdef CONFIG_OMAP2_DSS_DSI
+=======
+	switch (dss_get_dispc_clk_source()) {
+	case DSS_CLK_SRC_FCK:
+		r = dss_clk_get_rate(DSS_CLK_FCK);
+		break;
+	case DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC:
+>>>>>>> OMAP2PLUS: DSS2: Cleanup clock source related code
 		r = dsi_get_pll_hsdiv_dispc_rate();
-#else
-	BUG();
-#endif
+		break;
+	default:
+		BUG();
+	}
+
 	return r;
 }
 
