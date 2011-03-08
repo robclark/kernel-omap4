@@ -131,8 +131,12 @@ int yama_task_prctl(int option, unsigned long arg2, unsigned long arg3,
 		}
 		else {
 			struct task_struct *tracer;
+			struct task_struct *myself = current;
 
 			rcu_read_lock();
+			if (!thread_group_leader(myself))
+				myself = myself->group_leader;
+			get_task_struct(myself);
 			tracer = find_task_by_vpid(arg2);
 			if (tracer)
 				get_task_struct(tracer);
@@ -141,9 +145,10 @@ int yama_task_prctl(int option, unsigned long arg2, unsigned long arg3,
 			rcu_read_unlock();
 
 			if (tracer) {
-				rc = yama_ptracer_add(tracer, current);
+				rc = yama_ptracer_add(tracer, myself);
 				put_task_struct(tracer);
 			}
+			put_task_struct(myself);
 		}
 		break;
 	}
