@@ -46,12 +46,12 @@ for arch in $archs; do
 
 	# Map debian archs to kernel archs
 	case "$arch" in
-		ppc64)	kernarch="powerpc"	;;
-		amd64)	kernarch="x86_64"	;;
-		lpia)   kernarch="x86" 		;;
-		sparc)	kernarch="sparc64"	;;
-		armel)	kernarch="arm"		;;
-		*)	kernarch="$arch"	;;
+		ppc64)		kernarch="powerpc"	;;
+		amd64)		kernarch="x86_64"	;;
+		lpia)		kernarch="x86" 		;;
+		sparc)		kernarch="sparc64"	;;
+		armel|armhf)	kernarch="arm"		;;
+		*)		kernarch="$arch"	;;
 	esac
 
 	archconfdir=$confdir/$arch
