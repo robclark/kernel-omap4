@@ -491,7 +491,7 @@ static struct omap_dss_device *panda_dss_devices[] = {
 static struct omap_dss_board_info panda_dss_data = {
 	.num_devices	= ARRAY_SIZE(panda_dss_devices),
 	.devices	= panda_dss_devices,
-	.default_device	= &panda_dvi_device,
+	.default_device	= &sdp4430_hdmi_device,
 };
 
 void omap_panda_display_init(void)
