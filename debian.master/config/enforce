@@ -21,8 +21,8 @@ value CONFIG_DEFAULT_SECURITY_APPARMOR y
 !exists CONFIG_STRICT_DEVMEM | value CONFIG_STRICT_DEVMEM y
 # For architectures which support this option ensure it is disabled.
 !exists CONFIG_COMPAT_VDSO | value CONFIG_COMPAT_VDSO n
-# Default to 32768 for armel, 65536 for everything else.
-( arch armel & value CONFIG_DEFAULT_MMAP_MIN_ADDR 32768 ) | \
+# Default to 32768 on ARM, 65536 for everything else.
+( ( arch armel | arch armhf ) & value CONFIG_DEFAULT_MMAP_MIN_ADDR 32768 ) | \
 	( value CONFIG_DEFAULT_MMAP_MIN_ADDR 65536)
 
 # CONFIG_USB_DEVICE_FS breaks udev USB firmware loading and is deprecated
