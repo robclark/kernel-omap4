@@ -103,7 +103,7 @@ DEB_BUILD_ARCH = $(shell dpkg-architecture -qDEB_BUILD_ARCH)
 
 #
 # Detect invocations of the form 'fakeroot debian/rules binary arch=armel'
-# within an x86'en schroot. This only gets you part of the way sicne the
+# within an x86'en schroot. This only gets you part of the way since the
 # packaging phase fails, but you can at least compile the kernel quickly.
 #
 arch := $(DEB_HOST_ARCH)
@@ -112,7 +112,7 @@ ifneq ($(arch),$(DEB_HOST_ARCH))
 endif
 
 #
-# Detect invocations of the form 'dpk-buildpackage -B -aarmel' within
+# Detect invocations of the form 'dpkg-buildpackage -B -aarmel' within
 # an x86'en schroot. This is the only way to build all of the packages
 # (except for tools).
 #
