@@ -86,6 +86,7 @@ fs/btrfs/*
 fs/configfs/*
 fs/exportfs/*
 fs/fat/*
+fs/nls/nls_cp437.ko
 fs/isofs/*
 fs/cifs/*
 fs/xfs/*
