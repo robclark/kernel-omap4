@@ -4,7 +4,7 @@
 src_pkg_name=$(shell sed -n '1s/^\(.*\) (.*).*$$/\1/p' $(DEBIAN)/changelog)
 
 # Get some version info
-series := maverick
+series := natty
 release := $(shell sed -n '1s/^$(src_pkg_name).*(\(.*\)-.*).*$$/\1/p' $(DEBIAN)/changelog)
 revisions := $(shell sed -n 's/^$(src_pkg_name)\ .*($(release)-\(.*\)).*$$/\1/p' $(DEBIAN)/changelog | tac)
 revision ?= $(word $(words $(revisions)),$(revisions))
