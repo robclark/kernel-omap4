@@ -1,3 +1,9 @@
+linux-ti-omap4 (2.6.38-1205.6) natty; urgency=low
+
+  * Rebase against Ubuntu-2.6.38-5.32 (2.6.38 final)
+
+ --  Tim Gardner <tim.gardner@canonical.com>  Thu, 17 Mar 2011 11:57:32 -0600
+
 linux-ti-omap4 (2.6.38-1204.5) natty; urgency=low
 
   [ Bryan Wu ]
