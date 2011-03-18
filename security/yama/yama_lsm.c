@@ -174,6 +174,8 @@ static int task_is_descendant(struct task_struct *parent,
 
 	rcu_read_lock();
 	read_lock(&tasklist_lock);
+	if (!thread_group_leader(parent))
+		parent = parent->group_leader;
 	while (walker->pid > 0) {
 		if (!thread_group_leader(walker))
 			walker = walker->group_leader;
