@@ -139,9 +139,6 @@ cdc_ether
 cdc_subset
 cdrom
 ceph
-cfbcopyarea
-cfbfillrect
-cfbimgblt
 cfi_cmdset_0001
 cfi_cmdset_0002
 cfi_cmdset_0020

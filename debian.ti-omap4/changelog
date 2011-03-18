@@ -1,3 +1,18 @@
+linux-ti-omap4 (2.6.38-1206.7) natty; urgency=low
+
+  [ Bryan Wu ]
+
+  * [Config] update configs for TI OMAP4 according to latest 2.6.38 kernel updates
+  * Rebase against TI latest patches
+      - HDMI and DVI driver support
+      - PowerVR SGX DDK1.7 for 2.6.38
+  
+  [ Ricardo Salveti de Araujo ]
+
+  * DRM: Revert one DRM change to make SGX work.
+
+ -- Bryan Wu <bryan.wu@canonical.com>  Fri, 18 Mar 2011 23:21:15 +0800
+
 linux-ti-omap4 (2.6.38-1205.6) natty; urgency=low
 
   * Rebase against Ubuntu-2.6.38-5.32 (2.6.38 final)
