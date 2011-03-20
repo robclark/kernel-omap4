@@ -294,6 +294,7 @@ nfs
 nfs_acl
 nfsd
 nf_tproxy_core
+nls_cp437
 nvram
 oprofile
 output
@@ -421,6 +422,7 @@ twofish-x86_64
 ufs
 usb-storage
 usbtouchscreen
+vesafb
 veth
 vfat
 vga16fb

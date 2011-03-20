@@ -294,6 +294,7 @@ nfs
 nfs_acl
 nfsd
 nf_tproxy_core
+nls_cp437
 nvram
 oprofile
 output
@@ -420,6 +421,7 @@ twofish-i586
 ufs
 usb-storage
 usbtouchscreen
+vesafb
 veth
 vfat
 vga16fb
