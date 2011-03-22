@@ -651,6 +651,9 @@ struct platform_async_platform_data panda_async_pdata_map[] = {
 	{
 		.device_path = "usb1/1-1/1-1.1",
 		.platform_data = &panda_usbnet_platform_data_usb1_1,
+	}, {
+		.device_path = "mmc1:0001:2",
+		.platform_data = &omap_panda_wlan_data,
 	},
 };
 
@@ -661,6 +664,10 @@ static void __init omap4_panda_init(void)
 	if (omap_rev() == OMAP4430_REV_ES1_0)
 		package = OMAP_PACKAGE_CBL;
 	omap4_mux_init(board_mux, package);
+
+	omap2_die_id_to_mac(omap_panda_wlan_data.mac,
+			      sizeof(panda_usbnet_platform_data_usb1_1.mac), 1);
+	omap_panda_wlan_data.use_mac = 1;
 
 	if (wl12xx_set_platform_data(&omap_panda_wlan_data))
 		pr_err("error setting wl12xx data\n");
