@@ -193,4 +193,21 @@ static inline char *early_platform_driver_setup_func(void)		\
 }
 #endif /* MODULE */
 
+/**
+ * platform_async_platform_data - maps a known bus + device name on to
+ *				  platform_data to be attached to that device
+ *				  when it is eventually instantiated.  For use
+ *				  with onboard devices on buses that probe
+ *				  asynchronously.  Device path fields must
+ *				  be separated with '/'.
+ * @device_path:	bus / device path, eg, "usb1/1-1/1-1.1"
+ * @platform_data:	platform_data to attach to device matching the
+ *			device_path
+ */
+
+struct platform_async_platform_data {
+	const char *device_path;
+	void *platform_data;
+};
+
 #endif /* _PLATFORM_DEVICE_H_ */
