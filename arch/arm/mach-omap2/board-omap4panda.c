@@ -37,6 +37,7 @@
 
 #include <mach/hardware.h>
 #include <mach/omap4-common.h>
+#include <mach/id.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -642,7 +643,8 @@ void omap_panda_display_init(void)
 }
 
 struct usbnet_platform_data panda_usbnet_platform_data_usb1_1 = {
-	.flags = USBNET_PLATDATA_FLAG__FORCE_ETH_IFNAME,
+	.flags = USBNET_PLATDATA_FLAG__FORCE_ETH_IFNAME |
+			USBNET_PLATDATA_FLAG__USE_MAC,
 };
 
 struct platform_async_platform_data panda_async_pdata_map[] = {
@@ -663,6 +665,8 @@ static void __init omap4_panda_init(void)
 	if (wl12xx_set_platform_data(&omap_panda_wlan_data))
 		pr_err("error setting wl12xx data\n");
 
+	omap2_die_id_to_mac(panda_usbnet_platform_data_usb1_1.mac,
+			      sizeof(panda_usbnet_platform_data_usb1_1.mac), 2);
 	platform_async_platform_data_register(panda_async_pdata_map,
 					   ARRAY_SIZE(panda_async_pdata_map));
 
