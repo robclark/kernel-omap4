@@ -669,9 +669,6 @@ static void __init omap4_panda_init(void)
 			      sizeof(panda_usbnet_platform_data_usb1_1.mac), 1);
 	omap_panda_wlan_data.use_mac = 1;
 
-	if (wl12xx_set_platform_data(&omap_panda_wlan_data))
-		pr_err("error setting wl12xx data\n");
-
 	omap2_die_id_to_mac(panda_usbnet_platform_data_usb1_1.mac,
 			      sizeof(panda_usbnet_platform_data_usb1_1.mac), 2);
 	platform_async_platform_data_register(panda_async_pdata_map,
