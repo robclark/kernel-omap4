@@ -31,6 +31,12 @@ struct device platform_bus = {
 };
 EXPORT_SYMBOL_GPL(platform_bus);
 
+struct platform_async_platform_data *platform_async_platform_data_map;
+EXPORT_SYMBOL_GPL(platform_async_platform_data_map);
+
+int platform_async_platform_data_count;
+EXPORT_SYMBOL_GPL(platform_async_platform_data_count);
+
 /**
  * platform_get_resource - get a resource for a device
  * @dev: platform device
@@ -1332,3 +1338,18 @@ void __init early_platform_cleanup(void)
 	}
 }
 
+/**
+ * platform_async_platform_data_register - register an array of async-
+ *				probed bus / device names mapping to
+ *				plaform_data for that device.
+ * @map:	the array of devname vs platform_data mapping structs
+ * @count:	the count of structs in the @map array
+ */
+
+void platform_async_platform_data_register(
+			    struct platform_async_platform_data *map, int count)
+{
+	platform_async_platform_data_map = map;
+	platform_async_platform_data_count = count;
+}
+EXPORT_SYMBOL_GPL(platform_async_platform_data_register);
