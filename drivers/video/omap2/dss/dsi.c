@@ -647,18 +647,18 @@ static void dsi_vc_disable_bta_irq(int channel)
 static inline void enable_clocks(bool enable)
 {
 	if (enable)
-		dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK1);
+		dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK);
 	else
-		dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK1);
+		dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK);
 }
 
 /* source clock for DSI PLL. this could also be PCLKFREE */
 static inline void dsi_enable_pll_clock(bool enable)
 {
 	if (enable)
-		dss_clk_enable(DSS_CLK_FCK2);
+		dss_clk_enable(DSS_CLK_SYSCK);
 	else
-		dss_clk_disable(DSS_CLK_FCK2);
+		dss_clk_disable(DSS_CLK_SYSCK);
 
 	if (enable && dsi.pll_locked) {
 		if (wait_for_bit_change(DSI_PLL_STATUS, 1, 1) != 1)
@@ -733,13 +733,8 @@ static unsigned long dsi_fclk_rate(void)
 	unsigned long r;
 
 	if (dss_get_dsi_clk_source() == DSS_CLK_SRC_FCK) {
-<<<<<<< HEAD
-		/* DSI FCLK source is DSS1_ALWON_FCK, which is dss1_fck */
-		r = dss_clk_get_rate(DSS_CLK_FCK1);
-=======
 		/* DSI FCLK source is DSS_CLK_FCK */
 		r = dss_clk_get_rate(DSS_CLK_FCK);
->>>>>>> OMAP2PLUS: DSS2: DSI: Generalize DSI PLL Clock Naming
 	} else {
 		/* DSI FCLK source is dsi_pll_hsdiv_dsi_clk */
 		r = dsi_get_pll_hsdiv_dsi_rate();
@@ -818,13 +813,8 @@ static int dsi_calc_clock_rates(struct omap_dss_device *dssdev,
 	if (cinfo->regm_dsi > REGM_DSI_MAX)
 		return -EINVAL;
 
-<<<<<<< HEAD
-	if (cinfo->use_dss2_fck) {
-		cinfo->clkin = dss_clk_get_rate(DSS_CLK_FCK2);
-=======
 	if (cinfo->use_sys_clk) {
 		cinfo->clkin = dss_clk_get_rate(DSS_CLK_SYSCK);
->>>>>>> OMAP2PLUS: DSS2: DSI: Generalize DSI PLL Clock Naming
 		/* XXX it is unclear if highfreq should be used
 		 * with DSS_SYS_CLK source also */
 		cinfo->highfreq = 0;
@@ -872,11 +862,7 @@ int dsi_pll_calc_clock_div_pck(bool is_tft, unsigned long req_pck,
 	int match = 0;
 	unsigned long dss_sys_clk, max_dss_fck;
 
-<<<<<<< HEAD
-	dss_clk_fck2 = dss_clk_get_rate(DSS_CLK_FCK2);
-=======
 	dss_sys_clk = dss_clk_get_rate(DSS_CLK_SYSCK);
->>>>>>> OMAP2PLUS: DSS2: DSI: Generalize DSI PLL Clock Naming
 
 	max_dss_fck = dss_feat_get_max_dss_fck();
 
@@ -1366,7 +1352,7 @@ void dsi_dump_regs(struct seq_file *s)
 {
 #define DUMPREG(r) seq_printf(s, "%-35s %08x\n", #r, dsi_read_reg(r))
 
-	dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK1);
+	dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK);
 
 	DUMPREG(DSI_REVISION);
 	DUMPREG(DSI_SYSCONFIG);
@@ -1438,7 +1424,7 @@ void dsi_dump_regs(struct seq_file *s)
 	DUMPREG(DSI_PLL_CONFIGURATION1);
 	DUMPREG(DSI_PLL_CONFIGURATION2);
 
-	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK1);
+	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK);
 #undef DUMPREG
 }
 
@@ -3414,7 +3400,7 @@ static int dsi_init(struct platform_device *pdev)
 	enable_clocks(1);
 
 	rev = dsi_read_reg(DSI_REVISION);
-	printk(KERN_INFO "OMAP DSI rev %d.%d\n",
+	dev_dbg(&pdev->dev, "OMAP DSI rev %d.%d\n",
 	       FLD_GET(rev, 7, 4), FLD_GET(rev, 3, 0));
 
 	enable_clocks(0);

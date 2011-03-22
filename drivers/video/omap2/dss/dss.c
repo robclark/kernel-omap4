@@ -64,10 +64,10 @@ static struct {
 
 	struct clk	*dpll4_m4_ck;
 	struct clk	*dss_ick;
-	struct clk	*dss1_fck;
-	struct clk	*dss2_fck;
-	struct clk	*dss_54m_fck;
-	struct clk	*dss_96m_fck;
+	struct clk	*dss_fck;
+	struct clk	*dss_sys_clk;
+	struct clk	*dss_tv_fck;
+	struct clk	*dss_video_fck;
 	unsigned	num_clks_enabled;
 
 	unsigned long	cache_req_pck;
@@ -240,7 +240,7 @@ void dss_dump_clocks(struct seq_file *s)
 	unsigned long dpll4_ck_rate;
 	unsigned long dpll4_m4_ck_rate;
 
-	dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK1);
+	dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK);
 
 	dpll4_ck_rate = clk_get_rate(clk_get_parent(dss.dpll4_m4_ck));
 	dpll4_m4_ck_rate = clk_get_rate(dss.dpll4_m4_ck);
@@ -255,23 +255,23 @@ void dss_dump_clocks(struct seq_file *s)
 			dss_feat_get_clk_source_name(DSS_CLK_SRC_FCK),
 			dpll4_ck_rate,
 			dpll4_ck_rate / dpll4_m4_ck_rate,
-			dss_clk_get_rate(DSS_CLK_FCK1));
+			dss_clk_get_rate(DSS_CLK_FCK));
 	else
 		seq_printf(s, "%s (%s) = %lu / %lu * 2 = %lu\n",
 			dss_get_generic_clk_source_name(DSS_CLK_SRC_FCK),
 			dss_feat_get_clk_source_name(DSS_CLK_SRC_FCK),
 			dpll4_ck_rate,
 			dpll4_ck_rate / dpll4_m4_ck_rate,
-			dss_clk_get_rate(DSS_CLK_FCK1));
+			dss_clk_get_rate(DSS_CLK_FCK));
 
-	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK1);
+	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK);
 }
 
 void dss_dump_regs(struct seq_file *s)
 {
 #define DUMPREG(r) seq_printf(s, "%-35s %08x\n", #r, dss_read_reg(r))
 
-	dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK1);
+	dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK);
 
 	DUMPREG(DSS_REVISION);
 	DUMPREG(DSS_SYSCONFIG);
@@ -286,7 +286,7 @@ void dss_dump_regs(struct seq_file *s)
 		DUMPREG(DSS_SDI_STATUS);
 	}
 
-	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK1);
+	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK);
 #undef DUMPREG
 }
 
@@ -419,7 +419,7 @@ int dss_set_clock_div(struct dss_clock_info *cinfo)
 
 int dss_get_clock_div(struct dss_clock_info *cinfo)
 {
-	cinfo->fck = dss_clk_get_rate(DSS_CLK_FCK1);
+	cinfo->fck = dss_clk_get_rate(DSS_CLK_FCK);
 
 	if (cpu_is_omap34xx() || cpu_is_omap44xx()) {
 		unsigned long prate;
@@ -460,13 +460,9 @@ int dss_calc_clock_div(bool is_tft, unsigned long req_pck,
 
 	prate = dss_get_dpll4_rate();
 
-<<<<<<< HEAD
-	fck = dss_clk_get_rate(DSS_CLK_FCK1);
-=======
 	max_dss_fck = dss_feat_get_max_dss_fck();
 
 	fck = dss_clk_get_rate(DSS_CLK_FCK);
->>>>>>> OMAP2PLUS: DSS2: FEATURES: Function to Provide the max fck supported
 	if (req_pck == dss.cache_req_pck &&
 			((cpu_is_omap34xx() && prate == dss.cache_prate) ||
 			 dss.cache_dss_cinfo.fck == fck)) {
@@ -493,7 +489,7 @@ retry:
 	if (cpu_is_omap24xx()) {
 		struct dispc_clock_info cur_dispc;
 		/* XXX can we change the clock on omap2? */
-		fck = dss_clk_get_rate(DSS_CLK_FCK1);
+		fck = dss_clk_get_rate(DSS_CLK_FCK);
 		fck_div = 1;
 
 		dispc_find_clk_divs(is_tft, req_pck, fck, &cur_dispc);
@@ -744,7 +740,7 @@ static void save_all_ctx(void)
 {
 	DSSDBG("save context\n");
 
-	dss_clk_enable_no_ctx(DSS_CLK_ICK | DSS_CLK_FCK1);
+	dss_clk_enable_no_ctx(DSS_CLK_ICK | DSS_CLK_FCK);
 
 	dss_save_context();
 	dispc_save_context();
@@ -752,7 +748,7 @@ static void save_all_ctx(void)
 	dsi_save_context();
 #endif
 
-	dss_clk_disable_no_ctx(DSS_CLK_ICK | DSS_CLK_FCK1);
+	dss_clk_disable_no_ctx(DSS_CLK_ICK | DSS_CLK_FCK);
 }
 
 static void restore_all_ctx(void)
@@ -794,38 +790,24 @@ static int dss_get_clocks(void)
 	struct omap_display_platform_data *pdata = dss.pdev->dev.platform_data;
 
 	dss.dss_ick = NULL;
-	dss.dss1_fck = NULL;
-	dss.dss2_fck = NULL;
-	dss.dss_54m_fck = NULL;
-	dss.dss_96m_fck = NULL;
+	dss.dss_fck = NULL;
+	dss.dss_sys_clk = NULL;
+	dss.dss_tv_fck = NULL;
+	dss.dss_video_fck = NULL;
 
 	r = dss_get_clock(&dss.dss_ick, "ick");
 	if (r)
 		goto err;
 
-	r = dss_get_clock(&dss.dss1_fck, "fck");
+	r = dss_get_clock(&dss.dss_fck, "fck");
 	if (r)
 		goto err;
 
-<<<<<<< HEAD
-	r = dss_get_clock(&dss.dss2_fck, "sys_clk");
-	if (r)
-=======
 	if (!pdata->opt_clock_available) {
 		r = -ENODEV;
->>>>>>> OMAP2PLUS:DSS2: Use opt_clock_available from pdata
 		goto err;
 	}
 
-<<<<<<< HEAD
-	r = dss_get_clock(&dss.dss_54m_fck, "tv_clk");
-	if (r)
-		goto err;
-
-	r = dss_get_clock(&dss.dss_96m_fck, "video_clk");
-	if (r)
-		goto err;
-=======
 	if (pdata->opt_clock_available("sys_clk")) {
 		r = dss_get_clock(&dss.dss_sys_clk, "sys_clk");
 		if (r)
@@ -843,34 +825,26 @@ static int dss_get_clocks(void)
 		if (r)
 			goto err;
 	}
->>>>>>> OMAP2PLUS:DSS2: Use opt_clock_available from pdata
 
 	return 0;
 
 err:
 	if (dss.dss_ick)
 		clk_put(dss.dss_ick);
-	if (dss.dss1_fck)
-		clk_put(dss.dss1_fck);
-	if (dss.dss2_fck)
-		clk_put(dss.dss2_fck);
-	if (dss.dss_54m_fck)
-		clk_put(dss.dss_54m_fck);
-	if (dss.dss_96m_fck)
-		clk_put(dss.dss_96m_fck);
+	if (dss.dss_fck)
+		clk_put(dss.dss_fck);
+	if (dss.dss_sys_clk)
+		clk_put(dss.dss_sys_clk);
+	if (dss.dss_tv_fck)
+		clk_put(dss.dss_tv_fck);
+	if (dss.dss_video_fck)
+		clk_put(dss.dss_video_fck);
 
 	return r;
 }
 
 static void dss_put_clocks(void)
 {
-<<<<<<< HEAD
-	if (dss.dss_96m_fck)
-		clk_put(dss.dss_96m_fck);
-	clk_put(dss.dss_54m_fck);
-	clk_put(dss.dss1_fck);
-	clk_put(dss.dss2_fck);
-=======
 	if (dss.dss_video_fck)
 		clk_put(dss.dss_video_fck);
 	if (dss.dss_tv_fck)
@@ -878,7 +852,6 @@ static void dss_put_clocks(void)
 	if (dss.dss_sys_clk)
 		clk_put(dss.dss_sys_clk);
 	clk_put(dss.dss_fck);
->>>>>>> OMAP2PLUS:DSS2: Use opt_clock_available from pdata
 	clk_put(dss.dss_ick);
 }
 
@@ -887,14 +860,14 @@ unsigned long dss_clk_get_rate(enum dss_clock clk)
 	switch (clk) {
 	case DSS_CLK_ICK:
 		return clk_get_rate(dss.dss_ick);
-	case DSS_CLK_FCK1:
-		return clk_get_rate(dss.dss1_fck);
-	case DSS_CLK_FCK2:
-		return clk_get_rate(dss.dss2_fck);
-	case DSS_CLK_54M:
-		return clk_get_rate(dss.dss_54m_fck);
-	case DSS_CLK_96M:
-		return clk_get_rate(dss.dss_96m_fck);
+	case DSS_CLK_FCK:
+		return clk_get_rate(dss.dss_fck);
+	case DSS_CLK_SYSCK:
+		return clk_get_rate(dss.dss_sys_clk);
+	case DSS_CLK_TVFCK:
+		return clk_get_rate(dss.dss_tv_fck);
+	case DSS_CLK_VIDFCK:
+		return clk_get_rate(dss.dss_video_fck);
 	}
 
 	BUG();
@@ -907,13 +880,13 @@ static unsigned count_clk_bits(enum dss_clock clks)
 
 	if (clks & DSS_CLK_ICK)
 		++num_clks;
-	if (clks & DSS_CLK_FCK1)
+	if (clks & DSS_CLK_FCK)
 		++num_clks;
-	if (clks & DSS_CLK_FCK2)
+	if (clks & DSS_CLK_SYSCK)
 		++num_clks;
-	if (clks & DSS_CLK_54M)
+	if (clks & DSS_CLK_TVFCK)
 		++num_clks;
-	if (clks & DSS_CLK_96M)
+	if (clks & DSS_CLK_VIDFCK)
 		++num_clks;
 
 	return num_clks;
@@ -925,16 +898,6 @@ static void dss_clk_enable_no_ctx(enum dss_clock clks)
 
 	if (clks & DSS_CLK_ICK)
 		clk_enable(dss.dss_ick);
-<<<<<<< HEAD
-	if (clks & DSS_CLK_FCK1)
-		clk_enable(dss.dss1_fck);
-	if (clks & DSS_CLK_FCK2)
-		clk_enable(dss.dss2_fck);
-	if (clks & DSS_CLK_54M)
-		clk_enable(dss.dss_54m_fck);
-	if (clks & DSS_CLK_96M)
-		clk_enable(dss.dss_96m_fck);
-=======
 	if (clks & DSS_CLK_FCK)
 		clk_enable(dss.dss_fck);
 	if ((clks & DSS_CLK_SYSCK) && dss.dss_sys_clk)
@@ -943,7 +906,6 @@ static void dss_clk_enable_no_ctx(enum dss_clock clks)
 		clk_enable(dss.dss_tv_fck);
 	if ((clks & DSS_CLK_VIDFCK) && dss.dss_video_fck)
 		clk_enable(dss.dss_video_fck);
->>>>>>> OMAP2PLUS:DSS2: Use opt_clock_available from pdata
 
 	dss.num_clks_enabled += num_clks;
 }
@@ -972,16 +934,6 @@ static void dss_clk_disable_no_ctx(enum dss_clock clks)
 
 	if (clks & DSS_CLK_ICK)
 		clk_disable(dss.dss_ick);
-<<<<<<< HEAD
-	if (clks & DSS_CLK_FCK1)
-		clk_disable(dss.dss1_fck);
-	if (clks & DSS_CLK_FCK2)
-		clk_disable(dss.dss2_fck);
-	if (clks & DSS_CLK_54M)
-		clk_disable(dss.dss_54m_fck);
-	if (clks & DSS_CLK_96M)
-		clk_disable(dss.dss_96m_fck);
-=======
 	if (clks & DSS_CLK_FCK)
 		clk_disable(dss.dss_fck);
 	if ((clks & DSS_CLK_SYSCK) && dss.dss_sys_clk)
@@ -990,7 +942,6 @@ static void dss_clk_disable_no_ctx(enum dss_clock clks)
 		clk_disable(dss.dss_tv_fck);
 	if ((clks & DSS_CLK_VIDFCK) && dss.dss_video_fck)
 		clk_disable(dss.dss_video_fck);
->>>>>>> OMAP2PLUS:DSS2: Use opt_clock_available from pdata
 
 	dss.num_clks_enabled -= num_clks;
 }
@@ -1013,9 +964,9 @@ static void dss_clk_enable_all_no_ctx(void)
 {
 	enum dss_clock clks;
 
-	clks = DSS_CLK_ICK | DSS_CLK_FCK1 | DSS_CLK_FCK2 | DSS_CLK_54M;
+	clks = DSS_CLK_ICK | DSS_CLK_FCK | DSS_CLK_SYSCK | DSS_CLK_TVFCK;
 	if (cpu_is_omap34xx())
-		clks |= DSS_CLK_96M;
+		clks |= DSS_CLK_VIDFCK;
 	dss_clk_enable_no_ctx(clks);
 }
 
@@ -1023,9 +974,9 @@ static void dss_clk_disable_all_no_ctx(void)
 {
 	enum dss_clock clks;
 
-	clks = DSS_CLK_ICK | DSS_CLK_FCK1 | DSS_CLK_FCK2 | DSS_CLK_54M;
+	clks = DSS_CLK_ICK | DSS_CLK_FCK | DSS_CLK_SYSCK | DSS_CLK_TVFCK;
 	if (cpu_is_omap34xx())
-		clks |= DSS_CLK_96M;
+		clks |= DSS_CLK_VIDFCK;
 	dss_clk_disable_no_ctx(clks);
 }
 
@@ -1036,10 +987,10 @@ static void core_dump_clocks(struct seq_file *s)
 	int i;
 	struct clk *clocks[5] = {
 		dss.dss_ick,
-		dss.dss1_fck,
-		dss.dss2_fck,
-		dss.dss_54m_fck,
-		dss.dss_96m_fck
+		dss.dss_fck,
+		dss.dss_sys_clk,
+		dss.dss_tv_fck,
+		dss.dss_video_fck
 	};
 
 	seq_printf(s, "- CORE -\n");

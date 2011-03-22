@@ -570,9 +570,9 @@ void dispc_restore_context(void)
 static inline void enable_clocks(bool enable)
 {
 	if (enable)
-		dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK1);
+		dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK);
 	else
-		dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK1);
+		dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK);
 }
 
 bool dispc_go_busy(enum omap_channel channel)
@@ -2364,23 +2364,11 @@ unsigned long dispc_fclk_rate(void)
 {
 	unsigned long r = 0;
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-	if (dss_get_dispc_clk_source() == DSS_SRC_DSS1_ALWON_FCLK)
-		r = dss_clk_get_rate(DSS_CLK_FCK1);
-=======
-	if (dss_get_dispc_clk_source() == DSS_CLK_SRC_FCK)
-		r = dss_clk_get_rate(DSS_CLK_FCK);
->>>>>>> OMAP2PLUS: DSS2: Make members of dss_clk_source generic
-	else
-#ifdef CONFIG_OMAP2_DSS_DSI
-=======
 	switch (dss_get_dispc_clk_source()) {
 	case DSS_CLK_SRC_FCK:
 		r = dss_clk_get_rate(DSS_CLK_FCK);
 		break;
 	case DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC:
->>>>>>> OMAP2PLUS: DSS2: Cleanup clock source related code
 		r = dsi_get_pll_hsdiv_dispc_rate();
 		break;
 	default:
@@ -2539,7 +2527,7 @@ void dispc_dump_regs(struct seq_file *s)
 {
 #define DUMPREG(r) seq_printf(s, "%-35s %08x\n", #r, dispc_read_reg(r))
 
-	dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK1);
+	dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK);
 
 	DUMPREG(DISPC_REVISION);
 	DUMPREG(DISPC_SYSCONFIG);
@@ -2696,7 +2684,7 @@ void dispc_dump_regs(struct seq_file *s)
 	DUMPREG(DISPC_VID_PRELOAD(0));
 	DUMPREG(DISPC_VID_PRELOAD(1));
 
-	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK1);
+	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK);
 #undef DUMPREG
 }
 
@@ -3492,7 +3480,7 @@ static int omap_dispchw_probe(struct platform_device *pdev)
 	dispc_save_context();
 
 	rev = dispc_read_reg(DISPC_REVISION);
-	printk(KERN_INFO "OMAP DISPC rev %d.%d\n",
+	dev_dbg(&pdev->dev, "OMAP DISPC rev %d.%d\n",
 	       FLD_GET(rev, 7, 4), FLD_GET(rev, 3, 0));
 
 	enable_clocks(0);

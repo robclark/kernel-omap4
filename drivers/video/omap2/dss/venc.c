@@ -380,11 +380,11 @@ static void venc_reset(void)
 static void venc_enable_clocks(int enable)
 {
 	if (enable)
-		dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK1 | DSS_CLK_54M |
-				DSS_CLK_96M);
+		dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK | DSS_CLK_TVFCK |
+				DSS_CLK_VIDFCK);
 	else
-		dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK1 | DSS_CLK_54M |
-				DSS_CLK_96M);
+		dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK | DSS_CLK_TVFCK |
+				DSS_CLK_VIDFCK);
 }
 
 static const struct venc_config *venc_timings_to_config(
@@ -739,7 +739,7 @@ static int omap_venchw_probe(struct platform_device *pdev)
 	venc_enable_clocks(1);
 
 	rev_id = (u8)(venc_read_reg(VENC_REV_ID) & 0xff);
-	printk(KERN_INFO "OMAP VENC rev %d\n", rev_id);
+	dev_dbg(&pdev->dev, "OMAP VENC rev %d\n", rev_id);
 
 	venc_enable_clocks(0);
 

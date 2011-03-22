@@ -183,7 +183,7 @@ static int omap_dss_probe(struct platform_device *pdev)
 	}
 
 	/* keep clocks enabled to prevent context saves/restores during init */
-	dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK1);
+	dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK);
 
 	r = rfbi_init_platform_driver();
 	if (r) {
@@ -237,7 +237,7 @@ static int omap_dss_probe(struct platform_device *pdev)
 			pdata->default_device = dssdev;
 	}
 
-	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK1);
+	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK);
 
 	return 0;
 
@@ -264,7 +264,6 @@ static int omap_dss_remove(struct platform_device *pdev)
 {
 	struct omap_dss_board_info *pdata = pdev->dev.platform_data;
 	int i;
-	int c;
 
 	dss_uninitialize_debugfs();
 
@@ -275,50 +274,6 @@ static int omap_dss_remove(struct platform_device *pdev)
 	hdmi_uninit_platform_driver();
 	dss_uninit_platform_driver();
 
-<<<<<<< HEAD
-	/* these should be removed at some point */
-	c = core.dss_ick->usecount;
-	if (c > 0) {
-		DSSERR("warning: dss_ick usecount %d, disabling\n", c);
-		while (c-- > 0)
-			clk_disable(core.dss_ick);
-	}
-
-	c = core.dss1_fck->usecount;
-	if (c > 0) {
-		DSSERR("warning: dss1_fck usecount %d, disabling\n", c);
-		while (c-- > 0)
-			clk_disable(core.dss1_fck);
-	}
-
-	c = core.dss2_fck->usecount;
-	if (c > 0) {
-		DSSERR("warning: dss2_fck usecount %d, disabling\n", c);
-		while (c-- > 0)
-			clk_disable(core.dss2_fck);
-	}
-
-	c = core.dss_54m_fck->usecount;
-	if (c > 0) {
-		DSSERR("warning: dss_54m_fck usecount %d, disabling\n", c);
-		while (c-- > 0)
-			clk_disable(core.dss_54m_fck);
-	}
-
-	if (core.dss_96m_fck) {
-		c = core.dss_96m_fck->usecount;
-		if (c > 0) {
-			DSSERR("warning: dss_96m_fck usecount %d, disabling\n",
-					c);
-			while (c-- > 0)
-				clk_disable(core.dss_96m_fck);
-		}
-	}
-
-	dss_put_clocks();
-
-=======
->>>>>>> OMAP2, 3: DSS2: Move clocks from core driver to dss driver
 	dss_uninit_overlays(pdev);
 	dss_uninit_overlay_managers(pdev);
 
