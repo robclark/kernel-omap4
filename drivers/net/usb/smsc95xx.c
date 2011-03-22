@@ -643,6 +643,16 @@ static int smsc95xx_ioctl(struct net_device *netdev, struct ifreq *rq, int cmd)
 
 static void smsc95xx_init_mac_address(struct usbnet *dev)
 {
+	struct usbnet_platform_data *pdata = dev->udev->dev.platform_data;
+
+	/*
+	 * if netdev platform data has taken responsibility for forcing
+	 * the MAC then nothing to do here
+	 */
+
+	if (pdata && pdata->flags & USBNET_PLATDATA_FLAG__USE_MAC)
+		return;
+
 	/* try reading mac address from EEPROM */
 	if (smsc95xx_read_eeprom(dev, EEPROM_MAC_OFFSET, ETH_ALEN,
 			dev->net->dev_addr) == 0) {
