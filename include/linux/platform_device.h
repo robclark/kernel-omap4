@@ -213,4 +213,6 @@ struct platform_async_platform_data {
 extern void platform_async_platform_data_register(
 			   struct platform_async_platform_data *map, int count);
 
+extern void platform_async_platform_data_attach(struct device *dev);
+
 #endif /* _PLATFORM_DEVICE_H_ */

@@ -1353,3 +1353,73 @@ void platform_async_platform_data_register(
 	platform_async_platform_data_count = count;
 }
 EXPORT_SYMBOL_GPL(platform_async_platform_data_register);
+
+/**
+ * platform_async_platform_data_attach - if there is any async devname map
+ *			defined, go through it looking for a match with the
+ *			device's path considering its parent device names.
+ *			If a match is found, attach the corresponding
+ *			platform_data and the entry in the map table set to
+ *			NULL so it won't be looked for again.
+ *
+ * @dev:	device to have data attched to if it matches any map entry
+ */
+void platform_async_platform_data_attach(struct device *dev)
+{
+	struct platform_async_platform_data *map;
+	const char *path;
+	int count;
+	const char *p;
+	int len;
+	struct device *devn;
+
+	map = platform_async_platform_data_map;
+	count = platform_async_platform_data_count;
+
+	while (count--) {
+
+		if (map->device_path == NULL) {
+			map++;
+			continue;
+		}
+
+		p = map->device_path + strlen(map->device_path);
+		devn = dev;
+
+		while (devn) {
+
+			path = dev_name(devn);
+			len = strlen(path);
+
+			if ((p - map->device_path) < len) {
+				devn = NULL;
+				continue;
+			}
+
+			p -= len;
+
+			if (strncmp(path, p, len)) {
+				devn = NULL;
+				continue;
+			}
+
+			devn = devn->parent;
+			if (p == map->device_path) {
+				dev_info(dev, "Attached async platform data\n");
+				dev->platform_data = map->platform_data;
+				map->device_path = NULL;
+				return;
+			}
+
+			if (devn != NULL && (p - map->device_path) < 2)
+				devn = NULL;
+
+			p--;
+			if (devn != NULL && *p != '/')
+				devn = NULL;
+		}
+
+		map++;
+	}
+}
+EXPORT_SYMBOL_GPL(platform_async_platform_data_attach);
