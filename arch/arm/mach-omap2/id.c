@@ -515,3 +515,29 @@ void __init omap2_set_globals_tap(struct omap_globals *omap2_globals)
 	else
 		tap_prod_id = 0x0208;
 }
+
+
+void omap2_die_id_to_mac(u8 *mac, int length, int subtype)
+{
+	struct omap_die_id odi;
+	u32 tap = read_tap_reg(OMAP_TAP_IDCODE);
+
+	omap_get_die_id(&odi);
+
+	memcpy(mac, &odi.id_0, length);
+
+	/* XOR other chip-specific data with ID */
+
+	mac[0] ^= tap;
+	mac[1] ^= tap >> 8;
+	mac[2] ^= tap >> 16;
+	mac[3] ^= tap >> 24;
+
+	/* allow four MACs from this same basic data */
+
+	mac[1] = (mac[1] & ~0xc0) | (subtype & 3) << 6;
+
+	/* mark it as not multicast and outside official 80211 MAC namespace */
+
+	mac[0] = (mac[0] & ~1) | 2;
+}
