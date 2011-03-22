@@ -36,6 +36,7 @@
 #include <linux/mutex.h>
 #include <linux/workqueue.h>
 #include <linux/debugfs.h>
+#include <linux/platform_device.h>
 
 #include <asm/io.h>
 #include <linux/scatterlist.h>
@@ -443,6 +444,8 @@ struct usb_device *usb_alloc_dev(struct usb_device *parent,
 	dev->bus = bus;
 	dev->parent = parent;
 	INIT_LIST_HEAD(&dev->filelist);
+
+	platform_async_platform_data_attach(&dev->dev);
 
 #ifdef	CONFIG_PM
 	pm_runtime_set_autosuspend_delay(&dev->dev,
