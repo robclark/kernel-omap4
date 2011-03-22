@@ -15,6 +15,7 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
+#include <linux/platform_device.h>
 
 #include <linux/mmc/card.h>
 #include <linux/mmc/host.h>
@@ -122,6 +123,8 @@ static int sdio_bus_probe(struct device *dev)
 	struct sdio_func *func = dev_to_sdio_func(dev);
 	const struct sdio_device_id *id;
 	int ret;
+
+	platform_async_platform_data_attach(dev);
 
 	id = sdio_match_device(func, drv);
 	if (!id)
