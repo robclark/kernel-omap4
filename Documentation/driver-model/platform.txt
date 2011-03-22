@@ -96,6 +96,31 @@ System setup also associates those clocks with the device, so that that
 calls to clk_get(&pdev->dev, clock_name) return them as needed.
 
 
+Providing platform_data to onboard devices on asynchronously probed buses
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Some boards have fixed onboard assets that would normally be dealt with
+by using plaform_data set in the usual way in the board definition file,
+but cannot directly do so because they are on a bus that is probed
+asynchronously.  For embedded devices, often the board definition
+file is adding platform devices for the buses involved, like USB host
+and gadget, in a fixed order using platform_add_devices(), so the device
+path of these fixed soldered-on-the-board assets is deterministic.
+
+For buses and devices that are named deterministically at boot-time,
+you can define platform_data that binds to these devices when they are
+probed by declaring a map of device paths to platform_data in your
+board definition file before adding the bus platform devices, using
+
+	void platform_register_async_platform_data(
+		struct platform_async_platform_data *map, int count);
+
+Buses that participate in this scheme will then check this mapping list
+for corresponding platform_data as they are probed and apply it
+automatically.  An example device path mapping is
+
+	"usb1/1-1/1-1.1"
+
+
 Legacy Drivers:  Device Probing
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Some drivers are not fully converted to the driver model, because they take
