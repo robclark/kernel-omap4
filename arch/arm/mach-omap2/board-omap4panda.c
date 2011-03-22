@@ -28,6 +28,12 @@
 #include <linux/regulator/machine.h>
 #include <linux/regulator/fixed.h>
 #include <linux/wl12xx.h>
+#include <linux/usb.h>
+#include <linux/skbuff.h>
+#include <linux/mii.h>
+#include <linux/netdevice.h>
+#include <linux/if_ether.h>
+#include <linux/usb/usbnet.h>
 
 #include <mach/hardware.h>
 #include <mach/omap4-common.h>
@@ -635,6 +641,17 @@ void omap_panda_display_init(void)
 	omap_display_init(&panda_dss_data);
 }
 
+struct usbnet_platform_data panda_usbnet_platform_data_usb1_1 = {
+	.flags = USBNET_PLATDATA_FLAG__FORCE_ETH_IFNAME,
+};
+
+struct platform_async_platform_data panda_async_pdata_map[] = {
+	{
+		.device_path = "usb1/1-1/1-1.1",
+		.platform_data = &panda_usbnet_platform_data_usb1_1,
+	},
+};
+
 static void __init omap4_panda_init(void)
 {
 	int package = OMAP_PACKAGE_CBS;
@@ -645,6 +662,9 @@ static void __init omap4_panda_init(void)
 
 	if (wl12xx_set_platform_data(&omap_panda_wlan_data))
 		pr_err("error setting wl12xx data\n");
+
+	platform_async_platform_data_register(panda_async_pdata_map,
+					   ARRAY_SIZE(panda_async_pdata_map));
 
 	omap4_panda_i2c_init();
 	platform_add_devices(panda_devices, ARRAY_SIZE(panda_devices));
