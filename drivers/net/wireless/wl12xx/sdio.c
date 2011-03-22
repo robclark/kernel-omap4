@@ -212,6 +212,7 @@ static int __devinit wl1271_probe(struct sdio_func *func,
 {
 	struct ieee80211_hw *hw;
 	const struct wl12xx_platform_data *wlan_data;
+	struct device *dev;
 	struct wl1271 *wl;
 	int ret;
 
@@ -231,10 +232,10 @@ static int __devinit wl1271_probe(struct sdio_func *func,
 	/* Grab access to FN0 for ELP reg. */
 	func->card->quirks |= MMC_QUIRK_LENIENT_FN0;
 
-	wlan_data = wl12xx_get_platform_data();
-	if (IS_ERR(wlan_data)) {
-		ret = PTR_ERR(wlan_data);
-		wl1271_error("missing wlan platform data: %d", ret);
+	dev = wl1271_wl_to_dev(wl);
+	wlan_data = dev->platform_data;
+	if (!wlan_data) {
+		wl1271_error("missing wlan platform data");
 		goto out_free;
 	}
 
