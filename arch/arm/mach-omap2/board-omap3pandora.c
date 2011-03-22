@@ -643,12 +643,19 @@ static void __init omap3pandora_init_irq(void)
 	omap_init_irq();
 }
 
+struct wl12xx_platform_data pandora_wl1251_pdata = {
+};
+
+struct platform_async_platform_data pandora_async_pdata_map[] = {
+	{
+		.device_path = "mmc1:0001:2",
+		.platform_data = &pandora_wl1251_pdata,
+	},
+};
+
 static void __init pandora_wl1251_init(void)
 {
-	struct wl12xx_platform_data pandora_wl1251_pdata;
 	int ret;
-
-	memset(&pandora_wl1251_pdata, 0, sizeof(pandora_wl1251_pdata));
 
 	ret = gpio_request(PANDORA_WIFI_IRQ_GPIO, "wl1251 irq");
 	if (ret < 0)
@@ -663,9 +670,9 @@ static void __init pandora_wl1251_init(void)
 		goto fail_irq;
 
 	pandora_wl1251_pdata.use_eeprom = true;
-	ret = wl12xx_set_platform_data(&pandora_wl1251_pdata);
-	if (ret < 0)
-		goto fail_irq;
+
+	platform_async_platform_data_register(pandora_async_pdata_map,
+					   ARRAY_SIZE(pandora_async_pdata_map));
 
 	return;
 
