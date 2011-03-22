@@ -12,5 +12,3 @@ obj-$(CONFIG_WL12XX_SDIO)		+= wl12xx_sdio.o
 
 obj-$(CONFIG_WL12XX_SDIO_TEST)	+= wl12xx_sdio_test.o
 
-# small builtin driver bit
-obj-$(CONFIG_WL12XX_PLATFORM_DATA)	+= wl12xx_platform_data.o
