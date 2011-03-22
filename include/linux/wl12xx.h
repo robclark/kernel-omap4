@@ -24,6 +24,8 @@
 #ifndef _LINUX_WL12XX_H
 #define _LINUX_WL12XX_H
 
+#include <linux/if_ether.h>
+
 /* The board reference clock values */
 enum {
 	WL12XX_REFCLOCK_19 = 0,	/* 19.2 MHz */
@@ -38,6 +40,8 @@ struct wl12xx_platform_data {
 	int irq;
 	bool use_eeprom;
 	int board_ref_clock;
+	u8 mac[ETH_ALEN];
+	bool use_mac;
 };
 
 #ifdef CONFIG_WL12XX_PLATFORM_DATA
