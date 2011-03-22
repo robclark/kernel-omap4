@@ -226,13 +226,11 @@ static struct omap2_hsmmc_info mmc[] = {
 	{}      /* Terminator */
 };
 
-static struct regulator_consumer_supply zoom_vpll2_supplies[] = {
-	REGULATOR_SUPPLY("vdds_dsi", "omap_display"),
-	REGULATOR_SUPPLY("vdds_dsi", "omap_dsi1"),
-};
+static struct regulator_consumer_supply zoom_vpll2_supply =
+	REGULATOR_SUPPLY("vdds_dsi", "omapdss");
 
 static struct regulator_consumer_supply zoom_vdda_dac_supply =
-	REGULATOR_SUPPLY("vdda_dac", "omap_venc");
+	REGULATOR_SUPPLY("vdda_dac", "omapdss");
 
 static struct regulator_init_data zoom_vpll2 = {
 	.constraints = {
@@ -243,8 +241,8 @@ static struct regulator_init_data zoom_vpll2 = {
 		.valid_ops_mask         = REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies		= ARRAY_SIZE(zoom_vpll2_supplies),
-	.consumer_supplies		= zoom_vpll2_supplies,
+	.num_consumer_supplies		= 1,
+	.consumer_supplies		= &zoom_vpll2_supply,
 };
 
 static struct regulator_init_data zoom_vdac = {

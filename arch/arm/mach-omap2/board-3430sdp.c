@@ -307,8 +307,22 @@ static struct omap_dss_board_info sdp3430_dss_data = {
 	.default_device	= &sdp3430_lcd_device,
 };
 
-static struct regulator_consumer_supply sdp3430_vdda_dac_supply =
-	REGULATOR_SUPPLY("vdda_dac", "omap_venc");
+static struct platform_device sdp3430_dss_device = {
+	.name		= "omapdss",
+	.id		= -1,
+	.dev		= {
+		.platform_data = &sdp3430_dss_data,
+	},
+};
+
+static struct regulator_consumer_supply sdp3430_vdda_dac_supply = {
+	.supply		= "vdda_dac",
+	.dev		= &sdp3430_dss_device.dev,
+};
+
+static struct platform_device *sdp3430_devices[] __initdata = {
+	&sdp3430_dss_device,
+};
 
 static struct omap_board_config_kernel sdp3430_config[] __initdata = {
 };
@@ -532,8 +546,10 @@ static struct regulator_init_data sdp3430_vdac = {
 
 /* VPLL2 for digital video outputs */
 static struct regulator_consumer_supply sdp3430_vpll2_supplies[] = {
-	REGULATOR_SUPPLY("vdds_dsi", "omap_display"),
-	REGULATOR_SUPPLY("vdds_dsi", "omap_dsi1"),
+	{
+		.supply		= "vdds_dsi",
+		.dev		= &sdp3430_dss_device.dev,
+	}
 };
 
 static struct regulator_init_data sdp3430_vpll2 = {
@@ -785,7 +801,7 @@ static void __init omap_3430sdp_init(void)
 {
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
 	omap3430_i2c_init();
-	omap_display_init(&sdp3430_dss_data);
+	platform_add_devices(sdp3430_devices, ARRAY_SIZE(sdp3430_devices));
 	if (omap_rev() > OMAP3430_REV_ES1_0)
 		ts_gpio = SDP3430_TS_GPIO_IRQ_SDPV2;
 	else

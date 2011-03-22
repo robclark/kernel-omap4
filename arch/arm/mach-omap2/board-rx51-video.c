@@ -66,6 +66,18 @@ static struct omap_dss_board_info rx51_dss_board_info = {
 	.default_device	= &rx51_lcd_device,
 };
 
+struct platform_device rx51_display_device = {
+	.name	= "omapdss",
+	.id	= -1,
+	.dev	= {
+		.platform_data = &rx51_dss_board_info,
+	},
+};
+
+static struct platform_device *rx51_video_devices[] __initdata = {
+	&rx51_display_device,
+};
+
 static int __init rx51_video_init(void)
 {
 	if (!machine_is_nokia_rx51())
@@ -83,7 +95,8 @@ static int __init rx51_video_init(void)
 
 	gpio_direction_output(RX51_LCD_RESET_GPIO, 1);
 
-	omap_display_init(&rx51_dss_board_info);
+	platform_add_devices(rx51_video_devices,
+				ARRAY_SIZE(rx51_video_devices));
 	return 0;
 }
 

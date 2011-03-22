@@ -360,11 +360,11 @@ static struct regulator_consumer_supply rx51_vio_supplies[] = {
 };
 
 static struct regulator_consumer_supply rx51_vaux1_consumers[] = {
-	REGULATOR_SUPPLY("vdds_sdi", "omap_display"),
+	REGULATOR_SUPPLY("vdds_sdi", "omapdss"),
 };
 
 static struct regulator_consumer_supply rx51_vdac_supply[] = {
-	REGULATOR_SUPPLY("vdda_dac", "omap_venc"),
+	REGULATOR_SUPPLY("vdda_dac", "omapdss"),
 };
 
 static struct regulator_init_data rx51_vaux1 = {

@@ -328,6 +328,14 @@ static struct omap_dss_board_info omap3_evm_dss_data = {
 	.default_device	= &omap3_evm_lcd_device,
 };
 
+static struct platform_device omap3_evm_dss_device = {
+	.name		= "omapdss",
+	.id		= -1,
+	.dev		= {
+		.platform_data = &omap3_evm_dss_data,
+	},
+};
+
 static struct regulator_consumer_supply omap3evm_vmmc1_supply = {
 	.supply			= "vmmc",
 };
@@ -492,8 +500,10 @@ static struct twl4030_codec_data omap3evm_codec_data = {
 	.audio = &omap3evm_audio_data,
 };
 
-static struct regulator_consumer_supply omap3_evm_vdda_dac_supply =
-	REGULATOR_SUPPLY("vdda_dac", "omap_venc");
+static struct regulator_consumer_supply omap3_evm_vdda_dac_supply = {
+	.supply		= "vdda_dac",
+	.dev		= &omap3_evm_dss_device.dev,
+};
 
 /* VDAC for DSS driving S-Video */
 static struct regulator_init_data omap3_evm_vdac = {
@@ -511,10 +521,8 @@ static struct regulator_init_data omap3_evm_vdac = {
 };
 
 /* VPLL2 for digital video outputs */
-static struct regulator_consumer_supply omap3_evm_vpll2_supplies[] = {
-	REGULATOR_SUPPLY("vdds_dsi", "omap_display"),
-	REGULATOR_SUPPLY("vdds_dsi", "omap_dsi1"),
-};
+static struct regulator_consumer_supply omap3_evm_vpll2_supply =
+	REGULATOR_SUPPLY("vdds_dsi", "omapdss");
 
 static struct regulator_init_data omap3_evm_vpll2 = {
 	.constraints = {
@@ -526,8 +534,8 @@ static struct regulator_init_data omap3_evm_vpll2 = {
 		.valid_ops_mask		= REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= ARRAY_SIZE(omap3_evm_vpll2_supplies),
-	.consumer_supplies	= omap3_evm_vpll2_supplies,
+	.num_consumer_supplies	= 1,
+	.consumer_supplies	= &omap3_evm_vpll2_supply,
 };
 
 static struct twl4030_platform_data omap3evm_twldata = {
@@ -626,6 +634,10 @@ static void __init omap3_evm_init_irq(void)
 	omap_init_irq();
 }
 
+static struct platform_device *omap3_evm_devices[] __initdata = {
+	&omap3_evm_dss_device,
+};
+
 static struct ehci_hcd_omap_platform_data ehci_pdata __initdata = {
 
 	.port_mode[0] = EHCI_HCD_OMAP_MODE_UNKNOWN,
@@ -663,7 +675,7 @@ static void __init omap3_evm_init(void)
 
 	omap3_evm_i2c_init();
 
-	omap_display_init(&omap3_evm_dss_data);
+	platform_add_devices(omap3_evm_devices, ARRAY_SIZE(omap3_evm_devices));
 
 	spi_register_board_info(omap3evm_spi_board_info,
 				ARRAY_SIZE(omap3evm_spi_board_info));

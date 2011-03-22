@@ -240,6 +240,14 @@ static struct omap_dss_board_info omap3_stalker_dss_data = {
 	.default_device	= &omap3_stalker_dvi_device,
 };
 
+static struct platform_device omap3_stalker_dss_device = {
+	.name	= "omapdss",
+	.id	= -1,
+	.dev	= {
+		.platform_data	= &omap3_stalker_dss_data,
+	},
+};
+
 static struct regulator_consumer_supply omap3stalker_vmmc1_supply = {
 	.supply		= "vmmc",
 };
@@ -440,8 +448,10 @@ static struct twl4030_codec_data omap3stalker_codec_data = {
 	.audio		= &omap3stalker_audio_data,
 };
 
-static struct regulator_consumer_supply omap3_stalker_vdda_dac_supply =
-	REGULATOR_SUPPLY("vdda_dac", "omap_venc");
+static struct regulator_consumer_supply omap3_stalker_vdda_dac_supply = {
+	.supply		= "vdda_dac",
+	.dev		= &omap3_stalker_dss_device.dev,
+};
 
 /* VDAC for DSS driving S-Video */
 static struct regulator_init_data omap3_stalker_vdac = {
@@ -459,9 +469,9 @@ static struct regulator_init_data omap3_stalker_vdac = {
 };
 
 /* VPLL2 for digital video outputs */
-static struct regulator_consumer_supply omap3_stalker_vpll2_supplies[] = {
-	REGULATOR_SUPPLY("vdds_dsi", "omap_display"),
-	REGULATOR_SUPPLY("vdds_dsi", "omap_dsi1"),
+static struct regulator_consumer_supply omap3_stalker_vpll2_supply = {
+	.supply		= "vdds_dsi",
+	.dev		= &omap3_stalker_lcd_device.dev,
 };
 
 static struct regulator_init_data omap3_stalker_vpll2 = {
@@ -475,8 +485,8 @@ static struct regulator_init_data omap3_stalker_vpll2 = {
 		.valid_ops_mask		= REGULATOR_CHANGE_MODE
 		| REGULATOR_CHANGE_STATUS,
 	},
-	.num_consumer_supplies	= ARRAY_SIZE(omap3_stalker_vpll2_supplies),
-	.consumer_supplies	= omap3_stalker_vpll2_supplies,
+	.num_consumer_supplies	= 1,
+	.consumer_supplies	= &omap3_stalker_vpll2_supply,
 };
 
 static struct twl4030_platform_data omap3stalker_twldata = {
@@ -594,6 +604,7 @@ static void __init omap3_stalker_init_irq(void)
 }
 
 static struct platform_device *omap3_stalker_devices[] __initdata = {
+	&omap3_stalker_dss_device,
 	&keys_gpio,
 };
 
@@ -633,7 +644,6 @@ static void __init omap3_stalker_init(void)
 	platform_add_devices(omap3_stalker_devices,
 			     ARRAY_SIZE(omap3_stalker_devices));
 
-	omap_display_init(&omap3_stalker_dss_data);
 	spi_register_board_info(omap3stalker_spi_board_info,
 				ARRAY_SIZE(omap3stalker_spi_board_info));
 

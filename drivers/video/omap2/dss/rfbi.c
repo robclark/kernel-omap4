@@ -36,6 +36,8 @@
 #include <plat/display.h>
 #include "dss.h"
 
+#define RFBI_BASE               0x48050800
+
 struct rfbi_reg { u16 idx; };
 
 #define RFBI_REG(idx)		((const struct rfbi_reg) { idx })
@@ -98,7 +100,6 @@ static int rfbi_convert_timings(struct rfbi_timings *t);
 static void rfbi_get_clk_info(u32 *clk_period, u32 *max_clk_div);
 
 static struct {
-	struct platform_device *pdev;
 	void __iomem	*base;
 
 	unsigned long	l4_khz;
@@ -141,9 +142,9 @@ static inline u32 rfbi_read_reg(const struct rfbi_reg idx)
 static void rfbi_enable_clocks(bool enable)
 {
 	if (enable)
-		dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK);
+		dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK1);
 	else
-		dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK);
+		dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK1);
 }
 
 void omap_rfbi_write_command(const void *buf, u32 len)
@@ -496,7 +497,7 @@ unsigned long rfbi_get_max_tx_rate(void)
 	};
 
 	l4_rate = rfbi.l4_khz / 1000;
-	dss1_rate = dss_clk_get_rate(DSS_CLK_FCK) / 1000000;
+	dss1_rate = dss_clk_get_rate(DSS_CLK_FCK1) / 1000000;
 
 	for (i = 0; i < ARRAY_SIZE(ftab); i++) {
 		/* Use a window instead of an exact match, to account
@@ -921,7 +922,7 @@ void rfbi_dump_regs(struct seq_file *s)
 {
 #define DUMPREG(r) seq_printf(s, "%-35s %08x\n", #r, rfbi_read_reg(r))
 
-	dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK);
+	dss_clk_enable(DSS_CLK_ICK | DSS_CLK_FCK1);
 
 	DUMPREG(RFBI_REVISION);
 	DUMPREG(RFBI_SYSCONFIG);
@@ -952,8 +953,52 @@ void rfbi_dump_regs(struct seq_file *s)
 	DUMPREG(RFBI_VSYNC_WIDTH);
 	DUMPREG(RFBI_HSYNC_WIDTH);
 
-	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK);
+	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK1);
 #undef DUMPREG
+}
+
+int rfbi_init(void)
+{
+	u32 rev;
+	u32 l;
+
+	spin_lock_init(&rfbi.cmd_lock);
+
+	init_completion(&rfbi.cmd_done);
+	atomic_set(&rfbi.cmd_fifo_full, 0);
+	atomic_set(&rfbi.cmd_pending, 0);
+
+	rfbi.base = ioremap(RFBI_BASE, SZ_256);
+	if (!rfbi.base) {
+		DSSERR("can't ioremap RFBI\n");
+		return -ENOMEM;
+	}
+
+	rfbi_enable_clocks(1);
+
+	msleep(10);
+
+	rfbi.l4_khz = dss_clk_get_rate(DSS_CLK_ICK) / 1000;
+
+	/* Enable autoidle and smart-idle */
+	l = rfbi_read_reg(RFBI_SYSCONFIG);
+	l |= (1 << 0) | (2 << 3);
+	rfbi_write_reg(RFBI_SYSCONFIG, l);
+
+	rev = rfbi_read_reg(RFBI_REVISION);
+	printk(KERN_INFO "OMAP RFBI rev %d.%d\n",
+	       FLD_GET(rev, 7, 4), FLD_GET(rev, 3, 0));
+
+	rfbi_enable_clocks(0);
+
+	return 0;
+}
+
+void rfbi_exit(void)
+{
+	DSSDBG("rfbi_exit\n");
+
+	iounmap(rfbi.base);
 }
 
 int omapdss_rfbi_display_enable(struct omap_dss_device *dssdev)
@@ -1010,75 +1055,4 @@ int rfbi_init_display(struct omap_dss_device *dssdev)
 	rfbi.dssdev[dssdev->phy.rfbi.channel] = dssdev;
 	dssdev->caps = OMAP_DSS_DISPLAY_CAP_MANUAL_UPDATE;
 	return 0;
-}
-
-/* RFBI HW IP initialisation */
-static int omap_rfbihw_probe(struct platform_device *pdev)
-{
-	u32 rev;
-	u32 l;
-	struct resource *rfbi_mem;
-
-	rfbi.pdev = pdev;
-
-	spin_lock_init(&rfbi.cmd_lock);
-
-	init_completion(&rfbi.cmd_done);
-	atomic_set(&rfbi.cmd_fifo_full, 0);
-	atomic_set(&rfbi.cmd_pending, 0);
-
-	rfbi_mem = platform_get_resource(rfbi.pdev, IORESOURCE_MEM, 0);
-	if (!rfbi_mem) {
-		DSSERR("can't get IORESOURCE_MEM RFBI\n");
-		return -EINVAL;
-	}
-	rfbi.base = ioremap(rfbi_mem->start, resource_size(rfbi_mem));
-	if (!rfbi.base) {
-		DSSERR("can't ioremap RFBI\n");
-		return -ENOMEM;
-	}
-
-	rfbi_enable_clocks(1);
-
-	msleep(10);
-
-	rfbi.l4_khz = dss_clk_get_rate(DSS_CLK_ICK) / 1000;
-
-	/* Enable autoidle and smart-idle */
-	l = rfbi_read_reg(RFBI_SYSCONFIG);
-	l |= (1 << 0) | (2 << 3);
-	rfbi_write_reg(RFBI_SYSCONFIG, l);
-
-	rev = rfbi_read_reg(RFBI_REVISION);
-	dev_dbg(&pdev->dev, "OMAP RFBI rev %d.%d\n",
-	       FLD_GET(rev, 7, 4), FLD_GET(rev, 3, 0));
-
-	rfbi_enable_clocks(0);
-
-	return 0;
-}
-
-static int omap_rfbihw_remove(struct platform_device *pdev)
-{
-	iounmap(rfbi.base);
-	return 0;
-}
-
-static struct platform_driver omap_rfbihw_driver = {
-	.probe          = omap_rfbihw_probe,
-	.remove         = omap_rfbihw_remove,
-	.driver         = {
-		.name   = "omap_rfbi",
-		.owner  = THIS_MODULE,
-	},
-};
-
-int rfbi_init_platform_driver(void)
-{
-	return platform_driver_register(&omap_rfbihw_driver);
-}
-
-void rfbi_uninit_platform_driver(void)
-{
-	return platform_driver_unregister(&omap_rfbihw_driver);
 }

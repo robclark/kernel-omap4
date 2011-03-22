@@ -378,10 +378,22 @@ static struct omap_dss_board_info am3517_evm_dss_data = {
 	.default_device	= &am3517_evm_lcd_device,
 };
 
+static struct platform_device am3517_evm_dss_device = {
+	.name		= "omapdss",
+	.id		= -1,
+	.dev		= {
+		.platform_data	= &am3517_evm_dss_data,
+	},
+};
+
 /*
  * Board initialization
  */
 static struct omap_board_config_kernel am3517_evm_config[] __initdata = {
+};
+
+static struct platform_device *am3517_evm_devices[] __initdata = {
+	&am3517_evm_dss_device,
 };
 
 static void __init am3517_evm_init_irq(void)
@@ -483,7 +495,9 @@ static void __init am3517_evm_init(void)
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
 
 	am3517_evm_i2c_init();
-	omap_display_init(&am3517_evm_dss_data);
+	platform_add_devices(am3517_evm_devices,
+				ARRAY_SIZE(am3517_evm_devices));
+
 	omap_serial_init();
 
 	/* Configure GPIO for EHCI port */
