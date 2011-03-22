@@ -1293,6 +1293,7 @@ usbnet_probe (struct usb_interface *udev, const struct usb_device_id *prod)
 	int				status;
 	const char			*name;
 	struct usb_driver 	*driver = to_usb_driver(udev->dev.driver);
+	struct usbnet_platform_data	*pdata;
 
 	/* usbnet already took usb runtime pm, so have to enable the feature
 	 * for usb interface, otherwise usb_autopm_get_interface may return
@@ -1313,6 +1314,7 @@ usbnet_probe (struct usb_interface *udev, const struct usb_device_id *prod)
 	interface = udev->cur_altsetting;
 
 	usb_get_dev (xdev);
+	pdata = xdev->dev.platform_data;
 
 	status = -ENOMEM;
 
@@ -1348,7 +1350,10 @@ usbnet_probe (struct usb_interface *udev, const struct usb_device_id *prod)
 
 	dev->net = net;
 	strcpy (net->name, "usb%d");
-	memcpy (net->dev_addr, node_id, sizeof node_id);
+	if (pdata && pdata->flags & USBNET_PLATDATA_FLAG__USE_MAC)
+		memcpy(net->dev_addr, pdata->mac, sizeof pdata->mac);
+	else
+		memcpy(net->dev_addr, node_id, sizeof node_id);
 
 	/* rx and tx sides can use different message sizes;
 	 * bind() should set rx_urb_size in that case.
@@ -1372,11 +1377,17 @@ usbnet_probe (struct usb_interface *udev, const struct usb_device_id *prod)
 		if (status < 0)
 			goto out1;
 
-		// heuristic:  "usb%d" for links we know are two-host,
-		// else "eth%d" when there's reasonable doubt.  userspace
-		// can rename the link if it knows better.
-		if ((dev->driver_info->flags & FLAG_ETHER) != 0 &&
-		    (net->dev_addr [0] & 0x02) == 0)
+		/*
+		 * heuristic:  "usb%d" for links we know are two-host,
+		 * else "eth%d" when there's reasonable doubt.  userspace
+		 * can rename the link if it knows better.  Async
+		 * platform_data can also override this if it knows better
+		 * based on knowledge of what this link is wired up to.
+		 */
+		if ((((dev->driver_info->flags & FLAG_ETHER) != 0 &&
+		    (net->dev_addr[0] & 0x02) == 0)) ||
+		    (pdata && pdata->flags &
+					USBNET_PLATDATA_FLAG__FORCE_ETH_IFNAME))
 			strcpy (net->name, "eth%d");
 		/* WLAN devices should always be named "wlan%d" */
 		if ((dev->driver_info->flags & FLAG_WLAN) != 0)
