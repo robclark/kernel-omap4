@@ -195,6 +195,14 @@ struct skb_data {	/* skb->cb is one of these */
 	size_t			length;
 };
 
+#define USBNET_PLATDATA_FLAG__FORCE_ETH_IFNAME BIT(0)
+#define USBNET_PLATDATA_FLAG__USE_MAC BIT(1)
+
+struct usbnet_platform_data {
+	u8 mac[ETH_ALEN];
+	u32 flags;
+};
+
 extern int usbnet_open(struct net_device *net);
 extern int usbnet_stop(struct net_device *net);
 extern netdev_tx_t usbnet_start_xmit(struct sk_buff *skb,
