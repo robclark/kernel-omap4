@@ -30,6 +30,7 @@
 #include <linux/vmalloc.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
+#include <linux/wl12xx.h>
 
 #include "wl12xx.h"
 #include "wl12xx_80211.h"
@@ -2603,9 +2604,16 @@ static DEVICE_ATTR(hw_pg_ver, S_IRUGO | S_IWUSR,
 int wl1271_register_hw(struct wl1271 *wl)
 {
 	int ret;
+	struct device *dev = wl1271_wl_to_dev(wl);
+	struct wl12xx_platform_data *pdata = dev->platform_data;
 
 	if (wl->mac80211_registered)
 		return 0;
+
+	if (pdata && pdata->use_mac) {
+		memcpy(wl->mac_addr, pdata->mac, ETH_ALEN);
+		pr_info("wl1271_register_hw: used pdata MAC\n");
+	}
 
 	SET_IEEE80211_PERM_ADDR(wl->hw, wl->mac_addr);
 
