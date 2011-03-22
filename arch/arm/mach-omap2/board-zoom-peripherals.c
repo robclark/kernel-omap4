@@ -387,10 +387,17 @@ static void enable_board_wakeup_source(void)
 		OMAP_WAKEUP_EN | OMAP_PIN_INPUT_PULLUP);
 }
 
+struct platform_async_platform_data omap_zoom_async_pdata_map[] = {
+	{
+		.device_path = "mmc1:0001:2",
+		.platform_data = &omap_zoom_wlan_data,
+	},
+};
+
 void __init zoom_peripherals_init(void)
 {
-	if (wl12xx_set_platform_data(&omap_zoom_wlan_data))
-		pr_err("error setting wl12xx data\n");
+	platform_async_platform_data_register(omap_zoom_async_pdata_map,
+					 ARRAY_SIZE(omap_zoom_async_pdata_map));
 
 	omap_i2c_init();
 	platform_device_register(&omap_vwlan_device);
