@@ -39,10 +39,6 @@
 #include "omap-dmic.h"
 #include "../codecs/twl6040.h"
 
-#ifdef CONFIG_SND_OMAP_SOC_HDMI
-#include "omap-hdmi.h"
-#endif
-
 static int twl6040_power_mode;
 static int mcbsp_cfg;
 
@@ -651,20 +647,6 @@ static struct snd_soc_dai_link sdp4430_dai[] = {
 		.fe_playback_channels = 2,
 		.no_host_mode = SND_SOC_DAI_LINK_OPT_HOST,
 	},
-#ifdef CONFIG_SND_OMAP_SOC_HDMI
-	{
-		.name = "hdmi",
-		.stream_name = "HDMI",
-
-		.cpu_dai_name = "hdmi-dai",
-		.platform_name = "omap-pcm-audio",
-
-		/* HDMI*/
-		.codec_dai_name = "HDMI",
-
-		.no_codec = 1,
-	},
-#endif
 	{
 		.name = "Legacy McBSP",
 		.stream_name = "Multimedia",
