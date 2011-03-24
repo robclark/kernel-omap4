@@ -549,6 +549,12 @@ static int omap_abe_dai_startup(struct snd_pcm_substream *substream,
 	dev_dbg(dai->dev, "%s: frontend %s %d\n", __func__,
 			rtd->dai_link->name, dai->id);
 
+	/* ABE needs a step of 24 * 4 data bytes */
+	ret = snd_pcm_hw_constraint_step(substream->runtime, 0,
+				 SNDRV_PCM_HW_PARAM_BUFFER_BYTES, 96);
+	if (ret < 0)
+		return ret;
+
 	mutex_lock(&fe_mutex);
 
 	/* only startup BE DAIs that are either sinks or sources to this FE DAI */
