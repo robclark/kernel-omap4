@@ -1,3 +1,11 @@
+linux-ti-omap4 (2.6.38-1206.8) natty; urgency=low
+
+  [ Bryan Wu ]
+
+  * Rebase to master branch 2.6.38-7.38 release
+
+ --  Bryan Wu <bryan.wu@canonical.com>  Thu, 24 Mar 2011 10:52:15 +0800
+
 linux-ti-omap4 (2.6.38-1206.7) natty; urgency=low
 
   [ Bryan Wu ]
