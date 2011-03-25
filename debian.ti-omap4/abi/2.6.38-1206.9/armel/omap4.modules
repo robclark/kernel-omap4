@@ -1303,8 +1303,6 @@ veth
 vgg2432a4
 vhci-hcd
 vicam
-videobuf-core
-videobuf-dma-contig
 videobuf-dvb
 videobuf-vmalloc
 virtual
@@ -1336,6 +1334,8 @@ wanrouter
 warrior
 whiteheat
 wimax
+wl12xx
+wl12xx_sdio
 wm8400-core
 wm8775
 wp512
