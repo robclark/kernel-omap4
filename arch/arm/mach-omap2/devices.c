@@ -933,6 +933,19 @@ static void omap_init_gpu(void)
 
 	kfree(pdata);
 	platform_device_register(&omap_omaplfb_device);
+
+	/* we need to also register an omap_gpu device, for the core
+	 * drm driver.. he doesn't need any PM or anything special
+	 * (currently), so for now just create a plain device:
+	 */
+	{
+		static struct platform_device pdev = {
+				.name = "omap_gpu",
+				.id = -1,
+		};
+
+		platform_device_register(&pdev);
+	}
 }
 
 /*-------------------------------------------------------------------------*/
