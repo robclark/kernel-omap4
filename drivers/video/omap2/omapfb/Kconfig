@@ -1,6 +1,6 @@
 menuconfig FB_OMAP2
         tristate "OMAP2/3 frame buffer support (EXPERIMENTAL)"
-        depends on FB && OMAP2_DSS
+        depends on FB && OMAP2_DSS && !DRM_OMAP
 
 	select OMAP2_VRAM
 	select OMAP2_VRFB if ARCH_OMAP2 || ARCH_OMAP3
@@ -8,7 +8,7 @@ menuconfig FB_OMAP2
         select FB_CFB_COPYAREA
         select FB_CFB_IMAGEBLIT
         help
-          Frame buffer driver for OMAP2/3 based boards.
+          Legacy frame buffer driver for OMAP2/3 based boards.
 
 config FB_OMAP2_DEBUG_SUPPORT
 	bool "Debug support for OMAP2/3 FB"
