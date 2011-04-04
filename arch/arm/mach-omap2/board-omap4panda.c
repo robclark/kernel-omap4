@@ -117,6 +117,7 @@ static struct panel_generic_dpi_data dvi_panel = {
 	.name			= "generic",
 	.platform_enable	= panda_enable_dvi,
 	.platform_disable	= panda_disable_dvi,
+	.i2c_bus_num = 3,
 };
 
 struct omap_dss_device panda_dvi_device = {
