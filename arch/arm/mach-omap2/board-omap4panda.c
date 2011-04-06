@@ -485,6 +485,13 @@ static struct i2c_board_info __initdata omap4_panda_i2c_boardinfo[] = {
 		.platform_data = &omap4_panda_twldata,
 	},
 };
+
+static struct i2c_board_info __initdata omap4_panda_i2c_eeprom[] = {
+       {
+               I2C_BOARD_INFO("eeprom", 0x50),
+       },
+};
+
 static int __init omap4_panda_i2c_init(void)
 {
 	/*
@@ -494,7 +501,7 @@ static int __init omap4_panda_i2c_init(void)
 	omap_register_i2c_bus(1, 400, omap4_panda_i2c_boardinfo,
 			ARRAY_SIZE(omap4_panda_i2c_boardinfo));
 	omap_register_i2c_bus(2, 400, NULL, 0);
-	omap_register_i2c_bus(3, 400, NULL, 0);
+	omap_register_i2c_bus(3, 400, omap4_panda_i2c_eeprom, ARRAY_SIZE(omap4_panda_i2c_eeprom));
 	omap_register_i2c_bus(4, 400, NULL, 0);
 	return 0;
 }
