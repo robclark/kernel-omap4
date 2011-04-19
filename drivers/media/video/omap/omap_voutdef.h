@@ -128,6 +128,8 @@ struct omap_vout_device {
 	/* keep buffer info across opens */
 	unsigned long buf_virt_addr[VIDEO_MAX_FRAME];
 	unsigned long buf_phy_addr[VIDEO_MAX_FRAME];
+	u8 *queued_buf_uv_addr[VIDEO_MAX_FRAME];
+
 	enum omap_color_mode dss_mode;
 
 	/* we don't allow to request new buffer when old buffers are
@@ -173,6 +175,7 @@ struct omap_vout_device {
 	struct list_head dma_queue;
 	u8 *queued_buf_addr[VIDEO_MAX_FRAME];
 	u32 cropped_offset;
+	u32 cropped_uv_offset;
 	s32 tv_field1_offset;
 	void *isr_handle;
 
