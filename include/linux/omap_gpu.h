@@ -45,7 +45,7 @@ struct omap_gpu_plugin {
 
 int omap_gpu_register_plugin(struct omap_gpu_plugin *plugin);
 int omap_gpu_unregister_plugin(struct omap_gpu_plugin *plugin);
-struct fb_info * omap_gpu_get_fbdev(struct drm_device *dev);
+struct drm_framebuffer * omap_gpu_get_default_fb(struct drm_device *dev);
 
 enum omap_dss_update_mode omap_connector_get_update_mode(
 		struct drm_connector *connector);
@@ -55,10 +55,14 @@ int omap_connector_sync(struct drm_connector *connector);
 
 int omap_encoder_wait_for_vsync(struct drm_encoder *encoder);
 
-struct drm_connector * omap_fbdev_get_next_connector(
-		struct fb_info *fbi, struct drm_connector *from);
-void omap_fbdev_flush(struct fb_info *fbi, int x, int y, int w, int h);
+int omap_crtc_page_flip(struct drm_crtc *crtc,
+		 struct drm_framebuffer *fb,
+		 struct drm_pending_vblank_event *event);
 
+struct drm_framebuffer * omap_framebuffer_init(struct drm_device *dev,
+		struct drm_mode_fb_cmd *mode_cmd);
+int omap_framebuffer_get_buffer(struct drm_framebuffer *fb, int x, int y,
+		void **vaddr, unsigned long *paddr, int *screen_width);
 struct drm_connector * omap_framebuffer_get_next_connector(
 		struct drm_framebuffer *fb, struct drm_connector *from);
 void omap_framebuffer_flush(struct drm_framebuffer *fb,

@@ -30,9 +30,55 @@ struct omap_crtc {
 	struct drm_crtc base;
 	struct omap_overlay *ovl;
 	struct omap_overlay_info info;
+	int id;
 };
 
-static int commit(struct drm_crtc *crtc);
+/* push changes down to dss2 */
+static int commit(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
+	struct omap_overlay *ovl = omap_crtc->ovl;
+	struct omap_overlay_info *info = &omap_crtc->info;
+	int ret;
+
+	DBG("%s", omap_crtc->ovl->name);
+	DBG("%dx%d -> %dx%d (%d)", info->width, info->height, info->out_width,
+			info->out_height, info->screen_width);
+	DBG("%d,%d %p %08x", info->pos_x, info->pos_y, info->vaddr,
+			info->paddr);
+
+	/* NOTE: do we want to do this at all here, or just wait
+	 * for dpms(ON) since other CRTC's may not have their mode
+	 * set yet, so fb dimensions may still change..
+	 */
+	ret = ovl->set_overlay_info(ovl, info);
+	if (ret) {
+		dev_err(dev->dev, "could not set overlay info\n");
+		return ret;
+	}
+
+	/* our encoder doesn't necessarily get a commit() after this, in
+	 * particular in the dpms() and mode_set_base() cases, so force the
+	 * manager to update:
+	 *
+	 * could this be in the encoder somehow?
+	 */
+	if (ovl->manager) {
+		ret = ovl->manager->apply(ovl->manager);
+		if (ret) {
+			dev_err(dev->dev, "could not apply\n");
+			return ret;
+		}
+	}
+
+	if (info->enabled) {
+		omap_framebuffer_flush(crtc->fb, crtc->x, crtc->y,
+				crtc->fb->width, crtc->fb->height);
+	}
+
+	return 0;
+}
 
 /* update parameters that are dependent on the framebuffer dimensions and
  * position within the fb that this crtc scans out from. This is called
@@ -40,7 +86,7 @@ static int commit(struct drm_crtc *crtc);
  * to our mode, or a change in another crtc that is scanning out of the
  * same fb.
  */
-static void omap_crtc_update_scanout(struct drm_crtc *crtc)
+static void update_scanout(struct drm_crtc *crtc)
 {
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
 	unsigned long paddr;
@@ -81,7 +127,7 @@ static void omap_crtc_dpms(struct drm_crtc *crtc, int mode)
 	DBG("%s: %d", omap_crtc->ovl->name, mode);
 
 	if (mode == DRM_MODE_DPMS_ON) {
-		omap_crtc_update_scanout(crtc);
+		update_scanout(crtc);
 		omap_crtc->info.enabled = true;
 	} else {
 		omap_crtc->info.enabled = false;
@@ -136,7 +182,7 @@ static int omap_crtc_mode_set(struct drm_crtc *crtc,
 	omap_crtc->info.max_y_decim = 1;
 #endif
 
-	omap_crtc_update_scanout(crtc);
+	update_scanout(crtc);
 
 	return 0;
 }
@@ -153,57 +199,11 @@ static void omap_crtc_prepare(struct drm_crtc *crtc)
 	omap_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
 }
 
-static int commit(struct drm_crtc *crtc)
-{
-	struct drm_device *dev = crtc->dev;
-	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
-	struct omap_overlay *ovl = omap_crtc->ovl;
-	struct omap_overlay_info *info = &omap_crtc->info;
-	int ret;
-
-	DBG("%s", omap_crtc->ovl->name);
-	DBG("%dx%d -> %dx%d (%d)", info->width, info->height, info->out_width,
-			info->out_height, info->screen_width);
-	DBG("%d,%d %p %08x", info->pos_x, info->pos_y, info->vaddr,
-			info->paddr);
-
-	/* NOTE: do we want to do this at all here, or just wait
-	 * for dpms(ON) since other CRTC's may not have their mode
-	 * set yet, so fb dimensions may still change..
-	 */
-	ret = ovl->set_overlay_info(ovl, info);
-	if (ret) {
-		dev_err(dev->dev, "could not set overlay info\n");
-		return ret;
-	}
-
-	/* our encoder doesn't necessarily get a commit() after this, in
-	 * particular in the dpms() and mode_set_base() cases, so force the
-	 * manager to update:
-	 *
-	 * could this be in the encoder somehow?
-	 */
-	if (ovl->manager) {
-		ret = ovl->manager->apply(ovl->manager);
-		if (ret) {
-			dev_err(dev->dev, "could not apply\n");
-			return ret;
-		}
-	}
-
-	if (info->enabled) {
-		omap_framebuffer_flush(crtc->fb, crtc->x, crtc->y,
-				crtc->fb->width, crtc->fb->height);
-	}
-
-	return 0;
-}
-
 static void omap_crtc_commit(struct drm_crtc *crtc)
 {
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
 	DBG("%s", omap_crtc->ovl->name);
-	omap_crtc_dpms (crtc, DRM_MODE_DPMS_ON);
+	omap_crtc_dpms(crtc, DRM_MODE_DPMS_ON);
 }
 
 static int omap_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
@@ -213,22 +213,71 @@ static int omap_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 
 	DBG("%s %d,%d: fb=%p", omap_crtc->ovl->name, x, y, old_fb);
 
-	omap_crtc_update_scanout(crtc);
+	update_scanout(crtc);
 
 	return commit(crtc);
 }
 
-void omap_crtc_load_lut(struct drm_crtc *crtc)
+static void omap_crtc_load_lut(struct drm_crtc *crtc)
 {
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
 	DBG("%s", omap_crtc->ovl->name);
 }
 
+static int omap_crtc_page_flip_locked(struct drm_crtc *crtc,
+		 struct drm_framebuffer *fb,
+		 struct drm_pending_vblank_event *event)
+{
+	struct drm_device *dev = crtc->dev;
+	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
+	struct timeval now;
+	unsigned long flags;
+	int ret;
+
+	DBG("%d -> %d", crtc->fb ? crtc->fb->base.id : -1, fb->base.id);
+
+	crtc->fb = fb;
+
+	update_scanout(crtc);
+	ret = commit(crtc);
+
+	/* wakeup userspace */
+	// TODO: this should happen *after* flip.. somehow..
+	if (event) {
+		spin_lock_irqsave(&dev->event_lock, flags);
+		event->event.sequence =
+				drm_vblank_count_and_time(dev, omap_crtc->id, &now);
+		event->event.tv_sec = now.tv_sec;
+		event->event.tv_usec = now.tv_usec;
+		list_add_tail(&event->base.link,
+				&event->base.file_priv->event_list);
+		wake_up_interruptible(&event->base.file_priv->event_wait);
+		spin_unlock_irqrestore(&dev->event_lock, flags);
+	}
+
+	return ret;
+}
+
+int omap_crtc_page_flip(struct drm_crtc *crtc,
+		 struct drm_framebuffer *fb,
+		 struct drm_pending_vblank_event *event)
+{
+	struct drm_device *dev = crtc->dev;
+	int ret;
+
+	mutex_lock(&dev->mode_config.mutex);
+	ret = omap_crtc_page_flip_locked(crtc, fb, event);
+	mutex_unlock(&dev->mode_config.mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL(omap_crtc_page_flip);
+
 static const struct drm_crtc_funcs omap_crtc_funcs = {
 	.gamma_set = omap_crtc_gamma_set,
 	.set_config = drm_crtc_helper_set_config,
 	.destroy = omap_crtc_destroy,
-//TODO	.page_flip = omap_page_flip,
+	.page_flip = omap_crtc_page_flip_locked,
 };
 
 static const struct drm_crtc_helper_funcs omap_crtc_helper_funcs = {
@@ -249,7 +298,7 @@ struct omap_overlay * omap_crtc_get_overlay(struct drm_crtc *crtc)
 
 /* initialize crtc */
 struct drm_crtc * omap_crtc_init(struct drm_device *dev,
-		struct omap_overlay *ovl)
+		struct omap_overlay *ovl, int id)
 {
 	struct drm_crtc *crtc = NULL;
 	struct omap_crtc *omap_crtc = kzalloc(sizeof(*omap_crtc), GFP_KERNEL);
@@ -262,6 +311,7 @@ struct drm_crtc * omap_crtc_init(struct drm_device *dev,
 	}
 
 	omap_crtc->ovl = ovl;
+	omap_crtc->id = id;
 	crtc = &omap_crtc->base;
 	drm_crtc_init(dev, crtc, &omap_crtc_funcs);
 	drm_crtc_helper_add(crtc, &omap_crtc_helper_funcs);

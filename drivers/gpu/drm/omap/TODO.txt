@@ -1,0 +1,7 @@
++ plugins should register consecutive ioctl's relative to a base ioctl
+  # that is assigned by omap_gpu
++ omap_gpu should have an ioctl to query by plugin name the assigned
+  base ioctl #
++ userspace should use this base ioctl # to calculate the actual ioctl
+  # relative to that base.
+

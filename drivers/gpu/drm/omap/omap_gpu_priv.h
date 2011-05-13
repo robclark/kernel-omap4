@@ -24,7 +24,7 @@
 #include <linux/module.h>
 
 #define DBG(fmt,...) DRM_DEBUG(fmt"\n", ##__VA_ARGS__)
-#define VERB(fmt,...) do { } while (0) /* verbose debug */
+#define VERB(fmt,...) do { if (0) DBG(fmt, ##__VA_ARGS__); } while (0)
 
 #define MODULE_NAME     "omap_gpu"
 
@@ -37,20 +37,12 @@ struct omap_gpu_private {
 	struct drm_connector *connectors[8];
 
 	struct drm_fb_helper *fbdev;
-
-	/* for now, we statically create a single framebuffer per device, since
-	 * there is not yet any good way to dynamically allocate/free contiguous
-	 * memory..
-	 */
-	struct drm_framebuffer *fb;
 };
 
 struct drm_fb_helper * omap_fbdev_init(struct drm_device *dev);
-void omap_fbdev_update(struct drm_fb_helper *helper,
-		struct drm_framebuffer *fb);
 
 struct drm_crtc * omap_crtc_init(struct drm_device *dev,
-		struct omap_overlay *ovl);
+		struct omap_overlay *ovl, int id);
 struct omap_overlay * omap_crtc_get_overlay(struct drm_crtc *crtc);
 
 struct drm_encoder * omap_encoder_init(struct drm_device *dev,
@@ -70,11 +62,7 @@ void omap_connector_flush(struct drm_connector *connector,
 		int x, int y, int w, int h);
 void omap_connector_dpms(struct drm_connector *connector, int mode);
 
-struct drm_framebuffer * omap_framebuffer_init(struct drm_device *dev,
-		struct drm_mode_fb_cmd *mode_cmd);
 struct drm_framebuffer * omap_framebuffer_create(struct drm_device *dev,
 		struct drm_file *file, struct drm_mode_fb_cmd *mode_cmd);
-int omap_framebuffer_get_buffer(struct drm_framebuffer *fb, int x, int y,
-		void **vaddr, unsigned long *paddr, int *screen_width);
 
 #endif /* __OMAP_GPU_PRIV_H__ */

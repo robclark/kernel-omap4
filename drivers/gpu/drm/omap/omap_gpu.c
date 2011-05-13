@@ -250,7 +250,7 @@ static int omap_modeset_init(struct drm_device *dev)
 			ovl->set_manager(ovl, mgr);
 		}
 
-		crtc = omap_crtc_init(dev, ovl);
+		crtc = omap_crtc_init(dev, ovl, priv->num_crtcs);
 
 		if (!crtc) {
 			dev_err(dev->dev, "could not create CRTC\n");
@@ -355,8 +355,6 @@ static int omap_modeset_init(struct drm_device *dev)
 
 	dev->mode_config.funcs = &omap_mode_config_funcs;
 
-	drm_kms_helper_poll_init(dev);
-
 	return 0;
 
 fail:
@@ -411,6 +409,13 @@ static int dev_load(struct drm_device *dev, unsigned long flags)
 		//return ret;
 	}
 
+	drm_kms_helper_poll_init(dev);
+
+	ret = drm_vblank_init(dev, priv->num_crtcs);
+	if (ret) {
+		dev_err(dev->dev, "could not init vblank\n");
+	}
+
 	loaded = true;
 
 	list_for_each_entry(plugin, &plugin_list, list) {
@@ -432,6 +437,7 @@ static int dev_unload(struct drm_device *dev)
 	}
 
 	drm_kms_helper_poll_fini(dev);
+	drm_vblank_cleanup(dev);
 
 	loaded = false;
 
@@ -725,12 +731,12 @@ int omap_gpu_unregister_plugin(struct omap_gpu_plugin *plugin)
 }
 EXPORT_SYMBOL(omap_gpu_unregister_plugin);
 
-struct fb_info * omap_gpu_get_fbdev(struct drm_device *dev)
+struct drm_framebuffer * omap_gpu_get_default_fb(struct drm_device *dev)
 {
 	struct omap_gpu_private *priv = dev->dev_private;
-	return priv->fbdev->fbdev;
+	return priv->fbdev->fb;
 }
-EXPORT_SYMBOL(omap_gpu_get_fbdev);
+EXPORT_SYMBOL(omap_gpu_get_default_fb);
 
 static int __init omap_gpu_init(void)
 {

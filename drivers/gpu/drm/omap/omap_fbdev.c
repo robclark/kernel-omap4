@@ -34,6 +34,8 @@ struct omap_fbdev {
 	struct drm_framebuffer *fb;
 };
 
+static void omap_fbdev_flush(struct fb_info *fbi, int x, int y, int w, int h);
+
 static ssize_t omap_fbdev_write(struct fb_info *fbi, const char __user *buf,
 		size_t count, loff_t *ppos)
 {
@@ -84,6 +86,9 @@ static struct fb_ops omap_fb_ops = {
 	.fb_pan_display = drm_fb_helper_pan_display,
 	.fb_blank = drm_fb_helper_blank,
 	.fb_setcmap = drm_fb_helper_setcmap,
+
+	.fb_debug_enter = drm_fb_helper_debug_enter,
+	.fb_debug_leave = drm_fb_helper_debug_leave,
 };
 
 static int omap_fbdev_create(struct drm_fb_helper *helper,
@@ -91,9 +96,13 @@ static int omap_fbdev_create(struct drm_fb_helper *helper,
 {
 	struct omap_fbdev *fbdev = to_omap_fbdev(helper);
 	struct drm_device *dev = helper->dev;
+	struct drm_framebuffer *fb;
 	struct fb_info *fbi;
 	struct drm_mode_fb_cmd mode_cmd = {0};
 	struct device *device = &dev->platformdev->dev;
+	unsigned long paddr;
+	void __iomem *vaddr;
+	int size, screen_width;
 	int ret;
 
 	/* only doing ARGB32 since this is what is needed to alpha-blend
@@ -129,7 +138,8 @@ static int omap_fbdev_create(struct drm_fb_helper *helper,
 		goto fail;
 	}
 
-	helper->fb = fbdev->fb;
+	fb = fbdev->fb;
+	helper->fb = fb;
 	helper->fbdev = fbi;
 
 	fbi->par = helper;
@@ -144,7 +154,18 @@ static int omap_fbdev_create(struct drm_fb_helper *helper,
 		goto fail;
 	}
 
-	omap_fbdev_update(helper, fbdev->fb);
+	drm_fb_helper_fill_fix(fbi, fb->pitch, fb->depth);
+	drm_fb_helper_fill_var(fbi, helper, fb->width, fb->height);
+
+	size = omap_framebuffer_get_buffer(fb, 0, 0,
+			&vaddr, &paddr, &screen_width);
+
+	dev->mode_config.fb_base = paddr;
+
+	fbi->screen_base = vaddr;
+	fbi->screen_size = size;
+	fbi->fix.smem_start = paddr;
+	fbi->fix.smem_len = size;
 
 	DBG("par=%p, %dx%d", fbi->par, fbi->var.xres, fbi->var.yres);
 	DBG("allocated %dx%d fb", fbdev->fb->width, fbdev->fb->height);
@@ -203,50 +224,10 @@ static struct drm_fb_helper * get_fb(struct fb_info *fbi)
 	return fbi->par;
 }
 
-void omap_fbdev_update(struct drm_fb_helper *helper,
-		struct drm_framebuffer *fb)
-{
-	struct fb_info *fbi = helper->fbdev;
-	struct drm_device *dev = helper->dev;
-	struct omap_fbdev *fbdev = to_omap_fbdev(helper);
-	unsigned long paddr;
-	void __iomem *vaddr;
-	int size, screen_width;
-
-	DBG("update fbdev: %dx%d, fbi=%p", fb->width, fb->height, fbi);
-
-	fbdev->fb = fb;
-
-	drm_fb_helper_fill_fix(fbi, fb->pitch, fb->depth);
-	drm_fb_helper_fill_var(fbi, helper, fb->width, fb->height);
-
-	size = omap_framebuffer_get_buffer(fbdev->fb, 0, 0,
-			&vaddr, &paddr, &screen_width);
-
-	dev->mode_config.fb_base = paddr;
-
-	fbi->screen_base = vaddr;
-	fbi->screen_size = size;
-	fbi->fix.smem_start = paddr;
-	fbi->fix.smem_len = size;
-}
-
-struct drm_connector * omap_fbdev_get_next_connector(struct fb_info *fbi,
-		struct drm_connector *from)
-{
-	struct drm_fb_helper *helper = get_fb(fbi);
-
-	if (!helper)
-		return NULL;
-
-	return omap_framebuffer_get_next_connector(helper->fb, from);
-}
-EXPORT_SYMBOL(omap_fbdev_get_next_connector);
-
 /* flush an area of the framebuffer (in case of manual update display that
  * is not automatically flushed)
  */
-void omap_fbdev_flush(struct fb_info *fbi, int x, int y, int w, int h)
+static void omap_fbdev_flush(struct fb_info *fbi, int x, int y, int w, int h)
 {
 	struct drm_fb_helper *helper = get_fb(fbi);
 
