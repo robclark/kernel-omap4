@@ -40,6 +40,8 @@ enum dss_feat_id {
 	/* Independent core clk divider */
 	FEAT_CORE_CLK_DIV	= 1 << 11,
 	FEAT_LCD_CLK_SRC	= 1 << 12,
+	FEAT_HANDLE_UV_SEPARATE         = 1 << 20,
+	FEAT_ATTR2                      = 1 << 21,
 };
 
 /* DSS register field id */
