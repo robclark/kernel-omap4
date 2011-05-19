@@ -227,6 +227,7 @@ static inline u32 dispc_read_reg(const struct dispc_reg idx)
 
 void dispc_save_context(void)
 {
+	int i;
 	if (cpu_is_omap24xx())
 		return;
 
@@ -302,38 +303,17 @@ void dispc_save_context(void)
 	SR(VID_ACCU0(0));
 	SR(VID_ACCU1(0));
 
-	SR(VID_FIR_COEF_H(0, 0));
-	SR(VID_FIR_COEF_H(0, 1));
-	SR(VID_FIR_COEF_H(0, 2));
-	SR(VID_FIR_COEF_H(0, 3));
-	SR(VID_FIR_COEF_H(0, 4));
-	SR(VID_FIR_COEF_H(0, 5));
-	SR(VID_FIR_COEF_H(0, 6));
-	SR(VID_FIR_COEF_H(0, 7));
+	for (i = 0; i < 8; i++)
+		SR(VID_FIR_COEF_H(0, i));
 
-	SR(VID_FIR_COEF_HV(0, 0));
-	SR(VID_FIR_COEF_HV(0, 1));
-	SR(VID_FIR_COEF_HV(0, 2));
-	SR(VID_FIR_COEF_HV(0, 3));
-	SR(VID_FIR_COEF_HV(0, 4));
-	SR(VID_FIR_COEF_HV(0, 5));
-	SR(VID_FIR_COEF_HV(0, 6));
-	SR(VID_FIR_COEF_HV(0, 7));
+	for (i = 0; i < 8; i++)
+		SR(VID_FIR_COEF_HV(0, i));
 
-	SR(VID_CONV_COEF(0, 0));
-	SR(VID_CONV_COEF(0, 1));
-	SR(VID_CONV_COEF(0, 2));
-	SR(VID_CONV_COEF(0, 3));
-	SR(VID_CONV_COEF(0, 4));
+	for (i = 0; i < 5; i++)
+		SR(VID_CONV_COEF(0, i));
 
-	SR(VID_FIR_COEF_V(0, 0));
-	SR(VID_FIR_COEF_V(0, 1));
-	SR(VID_FIR_COEF_V(0, 2));
-	SR(VID_FIR_COEF_V(0, 3));
-	SR(VID_FIR_COEF_V(0, 4));
-	SR(VID_FIR_COEF_V(0, 5));
-	SR(VID_FIR_COEF_V(0, 6));
-	SR(VID_FIR_COEF_V(0, 7));
+	for (i = 0; i < 8; i++)
+		SR(VID_FIR_COEF_V(0, i));
 
 	SR(VID_PRELOAD(0));
 
@@ -351,38 +331,17 @@ void dispc_save_context(void)
 	SR(VID_ACCU0(1));
 	SR(VID_ACCU1(1));
 
-	SR(VID_FIR_COEF_H(1, 0));
-	SR(VID_FIR_COEF_H(1, 1));
-	SR(VID_FIR_COEF_H(1, 2));
-	SR(VID_FIR_COEF_H(1, 3));
-	SR(VID_FIR_COEF_H(1, 4));
-	SR(VID_FIR_COEF_H(1, 5));
-	SR(VID_FIR_COEF_H(1, 6));
-	SR(VID_FIR_COEF_H(1, 7));
+	for (i = 0; i < 8; i++)
+		SR(VID_FIR_COEF_H(1, i));
 
-	SR(VID_FIR_COEF_HV(1, 0));
-	SR(VID_FIR_COEF_HV(1, 1));
-	SR(VID_FIR_COEF_HV(1, 2));
-	SR(VID_FIR_COEF_HV(1, 3));
-	SR(VID_FIR_COEF_HV(1, 4));
-	SR(VID_FIR_COEF_HV(1, 5));
-	SR(VID_FIR_COEF_HV(1, 6));
-	SR(VID_FIR_COEF_HV(1, 7));
+	for (i = 0; i < 8; i++)
+		SR(VID_FIR_COEF_HV(1, i));
 
-	SR(VID_CONV_COEF(1, 0));
-	SR(VID_CONV_COEF(1, 1));
-	SR(VID_CONV_COEF(1, 2));
-	SR(VID_CONV_COEF(1, 3));
-	SR(VID_CONV_COEF(1, 4));
+	for (i = 0; i < 5; i++)
+		SR(VID_CONV_COEF(1, i));
 
-	SR(VID_FIR_COEF_V(1, 0));
-	SR(VID_FIR_COEF_V(1, 1));
-	SR(VID_FIR_COEF_V(1, 2));
-	SR(VID_FIR_COEF_V(1, 3));
-	SR(VID_FIR_COEF_V(1, 4));
-	SR(VID_FIR_COEF_V(1, 5));
-	SR(VID_FIR_COEF_V(1, 6));
-	SR(VID_FIR_COEF_V(1, 7));
+	for (i = 0; i < 8; i++)
+		SR(VID_FIR_COEF_V(1, i));
 
 	SR(VID_PRELOAD(1));
 
@@ -392,6 +351,7 @@ void dispc_save_context(void)
 
 void dispc_restore_context(void)
 {
+	int i;
 	RR(SYSCONFIG);
 	/*RR(IRQENABLE);*/
 	/*RR(CONTROL);*/
@@ -463,38 +423,17 @@ void dispc_restore_context(void)
 	RR(VID_ACCU0(0));
 	RR(VID_ACCU1(0));
 
-	RR(VID_FIR_COEF_H(0, 0));
-	RR(VID_FIR_COEF_H(0, 1));
-	RR(VID_FIR_COEF_H(0, 2));
-	RR(VID_FIR_COEF_H(0, 3));
-	RR(VID_FIR_COEF_H(0, 4));
-	RR(VID_FIR_COEF_H(0, 5));
-	RR(VID_FIR_COEF_H(0, 6));
-	RR(VID_FIR_COEF_H(0, 7));
+	for (i = 0; i < 8; i++)
+		RR(VID_FIR_COEF_H(0, i));
 
-	RR(VID_FIR_COEF_HV(0, 0));
-	RR(VID_FIR_COEF_HV(0, 1));
-	RR(VID_FIR_COEF_HV(0, 2));
-	RR(VID_FIR_COEF_HV(0, 3));
-	RR(VID_FIR_COEF_HV(0, 4));
-	RR(VID_FIR_COEF_HV(0, 5));
-	RR(VID_FIR_COEF_HV(0, 6));
-	RR(VID_FIR_COEF_HV(0, 7));
+	for (i = 0; i < 8; i++)
+		RR(VID_FIR_COEF_HV(0, i));
 
-	RR(VID_CONV_COEF(0, 0));
-	RR(VID_CONV_COEF(0, 1));
-	RR(VID_CONV_COEF(0, 2));
-	RR(VID_CONV_COEF(0, 3));
-	RR(VID_CONV_COEF(0, 4));
+	for (i = 0; i < 5; i++)
+		RR(VID_CONV_COEF(0, i));
 
-	RR(VID_FIR_COEF_V(0, 0));
-	RR(VID_FIR_COEF_V(0, 1));
-	RR(VID_FIR_COEF_V(0, 2));
-	RR(VID_FIR_COEF_V(0, 3));
-	RR(VID_FIR_COEF_V(0, 4));
-	RR(VID_FIR_COEF_V(0, 5));
-	RR(VID_FIR_COEF_V(0, 6));
-	RR(VID_FIR_COEF_V(0, 7));
+	for (i = 0; i < 8; i++)
+		RR(VID_FIR_COEF_V(0, i));
 
 	RR(VID_PRELOAD(0));
 
@@ -512,38 +451,17 @@ void dispc_restore_context(void)
 	RR(VID_ACCU0(1));
 	RR(VID_ACCU1(1));
 
-	RR(VID_FIR_COEF_H(1, 0));
-	RR(VID_FIR_COEF_H(1, 1));
-	RR(VID_FIR_COEF_H(1, 2));
-	RR(VID_FIR_COEF_H(1, 3));
-	RR(VID_FIR_COEF_H(1, 4));
-	RR(VID_FIR_COEF_H(1, 5));
-	RR(VID_FIR_COEF_H(1, 6));
-	RR(VID_FIR_COEF_H(1, 7));
+	for (i = 0; i < 8; i++)
+		RR(VID_FIR_COEF_H(1, i));
 
-	RR(VID_FIR_COEF_HV(1, 0));
-	RR(VID_FIR_COEF_HV(1, 1));
-	RR(VID_FIR_COEF_HV(1, 2));
-	RR(VID_FIR_COEF_HV(1, 3));
-	RR(VID_FIR_COEF_HV(1, 4));
-	RR(VID_FIR_COEF_HV(1, 5));
-	RR(VID_FIR_COEF_HV(1, 6));
-	RR(VID_FIR_COEF_HV(1, 7));
+	for (i = 0; i < 8; i++)
+		RR(VID_FIR_COEF_HV(1, i));
 
-	RR(VID_CONV_COEF(1, 0));
-	RR(VID_CONV_COEF(1, 1));
-	RR(VID_CONV_COEF(1, 2));
-	RR(VID_CONV_COEF(1, 3));
-	RR(VID_CONV_COEF(1, 4));
+	for (i = 0; i < 5; i++)
+		RR(VID_CONV_COEF(1, i));
 
-	RR(VID_FIR_COEF_V(1, 0));
-	RR(VID_FIR_COEF_V(1, 1));
-	RR(VID_FIR_COEF_V(1, 2));
-	RR(VID_FIR_COEF_V(1, 3));
-	RR(VID_FIR_COEF_V(1, 4));
-	RR(VID_FIR_COEF_V(1, 5));
-	RR(VID_FIR_COEF_V(1, 6));
-	RR(VID_FIR_COEF_V(1, 7));
+	for (i = 0; i < 8; i++)
+		RR(VID_FIR_COEF_V(1, i));
 
 	RR(VID_PRELOAD(1));
 
