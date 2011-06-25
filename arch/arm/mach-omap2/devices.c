@@ -855,7 +855,7 @@ static inline void omap_hdq_init(void) {}
 #define NUM_FB       1  /* we don't want gfx pipe */
 #endif
 #ifdef CONFIG_ARCH_OMAP4
-#define NUM_PIPES    4
+#define NUM_PIPES    3  /* XXX change when vid3 is supported */
 #else
 #define NUM_PIPES    3
 #endif
