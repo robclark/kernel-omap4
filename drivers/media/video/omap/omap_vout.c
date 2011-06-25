@@ -98,6 +98,11 @@ MODULE_PARM_DESC(vid2_static_vrfb_alloc,
 module_param(debug, int, S_IRUGO);
 MODULE_PARM_DESC(debug, "Debug level");
 
+
+#define VSYNC      (DISPC_IRQ_VSYNC | DISPC_IRQ_VSYNC2)
+#define IRQ_MASK  ((u32)(VSYNC | DISPC_IRQ_EVSYNC_EVEN | DISPC_IRQ_EVSYNC_ODD))
+
+
 /* list of image formats supported by OMAP2 video pipelines */
 const static struct v4l2_fmtdesc omap_formats[] = {
 	{
@@ -583,7 +588,7 @@ void omap_vout_isr(void *arg, unsigned int irqstatus)
 	spin_lock(&vout->vbq_lock);
 	do_gettimeofday(&timevalue);
 	if (cur_display->type == OMAP_DISPLAY_TYPE_DPI) {
-		if (!(irqstatus & DISPC_IRQ_VSYNC))
+		if (!(irqstatus & VSYNC))
 			goto vout_isr_err;
 
 		if (!vout->first_int && (vout->cur_frm != vout->next_frm)) {
@@ -975,11 +980,7 @@ static int omap_vout_release(struct file *file)
 	/* Even if apply changes fails we should continue
 	   freeing allocated memory */
 	if (vout->streaming) {
-		u32 mask = 0;
-
-		mask = DISPC_IRQ_VSYNC | DISPC_IRQ_EVSYNC_EVEN |
-			DISPC_IRQ_EVSYNC_ODD;
-		omap_dispc_unregister_isr(omap_vout_isr, vout, mask);
+		omap_dispc_unregister_isr(omap_vout_isr, vout, IRQ_MASK);
 		vout->streaming = 0;
 
 		videobuf_streamoff(q);
@@ -1608,7 +1609,7 @@ static int vidioc_dqbuf(struct file *file, void *fh, struct v4l2_buffer *b)
 static int vidioc_streamon(struct file *file, void *fh, enum v4l2_buf_type i)
 {
 	int ret = 0, j;
-	u32 addr = 0, mask = 0;
+	u32 addr = 0;
 	u32 uv_addr = 0;
 	struct omap_vout_device *vout = fh;
 	struct videobuf_queue *q = &vout->vbq;
@@ -1654,9 +1655,7 @@ static int vidioc_streamon(struct file *file, void *fh, enum v4l2_buf_type i)
 	uv_addr = (unsigned long) vout->queued_buf_uv_addr[vout->cur_frm->i]
 		+ vout->cropped_uv_offset;
 
-	mask = DISPC_IRQ_VSYNC | DISPC_IRQ_EVSYNC_EVEN | DISPC_IRQ_EVSYNC_ODD;
-
-	omap_dispc_register_isr(omap_vout_isr, vout, mask);
+	omap_dispc_register_isr(omap_vout_isr, vout, IRQ_MASK);
 
 	for (j = 0; j < ovid->num_overlays; j++) {
 		struct omap_overlay *ovl = ovid->overlays[j];
@@ -1696,7 +1695,6 @@ streamon_err:
 
 static int vidioc_streamoff(struct file *file, void *fh, enum v4l2_buf_type i)
 {
-	u32 mask = 0;
 	int ret = 0, j;
 	struct omap_vout_device *vout = fh;
 	struct omapvideo_info *ovid = &vout->vid_info;
@@ -1705,9 +1703,8 @@ static int vidioc_streamoff(struct file *file, void *fh, enum v4l2_buf_type i)
 		return -EINVAL;
 
 	vout->streaming = 0;
-	mask = DISPC_IRQ_VSYNC | DISPC_IRQ_EVSYNC_EVEN | DISPC_IRQ_EVSYNC_ODD;
 
-	omap_dispc_unregister_isr(omap_vout_isr, vout, mask);
+	omap_dispc_unregister_isr(omap_vout_isr, vout, IRQ_MASK);
 
 	for (j = 0; j < ovid->num_overlays; j++) {
 		struct omap_overlay *ovl = ovid->overlays[j];
