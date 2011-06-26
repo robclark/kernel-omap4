@@ -12,6 +12,10 @@
 #ifndef OMAP_VOUTLIB_H
 #define OMAP_VOUTLIB_H
 
+#ifdef CONFIG_TI_TILER
+#  include <mach/tiler.h>
+#endif
+
 extern void omap_vout_default_crop(struct v4l2_pix_format *pix,
 		struct v4l2_framebuffer *fbuf, struct v4l2_rect *crop);
 
@@ -35,6 +39,9 @@ struct omap_vout_buffer {
 	unsigned long size;
 	unsigned long vaddr;
 	unsigned long paddr;
+#ifdef CONFIG_TI_TILER
+	struct tiler_block_t blk;
+#endif
 };
 
 int omap_vout_alloc_buffer(struct omap_vout_buffer *buf, u32 buf_size);

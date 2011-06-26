@@ -305,6 +305,28 @@ int omap_vout_alloc_buffer(struct omap_vout_buffer *buf, u32 buf_size)
 	u32 order, size;
 
 	size = PAGE_ALIGN(buf_size);
+
+#ifdef CONFIG_TI_TILER
+	if (cpu_is_omap44xx()) {
+		buf->blk.width = size;
+		buf->blk.height = 1;
+		buf->blk.key = 1; // XXX ???
+
+		if (tiler_alloc(&buf->blk, TILFMT_PAGE, PAGE_SIZE, 0))
+			goto fail;
+
+		buf->paddr = buf->blk.phys;
+		buf->size = size;
+
+		/* it would be nice to not require a kernel mapping..
+		 * but this is what the caller expects..
+		 */
+		buf->vaddr = (unsigned long) ioremap_wc(buf->paddr, size);
+
+		return 0;
+	}
+#endif
+
 	order = get_order(size);
 
 	buf->vaddr = __get_free_pages(GFP_KERNEL | GFP_DMA, order);
@@ -341,6 +363,14 @@ void omap_vout_free_buffer(struct omap_vout_buffer *buf)
 		return;
 
 	size = buf->size;
+
+#ifdef CONFIG_TI_TILER
+	if (cpu_is_omap44xx()) {
+		tiler_free(&buf->blk);
+		memset(buf, 0, sizeof(*buf));
+		return;
+	}
+#endif
 
 	order = get_order(size);
 
