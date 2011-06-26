@@ -266,10 +266,7 @@ void omap_vout_free_buffers(struct omap_vout_device *vout)
 	vout->buffer_size = (vout->vid) ? video2_bufsize : video1_bufsize;
 
 	for (i = 0; i < numbuffers; i++) {
-		omap_vout_free_buffer(vout->buf_virt_addr[i],
-				vout->buffer_size);
-		vout->buf_phy_addr[i] = 0;
-		vout->buf_virt_addr[i] = 0;
+		omap_vout_free_buffer(&vout->buf[i]);
 	}
 }
 
@@ -698,7 +695,6 @@ static int omap_vout_buffer_setup(struct videobuf_queue *q, unsigned int *count,
 			  unsigned int *size)
 {
 	int startindex = 0, i, j;
-	u32 phy_addr = 0, virt_addr = 0;
 	struct omap_vout_device *vout = q->priv_data;
 	struct omapvideo_info *ovid = &vout->vid_info;
 
@@ -733,26 +729,21 @@ static int omap_vout_buffer_setup(struct videobuf_queue *q, unsigned int *count,
 	for (i = startindex; i < *count; i++) {
 		vout->buffer_size = *size;
 
-		virt_addr = omap_vout_alloc_buffer(vout->buffer_size,
-				&phy_addr);
-		if (!virt_addr) {
+		if (omap_vout_alloc_buffer(&vout->buf[i], vout->buffer_size)) {
 			if (ovid->rotation_type == VOUT_ROT_NONE) {
 				break;
 			} else {
 				if (!rotation_enabled(vout))
 					break;
-			/* Free the VRFB buffers if no space for V4L2 buffers */
-			for (j = i; j < *count; j++) {
-				omap_vout_free_buffer(
-						vout->smsshado_virt_addr[j],
-						vout->smsshado_size);
-				vout->smsshado_virt_addr[j] = 0;
-				vout->smsshado_phy_addr[j] = 0;
-				}
+				/* Free the VRFB buffers if no space for V4L2 buffers */
+				for (j = i; j < *count; j++)
+					omap_vout_free_buffer(&vout->smsshado[j]);
+				// XXX there should really be a break or i-- here..  I'm not
+				// entirely sure the original intent.  Clean up all buffers
+				// or free VRFB buffers in attempt to allocate more v4l2
+				// buffers.  So this logic here is suspect!
 			}
 		}
-		vout->buf_virt_addr[i] = virt_addr;
-		vout->buf_phy_addr[i] = phy_addr;
 	}
 	*count = vout->buffer_allocated = i;
 
@@ -771,12 +762,7 @@ static void omap_vout_free_extra_buffers(struct omap_vout_device *vout)
 		video1_numbuffers : video2_numbuffers;
 
 	for (i = num_buffers; i < vout->buffer_allocated; i++) {
-		if (vout->buf_virt_addr[i])
-			omap_vout_free_buffer(vout->buf_virt_addr[i],
-					vout->buffer_size);
-
-		vout->buf_virt_addr[i] = 0;
-		vout->buf_phy_addr[i] = 0;
+		omap_vout_free_buffer(&vout->buf[i]);
 	}
 	vout->buffer_allocated = num_buffers;
 }
@@ -814,8 +800,8 @@ static int omap_vout_buffer_prepare(struct videobuf_queue *q,
 		vout->queued_buf_uv_addr[vb->i] = (u8 *)
 			omap_vout_uservirt_to_phys(vb->baddr + vb->size);
 	} else {
-		vout->queued_buf_addr[vb->i] = (u8 *) vout->buf_phy_addr[vb->i];
-		vout->queued_buf_uv_addr[vb->i] = (u8 *) (vout->buf_phy_addr[vb->i] +
+		vout->queued_buf_addr[vb->i] = (u8 *) vout->buf[vb->i].paddr;
+		vout->queued_buf_uv_addr[vb->i] = (u8 *) (vout->buf[vb->i].paddr +
 			vb->size);
 	}
 
@@ -918,7 +904,7 @@ static int omap_vout_mmap(struct file *file, struct vm_area_struct *vma)
 	vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
 	vma->vm_ops = &omap_vout_vm_ops;
 	vma->vm_private_data = (void *) vout;
-	pos = (void *)vout->buf_virt_addr[i];
+	pos = (void *)vout->buf[i].vaddr;
 	vma->vm_pgoff = virt_to_phys((void *)pos) >> PAGE_SHIFT;
 	while (size > 0) {
 		unsigned long pfn;
@@ -1519,10 +1505,7 @@ static int vidioc_reqbufs(struct file *file, void *fh,
 		num_buffers = (vout->vid == OMAP_VIDEO1) ?
 			video1_numbuffers : video2_numbuffers;
 		for (i = num_buffers; i < vout->buffer_allocated; i++) {
-			omap_vout_free_buffer(vout->buf_virt_addr[i],
-					vout->buffer_size);
-			vout->buf_virt_addr[i] = 0;
-			vout->buf_phy_addr[i] = 0;
+			omap_vout_free_buffer(&vout->buf[i]);
 		}
 		vout->buffer_allocated = num_buffers;
 		videobuf_mmap_free(q);
@@ -1965,10 +1948,7 @@ static int __init omap_vout_setup_video_bufs(struct platform_device *pdev,
 	dev_info(&pdev->dev, "Buffer Size = %d\n", vout->buffer_size);
 
 	for (i = 0; i < numbuffers; i++) {
-		vout->buf_virt_addr[i] =
-			omap_vout_alloc_buffer(vout->buffer_size,
-					(u32 *) &vout->buf_phy_addr[i]);
-		if (!vout->buf_virt_addr[i]) {
+		if (omap_vout_alloc_buffer(&vout->buf[i], vout->buffer_size)) {
 			numbuffers = i;
 			ret = -ENOMEM;
 			goto free_buffers;
@@ -1988,10 +1968,7 @@ static int __init omap_vout_setup_video_bufs(struct platform_device *pdev,
 
 free_buffers:
 	for (i = 0; i < numbuffers; i++) {
-		omap_vout_free_buffer(vout->buf_virt_addr[i],
-						vout->buffer_size);
-		vout->buf_virt_addr[i] = 0;
-		vout->buf_phy_addr[i] = 0;
+		omap_vout_free_buffer(&vout->buf[i]);
 	}
 	return ret;
 

@@ -28,6 +28,9 @@
 
 #include <plat/cpu.h>
 
+#include "omap_voutlib.h"
+
+
 MODULE_AUTHOR("Texas Instruments");
 MODULE_DESCRIPTION("OMAP Video library");
 MODULE_LICENSE("GPL");
@@ -296,36 +299,49 @@ EXPORT_SYMBOL_GPL(omap_vout_new_format);
 /*
  * Allocate buffers
  */
-unsigned long omap_vout_alloc_buffer(u32 buf_size, u32 *phys_addr)
+int omap_vout_alloc_buffer(struct omap_vout_buffer *buf, u32 buf_size)
 {
+	unsigned long addr;
 	u32 order, size;
-	unsigned long virt_addr, addr;
 
 	size = PAGE_ALIGN(buf_size);
 	order = get_order(size);
-	virt_addr = __get_free_pages(GFP_KERNEL | GFP_DMA, order);
-	addr = virt_addr;
 
-	if (virt_addr) {
-		while (size > 0) {
-			SetPageReserved(virt_to_page(addr));
-			addr += PAGE_SIZE;
-			size -= PAGE_SIZE;
-		}
+	buf->vaddr = __get_free_pages(GFP_KERNEL | GFP_DMA, order);
+	addr = buf->vaddr;
+
+	if (!buf->vaddr)
+		goto fail;
+
+	buf->size = size;
+
+	while (size > 0) {
+		SetPageReserved(virt_to_page(addr));
+		addr += PAGE_SIZE;
+		size -= PAGE_SIZE;
 	}
-	*phys_addr = (u32) virt_to_phys((void *) virt_addr);
-	return virt_addr;
+
+	buf->paddr = (u32) virt_to_phys((void *) buf->vaddr);
+
+	return 0;
+fail:
+	memset(buf, 0, sizeof(*buf));
+	return -ENOMEM;
 }
 
 /*
  * Free buffers
  */
-void omap_vout_free_buffer(unsigned long virtaddr, u32 buf_size)
+void omap_vout_free_buffer(struct omap_vout_buffer *buf)
 {
 	u32 order, size;
-	unsigned long addr = virtaddr;
+	unsigned long addr = buf->vaddr;
 
-	size = PAGE_ALIGN(buf_size);
+	if (!buf->vaddr)
+		return;
+
+	size = buf->size;
+
 	order = get_order(size);
 
 	while (size > 0) {
@@ -333,5 +349,7 @@ void omap_vout_free_buffer(unsigned long virtaddr, u32 buf_size)
 		addr += PAGE_SIZE;
 		size -= PAGE_SIZE;
 	}
-	free_pages((unsigned long) virtaddr, order);
+	free_pages((unsigned long) buf->vaddr, order);
+
+	memset(buf, 0, sizeof(*buf));
 }

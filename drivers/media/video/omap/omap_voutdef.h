@@ -14,6 +14,8 @@
 #include <plat/display.h>
 #include <plat/vrfb.h>
 
+#include "omap_voutlib.h"
+
 #define YUYV_BPP        2
 #define RGB565_BPP      2
 #define RGB24_BPP       3
@@ -126,9 +128,7 @@ struct omap_vout_device {
 	/* allow to reuse previously allocated buffer which is big enough */
 	int buffer_size;
 	/* keep buffer info across opens */
-	unsigned long buf_virt_addr[VIDEO_MAX_FRAME];
-	unsigned long buf_phy_addr[VIDEO_MAX_FRAME];
-	u8 *queued_buf_uv_addr[VIDEO_MAX_FRAME];
+	struct omap_vout_buffer buf[VIDEO_MAX_FRAME];
 
 	enum omap_color_mode dss_mode;
 
@@ -162,11 +162,10 @@ struct omap_vout_device {
 	int vrfb_bpp; /* bytes per pixel with respect to VRFB */
 
 	struct vid_vrfb_dma vrfb_dma_tx;
-	unsigned int smsshado_phy_addr[MAC_VRFB_CTXS];
-	unsigned int smsshado_virt_addr[MAC_VRFB_CTXS];
+	struct omap_vout_buffer smsshado[MAC_VRFB_CTXS];
+	unsigned int smsshado_size;
 	struct vrfb vrfb_context[MAC_VRFB_CTXS];
 	bool vrfb_static_allocation;
-	unsigned int smsshado_size;
 	unsigned char pos;
 
 	int ps, vr_ps, line_length, first_int, field_id;
@@ -174,6 +173,7 @@ struct omap_vout_device {
 	struct videobuf_buffer *cur_frm, *next_frm;
 	struct list_head dma_queue;
 	u8 *queued_buf_addr[VIDEO_MAX_FRAME];
+	u8 *queued_buf_uv_addr[VIDEO_MAX_FRAME];
 	u32 cropped_offset;
 	u32 cropped_uv_offset;
 	s32 tv_field1_offset;

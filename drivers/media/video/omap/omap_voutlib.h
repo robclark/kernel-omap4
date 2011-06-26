@@ -30,7 +30,14 @@ extern int omap_vout_new_window(struct v4l2_rect *crop,
 extern void omap_vout_new_format(struct v4l2_pix_format *pix,
 		struct v4l2_framebuffer *fbuf, struct v4l2_rect *crop,
 		struct v4l2_window *win);
-extern unsigned long omap_vout_alloc_buffer(u32 buf_size, u32 *phys_addr);
-extern void omap_vout_free_buffer(unsigned long virtaddr, u32 buf_size);
+
+struct omap_vout_buffer {
+	unsigned long size;
+	unsigned long vaddr;
+	unsigned long paddr;
+};
+
+int omap_vout_alloc_buffer(struct omap_vout_buffer *buf, u32 buf_size);
+void omap_vout_free_buffer(struct omap_vout_buffer *buf);
 #endif	/* #ifndef OMAP_VOUTLIB_H */
 

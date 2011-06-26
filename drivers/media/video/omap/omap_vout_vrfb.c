@@ -31,27 +31,21 @@ static int omap_vout_allocate_vrfb_buffers(struct omap_vout_device *vout,
 	int i, j;
 
 	for (i = 0; i < *count; i++) {
-		if (!vout->smsshado_virt_addr[i]) {
-			vout->smsshado_virt_addr[i] =
-				omap_vout_alloc_buffer(vout->smsshado_size,
-						&vout->smsshado_phy_addr[i]);
+		if (!vout->smsshado[i].vaddr) {
+			omap_vout_alloc_buffer(&vout->smsshado[i], vout->smsshado_size);
 		}
-		if (!vout->smsshado_virt_addr[i] && startindex != -1) {
+		if (!vout->smsshado[i].vaddr && startindex != -1) {
 			if (V4L2_MEMORY_MMAP == vout->memory && i >= startindex)
 				break;
 		}
-		if (!vout->smsshado_virt_addr[i]) {
+		if (!vout->vout->smsshado[i].vaddr) {
 			for (j = 0; j < i; j++) {
-				omap_vout_free_buffer(
-						vout->smsshado_virt_addr[j],
-						vout->smsshado_size);
-				vout->smsshado_virt_addr[j] = 0;
-				vout->smsshado_phy_addr[j] = 0;
+				omap_vout_free_buffer(&vout->smsshado[j]);
 			}
 			*count = 0;
 			return -ENOMEM;
 		}
-		memset((void *) vout->smsshado_virt_addr[i], 0,
+		memset((void *) vout->vout->smsshado[i].vaddr, 0,
 				vout->smsshado_size);
 	}
 	return 0;
@@ -76,10 +70,7 @@ void omap_vout_free_vrfb_buffers(struct omap_vout_device *vout)
 	int j;
 
 	for (j = 0; j < VRFB_NUM_BUFS; j++) {
-		omap_vout_free_buffer(vout->smsshado_virt_addr[j],
-				vout->smsshado_size);
-		vout->smsshado_virt_addr[j] = 0;
-		vout->smsshado_phy_addr[j] = 0;
+		omap_vout_free_buffer(&vout->smsshado[j]);
 	}
 }
 
@@ -206,7 +197,7 @@ int omap_vout_vrfb_buffer_setup(struct omap_vout_device *vout,
 
 	for (i = 0; i < *count; i++)
 		omap_vrfb_setup(&vout->vrfb_context[i],
-				vout->smsshado_phy_addr[i], vout->pix.width,
+				vout->smsshado[i].paddr, vout->pix.width,
 				vout->pix.height, vout->bpp, yuv_mode);
 
 	return 0;
@@ -225,7 +216,7 @@ int omap_vout_prepare_vrfb(struct omap_vout_device *vout,
 	if (!rotation_enabled(vout))
 		return 0;
 
-	dmabuf = vout->buf_phy_addr[vb->i];
+	dmabuf = vout->buf[vb->i].paddr;
 	/* If rotation is enabled, copy input buffer into VRFB
 	 * memory space using DMA. We are copying input buffer
 	 * into VRFB memory space of desired angle and DSS will
