@@ -102,6 +102,16 @@ MODULE_PARM_DESC(debug, "Debug level");
 #define VSYNC      (DISPC_IRQ_VSYNC | DISPC_IRQ_VSYNC2)
 #define IRQ_MASK  ((u32)(VSYNC | DISPC_IRQ_EVSYNC_EVEN | DISPC_IRQ_EVSYNC_ODD))
 
+/* if we have TILER (OMAP44xx), then don't allocate buffers by
+ * default at startup.. it is unnecessary and rude..
+ */
+static inline int num_default_buffers(int vid)
+{
+	if (cpu_is_omap44xx())
+		return 0;
+	return (vid == OMAP_VIDEO1) ? video1_numbuffers : video2_numbuffers;
+}
+
 
 /* list of image formats supported by OMAP2 video pipelines */
 const static struct v4l2_fmtdesc omap_formats[] = {
@@ -261,8 +271,8 @@ void omap_vout_free_buffers(struct omap_vout_device *vout)
 {
 	int i, numbuffers;
 
-	/* Allocate memory for the buffers */
-	numbuffers = (vout->vid) ?  video2_numbuffers : video1_numbuffers;
+	/* Free memory for the buffers */
+	numbuffers = num_default_buffers(vout->vid);
 	vout->buffer_size = (vout->vid) ? video2_bufsize : video1_bufsize;
 
 	for (i = 0; i < numbuffers; i++) {
@@ -704,8 +714,7 @@ static int omap_vout_buffer_setup(struct videobuf_queue *q, unsigned int *count,
 	if (V4L2_BUF_TYPE_VIDEO_OUTPUT != q->type)
 		return -EINVAL;
 
-	startindex = (vout->vid == OMAP_VIDEO1) ?
-		video1_numbuffers : video2_numbuffers;
+	startindex = num_default_buffers(vout->vid);
 	if (V4L2_MEMORY_MMAP == vout->memory && *count < startindex)
 		*count = startindex;
 
@@ -722,9 +731,6 @@ static int omap_vout_buffer_setup(struct videobuf_queue *q, unsigned int *count,
 		*size = PAGE_ALIGN(vout->pix.width * vout->pix.height * vout->bpp * 3/2);
 	else
 		*size = PAGE_ALIGN(vout->pix.width * vout->pix.height * vout->bpp);
-
-	startindex = (vout->vid == OMAP_VIDEO1) ?
-		video1_numbuffers : video2_numbuffers;
 
 	for (i = startindex; i < *count; i++) {
 		vout->buffer_size = *size;
@@ -758,8 +764,7 @@ static void omap_vout_free_extra_buffers(struct omap_vout_device *vout)
 {
 	int num_buffers = 0, i;
 
-	num_buffers = (vout->vid == OMAP_VIDEO1) ?
-		video1_numbuffers : video2_numbuffers;
+	num_buffers = num_default_buffers(vout->vid);
 
 	for (i = num_buffers; i < vout->buffer_allocated; i++) {
 		omap_vout_free_buffer(&vout->buf[i]);
@@ -1505,8 +1510,7 @@ static int vidioc_reqbufs(struct file *file, void *fh,
 			ret = -EBUSY;
 			goto reqbuf_err;
 		}
-		num_buffers = (vout->vid == OMAP_VIDEO1) ?
-			video1_numbuffers : video2_numbuffers;
+		num_buffers = num_default_buffers(vout->vid);
 		for (i = num_buffers; i < vout->buffer_allocated; i++) {
 			omap_vout_free_buffer(&vout->buf[i]);
 		}
@@ -1980,7 +1984,7 @@ static int __init omap_vout_setup_video_bufs(struct platform_device *pdev,
 	vout = vid_dev->vouts[vid_num];
 	ovid = &vout->vid_info;
 
-	numbuffers = (vid_num == 0) ? video1_numbuffers : video2_numbuffers;
+	numbuffers = num_default_buffers(vid_num);
 	vout->buffer_size = (vid_num == 0) ? video1_bufsize : video2_bufsize;
 	dev_info(&pdev->dev, "Buffer Size = %d\n", vout->buffer_size);
 
