@@ -1592,6 +1592,38 @@ static int vidioc_dqbuf(struct file *file, void *fh, struct v4l2_buffer *b)
 		return videobuf_dqbuf(q, (struct v4l2_buffer *)b, 0);
 }
 
+static bool is_connected(struct omap_overlay_manager *mgr)
+{
+	if (mgr && mgr->device && mgr->device->driver) {
+		struct omap_dss_device *dssdev = mgr->device;
+		struct omap_dss_driver *dssdrv = dssdev->driver;
+		/* if driver doesn't implement is_detected(), then assume
+		 * it is a permanently connected device (like an LCD panel)
+		 * as opposed to a pluggable device (like HDMI or DVI)
+		 */
+		if (dssdrv->is_detected && !dssdrv->is_detected(dssdev))
+			return false;
+		return true;
+	}
+	return false;
+}
+
+static void ensure_ovl_connected(struct omap_overlay *ovl)
+{
+	if (!is_connected(ovl->manager)) {
+		int i;
+		ovl->unset_manager(ovl);
+		for (i = 0; i < omap_dss_get_num_overlay_managers(); i++) {
+			struct omap_overlay_manager *mgr =
+					omap_dss_get_overlay_manager(i);
+			if (is_connected(mgr)) {
+				ovl->set_manager(ovl, mgr);
+				return;
+			}
+		}
+	}
+}
+
 static int vidioc_streamon(struct file *file, void *fh, enum v4l2_buf_type i)
 {
 	int ret = 0, j;
@@ -1645,6 +1677,8 @@ static int vidioc_streamon(struct file *file, void *fh, enum v4l2_buf_type i)
 
 	for (j = 0; j < ovid->num_overlays; j++) {
 		struct omap_overlay *ovl = ovid->overlays[j];
+
+		ensure_ovl_connected(ovl);
 
 		if (ovl->manager && ovl->manager->device) {
 			struct omap_overlay_info info;
