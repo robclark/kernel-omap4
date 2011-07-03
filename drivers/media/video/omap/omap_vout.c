@@ -780,11 +780,14 @@ static int omap_vout_buffer_prepare(struct videobuf_queue *q,
 {
 	struct omap_vout_device *vout = q->priv_data;
 	struct omapvideo_info *ovid = &vout->vid_info;
+	unsigned long ysize = vout->pix.width * vout->pix.height * vout->bpp;
 
 	if (VIDEOBUF_NEEDS_INIT == vb->state) {
 		vb->width = vout->pix.width;
 		vb->height = vout->pix.height;
 		vb->size = vb->width * vb->height * vout->bpp;
+		if (V4L2_PIX_FMT_NV12 == vout->pix.pixelformat)
+			vb->size = vb->size * 3 / 2;
 		vb->field = field;
 	}
 	vb->state = VIDEOBUF_PREPARED;
@@ -798,11 +801,11 @@ static int omap_vout_buffer_prepare(struct videobuf_queue *q,
 		vout->queued_buf_addr[vb->i] = (u8 *)
 			omap_vout_uservirt_to_phys(vb->baddr);
 		vout->queued_buf_uv_addr[vb->i] = (u8 *)
-			omap_vout_uservirt_to_phys(vb->baddr + vb->size);
+			omap_vout_uservirt_to_phys(vb->baddr + ysize);
 	} else {
 		vout->queued_buf_addr[vb->i] = (u8 *) vout->buf[vb->i].paddr;
-		vout->queued_buf_uv_addr[vb->i] = (u8 *) (vout->buf[vb->i].paddr +
-			vb->size);
+		vout->queued_buf_uv_addr[vb->i] =
+				(u8 *) (vout->buf[vb->i].paddr + ysize);
 	}
 
 	if (ovid->rotation_type == VOUT_ROT_VRFB)
