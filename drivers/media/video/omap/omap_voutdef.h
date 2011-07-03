@@ -34,8 +34,14 @@
 #define QQVGA_HEIGHT		120
 
 /* Max Resolution supported by the driver */
-#define VID_MAX_WIDTH		1280	/* Largest width */
-#define VID_MAX_HEIGHT		720	/* Largest height */
+/* note: max viewable area may be lower.. but for example, 1080p h264
+ * playback requires buffers with a padded size of 2048x1184.  The
+ * viewable area may only be 1920x1080, but the total buffer size is
+ * larger.  There isn't really a way to express this properly, so we
+ * just pretend we can support 2048x2048
+ */
+#define VID_MAX_WIDTH		2048
+#define VID_MAX_HEIGHT		2048
 
 /* Mimimum requirement is 2x2 for DSS */
 #define VID_MIN_WIDTH		2
