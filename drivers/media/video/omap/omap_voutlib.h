@@ -37,7 +37,7 @@ extern void omap_vout_new_format(struct v4l2_pix_format *pix,
 
 struct omap_vout_buffer {
 	unsigned long size;
-	unsigned long vaddr;
+	unsigned long vaddr;		/* could be NULL if no kernel mapping */
 	unsigned long paddr;
 #ifdef CONFIG_TI_TILER
 	struct tiler_block_t blk;

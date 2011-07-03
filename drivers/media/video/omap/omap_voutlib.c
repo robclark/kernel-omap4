@@ -318,10 +318,6 @@ int omap_vout_alloc_buffer(struct omap_vout_buffer *buf, u32 buf_size)
 		buf->paddr = buf->blk.phys;
 		buf->size = size;
 
-		/* it would be nice to not require a kernel mapping..
-		 * but this is what the caller expects..
-		 */
-		buf->vaddr = (unsigned long) ioremap_wc(buf->paddr, size);
 
 		return 0;
 	}
@@ -357,9 +353,9 @@ fail:
 void omap_vout_free_buffer(struct omap_vout_buffer *buf)
 {
 	u32 order, size;
-	unsigned long addr = buf->vaddr;
+	unsigned long vaddr;
 
-	if (!buf->vaddr)
+	if (!buf->paddr)
 		return;
 
 	size = buf->size;
@@ -372,11 +368,12 @@ void omap_vout_free_buffer(struct omap_vout_buffer *buf)
 	}
 #endif
 
+	vaddr = buf->vaddr;
 	order = get_order(size);
 
 	while (size > 0) {
-		ClearPageReserved(virt_to_page(addr));
-		addr += PAGE_SIZE;
+		ClearPageReserved(virt_to_page(vaddr));
+		vaddr += PAGE_SIZE;
 		size -= PAGE_SIZE;
 	}
 	free_pages((unsigned long) buf->vaddr, order);

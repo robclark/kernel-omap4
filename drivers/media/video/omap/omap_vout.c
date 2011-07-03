@@ -872,7 +872,7 @@ static struct vm_operations_struct omap_vout_vm_ops = {
 static int omap_vout_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	int i;
-	void *pos;
+	unsigned long paddr;
 	unsigned long start = vma->vm_start;
 	unsigned long size = (vma->vm_end - vma->vm_start);
 	struct omap_vout_device *vout = file->private_data;
@@ -904,15 +904,15 @@ static int omap_vout_mmap(struct file *file, struct vm_area_struct *vma)
 	vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
 	vma->vm_ops = &omap_vout_vm_ops;
 	vma->vm_private_data = (void *) vout;
-	pos = (void *)vout->buf[i].vaddr;
-	vma->vm_pgoff = virt_to_phys((void *)pos) >> PAGE_SHIFT;
+	paddr = vout->buf[i].paddr;
+	vma->vm_pgoff = paddr >> PAGE_SHIFT;
 	while (size > 0) {
 		unsigned long pfn;
-		pfn = virt_to_phys((void *) pos) >> PAGE_SHIFT;
-		if (remap_pfn_range(vma, start, pfn, PAGE_SIZE, PAGE_SHARED))
+		pfn = paddr >> PAGE_SHIFT;
+		if (remap_pfn_range(vma, start, pfn, PAGE_SIZE, vma->vm_page_prot))
 			return -EAGAIN;
 		start += PAGE_SIZE;
-		pos += PAGE_SIZE;
+		paddr += PAGE_SIZE;
 		size -= PAGE_SIZE;
 	}
 	vout->mmap_count++;
