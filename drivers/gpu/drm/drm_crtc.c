@@ -1429,6 +1429,9 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 	}
 
 	if (out_resp->count_modes == 0) {
+		/* set the proposed depth up */
+		if (out_resp->connector_type_id)
+			connector->proposed_depth = out_resp->connector_type_id;
 		connector->funcs->fill_modes(connector,
 					     dev->mode_config.max_width,
 					     dev->mode_config.max_height);
