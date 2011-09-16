@@ -4,7 +4,7 @@
 
 # Common support
 obj-y := common.o sram.o clock.o devices.o dma.o mux.o \
-	 usb.o fb.o io.o counter_32k.o
+	 usb.o fb.o io.o counter_32k.o drm.o
 obj-m :=
 obj-n :=
 obj-  :=
