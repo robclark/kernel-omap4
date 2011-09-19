@@ -1,5 +1,5 @@
 /*
- * OMAP4 Power Management Routines
+ * OMAP4/5 Power Management Routines
  *
  * Copyright (C) 2010-2011 Texas Instruments, Inc.
  * Rajendra Nayak <rnayak@ti.com>
@@ -36,7 +36,7 @@ struct power_state {
 static LIST_HEAD(pwrst_list);
 
 #ifdef CONFIG_SUSPEND
-static int omap4_pm_suspend(void)
+static int omap_pm_suspend(void)
 {
 	struct power_state *pwrst;
 	int state, ret = 0;
@@ -84,6 +84,41 @@ static int omap4_pm_suspend(void)
 
 	return 0;
 }
+
+static int omap_pm_enter(suspend_state_t suspend_state)
+{
+	int ret = 0;
+
+	switch (suspend_state) {
+	case PM_SUSPEND_STANDBY:
+	case PM_SUSPEND_MEM:
+		ret = omap_pm_suspend();
+		break;
+	default:
+		ret = -EINVAL;
+	}
+
+	return ret;
+}
+
+static int omap_pm_begin(suspend_state_t state)
+{
+	disable_hlt();
+	return 0;
+}
+
+static void omap_pm_end(void)
+{
+	enable_hlt();
+	return;
+}
+
+static const struct platform_suspend_ops omap_pm_ops = {
+	.begin		= omap_pm_begin,
+	.end		= omap_pm_end,
+	.enter		= omap_pm_enter,
+	.valid		= suspend_valid_only_mem,
+};
 #endif /* CONFIG_SUSPEND */
 
 static int __init pwrdms_setup(struct powerdomain *pwrdm, void *unused)
@@ -136,12 +171,12 @@ static void omap_default_idle(void)
 }
 
 /**
- * omap4_pm_init - Init routine for OMAP4 PM
+ * omap_pm_init - Init routine for OMAP4 PM
  *
  * Initializes all powerdomain and clockdomain target states
  * and all PRCM settings.
  */
-static int __init omap4_pm_init(void)
+static int __init omap_pm_init(void)
 {
 	int ret;
 	struct clockdomain *emif_clkdm, *mpuss_clkdm, *l3_1_clkdm, *l4wkup;
@@ -199,7 +234,7 @@ static int __init omap4_pm_init(void)
 
 	ret = omap4_mpuss_init();
 	if (ret) {
-		pr_err("Failed to initialise OMAP4 MPUSS\n");
+		pr_err("Failed to initialise OMAP MPUSS\n");
 		goto err2;
 	}
 
@@ -212,9 +247,12 @@ static int __init omap4_pm_init(void)
 	/* Overwrite the default cpu_do_idle() */
 	arm_pm_idle = omap_default_idle;
 
+	/* Overwrite the default arch_idle() */
+	pm_idle = omap_default_idle;
+
 	omap4_idle_init();
 
 err2:
 	return ret;
 }
-late_initcall(omap4_pm_init);
+late_initcall(omap_pm_init);
