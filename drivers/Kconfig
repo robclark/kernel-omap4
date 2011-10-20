@@ -130,6 +130,8 @@ source "drivers/clocksource/Kconfig"
 
 source "drivers/iommu/Kconfig"
 
+source "drivers/remoteproc/Kconfig"
+
 source "drivers/virt/Kconfig"
 
 source "drivers/hv/Kconfig"
