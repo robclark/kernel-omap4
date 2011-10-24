@@ -41,6 +41,21 @@ struct vb2_fileio_data;
  *		 argument to other ops in this structure
  * @put_userptr: inform the allocator that a USERPTR buffer will no longer
  *		 be used
+ * @import_dmabuf: import a shared struct dma_buf for a hardware operation;
+ * 		   used for DMABUF memory types; alloc_ctx is the alloc context
+ * 		   fd is the file descriptor for shared dma_buf; returns NULL
+ * 		   on failure; allocator private per-buffer structure on
+ * 		   success; this needs to be used for further accesses to
+ * 		   the buffer
+ * @put_dmabuf:	inform the exporter of the buffer that the current DMABUF
+ * 		buffer is no longer used; the buf_priv argument is the
+ * 		allocator private per-buffer structure previously returned
+ * 		from the import_dmabuf callback
+ * @acquire_dmabuf: request for access to the dmabuf from allocator;
+ * 		    the allocator of dmabuf is informed that this driver is
+ * 		    going to use the dmabuf
+ * @release_dmabuf: releases access control to the dmabuf - allocator is
+ * 		    notified that this driver is done using the dmabuf for now
  * @vaddr:	return a kernel virtual address to a given memory buffer
  *		associated with the passed private structure or NULL if no
  *		such mapping exists
@@ -56,6 +71,8 @@ struct vb2_fileio_data;
  * Required ops for USERPTR types: get_userptr, put_userptr.
  * Required ops for MMAP types: alloc, put, num_users, mmap.
  * Required ops for read/write access types: alloc, put, num_users, vaddr
+ * Required ops for DMABUF types: import_dmabuf, put_dmabuf, acquire_dmabuf,
+ *				  release_dmabuf.
  */
 struct vb2_mem_ops {
 	void		*(*alloc)(void *alloc_ctx, unsigned long size);
@@ -64,6 +81,11 @@ struct vb2_mem_ops {
 	void		*(*get_userptr)(void *alloc_ctx, unsigned long vaddr,
 					unsigned long size, int write);
 	void		(*put_userptr)(void *buf_priv);
+
+	void		*(*import_dmabuf)(void *alloc_ctx, int fd);
+	void		(*put_dmabuf)(void *buf_priv);
+	void		(*acquire_dmabuf)(void *buf_priv);
+	void		(*release_dmabuf)(void *buf_priv);
 
 	void		*(*vaddr)(void *buf_priv);
 	void		*(*cookie)(void *buf_priv);
@@ -83,12 +105,14 @@ struct vb2_plane {
  * @VB2_USERPTR:	driver supports USERPTR with streaming API
  * @VB2_READ:		driver supports read() style access
  * @VB2_WRITE:		driver supports write() style access
+ * @VB2_DMABUF:		driver supports DMABUF with streaming API
  */
 enum vb2_io_modes {
 	VB2_MMAP	= (1 << 0),
 	VB2_USERPTR	= (1 << 1),
 	VB2_READ	= (1 << 2),
 	VB2_WRITE	= (1 << 3),
+	VB2_DMABUF	= (1 << 4),
 };
 
 /**
