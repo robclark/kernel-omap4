@@ -63,6 +63,7 @@ static struct {
 	struct mutex lock;
 	struct platform_device *pdev;
 	struct hdmi_ip_data ip_data;
+	int hdmi_irq;
 
 	struct clk *sys_clk;
 	struct regulator *vdda_hdmi_dac_reg;
@@ -753,6 +754,16 @@ void omapdss_hdmi_display_disable(struct omap_dss_device *dssdev)
 	mutex_unlock(&hdmi.lock);
 }
 
+static irqreturn_t hdmi_irq_handler(int irq, void *arg)
+{
+	int r = 0;
+
+	r = hdmi.ip_data.ops->irq_handler(&hdmi.ip_data);
+	DSSDBG("Received HDMI IRQ = %08x\n", r);
+
+	return IRQ_HANDLED;
+}
+
 static int hdmi_get_clocks(struct platform_device *pdev)
 {
 	struct clk *clk;
@@ -1114,6 +1125,13 @@ static int __init omapdss_hdmihw_probe(struct platform_device *pdev)
 	}
 
 	pm_runtime_enable(&pdev->dev);
+
+	hdmi.hdmi_irq = platform_get_irq(pdev, 0);
+	r = request_irq(hdmi.hdmi_irq, hdmi_irq_handler, 0, "OMAP HDMI", NULL);
+	if (r < 0) {
+		pr_err("hdmi: request_irq %s failed\n", pdev->name);
+		return -EINVAL;
+	}
 
 	hdmi.ip_data.core_sys_offset = HDMI_CORE_SYS;
 	hdmi.ip_data.core_av_offset = HDMI_CORE_AV;
