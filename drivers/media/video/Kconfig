@@ -473,6 +473,12 @@ config VIDEO_OV5640
 	help
 	  This is a ov5640 camera driver
 
+config VIDEO_OV5650
+	tristate "OmniVision OV5650 sensor support"
+	depends on I2C && VIDEO_V4L2
+	help
+	  This is a ov5650 camera driver
+
 config VIDEO_MT9P031
 	tristate "Aptina MT9P031 support"
 	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
