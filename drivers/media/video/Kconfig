@@ -473,6 +473,12 @@ config VIDEO_OV5640
 	help
 	  This is a ov5640 camera driver
 
+config VIDEO_OV5650
+	tristate "OmniVision OV5650 sensor support"
+	depends on I2C && VIDEO_V4L2
+	help
+	  This is a ov5650 camera driver
+
 config VIDEO_VS6624
 	tristate "ST VS6624 sensor support"
 	depends on VIDEO_V4L2 && I2C
