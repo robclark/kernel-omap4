@@ -32,6 +32,7 @@
 #include <plat/omap_hwmod.h>
 #include <plat/omap_device.h>
 #include <plat/omap4-keypad.h>
+#include <plat/omap4-iss.h>
 
 #include "mux.h"
 #include "control.h"
@@ -215,6 +216,37 @@ int omap3_init_camera(struct isp_platform_data *pdata)
 {
 	omap3isp_device.dev.platform_data = pdata;
 	return platform_device_register(&omap3isp_device);
+}
+
+int omap4_init_camera(struct iss_platform_data *pdata, struct omap_board_data *bdata)
+{
+	struct platform_device *pdev;
+	struct omap_hwmod *oh;
+	struct iss_platform_data *omap4iss_pdata;
+	char *oh_name = "iss";
+	char *name = "omap4iss";
+	unsigned int id = -1;
+
+	oh = omap_hwmod_lookup(oh_name);
+	if (!oh) {
+		pr_err("Could not look up %s\n", oh_name);
+		return -ENODEV;
+	}
+
+	omap4iss_pdata = pdata;
+
+	pdev = omap_device_build(name, id, oh, omap4iss_pdata,
+			sizeof(struct iss_platform_data), NULL, 0, 0);
+
+	if (IS_ERR(pdev)) {
+		WARN(1, "Can't build omap_device for %s:%s.\n",
+						name, oh->name);
+		return PTR_ERR(pdev);
+	}
+
+	oh->mux = omap_hwmod_mux_init(bdata->pads, bdata->pads_cnt);
+
+	return 0;
 }
 
 static inline void omap_init_camera(void)
