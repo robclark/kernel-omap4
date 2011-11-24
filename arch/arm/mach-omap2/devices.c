@@ -17,6 +17,9 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/of.h>
+#ifdef CONFIG_CMA
+#include <linux/dma-contiguous.h>
+#endif
 
 #include <media/omap4iss.h>
 
@@ -264,6 +267,11 @@ int omap4_init_camera(struct iss_platform_data *pdata, struct omap_board_data *b
 	}
 
 	oh->mux = omap_hwmod_mux_init(bdata->pads, bdata->pads_cnt);
+
+#ifdef CONFIG_CMA
+	/* Create private 32MiB contiguous memory area for omap4iss device */
+	dma_declare_contiguous(&pdev->dev, 32*SZ_1M, 0, 0);
+#endif
 
 	return 0;
 }
