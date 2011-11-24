@@ -796,6 +796,19 @@ config VIDEO_OMAP3_DEBUG
 	---help---
 	  Enable debug messages on OMAP 3 camera controller driver.
 
+config VIDEO_OMAP4
+	tristate "OMAP 4 Camera support (EXPERIMENTAL)"
+	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API && ARCH_OMAP4 && EXPERIMENTAL
+	select VIDEOBUF2_DMA_CONTIG
+	---help---
+	  Driver for an OMAP 4 ISS controller.
+
+config VIDEO_OMAP4_DEBUG
+	bool "OMAP 4 Camera debug messages"
+	depends on VIDEO_OMAP4
+	---help---
+	  Enable debug messages on OMAP 4 ISS controller driver.
+
 config SOC_CAMERA
 	tristate "SoC camera support"
 	depends on VIDEO_V4L2 && HAS_DMA && I2C
