@@ -1275,7 +1275,7 @@ static int dsi_pll_power(struct platform_device *dsidev,
 }
 
 /* calculate clock rates using dividers in cinfo */
-static int dsi_calc_clock_rates(struct platform_device *dsidev,
+int dsi_calc_clock_rates(struct platform_device *dsidev,
 		struct dsi_clock_info *cinfo)
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
@@ -1403,6 +1403,8 @@ retry:
 					continue;
 
 				match = 1;
+
+				cur_dispc = *dispc_cinfo;
 
 				dispc_find_clk_divs(req_pck,
 						cur.dsi_pll_hsdiv_dispc_clk,
