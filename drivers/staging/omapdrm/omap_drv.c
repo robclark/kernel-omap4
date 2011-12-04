@@ -817,7 +817,7 @@ static const struct file_operations omapdriver_fops = {
 
 static struct drm_driver omap_drm_driver = {
 		.driver_features =
-				DRIVER_HAVE_IRQ | DRIVER_MODESET | DRIVER_GEM,
+				DRIVER_HAVE_IRQ | DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME,
 		.load = dev_load,
 		.unload = dev_unload,
 		.open = dev_open,
@@ -840,6 +840,8 @@ static struct drm_driver omap_drm_driver = {
 		.gem_init_object = omap_gem_init_object,
 		.gem_free_object = omap_gem_free_object,
 		.gem_vm_ops = &omap_gem_vm_ops,
+		.prime_get = omap_gem_prime_get,
+		.prime_set = omap_gem_prime_set,
 		.dumb_create = omap_gem_dumb_create,
 		.dumb_map_offset = omap_gem_dumb_map_offset,
 		.dumb_destroy = omap_gem_dumb_destroy,
