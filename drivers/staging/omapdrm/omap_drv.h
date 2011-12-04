@@ -128,6 +128,12 @@ int omap_gem_get_paddr(struct drm_gem_object *obj,
 int omap_gem_put_paddr(struct drm_gem_object *obj);
 uint64_t omap_gem_mmap_offset(struct drm_gem_object *obj);
 size_t omap_gem_mmap_size(struct drm_gem_object *obj);
+int omap_gem_prime_set(struct drm_device *dev,
+		struct drm_file *file_priv,
+		uint32_t handle, int *prime_fd);
+int omap_gem_prime_get(struct drm_device *dev,
+		struct drm_file *file_priv,
+		int prime_fd, uint32_t *handle);
 
 static inline int align_pitch(int pitch, int width, int bpp)
 {
