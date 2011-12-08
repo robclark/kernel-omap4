@@ -115,6 +115,8 @@ static int vb2_dma_contig_mmap(void *buf_priv, struct vm_area_struct *vma)
 		return -EINVAL;
 	}
 
+	WARN_ON(buf->db_attach);
+
 	return vb2_mmap_pfn_range(vma, buf->dma_addr, buf->size,
 				  &vb2_common_vm_ops, &buf->handler);
 }
@@ -157,61 +159,7 @@ static void vb2_dma_contig_put_userptr(void *mem_priv)
 	kfree(buf);
 }
 
-static void *vb2_dma_contig_import_dmabuf(void *alloc_ctx, int fd)
-{
-	struct vb2_dc_conf *conf = alloc_ctx;
-	struct vb2_dc_buf *buf;
-	struct dma_buf *dbuf;
-	struct dma_buf_attachment *dba;
-
-	buf = kzalloc(sizeof *buf, GFP_KERNEL);
-	if (!buf)
-		return ERR_PTR(-ENOMEM);
-
-	/* Get the dmabuf for given fd */
-	dbuf = dma_buf_get(fd);
-	if (IS_ERR(dbuf)) {
-		printk(KERN_ERR "failed to get dmabuf from fd %d\n", fd);
-		kfree(buf);
-		return dbuf;
-	}
-
-	/* create attachment for the dmabuf with the user device */
-	dba = dma_buf_attach(dbuf, conf->dev);
-	if (IS_ERR(dba)) {
-		printk(KERN_ERR "failed to attach dmabuf for fd %d\n", fd);
-		kfree(buf);
-		return dba;
-	}
-
-	buf->conf = conf;
-	buf->size = dba->dmabuf->size;
-	buf->db_attach = dba;
-	buf->dma_addr = 0; /* dma_addr is available only after acquire */
-
-	return buf;
-}
-
-static void vb2_dma_contig_put_dmabuf(void *mem_priv)
-{
-	struct vb2_dc_buf *buf = mem_priv;
-	struct dma_buf *dmabuf;
-
-	if (!buf)
-		return;
-	dmabuf = buf->db_attach->dmabuf;
-
-	/* detach this attachment */
-	dma_buf_detach(dmabuf, buf->db_attach);
-	buf->db_attach = NULL;
-
-	/* put the dmabuf reference */
-	dma_buf_put(dmabuf);
-
-	kfree(buf);
-}
-
-static void vb2_dma_contig_acquire_dmabuf(void *mem_priv)
+static void vb2_dma_contig_map_dmabuf(void *mem_priv)
 {
 	struct vb2_dc_buf *buf = mem_priv;
 	struct dma_buf *dmabuf;
@@ -220,6 +168,8 @@ static void vb2_dma_contig_acquire_dmabuf(void *mem_priv)
 
 	if (!buf || !buf->db_attach)
 		return;
+
+	WARN_ON(buf->dma_addr);
 
 	dmabuf = buf->db_attach->dmabuf;
 
@@ -247,7 +197,7 @@ static void vb2_dma_contig_acquire_dmabuf(void *mem_priv)
 	dmabuf->priv = sg;
 }
 
-static void vb2_dma_contig_release_dmabuf(void *mem_priv)
+static void vb2_dma_contig_unmap_dmabuf(void *mem_priv)
 {
 	struct vb2_dc_buf *buf = mem_priv;
 	struct dma_buf *dmabuf;
@@ -255,6 +205,8 @@ static void vb2_dma_contig_release_dmabuf(void *mem_priv)
 
 	if (!buf || !buf->db_attach)
 		return;
+
+	WARN_ON(!buf->dma_addr);
 
 	dmabuf = buf->db_attach->dmabuf;
 	sg = dmabuf->priv;
@@ -268,6 +220,50 @@ static void vb2_dma_contig_release_dmabuf(void *mem_priv)
 	buf->size = 0;
 }
 
+static void *vb2_dma_contig_attach_dmabuf(void *alloc_ctx, struct dma_buf *dbuf)
+{
+	struct vb2_dc_conf *conf = alloc_ctx;
+	struct vb2_dc_buf *buf;
+	struct dma_buf_attachment *dba;
+
+	buf = kzalloc(sizeof *buf, GFP_KERNEL);
+	if (!buf)
+		return ERR_PTR(-ENOMEM);
+
+	/* create attachment for the dmabuf with the user device */
+	dba = dma_buf_attach(dbuf, conf->dev);
+	if (IS_ERR(dba)) {
+		printk(KERN_ERR "failed to attach dmabuf\n");
+		kfree(buf);
+		return dba;
+	}
+
+	buf->conf = conf;
+	buf->size = dba->dmabuf->size;
+	buf->db_attach = dba;
+	buf->dma_addr = 0; /* dma_addr is available only after acquire */
+
+	return buf;
+}
+
+static void vb2_dma_contig_detach_dmabuf(void *mem_priv)
+{
+	struct vb2_dc_buf *buf = mem_priv;
+
+	if (!buf)
+		return;
+
+	if (buf->dma_addr) {
+		vb2_dma_contig_unmap_dmabuf(buf);
+	}
+
+	/* detach this attachment */
+	dma_buf_detach(buf->db_attach->dmabuf, buf->db_attach);
+	buf->db_attach = NULL;
+
+	kfree(buf);
+}
+
 const struct vb2_mem_ops vb2_dma_contig_memops = {
 	.alloc		= vb2_dma_contig_alloc,
 	.put		= vb2_dma_contig_put,
@@ -276,10 +272,10 @@ const struct vb2_mem_ops vb2_dma_contig_memops = {
 	.mmap		= vb2_dma_contig_mmap,
 	.get_userptr	= vb2_dma_contig_get_userptr,
 	.put_userptr	= vb2_dma_contig_put_userptr,
-	.import_dmabuf	= vb2_dma_contig_import_dmabuf,
-	.put_dmabuf	= vb2_dma_contig_put_dmabuf,
-	.acquire_dmabuf	= vb2_dma_contig_acquire_dmabuf,
-	.release_dmabuf	= vb2_dma_contig_release_dmabuf,
+	.map_dmabuf	= vb2_dma_contig_map_dmabuf,
+	.unmap_dmabuf	= vb2_dma_contig_unmap_dmabuf,
+	.attach_dmabuf	= vb2_dma_contig_attach_dmabuf,
+	.detach_dmabuf	= vb2_dma_contig_detach_dmabuf,
 	.num_users	= vb2_dma_contig_num_users,
 };
 EXPORT_SYMBOL_GPL(vb2_dma_contig_memops);
