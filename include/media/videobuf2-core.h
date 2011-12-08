@@ -16,6 +16,7 @@
 #include <linux/mutex.h>
 #include <linux/poll.h>
 #include <linux/videodev2.h>
+#include <linux/dma-buf.h>
 
 struct vb2_alloc_ctx;
 struct vb2_fileio_data;
@@ -82,10 +83,13 @@ struct vb2_mem_ops {
 					unsigned long size, int write);
 	void		(*put_userptr)(void *buf_priv);
 
-	void		*(*import_dmabuf)(void *alloc_ctx, int fd);
-	void		(*put_dmabuf)(void *buf_priv);
-	void		(*acquire_dmabuf)(void *buf_priv);
-	void		(*release_dmabuf)(void *buf_priv);
+	// XXX really, I think the attach/detach could be handled in the
+	// vb2 core, and vb2_mem_ops really just need to get/put the sglist
+	// (and make sure that the sglist fits it's needs..)
+	void		*(*attach_dmabuf)(void *alloc_ctx, struct dma_buf *dbuf);
+	void		(*detach_dmabuf)(void *buf_priv);
+	void		(*map_dmabuf)(void *buf_priv);
+	void		(*unmap_dmabuf)(void *buf_priv);
 
 	void		*(*vaddr)(void *buf_priv);
 	void		*(*cookie)(void *buf_priv);
@@ -97,6 +101,7 @@ struct vb2_mem_ops {
 
 struct vb2_plane {
 	void			*mem_priv;
+	struct dma_buf	*dbuf;
 };
 
 /**
