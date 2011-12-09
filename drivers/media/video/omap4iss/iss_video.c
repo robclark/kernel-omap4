@@ -1026,7 +1026,7 @@ static int iss_video_open(struct file *file)
 	q = &handle->queue;
 
 	q->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	q->io_modes = VB2_MMAP;
+	q->io_modes = VB2_MMAP | VB2_DMABUF;
 	q->drv_priv = handle;
 	q->ops = &iss_video_vb2ops;
 	q->mem_ops = &vb2_dma_contig_memops;
