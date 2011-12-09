@@ -79,7 +79,9 @@ static inline int is_dma_buf_file(struct file *file)
  *
  * @priv:	[in]	Attach private data of allocator to this buffer
  * @ops:	[in]	Attach allocator-defined dma buf ops to the new buffer.
+ * @size:   [in]    Size of the buffer
  * @flags:	[in]	mode flags for the file.
+ *
  *
  * Returns, on success, a newly created dma_buf object, which wraps the
  * supplied private data and operations for dma_buf_ops. On failure to
@@ -87,7 +89,7 @@ static inline int is_dma_buf_file(struct file *file)
  *
  */
 struct dma_buf *dma_buf_export(void *priv, struct dma_buf_ops *ops,
-				int flags)
+				size_t size, int flags)
 {
 	struct dma_buf *dmabuf;
 	struct file *file;
@@ -100,6 +102,7 @@ struct dma_buf *dma_buf_export(void *priv, struct dma_buf_ops *ops,
 
 	dmabuf->priv = priv;
 	dmabuf->ops = ops;
+	dmabuf->size = size;
 
 	file = anon_inode_getfile("dmabuf", &dma_buf_fops, dmabuf, flags);
 
