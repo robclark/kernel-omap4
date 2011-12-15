@@ -80,9 +80,9 @@ void omap_connector_flush(struct drm_connector *connector,
 		int x, int y, int w, int h);
 
 struct drm_framebuffer *omap_framebuffer_create(struct drm_device *dev,
-		struct drm_file *file, struct drm_mode_fb_cmd *mode_cmd);
+		struct drm_file *file, struct drm_mode_fb_cmd2 *mode_cmd);
 struct drm_framebuffer *omap_framebuffer_init(struct drm_device *dev,
-		struct drm_mode_fb_cmd *mode_cmd, struct drm_gem_object *bo);
+		struct drm_mode_fb_cmd2 *mode_cmd, struct drm_gem_object **bos);
 struct drm_gem_object *omap_framebuffer_bo(struct drm_framebuffer *fb);
 int omap_framebuffer_get_buffer(struct drm_framebuffer *fb, int x, int y,
 		void **vaddr, dma_addr_t *paddr, unsigned int *screen_width);
@@ -130,6 +130,55 @@ static inline int align_pitch(int pitch, int width, int bpp)
 	 * restrictive stride requirement..
 	 */
 	return ALIGN(pitch, 8 * bytespp);
+}
+
+/* should these be made into common util helpers?
+ */
+
+static inline int num_planes(uint32_t pixel_format)
+{
+	switch (pixel_format) {
+	default:
+		return 1;
+	case DRM_FORMAT_NV12:
+	case DRM_FORMAT_NV21:
+	case DRM_FORMAT_NV16:
+	case DRM_FORMAT_NV61:
+		return 2;
+	case DRM_FORMAT_YUV410:
+	case DRM_FORMAT_YVU410:
+	case DRM_FORMAT_YUV411:
+	case DRM_FORMAT_YVU411:
+	case DRM_FORMAT_YUV420:
+	case DRM_FORMAT_YVU420:
+	case DRM_FORMAT_YUV422:
+	case DRM_FORMAT_YVU422:
+	case DRM_FORMAT_YUV444:
+	case DRM_FORMAT_YVU444:
+		return 3;
+	}
+}
+
+static inline int objects_lookup(struct drm_device *dev,
+		struct drm_file *filp, uint32_t pixel_format,
+		struct drm_gem_object **bos, uint32_t *handles)
+{
+	int i, n = num_planes(pixel_format);
+
+	for (i = 0; i < n; i++) {
+		bos[i] = drm_gem_object_lookup(dev, filp, handles[i]);
+		if (!bos[i]) {
+			goto fail;
+		}
+	}
+
+	return 0;
+
+fail:
+	while (--i > 0) {
+		drm_gem_object_unreference_unlocked(bos[i]);
+	}
+	return -ENOENT;
 }
 
 #endif /* __OMAP_DRV_H__ */
