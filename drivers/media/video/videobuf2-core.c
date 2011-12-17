@@ -118,7 +118,7 @@ static void __vb2_buf_dmabuf_put(struct vb2_buffer *vb)
 		void *mem_priv = vb->planes[plane].mem_priv;
 
 		if (mem_priv) {
-			call_memop(q, plane, detach_dmabuf, mem_priv);
+			call_memop(q, detach_dmabuf, mem_priv);
 			dma_buf_put(vb->planes[plane].dbuf);
 			vb->planes[plane].dbuf = NULL;
 			vb->planes[plane].mem_priv = NULL;
@@ -1065,8 +1065,7 @@ static int __qbuf_dmabuf(struct vb2_buffer *vb, const struct v4l2_buffer *b)
 
 		/* Release previously acquired memory if present */
 		if (vb->planes[plane].mem_priv) {
-			call_memop(q, plane, detach_dmabuf,
-					vb->planes[plane].mem_priv);
+			call_memop(q, detach_dmabuf, vb->planes[plane].mem_priv);
 			dma_buf_put(vb->planes[plane].dbuf);
 		}
 
@@ -1089,7 +1088,7 @@ static int __qbuf_dmabuf(struct vb2_buffer *vb, const struct v4l2_buffer *b)
 	// TODO this pins the buffer (dma_buf_map_attachment()).. but
 	// really we want to do this just before DMA, not when the
 	// buffer is queued..
-	call_memop(q, plane, map_dmabuf, vb->planes[plane].mem_priv);
+	call_memop(q, map_dmabuf, vb->planes[plane].mem_priv);
 
 	/*
 	 * Call driver-specific initialization on the newly acquired buffer,
@@ -1524,8 +1523,7 @@ int vb2_dqbuf(struct vb2_queue *q, struct v4l2_buffer *b, bool nonblocking)
 	// buffer is dequeued..
 	if (q->memory == V4L2_MEMORY_DMABUF)
 		for (plane = 0; plane < vb->num_planes; ++plane)
-			call_memop(q, plane, unmap_dmabuf,
-					vb->planes[plane].mem_priv);
+			call_memop(q, unmap_dmabuf, vb->planes[plane].mem_priv);
 
 	switch (vb->state) {
 	case VB2_BUF_STATE_DONE:
