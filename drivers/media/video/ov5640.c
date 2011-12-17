@@ -906,6 +906,7 @@ static int ov5640_probe(struct i2c_client *client,
 	v4l2_i2c_subdev_init(&ov5640->subdev, client, &ov5640_subdev_ops);
 	ov5640->subdev.internal_ops = &ov5640_subdev_internal_ops;
 	ov5640->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	ov5640->subdev.entity.type = MEDIA_ENT_T_V4L2_SUBDEV_SENSOR;
 
 	ov5640->pad.flags = MEDIA_PAD_FL_SOURCE;
 	ret = media_entity_init(&ov5640->subdev.entity, 1, &ov5640->pad, 0);
