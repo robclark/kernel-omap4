@@ -231,6 +231,7 @@ static void csi2_set_outaddr(struct iss_csi2_device *csi2, u32 addr)
 {
 	struct iss_csi2_ctx_cfg *ctx = &csi2->contexts[0];
 
+DBG("addr=%08x", addr);
 	ctx->ping_addr = addr;
 	ctx->pong_addr = addr;
 	writel(ctx->ping_addr,
@@ -327,6 +328,7 @@ static void csi2_ctx_config(struct iss_csi2_device *csi2,
 	reg |= ctx->data_offset;
 	writel(reg, csi2->regs1 + CSI2_CTX_DAT_OFST(ctx->ctxnum));
 
+DBG("ping_addr=%08x, pong_addr=%08x", ctx->ping_addr, ctx->pong_addr);
 	writel(ctx->ping_addr,
 		       csi2->regs1 + CSI2_CTX_PING_ADDR(ctx->ctxnum));
 

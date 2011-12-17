@@ -867,6 +867,8 @@ static int __fill_vb2_buffer(struct vb2_buffer *vb, const struct v4l2_buffer *b,
 	unsigned int plane;
 	int ret;
 
+	WARN_ON(!b->m.planes);
+
 	if (V4L2_TYPE_IS_MULTIPLANAR(b->type)) {
 		/*
 		 * Verify that the userspace gave us a valid array for
@@ -1073,6 +1075,7 @@ static int __qbuf_dmabuf(struct vb2_buffer *vb, const struct v4l2_buffer *b)
 
 		/* Acquire each plane's memory */
 		mem_priv = call_memop(q, attach_dmabuf, q->alloc_ctx[plane], dbuf);
+dprintk(1, "mem_priv=%p\n", mem_priv);
 		if (IS_ERR(mem_priv)) {
 			dprintk(1, "qbuf: failed acquiring dmabuf "
 					"memory for plane %d\n", plane);
@@ -1088,6 +1091,7 @@ static int __qbuf_dmabuf(struct vb2_buffer *vb, const struct v4l2_buffer *b)
 	// really we want to do this just before DMA, not when the
 	// buffer is queued..
 	for (plane = 0; plane < vb->num_planes; ++plane) {
+dprintk(1, "call map_dmabuf: %d of %d, %p\n", plane, vb->num_planes, vb->planes[plane].mem_priv);
 		call_memop(q, map_dmabuf, vb->planes[plane].mem_priv);
 	}
 
@@ -1154,6 +1158,8 @@ static int __buf_prepare(struct vb2_buffer *vb, const struct v4l2_buffer *b)
 		dprintk(1, "qbuf: buffer preparation failed: %d\n", ret);
 	else
 		vb->state = VB2_BUF_STATE_PREPARED;
+
+	dprintk(1, "%s: vb=%p, state=%d, ret=%d\n", __func__, vb, vb->state, ret);
 
 	return ret;
 }
@@ -1298,6 +1304,7 @@ int vb2_qbuf(struct vb2_queue *q, struct v4l2_buffer *b)
 		goto unlock;
 	}
 
+dprintk(1, "%s: vb=%p, state=%d\n", __func__, vb, vb->state);
 	switch (vb->state) {
 	case VB2_BUF_STATE_DEQUEUED:
 	case VB2_BUF_STATE_PREPARED:

@@ -18,6 +18,8 @@
 
 #include <media/media-entity.h>
 
+#define DBG(fmt,...) printk(KERN_ERR "~~~~~[%s:%d] "fmt"\n", __func__, __LINE__, ##__VA_ARGS__)
+
 #define VIDEO_MAJOR	81
 
 #define VFL_TYPE_GRABBER	0

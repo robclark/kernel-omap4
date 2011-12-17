@@ -1006,6 +1006,7 @@ static long __video_do_ioctl(struct file *file,
 		}
 		dbgarg(cmd, "type=%s\n", prt_names(i, v4l2_type_names));
 		ret = ops->vidioc_streamon(file, fh, i);
+DBG("ret=%d", ret);
 		break;
 	}
 	case VIDIOC_STREAMOFF:

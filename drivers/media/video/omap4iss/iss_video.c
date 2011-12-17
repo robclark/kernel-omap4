@@ -153,6 +153,8 @@ static unsigned int iss_video_mbus_to_pix(const struct iss_video *video,
 	pix->colorspace = mbus->colorspace;
 	pix->field = mbus->field;
 
+DBG("bpl=%d, min_bpl=%d", bpl, min_bpl);
+
 	return bpl - min_bpl;
 }
 
@@ -184,6 +186,7 @@ iss_video_remote_subdev(struct iss_video *video, u32 *pad)
 	struct media_pad *remote;
 
 	remote = media_entity_remote_source(&video->pad);
+DBG("remote=%p", remote);
 
 	if (remote == NULL ||
 	    media_entity_type(remote->entity) != MEDIA_ENT_T_V4L2_SUBDEV)
@@ -244,6 +247,7 @@ static int iss_video_validate_pipeline(struct iss_pipeline *pipe)
 	int ret;
 
 	subdev = iss_video_remote_subdev(pipe->output, NULL);
+DBG("subdev=%p", subdev);
 	if (subdev == NULL)
 		return -EPIPE;
 
@@ -251,27 +255,38 @@ static int iss_video_validate_pipeline(struct iss_pipeline *pipe)
 		/* Retrieve the sink format */
 		pad = &subdev->entity.pads[0];
 		if (!(pad->flags & MEDIA_PAD_FL_SINK))
+{DBG("flags: %08x", pad->flags);
 			break;
+}
 
 		fmt_sink.pad = pad->index;
 		fmt_sink.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 		ret = v4l2_subdev_call(subdev, pad, get_fmt, NULL, &fmt_sink);
+DBG("ret=%d", ret);
 		if (ret < 0 && ret != -ENOIOCTLCMD)
 			return -EPIPE;
 
 		/* Retrieve the source format */
 		pad = media_entity_remote_source(pad);
+DBG("pad=%p", pad);
 		if (pad == NULL ||
 		    media_entity_type(pad->entity) != MEDIA_ENT_T_V4L2_SUBDEV)
+{DBG("doh");
 			break;
+}
 
 		subdev = media_entity_to_v4l2_subdev(pad->entity);
 
 		fmt_source.pad = pad->index;
 		fmt_source.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 		ret = v4l2_subdev_call(subdev, pad, get_fmt, NULL, &fmt_source);
+DBG("ret=%d", ret);
 		if (ret < 0 && ret != -ENOIOCTLCMD)
 			return -EPIPE;
+
+DBG("%dx%d@%04x vs %dx%d@%04x",
+		fmt_source.format.width, fmt_source.format.height, fmt_source.format.code,
+		fmt_sink.format.width, fmt_sink.format.height, fmt_sink.format.code);
 
 		/* Check if the two ends match */
 		if (fmt_source.format.width != fmt_sink.format.width ||
@@ -294,6 +309,7 @@ __iss_video_get_format(struct iss_video *video, struct v4l2_format *format)
 	int ret;
 
 	subdev = iss_video_remote_subdev(video, &pad);
+DBG("subdev=%p", subdev);
 	if (subdev == NULL)
 		return -EINVAL;
 
@@ -302,6 +318,7 @@ __iss_video_get_format(struct iss_video *video, struct v4l2_format *format)
 	fmt.pad = pad;
 	fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	ret = v4l2_subdev_call(subdev, pad, get_fmt, NULL, &fmt);
+DBG("ret=%d", ret);
 	if (ret == -ENOIOCTLCMD)
 		ret = -EINVAL;
 
@@ -323,14 +340,22 @@ iss_video_check_format(struct iss_video *video, struct iss_video_fh *vfh)
 	memcpy(&format, &vfh->format, sizeof(format));
 	ret = __iss_video_get_format(video, &format);
 	if (ret < 0)
+{DBG("fail whale: %d", ret);
 		return ret;
+}
 
 	if (vfh->format.fmt.pix.pixelformat != format.fmt.pix.pixelformat ||
 	    vfh->format.fmt.pix.height != format.fmt.pix.height ||
 	    vfh->format.fmt.pix.width != format.fmt.pix.width ||
 	    vfh->format.fmt.pix.bytesperline != format.fmt.pix.bytesperline ||
 	    vfh->format.fmt.pix.sizeimage != format.fmt.pix.sizeimage)
+{DBG("pixelformat: %4.4s, %4.4s", &vfh->format.fmt.pix.pixelformat, &format.fmt.pix.pixelformat);
+DBG("height: %d, %d", vfh->format.fmt.pix.height, format.fmt.pix.height);
+DBG("width: %d, %d", vfh->format.fmt.pix.width, format.fmt.pix.width);
+DBG("bytesperline: %d, %d", vfh->format.fmt.pix.bytesperline, format.fmt.pix.bytesperline);
+DBG("sizeimage: %d, %d", vfh->format.fmt.pix.sizeimage, format.fmt.pix.sizeimage);
 		return -EINVAL;
+}
 
 	return ret;
 }
@@ -375,6 +400,8 @@ static int iss_video_buf_prepare(struct vb2_buffer *vb)
 	struct iss_video *video = vfh->video;
 	unsigned long size = vfh->format.fmt.pix.sizeimage;
 	dma_addr_t addr;
+
+DBG("size: %d vs %d", size, vb2_plane_size(vb, 0));
 
 	if (vb2_plane_size(vb, 0) < size)
 		return -ENOBUFS;
@@ -791,6 +818,8 @@ iss_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	unsigned long flags;
 	int ret;
 
+	DBG("here");
+
 	if (type != video->type)
 		return -EINVAL;
 
@@ -812,6 +841,7 @@ iss_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	 * the connected subdev.
 	 */
 	ret = iss_video_check_format(video, vfh);
+	DBG("ret=%d", ret);
 	if (ret < 0)
 		goto error;
 
@@ -830,6 +860,7 @@ iss_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	} else {
 		if (far_end == NULL) {
 			ret = -EPIPE;
+			DBG("ret=%d", ret);
 			goto error;
 		}
 
@@ -843,6 +874,7 @@ iss_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 
 	/* Validate the pipeline and update its state. */
 	ret = iss_video_validate_pipeline(pipe);
+	DBG("ret=%d", ret);
 	if (ret < 0)
 		goto error;
 
@@ -864,6 +896,7 @@ iss_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	atomic_set(&pipe->frame_number, -1);
 
 	ret = vb2_streamon(&vfh->queue, type);
+	DBG("ret=%d", ret);
 	if (ret < 0)
 		goto error;
 
@@ -875,6 +908,7 @@ iss_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 		unsigned long flags;
 		ret = omap4iss_pipeline_set_stream(pipe,
 					      ISS_PIPELINE_STREAM_CONTINUOUS);
+		DBG("ret=%d", ret);
 		if (ret < 0)
 			goto error;
 		spin_lock_irqsave(&video->qlock, flags);
@@ -896,6 +930,7 @@ error:
 		video->streaming = 1;
 
 	mutex_unlock(&video->stream_lock);
+	DBG("ret=%d", ret);
 	return ret;
 }
 

@@ -2,6 +2,8 @@
 # Makefile for the kernel multimedia device drivers.
 #
 
+ccflags-y := -DDEBUG=1
+
 media-objs	:= media-device.o media-devnode.o media-entity.o
 
 ifeq ($(CONFIG_MEDIA_CONTROLLER),y)

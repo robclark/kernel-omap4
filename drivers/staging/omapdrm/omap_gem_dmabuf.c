@@ -30,6 +30,8 @@ struct sg_table *omap_gem_map_dma_buf(
 	dma_addr_t paddr;
 	int ret;
 
+DBG("**** map: %p", obj);
+
 	sg = kzalloc(sizeof(*sg), GFP_KERNEL);
 	if (!sg)
 		return ERR_PTR(-ENOMEM);
@@ -60,6 +62,7 @@ void omap_gem_unmap_dma_buf(struct dma_buf_attachment *attachment,
 		struct sg_table *sg)
 {
 	struct drm_gem_object *obj = attachment->dmabuf->priv;
+DBG("**** unmap: %p", obj);
 	omap_gem_put_paddr(obj);
 	sg_free_table(sg);
 	kfree(sg);
@@ -68,6 +71,8 @@ void omap_gem_unmap_dma_buf(struct dma_buf_attachment *attachment,
 void omap_gem_dmabuf_release(struct dma_buf *buffer)
 {
 	struct drm_gem_object *obj = buffer->priv;
+DBG("**** release: %p", obj);
+if (obj) DBG("**** cnt: %d", obj->refcount.refcount.counter);
 	/* release reference that was taken when dmabuf was exported
 	 * in omap_gem_prime_set()..
 	 */
@@ -92,6 +97,7 @@ int omap_gem_prime_set(struct drm_device *dev,
 		return ret;
 
 	obj = drm_gem_object_lookup(dev, file_priv, handle);
+DBG("**** export: %p", obj);
 	if (!obj) {
 		ret = -ENOENT;
 		goto unlock;
