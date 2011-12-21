@@ -35,6 +35,7 @@
 #include <linux/slab.h>
 #include <linux/swap.h>
 #include <linux/pci.h>
+#include <linux/dma-buf.h>
 
 static __must_check int i915_gem_object_flush_gpu_write_domain(struct drm_i915_gem_object *obj);
 static void i915_gem_object_flush_gtt_write_domain(struct drm_i915_gem_object *obj);
@@ -1447,8 +1448,7 @@ i915_gem_mmap_gtt_ioctl(struct drm_device *dev, void *data,
 	return i915_gem_mmap_gtt(file, dev, args->handle, &args->offset);
 }
 
-
-static int
+int
 i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj,
 			      gfp_t gfpmask)
 {
@@ -1457,6 +1457,8 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj,
 	struct inode *inode;
 	struct page *page;
 
+	if (obj->pages)
+		return 0;
 	/* Get the list of pages out of our struct file.  They'll be pinned
 	 * at this point until we release them.
 	 */
@@ -3694,6 +3696,9 @@ void i915_gem_free_object(struct drm_gem_object *gem_obj)
 	if (obj->phys_obj)
 		i915_gem_detach_phys_object(dev, obj);
 
+	if (gem_obj->import_attach)
+		drm_prime_gem_destroy(gem_obj, obj->sg);
+
 	i915_gem_free_object_tail(obj);
 }
 
@@ -4206,4 +4211,13 @@ rescan:
 	}
 	mutex_unlock(&dev->struct_mutex);
 	return cnt / 100 * sysctl_vfs_cache_pressure;
+}
+
+void
+i915_gem_close_object(struct drm_gem_object *gem, struct drm_file *file)
+{
+	struct drm_i915_file_private *file_priv = file->driver_priv;
+
+	if (gem->import_attach)
+		drm_prime_remove_fd_handle_mapping(&file_priv->prime, gem->import_attach->dmabuf);
 }

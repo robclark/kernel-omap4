@@ -897,6 +897,9 @@ struct drm_i915_gem_object {
 	 * reaches 0, dev_priv->pending_flip_queue will be woken up.
 	 */
 	atomic_t pending_flip;
+
+	/* prime sg table */
+	struct sg_table *sg;
 };
 
 #define to_intel_bo(x) container_of(x, struct drm_i915_gem_object, base)
@@ -934,6 +937,7 @@ struct drm_i915_file_private {
 		struct spinlock lock;
 		struct list_head request_list;
 	} mm;
+	struct drm_prime_file_private prime;
 };
 
 #define INTEL_INFO(dev)	(((struct drm_i915_private *) (dev)->dev_private)->info)
@@ -1140,6 +1144,7 @@ int __must_check i915_gem_flush_ring(struct intel_ring_buffer *ring,
 struct drm_i915_gem_object *i915_gem_alloc_object(struct drm_device *dev,
 						  size_t size);
 void i915_gem_free_object(struct drm_gem_object *obj);
+void i915_gem_close_object(struct drm_gem_object *gem, struct drm_file *file_priv);
 int __must_check i915_gem_object_pin(struct drm_i915_gem_object *obj,
 				     uint32_t alignment,
 				     bool map_and_fenceable);
@@ -1148,6 +1153,8 @@ int __must_check i915_gem_object_unbind(struct drm_i915_gem_object *obj);
 void i915_gem_release_mmap(struct drm_i915_gem_object *obj);
 void i915_gem_lastclose(struct drm_device *dev);
 
+int i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj,
+				  gfp_t gfpmask);
 int __must_check i915_mutex_lock_interruptible(struct drm_device *dev);
 int __must_check i915_gem_object_wait_rendering(struct drm_i915_gem_object *obj);
 void i915_gem_object_move_to_active(struct drm_i915_gem_object *obj,
@@ -1225,6 +1232,13 @@ i915_gem_get_unfenced_gtt_alignment(struct drm_device *dev,
 
 int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 				    enum i915_cache_level cache_level);
+
+int i915_gem_prime_handle_to_fd(struct drm_device *dev,
+				struct drm_file *file_priv,
+				uint32_t handle, int *prime_fd);
+int i915_gem_prime_fd_to_handle(struct drm_device *dev,
+				struct drm_file *file_priv,
+				int prime_fd, uint32_t *handle);
 
 /* i915_gem_gtt.c */
 void i915_gem_restore_gtt_mappings(struct drm_device *dev);
