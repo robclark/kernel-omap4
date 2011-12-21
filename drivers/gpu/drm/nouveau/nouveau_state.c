@@ -878,6 +878,7 @@ nouveau_open(struct drm_device *dev, struct drm_file *file_priv)
 
 	spin_lock_init(&fpriv->lock);
 	INIT_LIST_HEAD(&fpriv->channels);
+	drm_prime_init_file_private(&fpriv->prime);
 
 	if (dev_priv->card_type == NV_50) {
 		ret = nouveau_vm_new(dev, 0, (1ULL << 40), 0x0020000000ULL,
@@ -911,6 +912,7 @@ void
 nouveau_postclose(struct drm_device *dev, struct drm_file *file_priv)
 {
 	struct nouveau_fpriv *fpriv = nouveau_fpriv(file_priv);
+	drm_prime_destroy_file_private(&fpriv->prime);
 	nouveau_vm_ref(NULL, &fpriv->vm, NULL);
 	kfree(fpriv);
 }

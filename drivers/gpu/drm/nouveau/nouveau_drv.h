@@ -49,6 +49,7 @@ struct nouveau_fpriv {
 	spinlock_t lock;
 	struct list_head channels;
 	struct nouveau_vm *vm;
+	struct drm_prime_file_private prime;
 };
 
 static inline struct nouveau_fpriv *
@@ -1369,7 +1370,9 @@ extern int nv04_crtc_create(struct drm_device *, int index);
 extern struct ttm_bo_driver nouveau_bo_driver;
 extern int nouveau_bo_new(struct drm_device *, int size, int align,
 			  uint32_t flags, uint32_t tile_mode,
-			  uint32_t tile_flags, struct nouveau_bo **);
+			  uint32_t tile_flags,
+			  struct sg_table *sg,
+			  struct nouveau_bo **);
 extern int nouveau_bo_pin(struct nouveau_bo *, uint32_t flags);
 extern int nouveau_bo_unpin(struct nouveau_bo *);
 extern int nouveau_bo_map(struct nouveau_bo *);
@@ -1453,6 +1456,13 @@ extern int nouveau_gem_ioctl_cpu_fini(struct drm_device *, void *,
 				      struct drm_file *);
 extern int nouveau_gem_ioctl_info(struct drm_device *, void *,
 				  struct drm_file *);
+
+extern int nouveau_gem_prime_handle_to_fd(struct drm_device *dev,
+					  struct drm_file *file_priv,
+					  uint32_t handle, int *prime_fd);
+extern int nouveau_gem_prime_fd_to_handle(struct drm_device *dev,
+					  struct drm_file *file_priv,
+					  int prime_fd, uint32_t *handle_p);
 
 /* nouveau_display.c */
 int nouveau_display_create(struct drm_device *dev);

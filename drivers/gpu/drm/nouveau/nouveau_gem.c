@@ -23,6 +23,7 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  */
+#include <linux/dma-buf.h>
 #include "drmP.h"
 #include "drm.h"
 
@@ -51,6 +52,10 @@ nouveau_gem_object_del(struct drm_gem_object *gem)
 	if (unlikely(nvbo->pin_refcnt)) {
 		nvbo->pin_refcnt = 1;
 		nouveau_bo_unpin(nvbo);
+	}
+
+	if (gem->import_attach) {
+		drm_prime_gem_destroy(gem, nvbo->bo.sg);
 	}
 
 	ttm_bo_unref(&bo);
@@ -104,6 +109,9 @@ nouveau_gem_object_close(struct drm_gem_object *gem, struct drm_file *file_priv)
 	struct nouveau_vma *vma;
 	int ret;
 
+	if (gem->import_attach)
+		drm_prime_remove_fd_handle_mapping(&fpriv->prime, gem->import_attach->dmabuf);
+
 	if (!fpriv->vm)
 		return;
 
@@ -119,6 +127,7 @@ nouveau_gem_object_close(struct drm_gem_object *gem, struct drm_file *file_priv)
 		}
 	}
 	ttm_bo_unreserve(&nvbo->bo);
+
 }
 
 int
@@ -139,7 +148,7 @@ nouveau_gem_new(struct drm_device *dev, int size, int align, uint32_t domain,
 		flags |= TTM_PL_FLAG_SYSTEM;
 
 	ret = nouveau_bo_new(dev, size, align, flags, tile_mode,
-			     tile_flags, pnvbo);
+			     tile_flags, NULL, pnvbo);
 	if (ret)
 		return ret;
 	nvbo = *pnvbo;
