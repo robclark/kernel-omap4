@@ -336,3 +336,28 @@ int udl_driver_unload(struct drm_device *dev)
 	kfree(udl);
 	return 0;
 }
+
+int udl_driver_open(struct drm_device *dev, struct drm_file *file)
+{
+	struct udl_file_private *fpriv;
+
+	fpriv= kzalloc(sizeof(*fpriv), GFP_KERNEL);
+
+	if (!fpriv)
+		return -ENOMEM;
+
+	drm_prime_init_file_private(&fpriv->prime);
+	return 0;
+}
+
+void udl_driver_preclose(struct drm_device *dev, struct drm_file *file_priv)
+{
+	struct udl_file_private *fpriv = file_priv->driver_priv;
+
+	drm_prime_destroy_file_private(&fpriv->prime);
+}
+
+void udl_driver_postclose(struct drm_device *dev, struct drm_file *file_priv)
+{
+	kfree(file_priv->driver_priv);
+}
