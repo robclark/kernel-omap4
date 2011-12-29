@@ -46,7 +46,7 @@ static inline bool is_migrate_cma_or_movable(int migratetype)
 unsigned long
 isolate_freepages_range(struct zone *zone,
 			unsigned long start_pfn, unsigned long end_pfn,
-			struct list_head *freelist)
+			struct list_head *freelist, int force_reclaim)
 {
 	unsigned long nr_scanned = 0, total_isolated = 0;
 	unsigned long pfn = start_pfn;
@@ -67,7 +67,7 @@ isolate_freepages_range(struct zone *zone,
 			goto next;
 
 		/* Found a free page, break it into order-0 pages */
-		n = split_free_page(page);
+		n = split_free_page(page, force_reclaim);
 		total_isolated += n;
 		if (freelist) {
 			struct page *p = page;
@@ -376,7 +376,7 @@ static void isolate_freepages(struct zone *zone,
 		if (suitable_migration_target(page)) {
 			end_pfn = min(pfn + pageblock_nr_pages, zone_end_pfn);
 			isolated = isolate_freepages_range(zone, pfn,
-					end_pfn, freelist);
+					end_pfn, freelist, false);
 			nr_freepages += isolated;
 		}
 		spin_unlock_irqrestore(&zone->lock, flags);

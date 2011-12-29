@@ -129,7 +129,7 @@ struct compact_control {
 unsigned long
 isolate_freepages_range(struct zone *zone,
 			unsigned long start, unsigned long end,
-			struct list_head *freelist);
+			struct list_head *freelist, int force_reclaim);
 unsigned long
 isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
 			   unsigned long low_pfn, unsigned long end_pfn);

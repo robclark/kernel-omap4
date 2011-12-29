@@ -1283,17 +1283,65 @@ void split_page(struct page *page, unsigned int order)
 		set_page_refcounted(page + i);
 }
 
+static inline
+void wake_all_kswapd(unsigned int order, struct zonelist *zonelist,
+						enum zone_type high_zoneidx,
+						enum zone_type classzone_idx)
+{
+	struct zoneref *z;
+	struct zone *zone;
+
+	for_each_zone_zonelist(zone, z, zonelist, high_zoneidx)
+		wakeup_kswapd(zone, order, classzone_idx);
+}
+
+/*
+ * Trigger memory pressure bump to reclaim at least 2^order of free pages.
+ * Does similar work as it is done in __alloc_pages_slowpath(). Used only
+ * by migration code to allocate contiguous memory range.
+ */
+static int __force_memory_reclaim(int order, struct zone *zone)
+{
+	gfp_t gfp_mask = GFP_HIGHUSER_MOVABLE;
+	enum zone_type high_zoneidx = gfp_zone(gfp_mask);
+	struct zonelist *zonelist = node_zonelist(0, gfp_mask);
+	struct reclaim_state reclaim_state;
+	int did_some_progress = 0;
+
+	wake_all_kswapd(order, zonelist, high_zoneidx, zone_idx(zone));
+
+	/* We now go into synchronous reclaim */
+	cpuset_memory_pressure_bump();
+	current->flags |= PF_MEMALLOC;
+	lockdep_set_current_reclaim_state(gfp_mask);
+	reclaim_state.reclaimed_slab = 0;
+	current->reclaim_state = &reclaim_state;
+
+	did_some_progress = try_to_free_pages(zonelist, order, gfp_mask, NULL);
+
+	current->reclaim_state = NULL;
+	lockdep_clear_current_reclaim_state();
+	current->flags &= ~PF_MEMALLOC;
+
+	cond_resched();
+
+	if (!did_some_progress) {
+		/* Exhausted what can be done so it's blamo time */
+		out_of_memory(zonelist, gfp_mask, order, NULL);
+	}
+	return order;
+}
+
 /*
  * Similar to split_page except the page is already free. As this is only
  * being used for migration, the migratetype of the block also changes.
- * As this is called with interrupts disabled, the caller is responsible
- * for calling arch_alloc_page() and kernel_map_page() after interrupts
- * are enabled.
+ * The caller is responsible for calling arch_alloc_page() and kernel_map_page()
+ * after interrupts are enabled.
  *
  * Note: this is probably too low level an operation for use in drivers.
  * Please consult with lkml before using this in your driver.
  */
-int split_free_page(struct page *page)
+int split_free_page(struct page *page, int force_reclaim)
 {
 	unsigned int order;
 	unsigned long watermark;
@@ -1304,10 +1352,15 @@ int split_free_page(struct page *page)
 	zone = page_zone(page);
 	order = page_order(page);
 
+try_again:
 	/* Obey watermarks as if the page was being allocated */
 	watermark = low_wmark_pages(zone) + (1 << order);
-	if (!zone_watermark_ok(zone, 0, watermark, 0, 0))
-		return 0;
+	if (!zone_watermark_ok(zone, 0, watermark, 0, 0)) {
+		if (force_reclaim && __force_memory_reclaim(order, zone))
+			goto try_again;
+		else
+			return 0;
+	}
 
 	/* Remove page from free list */
 	list_del(&page->lru);
@@ -2065,18 +2118,6 @@ __alloc_pages_high_priority(gfp_t gfp_mask, unsigned int order,
 	} while (!page && (gfp_mask & __GFP_NOFAIL));
 
 	return page;
-}
-
-static inline
-void wake_all_kswapd(unsigned int order, struct zonelist *zonelist,
-						enum zone_type high_zoneidx,
-						enum zone_type classzone_idx)
-{
-	struct zoneref *z;
-	struct zone *zone;
-
-	for_each_zone_zonelist(zone, z, zonelist, high_zoneidx)
-		wakeup_kswapd(zone, order, classzone_idx);
 }
 
 static inline int
@@ -5899,7 +5940,7 @@ int alloc_contig_range(unsigned long start, unsigned long end,
 
 	outer_start = start & (~0UL << ret);
 	outer_end = isolate_freepages_range(page_zone(pfn_to_page(outer_start)),
-					    outer_start, end, NULL);
+					    outer_start, end, NULL, true);
 	if (!outer_end) {
 		ret = -EBUSY;
 		goto done;
