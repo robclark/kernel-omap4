@@ -23,6 +23,7 @@ obj-$(CONFIG_ARCH_OMAP5) += prm44xx.o $(hwmod-common) $(secure-common) $(omap-4-
 ifneq ($(CONFIG_SND_OMAP_SOC_MCBSP),)
 obj-y += mcbsp.o
 endif
+obj-$(CONFIG_OMAP_SCM_DEV)          += scm_device.o
 
 obj-$(CONFIG_TWL4030_CORE) += omap_twl.o
 
