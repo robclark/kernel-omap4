@@ -33,5 +33,8 @@ test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn);
 extern int set_migratetype_isolate(struct page *page);
 extern void unset_migratetype_isolate(struct page *page);
 
+/* The below functions must be run on a range from a single zone. */
+int alloc_contig_range(unsigned long start, unsigned long end);
+void free_contig_range(unsigned long pfn, unsigned nr_pages);
 
 #endif
