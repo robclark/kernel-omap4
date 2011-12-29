@@ -5716,7 +5716,7 @@ out:
 	return ret;
 }
 
-void unset_migratetype_isolate(struct page *page)
+void unset_migratetype_isolate(struct page *page, unsigned migratetype)
 {
 	struct zone *zone;
 	unsigned long flags;
@@ -5724,8 +5724,8 @@ void unset_migratetype_isolate(struct page *page)
 	spin_lock_irqsave(&zone->lock, flags);
 	if (get_pageblock_migratetype(page) != MIGRATE_ISOLATE)
 		goto out;
-	set_pageblock_migratetype(page, MIGRATE_MOVABLE);
-	move_freepages_block(zone, page, MIGRATE_MOVABLE);
+	set_pageblock_migratetype(page, migratetype);
+	move_freepages_block(zone, page, migratetype);
 out:
 	spin_unlock_irqrestore(&zone->lock, flags);
 }
@@ -5823,6 +5823,10 @@ done:
  * alloc_contig_range() -- tries to allocate given range of pages
  * @start:	start PFN to allocate
  * @end:	one-past-the-last PFN to allocate
+ * @migratetype:	migratetype of the underlaying pageblocks (either
+ *			#MIGRATE_MOVABLE or #MIGRATE_CMA).  All pageblocks
+ *			in range must have the same migratetype and it must
+ *			be either of the two.
  *
  * The PFN range does not have to be pageblock or MAX_ORDER_NR_PAGES
  * aligned, hovewer it's callers responsibility to guarantee that we
@@ -5833,7 +5837,8 @@ done:
  * pages which PFN is in (start, end) are allocated for the caller and
  * need to be freed with free_contig_range().
  */
-int alloc_contig_range(unsigned long start, unsigned long end)
+int alloc_contig_range(unsigned long start, unsigned long end,
+		       unsigned migratetype)
 {
 	unsigned long outer_start, outer_end;
 	int ret;
@@ -5862,7 +5867,8 @@ int alloc_contig_range(unsigned long start, unsigned long end)
 	 */
 
 	ret = start_isolate_page_range(pfn_align_to_maxpage_down(start),
-				       pfn_align_to_maxpage_up(end));
+				       pfn_align_to_maxpage_up(end),
+				       migratetype);
 	if (ret)
 		goto done;
 
@@ -5909,7 +5915,7 @@ int alloc_contig_range(unsigned long start, unsigned long end)
 	ret = 0;
 done:
 	undo_isolate_page_range(pfn_align_to_maxpage_down(start),
-				pfn_align_to_maxpage_up(end));
+				pfn_align_to_maxpage_up(end), migratetype);
 	return ret;
 }
 
