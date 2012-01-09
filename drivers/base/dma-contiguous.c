@@ -256,7 +256,7 @@ int __init dma_declare_contiguous(struct device *dev, unsigned long size,
 	alignment = PAGE_SIZE << max(MAX_ORDER, pageblock_order);
 	base = ALIGN(base, alignment);
 	size = ALIGN(size, alignment);
-	limit = ALIGN(limit, alignment);
+	limit &= ~(alignment - 1);
 
 	/* Reserve memory */
 	if (base) {
