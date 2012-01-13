@@ -127,9 +127,4 @@ static inline bool validfmt(enum tiler_fmt fmt)
 	}
 }
 
-struct omap_dmm_platform_data {
-	void __iomem *base;
-	int irq;
-};
-
 #endif
