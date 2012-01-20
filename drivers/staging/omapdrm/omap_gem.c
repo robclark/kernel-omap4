@@ -114,6 +114,17 @@ struct omap_gem_object {
 		uint32_t read_pending;
 		uint32_t read_complete;
 	} *sync;
+
+	struct omap_gem_vm_ops *ops;
+
+	/**
+	 * per-mapper private data..
+	 *
+	 * TODO maybe there can be a more flexible way to store per-mapper data..
+	 * for now I just keep it simple, and since this is only accessible
+	 * externally via omap_gem_priv()/omap_get_set_priv()
+	 */
+	void *priv[MAX_MAPPERS];
 };
 
 static int get_pages(struct drm_gem_object *obj, struct page ***pages);
@@ -297,6 +308,17 @@ size_t omap_gem_mmap_size(struct drm_gem_object *obj)
 	return size;
 }
 
+/* get tiled size, returns -EINVAL if not tiled buffer */
+int omap_gem_tiled_size(struct drm_gem_object *obj, uint16_t *w, uint16_t *h)
+{
+	struct omap_gem_object *omap_obj = to_omap_bo(obj);
+	if (omap_obj->flags & OMAP_BO_TILED) {
+		*w = omap_obj->width;
+		*h = omap_obj->height;
+		return 0;
+	}
+	return -EINVAL;
+}
 
 /* Normal handling for the case of faulting in non-tiled buffers */
 static int fault_1d(struct drm_gem_object *obj,
@@ -487,6 +509,10 @@ int omap_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 		vma->vm_page_prot = pgprot_noncached(vm_get_page_prot(vma->vm_flags));
 	} else {
 		vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
+	}
+
+	if (omap_obj->ops && omap_obj->ops->mmap) {
+		omap_obj->ops->mmap(filp, vma);
 	}
 
 	return ret;
@@ -1244,3 +1270,73 @@ void omap_gem_deinit(struct drm_device *dev)
 	omap_dmm_remove();
 	kfree(usergart);
 }
+
+/****** PLUGIN API specific ******/
+
+/* This constructor is mainly to give plugins a way to wrap their
+ * own allocations
+ */
+struct drm_gem_object * omap_gem_new_ext(struct drm_device *dev,
+		union omap_gem_size gsize, uint32_t flags,
+		dma_addr_t paddr, struct page **pages,
+		struct omap_gem_vm_ops *ops)
+{
+	struct drm_gem_object *obj;
+
+	BUG_ON((flags & OMAP_BO_TILED) && !pages);
+
+	if (paddr)
+		flags |= OMAP_BO_DMA;
+
+	obj = omap_gem_new(dev, gsize, flags | OMAP_BO_EXT_MEM);
+	if (obj) {
+		struct omap_gem_object *omap_obj = to_omap_bo(obj);
+		omap_obj->paddr = paddr;
+		omap_obj->pages = pages;
+		omap_obj->ops = ops;
+	}
+	return obj;
+}
+
+void omap_gem_vm_open(struct vm_area_struct *vma)
+{
+	struct drm_gem_object *obj = vma->vm_private_data;
+	struct omap_gem_object *omap_obj = to_omap_bo(obj);
+
+	if (omap_obj->ops && omap_obj->ops->open) {
+		omap_obj->ops->open(vma);
+	} else {
+		drm_gem_vm_open(vma);
+	}
+}
+
+void omap_gem_vm_close(struct vm_area_struct *vma)
+{
+	struct drm_gem_object *obj = vma->vm_private_data;
+	struct omap_gem_object *omap_obj = to_omap_bo(obj);
+
+	if (omap_obj->ops && omap_obj->ops->close) {
+		omap_obj->ops->close(vma);
+	} else {
+		drm_gem_vm_close(vma);
+	}
+}
+
+/* get buffer flags */
+uint32_t omap_gem_flags(struct drm_gem_object *obj)
+{
+	return to_omap_bo(obj)->flags;
+}
+
+void * omap_gem_priv(struct drm_gem_object *obj, int mapper_id)
+{
+	BUG_ON((mapper_id >= MAX_MAPPERS) || (mapper_id < 0));
+	return to_omap_bo(obj)->priv[mapper_id];
+}
+
+void omap_gem_set_priv(struct drm_gem_object *obj, int mapper_id, void *priv)
+{
+	BUG_ON((mapper_id >= MAX_MAPPERS) || (mapper_id < 0));
+	to_omap_bo(obj)->priv[mapper_id] = priv;
+}
+/*********************************/
