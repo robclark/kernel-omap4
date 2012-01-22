@@ -341,12 +341,13 @@ int udl_driver_open(struct drm_device *dev, struct drm_file *file)
 {
 	struct udl_file_private *fpriv;
 
-	fpriv= kzalloc(sizeof(*fpriv), GFP_KERNEL);
+	fpriv = kzalloc(sizeof(*fpriv), GFP_KERNEL);
 
 	if (!fpriv)
 		return -ENOMEM;
 
 	drm_prime_init_file_private(&fpriv->prime);
+	file->driver_priv = fpriv;
 	return 0;
 }
 
