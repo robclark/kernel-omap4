@@ -35,6 +35,11 @@
 #include "control.h"
 #include "devices.h"
 
+#if defined(CONFIG_SATA_AHCI_PLATFORM) || \
+	defined(CONFIG_SATA_AHCI_PLATFORM_MODULE)
+#include <plat/sata.h>
+#endif
+
 #define L3_MODULES_MAX_LEN 12
 #define L3_MODULES 3
 
@@ -661,6 +666,10 @@ static int __init omap2_init_devices(void)
 	omap_init_sti();
 	omap_init_rng();
 	omap_init_sham();
+#if defined(CONFIG_SATA_AHCI_PLATFORM) || \
+	defined(CONFIG_SATA_AHCI_PLATFORM_MODULE)
+	omap_sata_init();
+#endif
 	omap_init_aes();
 	omap_init_vout();
 
