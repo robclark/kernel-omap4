@@ -142,7 +142,7 @@ static int omap_rproc_start(struct rproc *rproc)
 	 */
 	ret = omap_mbox_msg_send(oproc->mbox, RP_MBOX_ECHO_REQUEST);
 	if (ret) {
-		dev_err(rproc->dev, "omap_mbox_get failed: %d\n", ret);
+		dev_err(rproc->dev, "omap_mbox_msg_send failed: %d\n", ret);
 		goto put_mbox;
 	}
 
