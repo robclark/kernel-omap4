@@ -63,6 +63,8 @@ obj-$(CONFIG_VIDEO_CX25840) += cx25840/
 obj-$(CONFIG_VIDEO_UPD64031A) += upd64031a.o
 obj-$(CONFIG_VIDEO_UPD64083) += upd64083.o
 obj-$(CONFIG_VIDEO_OV7670) 	+= ov7670.o
+obj-$(CONFIG_VIDEO_OV5640)	+= ov5640.o
+obj-$(CONFIG_VIDEO_OV5650)	+= ov5650.o
 obj-$(CONFIG_VIDEO_TCM825X) += tcm825x.o
 obj-$(CONFIG_VIDEO_TVEEPROM) += tveeprom.o
 obj-$(CONFIG_VIDEO_MT9P031) += mt9p031.o
@@ -141,6 +143,7 @@ obj-$(CONFIG_VIDEO_MMP_CAMERA) += marvell-ccic/
 obj-$(CONFIG_VIDEO_VIA_CAMERA) += via-camera.o
 
 obj-$(CONFIG_VIDEO_OMAP3)	+= omap3isp/
+obj-$(CONFIG_VIDEO_OMAP4)	+= omap4iss/
 
 obj-$(CONFIG_USB_ZR364XX)       += zr364xx.o
 obj-$(CONFIG_USB_STKWEBCAM)     += stkwebcam.o

@@ -337,6 +337,34 @@ config MACH_OMAP_4430SDP
 	select OMAP_PACKAGE_CBS
 	select REGULATOR_FIXED_VOLTAGE
 
+config MACH_OMAP_4430SDP_CAMERA_SUPPORT
+	bool "OMAP 4430 SDP board Camera support"
+	depends on MACH_OMAP_4430SDP
+	select MEDIA_SUPPORT
+	select MEDIA_CONTROLLER
+	select VIDEO_DEV
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L_PLATFORM_DRIVERS
+	select VIDEO_OMAP4
+	help
+	  Enable Camera HW support for OMAP 4430 SDP board
+	  This is for using the OMAP4 ISS CSI2A Camera sensor
+	  interface.
+
+choice
+	prompt "Camera sensor to use"
+	depends on MACH_OMAP_4430SDP_CAMERA_SUPPORT
+	default MACH_OMAP_4430SDP_CAM_OV5650
+
+	config MACH_OMAP_4430SDP_CAM_OV5640
+		bool "Use OmniVision OV5640 Camera"
+		select VIDEO_OV5640
+
+	config MACH_OMAP_4430SDP_CAM_OV5650
+		bool "Use OmniVision OV5650 Camera"
+		select VIDEO_OV5650
+endchoice
+
 config MACH_OMAP4_PANDA
 	bool "OMAP4 Panda Board"
 	default y
@@ -344,6 +372,34 @@ config MACH_OMAP4_PANDA
 	select OMAP_PACKAGE_CBL
 	select OMAP_PACKAGE_CBS
 	select REGULATOR_FIXED_VOLTAGE
+
+config MACH_OMAP4_PANDA_CAMERA_SUPPORT
+	bool "OMAP4 Panda Board Camera support"
+	depends on MACH_OMAP4_PANDA
+	select MEDIA_SUPPORT
+	select MEDIA_CONTROLLER
+	select VIDEO_DEV
+	select VIDEO_V4L2_SUBDEV_API
+	select V4L_PLATFORM_DRIVERS
+	select VIDEO_OMAP4
+	help
+	  Enable Camera HW support for PandaBoard.
+	  This is for using the OMAP4 ISS CSI2A Camera sensor
+	  interface.
+
+choice
+	prompt "Camera sensor to use"
+	depends on MACH_OMAP4_PANDA_CAMERA_SUPPORT
+	default MACH_OMAP4_PANDA_CAM_OV5650
+
+	config MACH_OMAP4_PANDA_CAM_OV5640
+		bool "Use OmniVision OV5640 Camera"
+		select VIDEO_OV5640
+
+	config MACH_OMAP4_PANDA_CAM_OV5650
+		bool "Use OmniVision OV5650 Camera"
+		select VIDEO_OV5650
+endchoice
 
 config OMAP3_EMU
 	bool "OMAP3 debugging peripherals"

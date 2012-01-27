@@ -17,6 +17,11 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/of.h>
+#ifdef CONFIG_CMA
+#include <linux/dma-contiguous.h>
+#endif
+
+#include <media/omap4iss.h>
 
 #include <mach/hardware.h>
 #include <mach/irqs.h>
@@ -236,6 +241,41 @@ int omap3_init_camera(struct isp_platform_data *pdata)
 }
 
 #endif
+
+int omap4_init_camera(struct iss_platform_data *pdata, struct omap_board_data *bdata)
+{
+	struct platform_device *pdev;
+	struct omap_hwmod *oh;
+	struct iss_platform_data *omap4iss_pdata;
+	const char *oh_name = "iss";
+	const char *name = "omap4iss";
+
+	oh = omap_hwmod_lookup(oh_name);
+	if (!oh) {
+		pr_err("Could not look up %s\n", oh_name);
+		return -ENODEV;
+	}
+
+	omap4iss_pdata = pdata;
+
+	pdev = omap_device_build(name, -1, oh, omap4iss_pdata,
+			sizeof(struct iss_platform_data), NULL, 0, 0);
+
+	if (IS_ERR(pdev)) {
+		WARN(1, "Can't build omap_device for %s:%s.\n",
+						name, oh->name);
+		return PTR_ERR(pdev);
+	}
+
+	oh->mux = omap_hwmod_mux_init(bdata->pads, bdata->pads_cnt);
+
+#ifdef CONFIG_CMA
+	/* Create private 32MiB contiguous memory area for omap4iss device */
+	dma_declare_contiguous(&pdev->dev, 32*SZ_1M, 0, 0);
+#endif
+
+	return 0;
+}
 
 static inline void omap_init_camera(void)
 {

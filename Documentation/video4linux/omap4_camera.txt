@@ -1,0 +1,60 @@
+                              OMAP4 ISS Driver
+                              ================
+
+Introduction
+------------
+
+The OMAP44XX family of chips contains the Imaging SubSystem (a.k.a. ISS),
+Which contains several components that can be categorized in 3 big groups:
+
+- Interfaces (2 Interfaces: CSI2-A & CSI2-B/CCP2)
+- ISP (Image Signal Processor)
+- SIMCOP (Still Image Coprocessor)
+
+For more information, please look in [1] for latest version of:
+	"OMAP4430 Multimedia Device Silicon Revision 2.x"
+
+As of Revision L, the ISS is described in detail in section 8.
+
+This driver is supporting _only_ the CSI2-A interface for now.
+
+It makes use of the Media Controller framework [2], and inherited most of the
+code from OMAP3 ISP driver (found under drivers/media/video/omap3isp/*), except
+that it doesn't need an IOMMU now for ISS buffers memory mapping.
+
+Supports usage of MMAP buffers only (for now).
+
+IMPORTANT: It is recommended to have this patchset:
+  Contiguous Memory Allocator (v15) [3].
+
+Tested platforms
+----------------
+
+- OMAP4430SDP, w/ ES2.1 GP & SEVM4430-CAM-V1-0 (Contains IMX060 & OV5640, in
+  which only the last one is supported, outputting YUV422 frames).
+
+- PandaBoard, Rev. A2, w/ OMAP4430 ES2.1 GP & OV adapter board, tested with
+  following sensors:
+  * OV5640
+  * OV5650
+
+- Tested on mainline kernel:
+
+	http://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=summary
+
+  Tag: v3.0 (commit 02f8c6aee8df3cdc935e9bdd4f2d020306035dbe)
+
+File list
+---------
+drivers/media/video/omap4iss/
+
+References
+----------
+
+[1] http://focus.ti.com/general/docs/wtbu/wtbudocumentcenter.tsp?navigationId=12037&templateId=6123#62
+[2] http://lwn.net/Articles/420485/
+[3] http://lwn.net/Articles/455801/
+--
+Author: Sergio Aguirre <saaguirre@ti.com>
+Copyright (C) 2011, Texas Instruments
+

@@ -467,6 +467,18 @@ config VIDEO_OV7670
 	  OV7670 VGA camera.  It currently only works with the M88ALP01
 	  controller.
 
+config VIDEO_OV5640
+	tristate "OmniVision OV5640 sensor support"
+	depends on I2C && VIDEO_V4L2
+	help
+	  This is a ov5640 camera driver
+
+config VIDEO_OV5650
+	tristate "OmniVision OV5650 sensor support"
+	depends on I2C && VIDEO_V4L2
+	help
+	  This is a ov5650 camera driver
+
 config VIDEO_MT9P031
 	tristate "Aptina MT9P031 support"
 	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
@@ -918,6 +930,19 @@ config VIDEO_OMAP3_DEBUG
 	depends on VIDEO_OMAP3
 	---help---
 	  Enable debug messages on OMAP 3 camera controller driver.
+
+config VIDEO_OMAP4
+	tristate "OMAP 4 Camera support (EXPERIMENTAL)"
+	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API && ARCH_OMAP4 && EXPERIMENTAL
+	select VIDEOBUF2_DMA_CONTIG
+	---help---
+	  Driver for an OMAP 4 ISS controller.
+
+config VIDEO_OMAP4_DEBUG
+	bool "OMAP 4 Camera debug messages"
+	depends on VIDEO_OMAP4
+	---help---
+	  Enable debug messages on OMAP 4 ISS controller driver.
 
 config SOC_CAMERA
 	tristate "SoC camera support"

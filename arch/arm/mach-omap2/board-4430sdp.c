@@ -423,6 +423,10 @@ static struct regulator_consumer_supply sdp4430_vaux_supply[] = {
 	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.1"),
 };
 
+static struct regulator_consumer_supply sdp4430_vaux3_supply[] = {
+	REGULATOR_SUPPLY("cam2pwr", NULL),
+};
+
 static struct regulator_consumer_supply omap4_sdp4430_vmmc5_supply = {
 	.supply = "vmmc",
 	.dev_name = "omap_hsmmc.4",
@@ -512,6 +516,21 @@ static struct regulator_init_data sdp4430_vaux1 = {
 	.consumer_supplies      = sdp4430_vaux_supply,
 };
 
+static struct regulator_init_data sdp4430_vaux3 = {
+	.constraints = {
+		.min_uV			= 1000000,
+		.max_uV			= 3000000,
+		.apply_uV		= true,
+		.valid_modes_mask	= REGULATOR_MODE_NORMAL
+					| REGULATOR_MODE_STANDBY,
+		.valid_ops_mask	 = REGULATOR_CHANGE_VOLTAGE
+					| REGULATOR_CHANGE_MODE
+					| REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies  = ARRAY_SIZE(sdp4430_vaux3_supply),
+	.consumer_supplies      = sdp4430_vaux3_supply,
+};
+
 static struct regulator_init_data sdp4430_vusim = {
 	.constraints = {
 		.min_uV			= 1200000,
@@ -555,6 +574,7 @@ static struct twl4030_platform_data sdp4430_twldata = {
 	/* Regulators */
 	.vusim		= &sdp4430_vusim,
 	.vaux1		= &sdp4430_vaux1,
+	.vaux3		= &sdp4430_vaux3,
 };
 
 static struct i2c_board_info __initdata sdp4430_i2c_3_boardinfo[] = {

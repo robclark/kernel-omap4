@@ -2711,6 +2711,16 @@ static struct omap_hwmod_addr_space omap44xx_iss_addrs[] = {
 		.pa_end		= 0x520000ff,
 		.flags		= ADDR_TYPE_RT
 	},
+	{
+		.pa_start	= 0x52001000,
+		.pa_end		= 0x5200116f,
+		.flags		= ADDR_TYPE_RT
+	},
+	{
+		.pa_start	= 0x52001170,
+		.pa_end		= 0x5200118f,
+		.flags		= ADDR_TYPE_RT
+	},
 	{ }
 };
 
@@ -5638,7 +5648,7 @@ static __initdata struct omap_hwmod *omap44xx_hwmods[] = {
 	&omap44xx_ipu_c1_hwmod,
 
 	/* iss class */
-/*	&omap44xx_iss_hwmod, */
+	&omap44xx_iss_hwmod,
 
 	/* iva class */
 	&omap44xx_iva_hwmod,
