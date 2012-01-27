@@ -653,6 +653,9 @@ struct drm_gem_object {
 	uint32_t pending_write_domain;
 
 	void *driver_private;
+
+	bool primed;
+	struct dma_buf *dma_buf; //associated dma buf
 };
 
 #include "drm_crtc.h"
