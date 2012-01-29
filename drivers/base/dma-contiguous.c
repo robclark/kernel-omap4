@@ -319,8 +319,7 @@ struct page *dma_alloc_from_contiguous(struct device *dev, int count,
 				       unsigned int align)
 {
 	struct cma *cma = dev_get_cma_area(dev);
-	unsigned long pfn, pageno, start = 0;
-	unsigned long mask = (1 << align) - 1;
+	unsigned long mask, pfn, pageno, start = 0;
 	int ret;
 
 	if (!cma || !cma->count)
@@ -328,6 +327,8 @@ struct page *dma_alloc_from_contiguous(struct device *dev, int count,
 
 	if (align > CONFIG_CMA_ALIGNMENT)
 		align = CONFIG_CMA_ALIGNMENT;
+
+	mask = (1 << align) - 1;
 
 	pr_debug("%s(cma %p, count %d, align %d)\n", __func__, (void *)cma,
 		 count, align);
