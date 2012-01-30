@@ -278,6 +278,11 @@ int ti_hdmi_4xxx_phy_enable(struct hdmi_ip_data *ip_data)
 	u16 r = 0;
 	void __iomem *phy_base = hdmi_phy_base(ip_data);
 
+	/* TODO: avoid CPU checks! */
+	/* enable divby2 */
+	if (soc_is_omap54xx())
+		REG_FLD_MOD(phy_base, HDMI_TXPHY_BIST_CONTROL, 1, 11, 11);
+
 	r = hdmi_set_phy_pwr(ip_data, HDMI_PHYPWRCMD_LDOON);
 	if (r)
 		return r;
