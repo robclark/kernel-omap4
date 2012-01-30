@@ -27,6 +27,7 @@ struct vb2_dc_buf {
 	struct vb2_dc_conf		*conf;
 	void				*vaddr;
 	dma_addr_t			dma_addr;
+	struct sg_table 		*sg;
 	unsigned long			size;
 	struct vm_area_struct		*vma;
 	struct dma_buf_attachment	*db_attach;
@@ -194,7 +195,7 @@ static void vb2_dma_contig_map_dmabuf(void *mem_priv)
 	buf->size = sg_dma_len(sg->sgl);
 
 	/* save this sg in dmabuf for put_scatterlist */
-	dmabuf->priv = sg;
+	buf->sg = sg;
 }
 
 static void vb2_dma_contig_unmap_dmabuf(void *mem_priv)
@@ -209,7 +210,7 @@ static void vb2_dma_contig_unmap_dmabuf(void *mem_priv)
 	WARN_ON(!buf->dma_addr);
 
 	dmabuf = buf->db_attach->dmabuf;
-	sg = dmabuf->priv;
+	sg = buf->sg;
 
 	/*
 	 * Put the sg for this buffer:

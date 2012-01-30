@@ -1072,8 +1072,7 @@ static int __qbuf_dmabuf(struct vb2_buffer *vb, const struct v4l2_buffer *b)
 		vb->planes[plane].mem_priv = NULL;
 
 		/* Acquire each plane's memory */
-		mem_priv = q->mem_ops->attach_dmabuf(
-				q->alloc_ctx[plane], dbuf);
+		mem_priv = call_memop(q, attach_dmabuf, q->alloc_ctx[plane], dbuf);
 		if (IS_ERR(mem_priv)) {
 			dprintk(1, "qbuf: failed acquiring dmabuf "
 					"memory for plane %d\n", plane);
@@ -1088,7 +1087,9 @@ static int __qbuf_dmabuf(struct vb2_buffer *vb, const struct v4l2_buffer *b)
 	// TODO this pins the buffer (dma_buf_map_attachment()).. but
 	// really we want to do this just before DMA, not when the
 	// buffer is queued..
-	call_memop(q, map_dmabuf, vb->planes[plane].mem_priv);
+	for (plane = 0; plane < vb->num_planes; ++plane) {
+		call_memop(q, map_dmabuf, vb->planes[plane].mem_priv);
+	}
 
 	/*
 	 * Call driver-specific initialization on the newly acquired buffer,
@@ -1299,9 +1300,6 @@ int vb2_qbuf(struct vb2_queue *q, struct v4l2_buffer *b)
 
 	switch (vb->state) {
 	case VB2_BUF_STATE_DEQUEUED:
-		ret = __buf_prepare(vb, b);
-		if (ret)
-			goto unlock;
 	case VB2_BUF_STATE_PREPARED:
 		break;
 	default:
@@ -1310,25 +1308,9 @@ int vb2_qbuf(struct vb2_queue *q, struct v4l2_buffer *b)
 		goto unlock;
 	}
 
-	if (q->memory == V4L2_MEMORY_MMAP)
-		ret = __qbuf_mmap(vb, b);
-	else if (q->memory == V4L2_MEMORY_USERPTR)
-		ret = __qbuf_userptr(vb, b);
-	else if (q->memory == V4L2_MEMORY_DMABUF)
-			ret = __qbuf_dmabuf(vb, b);
-	else {
-		WARN(1, "Invalid queue type\n");
-		return -EINVAL;
-	}
-
+	ret = __buf_prepare(vb, b);
 	if (ret)
 		return ret;
-
-	ret = call_qop(q, buf_prepare, vb);
-	if (ret) {
-		dprintk(1, "qbuf: buffer preparation failed\n");
-		return ret;
-	}
 
 	/*
 	 * Add to the queued buffers list, a buffer will stay on it until
