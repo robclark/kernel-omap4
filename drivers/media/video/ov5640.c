@@ -601,44 +601,9 @@ __ov5640_get_pad_format(struct ov5640 *ov5640, struct v4l2_subdev_fh *fh,
 
 static int ov5640_s_power(struct v4l2_subdev *sd, int on)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ov5640 *ov5640 = to_ov5640(sd);
-	int ret;
 
-	ret = ov5640->pdata->s_power(sd, on);
-	if (ret)
-		goto out;
-
-	if (on) {
-		/* SW Reset */
-		ret = ov5640_reg_set(client, 0x3008, 0x80);
-		if (ret)
-			goto out;
-
-		msleep(2);
-
-		ret = ov5640_reg_clr(client, 0x3008, 0x80);
-		if (ret)
-			goto out;
-
-		/* SW Powerdown */
-		ret = ov5640_reg_set(client, 0x3008, 0x40);
-		if (ret)
-			goto out;
-
-		ret = ov5640_reg_writes(client, configscript_common1,
-				ARRAY_SIZE(configscript_common1));
-		if (ret)
-			goto out;
-
-		ret = ov5640_reg_writes(client, configscript_common2,
-				ARRAY_SIZE(configscript_common2));
-		if (ret)
-			goto out;
-	}
-
-out:
-	return ret;
+	return ov5640->pdata->s_power(sd, on);
 }
 
 static struct v4l2_subdev_core_ops ov5640_subdev_core_ops = {
@@ -831,6 +796,32 @@ static int ov5640_registered(struct v4l2_subdev *subdev)
 
 	dev_info(&client->dev, "Detected a OV5640 chip, revision %x\n",
 		 revision);
+
+	/* SW Reset */
+	ret = ov5640_reg_set(client, 0x3008, 0x80);
+	if (ret)
+		goto out;
+
+	msleep(2);
+
+	ret = ov5640_reg_clr(client, 0x3008, 0x80);
+	if (ret)
+		goto out;
+
+	/* SW Powerdown */
+	ret = ov5640_reg_set(client, 0x3008, 0x40);
+	if (ret)
+		goto out;
+
+	ret = ov5640_reg_writes(client, configscript_common1,
+			ARRAY_SIZE(configscript_common1));
+	if (ret)
+		goto out;
+
+	ret = ov5640_reg_writes(client, configscript_common2,
+			ARRAY_SIZE(configscript_common2));
+	if (ret)
+		goto out;
 
 out:
 	ov5640_s_power(subdev, 0);
