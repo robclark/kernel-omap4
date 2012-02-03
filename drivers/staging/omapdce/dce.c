@@ -54,6 +54,7 @@ static long mark(long *last)
 struct dce_buffer {
 	int32_t id;		/* zero for unused */
 	struct drm_gem_object *y, *uv;
+	uint32_t yaddr, uvaddr;
 };
 
 struct dce_engine {
@@ -119,28 +120,18 @@ static DEFINE_MUTEX(lock);  // TODO probably more locking needed..
 /* initialize header and assign request id: */
 #define MKHDR(x) (struct dce_rpc_hdr){ .msg_id = DCE_RPC_##x, .req_id = atomic_inc_return(&next_req_id) }
 
-/* GEM buffer -> paddr, plus add the buffer to the txn bookkeeping of
- * associated buffers that eventually need to be cleaned up when the
- * transaction completes
- */
-static struct drm_gem_object * get_paddr(struct dce_file_priv *priv,
-		struct dce_rpc_hdr *req, uint32_t *paddrp, int bo)
+static int get_paddr_from_bo(struct dce_file_priv *priv,
+		struct dce_rpc_hdr *req, uint32_t *paddrp,
+		struct drm_gem_object *obj, bool ref)
 {
 	struct omap_dce_txn *txn = &txns[req->req_id % ARRAY_SIZE(txns)];
-	struct drm_gem_object *obj;
 	dma_addr_t paddr;
 	int ret;
 long t;
 
 	if (txn->bo_count >= ARRAY_SIZE(txn->objs)) {
 		DBG("too many buffers!");
-		return ERR_PTR(-ENOMEM);
-	}
-
-	obj = drm_gem_object_lookup(priv->dev, priv->file, bo);
-	if (!obj) {
-		DBG("bad handle: %d", bo);
-		return ERR_PTR(-ENOENT);
+		return -ENOMEM;
 	}
 
 t = mark(NULL);
@@ -148,8 +139,11 @@ t = mark(NULL);
 DBG("get_paddr in %ld us", mark(&t));
 	if (ret) {
 		DBG("cannot map: %d", ret);
-		return ERR_PTR(ret);
+		return ret;
 	}
+
+	if (ref)
+		drm_gem_object_reference(obj);
 
 	/* the coproc can only see 32bit addresses.. this might need
 	 * to be revisited in the future with some conversion between
@@ -159,6 +153,31 @@ DBG("get_paddr in %ld us", mark(&t));
 	*paddrp = (uint32_t)paddr;
 
 	txn->objs[txn->bo_count++] = obj;
+
+	return ret;
+}
+
+/* GEM buffer -> paddr, plus add the buffer to the txn bookkeeping of
+ * associated buffers that eventually need to be cleaned up when the
+ * transaction completes
+ */
+static struct drm_gem_object * get_paddr(struct dce_file_priv *priv,
+		struct dce_rpc_hdr *req, uint32_t *paddrp, int bo)
+{
+	struct drm_gem_object *obj;
+	int ret;
+
+	obj = drm_gem_object_lookup(priv->dev, priv->file, bo);
+	if (!obj) {
+		DBG("bad handle: %d", bo);
+		return ERR_PTR(-ENOENT);
+	}
+
+	ret = get_paddr_from_bo(priv, req, paddrp, obj, false);
+	if (ret) {
+		drm_gem_object_unreference(obj);
+		return ERR_PTR(ret);
+	}
 
 	DBG("obj=%p", obj);
 
@@ -365,20 +384,35 @@ static int codec_lockbuf(struct dce_file_priv *priv,
 
 			DBG("lock[%d]: y=%p, uv=%p", id, y, uv);
 
-			/* for now, until the codecs support relocated buffers, keep
-			 * an extra ref and paddr to keep it pinned
+			/* keep extra ref to buf so it isn't free'd under the codec's
+			 * feet
 			 */
 			drm_gem_object_reference(y);
-			omap_gem_get_paddr(y, &paddr, true);
 
 			if (uv) {
 				drm_gem_object_reference(uv);
-				omap_gem_get_paddr(uv, &paddr, true);
 			}
 
 			buf->id = id;
 			buf->y = y;
 			buf->uv = uv;
+
+			/* XXX we don't really need to increase pincount here...
+			 * but need a way to get the already pinned paddr without
+			 * punching an extra fxn param thru a bunch of levels of
+			 * fxn call..
+			 */
+			omap_gem_get_paddr(y, &paddr, true);
+			buf->yaddr = (uint32_t)paddr;
+			omap_gem_put_paddr(y);
+
+			if (uv) {
+				omap_gem_get_paddr(uv, &paddr, true);
+				buf->uvaddr = (uint32_t)paddr;
+				omap_gem_put_paddr(uv);
+			} else {
+				buf->uvaddr = 0;
+			}
 
 			return 0;
 		}
@@ -406,11 +440,9 @@ static void codec_unlockbuf(struct dce_file_priv *priv,
 			DBG("unlock[%d]: y=%p, uv=%p", buf->id, y, uv);
 
 			/* release extra ref */
-			omap_gem_put_paddr(y);
 			drm_gem_object_unreference_unlocked(y);
 
 			if (uv) {
-				omap_gem_put_paddr(uv);
 				drm_gem_object_unreference_unlocked(uv);
 			}
 
@@ -736,6 +768,60 @@ static inline int handle_buf_desc(struct dce_file_priv *priv,
 	return 0;
 }
 
+/* build buffer relocation table for locked (reference frame) buffers
+ * which have moved since last frame
+ */
+static inline int handle_reloc(struct dce_file_priv *priv,
+		void **ptr, void *end,
+		struct dce_rpc_codec_process_req *req,
+		struct drm_omap_dce_codec_process *arg)
+{
+	// XXX should this move up to codec_xyz() fxns..
+	struct dce_codec *codec = &priv->codecs[arg->codec_handle-1];
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(codec->locked_buffers); i++) {
+		struct dce_buffer *buf = &codec->locked_buffers[i];
+		if (buf->id) {
+			uint32_t yaddr, uvaddr = 0;
+			int ret;
+
+			ret = get_paddr_from_bo(priv, hdr(req), &yaddr, buf->y, true);
+
+			if (buf->uv && !ret)
+				ret = get_paddr_from_bo(priv, hdr(req), &uvaddr, buf->uv, true);
+
+			if (ret)
+				return ret;
+
+			if ((yaddr != buf->yaddr) || (uvaddr != buf->uvaddr)) {
+				uint32_t *reloc = *ptr;
+
+				DBG("buffer moved: %08x, %08x -> %08x, %08x",
+						buf->yaddr, buf->uvaddr, yaddr, uvaddr);
+
+				if ((*ptr + 12) > end) {
+					DBG("dst buffer overflow!");
+					return -EFAULT;
+				}
+
+				*(reloc++) = buf->id;
+				*(reloc++) = yaddr;
+				*(reloc++) = uvaddr;
+
+				buf->yaddr = yaddr;
+				buf->uvaddr = uvaddr;
+
+				*ptr = reloc;
+
+				req->reloc_len += 3;
+			}
+		}
+	}
+
+	return 0;
+}
+
 /*
  *   VIDDEC3_process			VIDENC2_process
  *   VIDDEC3_InArgs *inArgs		VIDENC2_InArgs *inArgs
@@ -818,6 +904,10 @@ long tsend = mark(NULL);
 		req->hdr = MKHDR(CODEC_PROCESS);
 
 		ret = codec_get(priv, arg->codec_handle, &req->codec, &req->codec_id);
+		if (ret)
+			goto rpsend_out;
+
+		ret = handle_reloc(priv, &ptr, end, req, arg);
 		if (ret)
 			goto rpsend_out;
 
