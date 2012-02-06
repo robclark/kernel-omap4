@@ -158,7 +158,7 @@ void __init omap2_set_globals_prcm(struct omap_globals *omap2_globals)
 		cm2_base = omap2_globals->cm2;
 	/* !!! ioremap needed? */
 	if (omap2_globals->prcm_mpu) {
-		prcm_mpu_base = ioremap(omap2_globals->prcm_mpu, SZ_8K);
+		prcm_mpu_base = ioremap((unsigned long)omap2_globals->prcm_mpu, SZ_8K);
 		WARN_ON(!prcm_mpu_base);
 	}
 
