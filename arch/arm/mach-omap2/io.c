@@ -33,7 +33,6 @@
 #include "clock3xxx.h"
 #include "clock44xx.h"
 #include "clock54xx.h"
-#include "io.h"
 
 #include <plat/omap-pm.h>
 #include <plat/omap_hwmod.h>
