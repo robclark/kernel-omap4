@@ -1140,7 +1140,7 @@ static void __init omap_5430evm_map_io(void)
 	omap54xx_map_common_io();
 }
 
-MACHINE_START(OMAP_5430EVM, "OMAP5430 evm board")
+MACHINE_START(OMAP5_SEVM, "OMAP5430 evm board")
 	/* Maintainer: Santosh Shilimkar - Texas Instruments Inc */
 	.boot_params	= 0x80000100,
 	.map_io		= omap_5430evm_map_io,
