@@ -285,6 +285,22 @@ static void rpcomplete(struct dce_rpc_hdr *rsp, int len)
 	wake_up_all(&wq);
 }
 
+static int rpabort(struct dce_rpc_hdr *req, int ret)
+{
+	struct omap_dce_txn *txn =
+			&txns[req->req_id % ARRAY_SIZE(txns)];
+
+	DBG("txn failed: msg_id=%u, req_id=%u, ret=%d",
+			(uint32_t)req->msg_id, (uint32_t)req->req_id, ret);
+
+	txn_cleanup(txn);
+
+	/* clear out state: */
+	memset(txn, 0, sizeof(*txn));
+
+	return ret;
+}
+
 /* helpers for tracking engine instances and mapping engine handle to engine
  * instance:
  */
@@ -552,11 +568,12 @@ static int ioctl_codec_create(struct drm_device *dev, void *data,
 
 		ret = PTR_RET(get_paddr(priv, hdr(&req), &req.sparams, arg->sparams_bo));
 		if (ret)
-			return ret;
+			goto rpsend_out;
 
 		ret = rpsend(priv, &arg->token, hdr(&req), sizeof(req));
+rpsend_out:
 		if (ret)
-			return ret;
+			return rpabort(hdr(&req), ret);
 	}
 
 	/* then wait for reply, which is interruptible */
@@ -597,15 +614,16 @@ static int ioctl_codec_control(struct drm_device *dev, void *data,
 
 		ret = PTR_RET(get_paddr(priv, hdr(&req), &req.dparams, arg->dparams_bo));
 		if (ret)
-			return ret;
+			goto rpsend_out;
 
 		ret = PTR_RET(get_paddr(priv, hdr(&req), &req.status, arg->status_bo));
 		if (ret)
-			return ret;
+			goto rpsend_out;
 
 		ret = rpsend(priv, &arg->token, hdr(&req), sizeof(req));
+rpsend_out:
 		if (ret)
-			return ret;
+			return rpabort(hdr(&req), ret);
 	}
 
 	/* then wait for reply, which is interruptible */
@@ -830,7 +848,7 @@ static inline int handle_reloc(struct dce_file_priv *priv,
  */
 
 static inline int handle_videnc2(struct dce_file_priv *priv,
-		void **ptr, void *end,
+		void **ptr, void *end, int32_t *input_id,
 		struct dce_rpc_codec_process_req *req,
 		struct drm_omap_dce_codec_process *arg)
 {
@@ -840,7 +858,7 @@ static inline int handle_videnc2(struct dce_file_priv *priv,
 }
 
 static inline int handle_viddec3(struct dce_file_priv *priv,
-		void **ptr, void *end,
+		void **ptr, void *end, int32_t *input_id,
 		struct dce_rpc_codec_process_req *req,
 		struct drm_omap_dce_codec_process *arg)
 {
@@ -877,6 +895,7 @@ static inline int handle_viddec3(struct dce_file_priv *priv,
 	if (ret)
 		return ret;
 
+	*input_id = in_args->input_id;
 	codec_lockbuf(priv, arg->codec_handle, in_args->input_id, y, uv);
 
 	return 0;
@@ -891,15 +910,14 @@ static int ioctl_codec_process(struct drm_device *dev, void *data,
 	struct drm_omap_dce_codec_process *arg = data;
 	struct dce_rpc_codec_process_rsp *rsp;
 	int ret, i;
-long tprocess = mark(NULL);
 
 	/* if we are not re-starting a syscall, send req */
 	if (!arg->token) {
-long tsend = mark(NULL);
 		/* worst-case size allocation.. */
 		struct dce_rpc_codec_process_req *req = kzalloc(RPMSG_BUF_SIZE, GFP_KERNEL);
 		void *ptr = &req->data[0];
 		void *end = ((void *)req) + RPMSG_BUF_SIZE;
+		int32_t input_id = 0;
 
 		req->hdr = MKHDR(CODEC_PROCESS);
 
@@ -913,15 +931,15 @@ long tsend = mark(NULL);
 
 		ret = PTR_RET(get_paddr(priv, hdr(&req), &req->out_args, arg->out_args_bo));
 		if (ret)
-			goto rpsend_out;
+			return rpabort(hdr(req), ret);
 
 		/* the remainder of the req varies depending on codec family */
 		switch (req->codec_id) {
 		case OMAP_DCE_VIDENC2:
-			ret = handle_videnc2(priv, &ptr, end, req, arg);
+			ret = handle_videnc2(priv, &ptr, end, &input_id, req, arg);
 			break;
 		case OMAP_DCE_VIDDEC3:
-			ret = handle_viddec3(priv, &ptr, end, req, arg);
+			ret = handle_viddec3(priv, &ptr, end, &input_id, req, arg);
 			break;
 		default:
 			ret = -EINVAL;
@@ -932,16 +950,20 @@ long tsend = mark(NULL);
 			goto rpsend_out;
 
 		ret = rpsend(priv, &arg->token, hdr(req), ptr - (void *)req);
-DBG("send in: %ld us", mark(&tsend));
 rpsend_out:
 		kfree(req);
-		if (ret)
-			return ret;
+		if (ret) {
+			/* if input buffer is already locked, unlock it now so we
+			 * don't have a leak:
+			 */
+			if (input_id)
+				codec_unlockbuf(priv, arg->codec_handle, input_id);
+			return rpabort(hdr(req), ret);
+		}
 	}
 
 	/* then wait for reply, which is interruptible */
 	ret = rpwait(priv, arg->token, hdr(&rsp), sizeof(*rsp));
-DBG("process in: %ld us", mark(&tprocess));
 	if (ret)
 		return ret;
 
