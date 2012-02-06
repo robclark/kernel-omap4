@@ -57,7 +57,6 @@
 
 /* Reserve 60K bytes of SRAM for HS/EMU devices */
 #define OMAP5_SRAM_RESERVED_SIZE	0xF000
->>>>>>> patched
 #define OMAP5_SRAM_PA		0x40300000
 #define OMAP5_SRAM_VA		0xfe400000
 /*
