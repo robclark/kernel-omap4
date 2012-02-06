@@ -46,23 +46,6 @@ extern void omap_reserve(void);
 extern int omap_dss_reset(struct omap_hwmod *);
 
 void omap_sram_init(void);
-/*
- * IO bases for various OMAP processors
- * Except the tap base, rest all the io bases
- * listed are physical addresses.
- */
-struct omap_globals {
-	u32		class;		/* OMAP class to detect */
-	void __iomem	*tap;		/* Control module ID code */
-	unsigned long   sdrc;           /* SDRAM Controller */
-	unsigned long   sms;            /* SDRAM Memory Scheduler */
-	unsigned long   ctrl;           /* System Control Module */
-	unsigned long   ctrl_pad;	/* PAD Control Module */
-	unsigned long   prm;            /* Power and Reset Management */
-	unsigned long   cm;             /* Clock Management */
-	unsigned long   cm2;
-	unsigned long	prcm_mpu;
-};
 
 void omap2_set_globals_242x(void);
 void omap2_set_globals_243x(void);
@@ -70,12 +53,6 @@ void omap2_set_globals_3xxx(void);
 void omap2_set_globals_443x(void);
 void omap2_set_globals_ti816x(void);
 void omap2_set_globals_543x(void);
-
-/* These get called from omap2_set_globals_xxxx(), do not call these */
-void omap2_set_globals_tap(struct omap_globals *);
-void omap2_set_globals_sdrc(struct omap_globals *);
-void omap2_set_globals_control(struct omap_globals *);
-void omap2_set_globals_prcm(struct omap_globals *);
 
 void omap3_map_io(void);
 
