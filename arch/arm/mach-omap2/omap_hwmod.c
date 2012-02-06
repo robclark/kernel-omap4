@@ -1513,7 +1513,7 @@ static int _enable(struct omap_hwmod *oh)
 	 * Now that someone is really trying to enable them,
 	 * just ensure that the hwmod mux is set.
 	 */
-	if (oh->_int_flags & _HWMOD_SKIP_ENABLE)  ||
+	if ((oh->_int_flags & _HWMOD_SKIP_ENABLE)  ||
 		(oh->_state == _HWMOD_STATE_ENABLED_AT_INIT)) {
 		/*
 		 * If the caller has mux data populated, do the mux'ing
