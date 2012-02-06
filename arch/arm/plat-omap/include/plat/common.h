@@ -103,6 +103,5 @@ extern struct device *omap2_get_mpuss_device(void);
 extern struct device *omap2_get_iva_device(void);
 extern struct device *omap2_get_l3_device(void);
 extern struct device *omap4_get_dsp_device(void);
->>>>>>> patched
 
 #endif /* __ARCH_ARM_MACH_OMAP_COMMON_H */
