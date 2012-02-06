@@ -19,8 +19,6 @@
 #include <media/videobuf2-core.h>
 #include <media/videobuf2-memops.h>
 
-#define DBG(fmt,...) printk(KERN_ERR "~~~~~[%s:%d] "fmt"\n", __func__, __LINE__, ##__VA_ARGS__)
-
 struct vb2_dc_conf {
 	struct device		*dev;
 };
@@ -89,7 +87,6 @@ static void vb2_dma_contig_put(void *buf_priv)
 static void *vb2_dma_contig_cookie(void *buf_priv)
 {
 	struct vb2_dc_buf *buf = buf_priv;
-DBG("dma_addr=%08x", buf->dma_addr);
 
 	return &buf->dma_addr;
 }
@@ -170,9 +167,6 @@ static void vb2_dma_contig_map_dmabuf(void *mem_priv)
 	struct sg_table *sg;
 	enum dma_data_direction dir;
 
-	WARN_ON(!buf);
-	WARN_ON(!buf->db_attach);
-
 	if (!buf || !buf->db_attach)
 		return;
 
@@ -185,7 +179,6 @@ static void vb2_dma_contig_map_dmabuf(void *mem_priv)
 
 	/* get the associated sg for this buffer */
 	sg = dma_buf_map_attachment(buf->db_attach, dir);
-	WARN_ON(!sg);
 	if (!sg)
 		return;
 
@@ -199,7 +192,6 @@ static void vb2_dma_contig_map_dmabuf(void *mem_priv)
 			"dmabuf scatterlist has more than 1 entry\n");
 
 	buf->dma_addr = sg_dma_address(sg->sgl);
-DBG("dma_addr=%08x", buf->dma_addr);
 	buf->size = sg_dma_len(sg->sgl);
 
 	/* save this sg in dmabuf for put_scatterlist */
@@ -225,7 +217,6 @@ static void vb2_dma_contig_unmap_dmabuf(void *mem_priv)
 	 */
 	dma_buf_unmap_attachment(buf->db_attach, sg);
 
-DBG("dma_addr=%08x", buf->dma_addr);
 	buf->dma_addr = 0;
 	buf->size = 0;
 }

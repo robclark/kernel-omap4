@@ -2,8 +2,6 @@
 # Makefile for the video capture/playback device drivers.
 #
 
-ccflags-y := -DDEBUG=1
-
 tuner-objs	:=	tuner-core.o
 
 msp3400-objs	:=	msp3400-driver.o msp3400-kthreads.o
