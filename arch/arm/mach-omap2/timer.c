@@ -534,7 +534,7 @@ static int __init omap_timer_init(struct omap_hwmod *oh, void *unused)
 	pdata->get_context_loss_count = omap_pm_get_dev_context_loss_count;
 #endif
 	pdev = omap_device_build(name, id, oh, pdata, sizeof(*pdata),
-				 NULL, 0, 0);
+		  omap2_dmtimer_latency, ARRAY_SIZE(omap2_dmtimer_latency), 0);
 
 	if (IS_ERR(pdev)) {
 		pr_err("%s: Can't build omap_device for %s: %s.\n",
