@@ -46,7 +46,6 @@
 #include <plat/omap_hwmod.h>
 #include <plat/omap_device.h>
 #include <plat/omap-pm.h>
-#include <mach/omap4-common.h>
 
 #include "powerdomain.h"
 
