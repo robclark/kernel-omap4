@@ -44,6 +44,8 @@ extern int __init omap_init_clocksource_32k(void);
 
 extern void omap_reserve(void);
 extern int omap_dss_reset(struct omap_hwmod *);
+extern int omap4_prcm_freq_update(void);
+
 
 void omap_sram_init(void);
 
