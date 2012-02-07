@@ -22,7 +22,7 @@
 #include "clock.h"
 #include "clock44xx.h"
 #include "cm-regbits-44xx.h"
-#include <mach/omap4-common.h>
+#include "common.h"
 #include "cm.h"
 #include "clock44xx.h"
 #include "clock54xx.h"
