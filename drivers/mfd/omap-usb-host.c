@@ -533,9 +533,6 @@ static void omap_usbhs_deinit(struct device *dev)
 		if (gpio_is_valid(pdata->ehci_data->reset_gpio_port[1]))
 			gpio_free(pdata->ehci_data->reset_gpio_port[1]);
 	}
-
-	usbhs_write(omap->uhh_base, OMAP_UHH_HOSTCONFIG, reg);
-	dev_dbg(dev, "UHH setup done, uhh_hostconfig=%x\n", reg);
 }
 
 /**
