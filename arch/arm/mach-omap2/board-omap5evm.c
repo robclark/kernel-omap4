@@ -271,12 +271,6 @@ static struct smsc_keypad_data omap5_kp_data = {
 	.rep            = 1,
 };
 
-static void __init omap_5430evm_init_early(void)
-{
-	omap2_init_common_infrastructure();
-	omap2_init_common_devices(NULL, NULL);
-}
-
 #ifndef CONFIG_MACH_OMAP_5430ZEBU
 static struct __devinitdata emif_custom_configs custom_configs = {
 	.mask	= EMIF_CUSTOM_CONFIG_LPMODE,
@@ -1145,7 +1139,7 @@ MACHINE_START(OMAP5_SEVM, "OMAP5430 evm board")
 	.boot_params	= 0x80000100,
 	.map_io		= omap_5430evm_map_io,
 	.reserve	= omap_reserve,
-	.init_early	= omap_5430evm_init_early,
+	.init_early	= omap54xx_init_early,
 	.init_irq	= gic_init_irq,
 	.handle_irq     = gic_handle_irq,
 	.init_machine	= omap_5430evm_init,

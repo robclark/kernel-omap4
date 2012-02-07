@@ -435,85 +435,25 @@ static void __init omap_common_init_early(void)
 	omap_init_consistent_dma_size();
 }
 
-/* not used, and no powerdomain stuff for omap2 */
-
-#if 0
-
-
 static void __init omap_hwmod_init_postsetup(void)
 {
-	u8 postsetup_state;
+        u8 postsetup_state;
 
-	if (cpu_is_omap242x()) {
-		omap2xxx_powerdomains_init();
-		omap2xxx_clockdomains_init();
-		omap2420_hwmod_init();
-	} else if (cpu_is_omap243x()) {
-		omap2xxx_powerdomains_init();
-		omap2xxx_clockdomains_init();
-		omap2430_hwmod_init();
-	} else if (cpu_is_omap34xx()) {
-		omap3xxx_powerdomains_init();
-		omap3xxx_clockdomains_init();
-		omap3xxx_hwmod_init();
-	} else if (cpu_is_omap44xx()) {
-		omap44xx_powerdomains_init();
-		omap44xx_clockdomains_init();
-		omap44xx_hwmod_init();
-	} else if (cpu_is_omap54xx()) {
-		omap54xx_powerdomains_init();
-		omap54xx_clockdomains_init();
-		omap54xx_hwmod_init();
-	} else {
-		pr_err("Could not init hwmod data - unknown SoC\n");
-        }
-
-	/* Set the default postsetup state for all hwmods */
+        /* Set the default postsetup state for all hwmods */
 #ifdef CONFIG_PM_RUNTIME
-	postsetup_state = _HWMOD_STATE_IDLE;
+        postsetup_state = _HWMOD_STATE_IDLE;
 #else
-	postsetup_state = _HWMOD_STATE_ENABLED;
+        postsetup_state = _HWMOD_STATE_ENABLED;
 #endif
-	omap_hwmod_for_each(_set_hwmod_postsetup_state, &postsetup_state);
+        omap_hwmod_for_each(_set_hwmod_postsetup_state, &postsetup_state);
 
-	/*
-	 * Set the default postsetup state for unusual modules (like
-	 * MPU WDT).
-	 *
-	 * The postsetup_state is not actually used until
-	 * omap_hwmod_late_init(), so boards that desire full watchdog
-	 * coverage of kernel initialization can reprogram the
-	 * postsetup_state between the calls to
-	 * omap2_init_common_infra() and omap_sdrc_init().
-	 *
-	 * XXX ideally we could detect whether the MPU WDT was currently
-	 * enabled here and make this conditional
-	 */
-	postsetup_state = _HWMOD_STATE_DISABLED;
-	omap_hwmod_for_each_by_class("wd_timer",
-				     _set_hwmod_postsetup_state,
-				     &postsetup_state);
+        postsetup_state = _HWMOD_STATE_DISABLED;
+        omap_hwmod_for_each_by_class("wd_timer",
+                                     _set_hwmod_postsetup_state,
+                                     &postsetup_state);
 
-        if (cpu_is_omap54xx())                                                  
-                pr_err("FIXME: omap5 opp layer init\n");                        
-        else                                                                    
-                omap_pm_if_early_init();                                        
-                                                                                
-        if (cpu_is_omap2420())                                                  
-                omap2420_clk_init();                                            
-        else if (cpu_is_omap2430())                                             
-                omap2430_clk_init();                                            
-        else if (cpu_is_omap34xx())                                             
-                omap3xxx_clk_init();                                            
-        else if (cpu_is_omap44xx())                                             
-                omap4xxx_clk_init();                                            
-        else if (cpu_is_omap54xx())                                             
-                omap5xxx_clk_init();                                            
-        else                                                                    
-                pr_err("Could not init clock framework - unknown SoC\n");  
-
+        omap_pm_if_early_init();
 }
-#endif
 
 #ifdef CONFIG_SOC_OMAP2420
 void __init omap2420_init_early(void)
@@ -614,6 +554,21 @@ void __init omap4430_init_early(void)
 	omap4xxx_clk_init();
 }
 #endif
+
+#ifdef CONFIG_ARCH_OMAP5                                                                                
+void __init omap54xx_init_early(void)                              
+{                                                                               
+	omap2_set_globals_543x();
+	omap_common_init_early(); 
+//	omap54xx_voltagedomains_init();
+	omap54xx_powerdomains_init();                                   
+	omap54xx_clockdomains_init();                                   
+	omap54xx_hwmod_init();                                          
+	omap_hwmod_init_postsetup();
+	pr_err("FIXME: omap5 opp layer init\n");                        
+	omap5xxx_clk_init();                                            
+}                                                                               
+#endif   
 
 void __init omap_sdrc_init(struct omap_sdrc_params *sdrc_cs0,
 				      struct omap_sdrc_params *sdrc_cs1)
