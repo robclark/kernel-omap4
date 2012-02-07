@@ -104,6 +104,17 @@
 #define OMAP4_P2_MODE_HSIC				(3 << 18)
 #define OMAP5_P3_MODE_HSIC				(3 << 20)
 
+#define OMAP_TLL_ULPI_FUNCTION_CTRL(num)                (0x804 + 0x100 * num)   
+#define OMAP_TLL_ULPI_INTERFACE_CTRL(num)               (0x807 + 0x100 * num)   
+#define OMAP_TLL_ULPI_OTG_CTRL(num)                     (0x80A + 0x100 * num)   
+#define OMAP_TLL_ULPI_INT_EN_RISE(num)                  (0x80D + 0x100 * num)   
+#define OMAP_TLL_ULPI_INT_EN_FALL(num)                  (0x810 + 0x100 * num)   
+#define OMAP_TLL_ULPI_INT_STATUS(num)                   (0x813 + 0x100 * num)   
+#define OMAP_TLL_ULPI_INT_LATCH(num)                    (0x814 + 0x100 * num)   
+#define OMAP_TLL_ULPI_DEBUG(num)                        (0x815 + 0x100 * num)   
+#define OMAP_TLL_ULPI_SCRATCH_REGISTER(num)             (0x816 + 0x100 * num)   
+
+
 #define	OMAP_UHH_DEBUG_CSR				(0x44)
 
 /* Values of UHH_REVISION - Note: these are not given in the TRM */
