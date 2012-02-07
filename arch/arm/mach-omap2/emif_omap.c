@@ -16,7 +16,7 @@
 #include <linux/emif.h>
 #include <plat/omap_hwmod.h>
 #include <plat/omap_device.h>
-#include <mach/omap4-common.h>
+#include "common.h"
 
 static struct omap_device_pm_latency omap_emif_latency[] = {
 	[0] = {
