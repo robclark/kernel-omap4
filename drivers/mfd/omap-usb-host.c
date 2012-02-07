@@ -136,6 +136,7 @@ struct usbhs_hcd_omap {
 	struct clk			*usb_host_hs_hsic480m_p3_clk;
 
 	void __iomem			*uhh_base;
+	void __iomem			*tll_base;
 
 	struct usbhs_omap_platform_data	platdata;
 
@@ -732,6 +733,13 @@ static int __devinit usbhs_omap_probe(struct platform_device *pdev)
 		goto err_usb_host_hs_hsic480m_p3_clk;
 	}
 
+        omap->tll_base = ioremap(res->start, resource_size(res));
+        if (!omap->tll_base) {
+                dev_err(dev, "TLL ioremap failed\n");
+                ret = -ENOMEM;
+                goto err_tll;
+        }
+
 	platform_set_drvdata(pdev, omap);
 
 	omap_usbhs_init(dev);
@@ -744,7 +752,10 @@ static int __devinit usbhs_omap_probe(struct platform_device *pdev)
 	goto end_probe;
 
 err_alloc:
-	iounmap(omap->uhh_base);
+        iounmap(omap->tll_base);
+
+err_tll:
+        iounmap(omap->uhh_base);
 
 err_usb_host_hs_hsic480m_p3_clk:
 	clk_put(omap->usb_host_hs_hsic480m_p3_clk);
