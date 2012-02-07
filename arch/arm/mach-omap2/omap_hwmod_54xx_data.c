@@ -129,7 +129,6 @@ static struct omap_hwmod omap54xx_dmm_hwmod = {
 	},
 	.slaves		= omap54xx_dmm_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_dmm_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /*
@@ -185,7 +184,6 @@ static struct omap_hwmod omap54xx_emif_ocp_fw_hwmod = {
 	},
 	.slaves		= omap54xx_emif_ocp_fw_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_emif_ocp_fw_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /*
@@ -232,7 +230,6 @@ static struct omap_hwmod omap54xx_l3_instr_hwmod = {
 	},
 	.slaves		= omap54xx_l3_instr_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_l3_instr_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /* l3_main_1 */
@@ -333,7 +330,6 @@ static struct omap_hwmod omap54xx_l3_main_1_hwmod = {
 	},
 	.slaves		= omap54xx_l3_main_1_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_l3_main_1_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /* l3_main_2 */
@@ -462,7 +458,6 @@ static struct omap_hwmod omap54xx_l3_main_2_hwmod = {
 	},
 	.slaves		= omap54xx_l3_main_2_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_l3_main_2_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /* l3_main_3 */
@@ -520,7 +515,6 @@ static struct omap_hwmod omap54xx_l3_main_3_hwmod = {
 	},
 	.slaves		= omap54xx_l3_main_3_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_l3_main_3_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /*
@@ -614,7 +608,6 @@ static struct omap_hwmod omap54xx_l4_abe_hwmod = {
 	},
 	.slaves		= omap54xx_l4_abe_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_l4_abe_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /* l4_cfg */
@@ -643,7 +636,6 @@ static struct omap_hwmod omap54xx_l4_cfg_hwmod = {
 	},
 	.slaves		= omap54xx_l4_cfg_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_l4_cfg_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /* l4_per */
@@ -672,7 +664,6 @@ static struct omap_hwmod omap54xx_l4_per_hwmod = {
 	},
 	.slaves		= omap54xx_l4_per_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_l4_per_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /* l4_wkup */
@@ -701,7 +692,6 @@ static struct omap_hwmod omap54xx_l4_wkup_hwmod = {
 	},
 	.slaves		= omap54xx_l4_wkup_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_l4_wkup_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /*
@@ -732,7 +722,6 @@ static struct omap_hwmod omap54xx_mpu_private_hwmod = {
 	.clkdm_name	= "mpu_clkdm",
 	.slaves		= omap54xx_mpu_private_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_mpu_private_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /*
@@ -918,7 +907,6 @@ static struct omap_hwmod omap54xx_aess_hwmod = {
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_aess_slaves),
 	.masters	= omap54xx_aess_masters,
 	.masters_cnt	= ARRAY_SIZE(omap54xx_aess_masters),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /*
@@ -984,7 +972,6 @@ static struct omap_hwmod omap54xx_ctrl_module_core_hwmod = {
 	.slaves_cnt     = ARRAY_SIZE(omap54xx_ctrl_module_core_slaves),
 	.dev_attr	= &scm_dev_attr,
 	.clkdm_name     = "l4cfg_clkdm",
-	.omap_chip      = OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /*
@@ -1044,7 +1031,6 @@ static struct omap_hwmod omap54xx_counter_32k_hwmod = {
 	},
 	.slaves		= omap54xx_counter_32k_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_counter_32k_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /*
@@ -1132,7 +1118,6 @@ static struct omap_hwmod omap54xx_dma_system_hwmod = {
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_dma_system_slaves),
 	.masters	= omap54xx_dma_system_masters,
 	.masters_cnt	= ARRAY_SIZE(omap54xx_dma_system_masters),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /*
@@ -1225,7 +1210,6 @@ static struct omap_hwmod omap54xx_dmic_hwmod = {
 	},
 	.slaves		= omap54xx_dmic_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_dmic_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /*
@@ -1296,7 +1280,6 @@ static struct omap_hwmod omap54xx_dsp_hwmod = {
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_dsp_slaves),
 	.masters	= omap54xx_dsp_masters,
 	.masters_cnt	= ARRAY_SIZE(omap54xx_dsp_masters),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /*
@@ -1381,7 +1364,6 @@ static struct omap_hwmod omap54xx_dss_hwmod = {
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_dss_slaves),
 	.masters	= omap54xx_dss_masters,
 	.masters_cnt	= ARRAY_SIZE(omap54xx_dss_masters),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /*
@@ -1482,7 +1464,6 @@ static struct omap_hwmod omap54xx_dss_dispc_hwmod = {
 	.opt_clks_cnt	= ARRAY_SIZE(dss_dispc_opt_clks),
 	.slaves		= omap54xx_dss_dispc_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_dss_dispc_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /*
@@ -1574,7 +1555,6 @@ static struct omap_hwmod omap54xx_dss_dsi1_a_hwmod = {
 	},
 	.slaves		= omap54xx_dss_dsi1_a_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_dss_dsi1_a_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /* dss_dsi1_b */
@@ -1633,7 +1613,6 @@ static struct omap_hwmod omap54xx_dss_dsi1_b_hwmod = {
 	},
 	.slaves		= omap54xx_dss_dsi1_b_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_dss_dsi1_b_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /* dss_dsi1_c */
@@ -1704,7 +1683,6 @@ static struct omap_hwmod omap54xx_dss_dsi1_c_hwmod = {
 	},
 	.slaves		= omap54xx_dss_dsi1_c_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_dss_dsi1_c_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /*
@@ -1802,7 +1780,6 @@ static struct omap_hwmod omap54xx_dss_hdmi_hwmod = {
 	.opt_clks_cnt	= ARRAY_SIZE(dss_hdmi_opt_clks),
 	.slaves		= omap54xx_dss_hdmi_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_dss_hdmi_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /*
@@ -1893,7 +1870,6 @@ static struct omap_hwmod omap54xx_dss_rfbi_hwmod = {
 	.opt_clks_cnt	= ARRAY_SIZE(dss_rfbi_opt_clks),
 	.slaves		= omap54xx_dss_rfbi_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_dss_rfbi_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /*
@@ -1960,7 +1936,6 @@ static struct omap_hwmod omap54xx_emif1_hwmod = {
 	},
 	.slaves		= omap54xx_emif1_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_emif1_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX)
 };
 
 /* emif2 */
@@ -2018,7 +1993,6 @@ static struct omap_hwmod omap54xx_emif2_hwmod = {
 	},
 	.slaves		= omap54xx_emif2_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_emif2_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX)
 };
 
 /*
@@ -2101,7 +2075,6 @@ static struct omap_hwmod omap54xx_gpio1_hwmod = {
 	.dev_attr	= &gpio_dev_attr,
 	.slaves		= omap54xx_gpio1_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_gpio1_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /* gpio2 */
@@ -2156,7 +2129,6 @@ static struct omap_hwmod omap54xx_gpio2_hwmod = {
 	.dev_attr	= &gpio_dev_attr,
 	.slaves		= omap54xx_gpio2_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_gpio2_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /* gpio3 */
@@ -2211,7 +2183,6 @@ static struct omap_hwmod omap54xx_gpio3_hwmod = {
 	.dev_attr	= &gpio_dev_attr,
 	.slaves		= omap54xx_gpio3_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_gpio3_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /* gpio4 */
@@ -2266,7 +2237,6 @@ static struct omap_hwmod omap54xx_gpio4_hwmod = {
 	.dev_attr	= &gpio_dev_attr,
 	.slaves		= omap54xx_gpio4_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_gpio4_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /* gpio5 */
@@ -2321,7 +2291,6 @@ static struct omap_hwmod omap54xx_gpio5_hwmod = {
 	.dev_attr	= &gpio_dev_attr,
 	.slaves		= omap54xx_gpio5_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_gpio5_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /* gpio6 */
@@ -2376,7 +2345,6 @@ static struct omap_hwmod omap54xx_gpio6_hwmod = {
 	.dev_attr	= &gpio_dev_attr,
 	.slaves		= omap54xx_gpio6_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_gpio6_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /* gpio7 */
@@ -2431,7 +2399,6 @@ static struct omap_hwmod omap54xx_gpio7_hwmod = {
 	.dev_attr	= &gpio_dev_attr,
 	.slaves		= omap54xx_gpio7_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_gpio7_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /* gpio8 */
@@ -2486,7 +2453,6 @@ static struct omap_hwmod omap54xx_gpio8_hwmod = {
 	.dev_attr	= &gpio_dev_attr,
 	.slaves		= omap54xx_gpio8_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_gpio8_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /*
@@ -2560,7 +2526,6 @@ static struct omap_hwmod omap54xx_gpmc_hwmod = {
 	},
 	.slaves		= omap54xx_gpmc_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_gpmc_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /*
@@ -2634,7 +2599,6 @@ static struct omap_hwmod omap54xx_gpu_hwmod = {
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_gpu_slaves),
 	.masters	= omap54xx_gpu_masters,
 	.masters_cnt	= ARRAY_SIZE(omap54xx_gpu_masters),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /*
@@ -2714,7 +2678,6 @@ static struct omap_hwmod omap54xx_hsi_hwmod = {
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_hsi_slaves),
 	.masters	= omap54xx_hsi_masters,
 	.masters_cnt	= ARRAY_SIZE(omap54xx_hsi_masters),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /*
@@ -2797,7 +2760,6 @@ static struct omap_hwmod omap54xx_i2c1_hwmod = {
 	},
 	.slaves		= omap54xx_i2c1_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_i2c1_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /* i2c2 */
@@ -2853,7 +2815,6 @@ static struct omap_hwmod omap54xx_i2c2_hwmod = {
 	},
 	.slaves		= omap54xx_i2c2_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_i2c2_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /* i2c3 */
@@ -2909,7 +2870,6 @@ static struct omap_hwmod omap54xx_i2c3_hwmod = {
 	},
 	.slaves		= omap54xx_i2c3_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_i2c3_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /* i2c4 */
@@ -2965,7 +2925,6 @@ static struct omap_hwmod omap54xx_i2c4_hwmod = {
 	},
 	.slaves		= omap54xx_i2c4_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_i2c4_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /* i2c5 */
@@ -3014,7 +2973,6 @@ static struct omap_hwmod omap54xx_i2c5_hwmod = {
 	},
 	.slaves		= omap54xx_i2c5_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_i2c5_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /*
@@ -3086,7 +3044,6 @@ static struct omap_hwmod omap54xx_ipu_hwmod = {
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_ipu_slaves),
 	.masters	= omap54xx_ipu_masters,
 	.masters_cnt	= ARRAY_SIZE(omap54xx_ipu_masters),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /*
@@ -3180,7 +3137,6 @@ static struct omap_hwmod omap54xx_iss_hwmod = {
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_iss_slaves),
 	.masters	= omap54xx_iss_masters,
 	.masters_cnt	= ARRAY_SIZE(omap54xx_iss_masters),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /*
@@ -3266,7 +3222,6 @@ static struct omap_hwmod omap54xx_iva_hwmod = {
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_iva_slaves),
 	.masters	= omap54xx_iva_masters,
 	.masters_cnt	= ARRAY_SIZE(omap54xx_iva_masters),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /*
@@ -3333,7 +3288,6 @@ static struct omap_hwmod omap54xx_kbd_hwmod = {
 	},
 	.slaves		= omap54xx_kbd_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_kbd_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /*
@@ -3399,7 +3353,6 @@ static struct omap_hwmod omap54xx_mailbox_hwmod = {
 	},
 	.slaves		= omap54xx_mailbox_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_mailbox_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /*
@@ -3494,7 +3447,6 @@ static struct omap_hwmod omap54xx_mcbsp1_hwmod = {
 	},
 	.slaves		= omap54xx_mcbsp1_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_mcbsp1_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /* mcbsp2 */
@@ -3570,7 +3522,6 @@ static struct omap_hwmod omap54xx_mcbsp2_hwmod = {
 	},
 	.slaves		= omap54xx_mcbsp2_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_mcbsp2_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /* mcbsp3 */
@@ -3646,7 +3597,6 @@ static struct omap_hwmod omap54xx_mcbsp3_hwmod = {
 	},
 	.slaves		= omap54xx_mcbsp3_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_mcbsp3_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /*
@@ -3741,7 +3691,6 @@ static struct omap_hwmod omap54xx_mcpdm_hwmod = {
 	},
 	.slaves		= omap54xx_mcpdm_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_mcpdm_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /*
@@ -3830,7 +3779,6 @@ static struct omap_hwmod omap54xx_mcspi1_hwmod = {
 	.dev_attr	= &mcspi1_dev_attr,
 	.slaves		= omap54xx_mcspi1_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_mcspi1_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /* mcspi2 */
@@ -3893,7 +3841,6 @@ static struct omap_hwmod omap54xx_mcspi2_hwmod = {
 	.dev_attr	= &mcspi2_dev_attr,
 	.slaves		= omap54xx_mcspi2_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_mcspi2_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /* mcspi3 */
@@ -3956,7 +3903,6 @@ static struct omap_hwmod omap54xx_mcspi3_hwmod = {
 	.dev_attr	= &mcspi3_dev_attr,
 	.slaves		= omap54xx_mcspi3_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_mcspi3_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /* mcspi4 */
@@ -4017,7 +3963,6 @@ static struct omap_hwmod omap54xx_mcspi4_hwmod = {
 	.dev_attr	= &mcspi4_dev_attr,
 	.slaves		= omap54xx_mcspi4_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_mcspi4_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /*
@@ -4106,7 +4051,6 @@ static struct omap_hwmod omap54xx_mmc1_hwmod = {
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_mmc1_slaves),
 	.masters	= omap54xx_mmc1_masters,
 	.masters_cnt	= ARRAY_SIZE(omap54xx_mmc1_masters),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /* mmc2 */
@@ -4167,7 +4111,6 @@ static struct omap_hwmod omap54xx_mmc2_hwmod = {
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_mmc2_slaves),
 	.masters	= omap54xx_mmc2_masters,
 	.masters_cnt	= ARRAY_SIZE(omap54xx_mmc2_masters),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /* mmc3 */
@@ -4222,7 +4165,6 @@ static struct omap_hwmod omap54xx_mmc3_hwmod = {
 	},
 	.slaves		= omap54xx_mmc3_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_mmc3_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /* mmc4 */
@@ -4277,7 +4219,6 @@ static struct omap_hwmod omap54xx_mmc4_hwmod = {
 	},
 	.slaves		= omap54xx_mmc4_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_mmc4_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /* mmc5 */
@@ -4332,7 +4273,6 @@ static struct omap_hwmod omap54xx_mmc5_hwmod = {
 	},
 	.slaves		= omap54xx_mmc5_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_mmc5_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /*
@@ -4399,7 +4339,6 @@ static struct omap_hwmod omap54xx_mpu_hwmod = {
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_mpu_slaves),
 	.masters	= omap54xx_mpu_masters,
 	.masters_cnt	= ARRAY_SIZE(omap54xx_mpu_masters),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /*
@@ -4461,7 +4400,6 @@ static struct omap_hwmod omap54xx_ocp2scp3_hwmod = {
 	},
 	.slaves		= omap54xx_ocp2scp3_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_ocp2scp3_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /*
@@ -4575,7 +4513,6 @@ static struct omap_hwmod omap54xx_sata_hwmod = {
 	.masters	= omap54xx_sata_masters,
 	.masters_cnt	= ARRAY_SIZE(omap54xx_sata_masters),
 	.flags		= HWMOD_SWSUP_SIDLE | HWMOD_SWSUP_MSTANDBY,
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /*
@@ -4650,7 +4587,6 @@ static struct omap_hwmod omap54xx_smartreflex_core_hwmod = {
 	},
 	.slaves		= omap54xx_smartreflex_core_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_smartreflex_core_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /* smartreflex_mm */
@@ -4699,7 +4635,6 @@ static struct omap_hwmod omap54xx_smartreflex_mm_hwmod = {
 	},
 	.slaves		= omap54xx_smartreflex_mm_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_smartreflex_mm_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /* smartreflex_mpu */
@@ -4748,7 +4683,6 @@ static struct omap_hwmod omap54xx_smartreflex_mpu_hwmod = {
 	},
 	.slaves		= omap54xx_smartreflex_mpu_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_smartreflex_mpu_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /*
@@ -4811,7 +4745,6 @@ static struct omap_hwmod omap54xx_spinlock_hwmod = {
 	},
 	.slaves		= omap54xx_spinlock_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_spinlock_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /*
@@ -4895,7 +4828,6 @@ static struct omap_hwmod omap54xx_timer1_hwmod = {
 	},
 	.slaves		= omap54xx_timer1_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_timer1_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /* timer2 */
@@ -4943,7 +4875,6 @@ static struct omap_hwmod omap54xx_timer2_hwmod = {
 	},
 	.slaves		= omap54xx_timer2_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_timer2_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /* timer3 */
@@ -4991,7 +4922,6 @@ static struct omap_hwmod omap54xx_timer3_hwmod = {
 	},
 	.slaves		= omap54xx_timer3_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_timer3_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /* timer4 */
@@ -5039,7 +4969,6 @@ static struct omap_hwmod omap54xx_timer4_hwmod = {
 	},
 	.slaves		= omap54xx_timer4_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_timer4_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /* timer5 */
@@ -5106,7 +5035,6 @@ static struct omap_hwmod omap54xx_timer5_hwmod = {
 	},
 	.slaves		= omap54xx_timer5_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_timer5_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /* timer6 */
@@ -5173,7 +5101,6 @@ static struct omap_hwmod omap54xx_timer6_hwmod = {
 	},
 	.slaves		= omap54xx_timer6_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_timer6_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /* timer7 */
@@ -5240,7 +5167,6 @@ static struct omap_hwmod omap54xx_timer7_hwmod = {
 	},
 	.slaves		= omap54xx_timer7_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_timer7_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /* timer8 */
@@ -5307,7 +5233,6 @@ static struct omap_hwmod omap54xx_timer8_hwmod = {
 	},
 	.slaves		= omap54xx_timer8_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_timer8_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /* timer9 */
@@ -5355,7 +5280,6 @@ static struct omap_hwmod omap54xx_timer9_hwmod = {
 	},
 	.slaves		= omap54xx_timer9_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_timer9_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /* timer10 */
@@ -5403,7 +5327,6 @@ static struct omap_hwmod omap54xx_timer10_hwmod = {
 	},
 	.slaves		= omap54xx_timer10_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_timer10_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /* timer11 */
@@ -5451,7 +5374,6 @@ static struct omap_hwmod omap54xx_timer11_hwmod = {
 	},
 	.slaves		= omap54xx_timer11_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_timer11_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /*
@@ -5527,7 +5449,6 @@ static struct omap_hwmod omap54xx_uart1_hwmod = {
 	},
 	.slaves		= omap54xx_uart1_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_uart1_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /* uart2 */
@@ -5582,7 +5503,6 @@ static struct omap_hwmod omap54xx_uart2_hwmod = {
 	},
 	.slaves		= omap54xx_uart2_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_uart2_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /* uart3 */
@@ -5638,7 +5558,6 @@ static struct omap_hwmod omap54xx_uart3_hwmod = {
 	},
 	.slaves		= omap54xx_uart3_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_uart3_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /* uart4 */
@@ -5693,7 +5612,6 @@ static struct omap_hwmod omap54xx_uart4_hwmod = {
 	},
 	.slaves		= omap54xx_uart4_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_uart4_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /* uart5 */
@@ -5748,7 +5666,6 @@ static struct omap_hwmod omap54xx_uart5_hwmod = {
 	},
 	.slaves		= omap54xx_uart5_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_uart5_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /* uart6 */
@@ -5803,7 +5720,6 @@ static struct omap_hwmod omap54xx_uart6_hwmod = {
 	},
 	.slaves		= omap54xx_uart6_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_uart6_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /*
@@ -5889,7 +5805,6 @@ static struct omap_hwmod omap54xx_usb_otg_ss_hwmod = {
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_usb_otg_ss_slaves),
 	.masters	= omap54xx_usb_otg_ss_masters,
 	.masters_cnt	= ARRAY_SIZE(omap54xx_usb_otg_ss_masters),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /*
@@ -6038,7 +5953,6 @@ static struct omap_hwmod omap54xx_usb_host_hs_hwmod = {
  */
 	.flags		= HWMOD_SWSUP_SIDLE | HWMOD_SWSUP_MSTANDBY |
 			  HWMOD_INIT_NO_RESET,
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 
@@ -6115,7 +6029,6 @@ static struct omap_hwmod omap54xx_usb_tll_hs_hwmod = {
 	.opt_clks_cnt	= ARRAY_SIZE(usb_tll_hs_opt_clks),
 	.slaves		= omap54xx_usb_tll_hs_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_usb_tll_hs_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /*
@@ -6186,7 +6099,6 @@ static struct omap_hwmod omap54xx_wd_timer2_hwmod = {
 	},
 	.slaves		= omap54xx_wd_timer2_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_wd_timer2_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 /* wd_timer3 */
@@ -6253,7 +6165,6 @@ static struct omap_hwmod omap54xx_wd_timer3_hwmod = {
 	},
 	.slaves		= omap54xx_wd_timer3_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap54xx_wd_timer3_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP54XX),
 };
 
 static __initdata struct omap_hwmod *omap54xx_hwmods[] = {
