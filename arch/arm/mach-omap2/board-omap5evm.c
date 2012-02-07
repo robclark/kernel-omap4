@@ -32,7 +32,7 @@
 #include <asm/hardware/gic.h>
 
 #include <mach/hardware.h>
-#include <mach/omap4-common.h>
+#include "common.h"
 #include <plat/common.h>
 #include <plat/usb.h>
 #include <plat/mmc.h>
