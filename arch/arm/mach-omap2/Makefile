@@ -62,6 +62,8 @@ obj-$(CONFIG_ARCH_OMAP3)		+= opp3xxx_data.o
 obj-$(CONFIG_ARCH_OMAP4)		+= opp4xxx_data.o
 endif
 
+obj-$(CONFIG_ARCH_OMAP5)                += opp4xxx_data.o
+
 # Power Management
 ifeq ($(CONFIG_PM),y)
 omap-4-5-common-pm			= pm4xxx_5xxx.o omap-mpuss-lowpower.o
