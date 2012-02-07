@@ -14,6 +14,7 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/bitops.h>
+#include <linux/emif.h>
 
 #include <plat/cpu.h>
 #include <plat/clock.h>
