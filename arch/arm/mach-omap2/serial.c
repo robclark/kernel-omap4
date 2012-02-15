@@ -260,6 +260,9 @@ core_initcall(omap_serial_early_init);
 void __init omap_serial_init_port(struct omap_board_data *bdata,
 			struct omap_uart_port_info *info)
 {
+
+#if 0
+
 	struct omap_uart_state *uart;
 	struct omap_hwmod *oh;
 	struct platform_device *pdev;
@@ -410,9 +413,8 @@ void __init omap_serial_init_port(struct omap_board_data *bdata,
 	/* Enable the MDR1 errata for OMAP3 */
 	if (cpu_is_omap34xx() && !cpu_is_ti816x())
 		uart->errata |= UART_ERRATA_i202_MDR1_ACCESS;
-#if 0
-
-=======
+#endif
+#else
         struct omap_uart_state *uart;
         struct omap_hwmod *oh;
         struct platform_device *pd;
@@ -441,7 +443,7 @@ void __init omap_serial_init_port(struct omap_board_data *bdata,
         omap_up.uartclk = OMAP24XX_BASE_BAUD * 16;
         omap_up.flags = UPF_BOOT_AUTOCONF;
         omap_up.get_context_loss_count = omap_pm_get_dev_context_loss_count;
-        omap_up.set_forceidle = omap_uart_set_forceidle;
+        omap_up.set_forceidle = omap_uart_set_smartidle;
         omap_up.set_noidle = omap_uart_set_noidle;
         omap_up.enable_wakeup = omap_uart_enable_wakeup;
         omap_up.dma_rx_buf_size = info->dma_rx_buf_size;
