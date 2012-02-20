@@ -523,6 +523,17 @@ void drm_connector_cleanup(struct drm_connector *connector)
 }
 EXPORT_SYMBOL(drm_connector_cleanup);
 
+void drm_connector_unplug_all(struct drm_device *dev)
+{
+	struct drm_connector *connector;
+
+	/* taking the mode config mutex ends up in a clash with sysfs */
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
+		drm_sysfs_connector_remove(connector);
+
+}
+EXPORT_SYMBOL(drm_connector_unplug_all);
+
 void drm_encoder_init(struct drm_device *dev,
 		      struct drm_encoder *encoder,
 		      const struct drm_encoder_funcs *funcs,
