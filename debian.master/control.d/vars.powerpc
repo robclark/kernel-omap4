@@ -1,0 +1,6 @@
+supported="32-bit PowerPC"
+target="Geared toward desktop or server systems."
+desc="32-bit PowerPC"
+bootloader="yaboot"
+provides="redhat-cluster-modules, ivtv-modules"
+arch="powerpc"
