@@ -9,9 +9,7 @@ value CONFIG_SECURITY y
 !exists CONFIG_SECURITY_FILE_CAPABILITIES | value CONFIG_SECURITY_FILE_CAPABILITIES y
 value CONFIG_SECURITY_SELINUX y
 value CONFIG_SECURITY_SMACK y
-value CONFIG_SECURITY_YAMA y
 value CONFIG_SYN_COOKIES y
-value CONFIG_DEFAULT_SECURITY_APPARMOR y
 # For architectures which support this option ensure it is enabled.
 !exists CONFIG_SECCOMP | value CONFIG_SECCOMP y
 !exists CONFIG_HAVE_SECCOMP_FILTER | value CONFIG_SECCOMP_FILTER y
@@ -62,9 +60,6 @@ value CONFIG_FB_VESA m | !exists CONFIG_FB_VESA
 
 # Build in uinput module so that it's always available (LP: 584812)
 value CONFIG_INPUT_UINPUT y
-
-# upstart relies on getting all of the kernel arguments
-value CONFIG_INIT_PASS_ALL_PARAMS y
 
 # Enabling CONFIG_IMA is vastly expensive, ensure it is off
 value CONFIG_IMA n
