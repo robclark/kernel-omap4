@@ -344,9 +344,9 @@ static int ttm_bo_add_ttm(struct ttm_buffer_object *bo, bool zero_alloc)
 			ret = -ENOMEM;
 		break;
 	case ttm_bo_type_sg:
-		bo->ttm = ttm_tt_create(bdev, bo->num_pages << PAGE_SHIFT,
-					page_flags | TTM_PAGE_FLAG_SLAVE,
-					glob->dummy_read_page);
+		bo->ttm = bdev->driver->ttm_tt_create(bdev, bo->num_pages << PAGE_SHIFT,
+					              page_flags | TTM_PAGE_FLAG_SLAVE,
+					              glob->dummy_read_page);
 		if (unlikely(bo->ttm == NULL)) {
 			ret = -ENOMEM;
 			break;
