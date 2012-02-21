@@ -1831,7 +1831,7 @@ nvd0_display_create(struct drm_device *dev)
 
 	/* small shared memory area we use for notifiers and semaphores */
 	ret = nouveau_bo_new(dev, 4096, 0x1000, TTM_PL_FLAG_VRAM,
-			     0, 0x0000, &disp->sync);
+			     0, 0x0000, NULL, &disp->sync);
 	if (!ret) {
 		ret = nouveau_bo_pin(disp->sync, TTM_PL_FLAG_VRAM);
 		if (!ret)
