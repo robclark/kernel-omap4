@@ -607,11 +607,11 @@ udl_fb_user_fb_create(struct drm_device *dev,
 	if (obj == NULL)
 		return ERR_PTR(-ENOENT);
 
-	size = mode_cmd->pitch * mode_cmd->height;
+	size = mode_cmd->pitches[0] * mode_cmd->height;
 	size = ALIGN(size, PAGE_SIZE);
 
 	if (size > obj->size) {
-		DRM_ERROR("object size not sufficient for fb %d %d %d %d\n", size, obj->size, mode_cmd->pitch, mode_cmd->height);
+		DRM_ERROR("object size not sufficient for fb %d %zu %d %d\n", size, obj->size, mode_cmd->pitches[0], mode_cmd->height);
 		return ERR_PTR(-ENOMEM);
 	}
 
