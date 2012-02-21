@@ -131,8 +131,8 @@ struct ttm_mem_reg {
 
 enum ttm_bo_type {
 	ttm_bo_type_device,
-	ttm_bo_type_kernel
-	ttm_bo_type_sg,
+	ttm_bo_type_kernel,
+	ttm_bo_type_sg
 };
 
 struct ttm_tt;
