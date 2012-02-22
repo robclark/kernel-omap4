@@ -171,13 +171,6 @@ void ttm_tt_destroy(struct ttm_tt *ttm)
 
 	if (likely(ttm->pages != NULL)) {
 		ttm->bdev->driver->ttm_tt_unpopulate(ttm);
-
-#if 0
-		else if (!(ttm->page_flags & TTM_PAGE_FLAG_SLAVE))
-			ttm_tt_free_alloced_pages(ttm);
-
-		ttm_tt_free_page_directory(ttm);
-#endif
 	}
 
 	if (!(ttm->page_flags & TTM_PAGE_FLAG_PERSISTENT_SWAP) &&
@@ -199,10 +192,7 @@ int ttm_tt_set_sg_pages(struct ttm_tt *ttm,
 	
 	for_each_sg(sg->sgl, sl, sg->nents, i)
 		ttm->pages[i] = sg_page(sl);
-	ttm->be->func->populate(ttm->be, ttm->num_pages, ttm->pages,
-				ttm->dummy_read_page, ttm->dma_address);
 
-	ttm->state = tt_unbound;
 	return 0;
 }
 
