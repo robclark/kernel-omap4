@@ -1,5 +1,6 @@
 #include <linux/export.h>
 #include <linux/dma-buf.h>
+#include <linux/hash.h>
 #include "drmP.h"
 
 struct drm_prime_member {
@@ -124,3 +125,48 @@ void drm_prime_remove_fd_handle_mapping(struct drm_prime_file_private *prime_fpr
 	}
 }
 EXPORT_SYMBOL(drm_prime_remove_fd_handle_mapping);
+
+static struct drm_gem_object *get_obj_from_dma_buf(struct drm_device *dev,
+						   struct dma_buf *buf)
+{
+	struct drm_gem_object *obj;
+	struct hlist_head *bucket =
+		&dev->dma_buf_hash[hash_ptr(buf, DRM_DMA_BUF_HASH_BITS)];
+	struct hlist_node *tmp;
+
+	hlist_for_each_entry(obj, tmp, bucket, brown) {
+		if (obj->export_dma_buf == buf)
+			return obj;
+	}
+
+	return NULL;
+}
+
+int drm_prime_add_dma_buf(struct drm_device *dev, struct drm_gem_object *obj)
+{
+	struct drm_gem_object *tmp;
+	unsigned long hash;
+
+	if ((tmp = get_obj_from_dma_buf(dev, obj->export_dma_buf))) {
+		DRM_DEBUG_PRIME("%p found DRM hash\n", obj->export_dma_buf);
+		if (WARN_ON(tmp != obj))
+			return -1;
+		return 0;
+	}
+
+	hash = hash_ptr(obj->export_dma_buf, DRM_DMA_BUF_HASH_BITS);
+	hlist_add_head(&obj->brown, &dev->dma_buf_hash[hash]);
+
+	DRM_DEBUG_PRIME("%p added to DRM hash\n", obj->export_dma_buf);
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_prime_add_dma_buf);
+
+int drm_prime_lookup_obj(struct drm_device *dev, struct dma_buf *buf,
+			 struct drm_gem_object **obj)
+{
+	*obj = get_obj_from_dma_buf(dev, buf);
+	return 0;
+}
+EXPORT_SYMBOL(drm_prime_lookup_obj);

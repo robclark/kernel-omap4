@@ -146,6 +146,7 @@ int drm_gem_object_init(struct drm_device *dev,
 	atomic_set(&obj->handle_count, 0);
 	obj->size = size;
 	obj->prime_fd = -1;
+	INIT_HLIST_NODE(&obj->brown);
 
 	return 0;
 }
@@ -168,6 +169,8 @@ int drm_gem_private_object_init(struct drm_device *dev,
 	atomic_set(&obj->handle_count, 0);
 	obj->size = size;
 	obj->prime_fd = -1;
+	INIT_HLIST_NODE(&obj->brown);
+
 	return 0;
 }
 EXPORT_SYMBOL(drm_gem_private_object_init);
