@@ -17,8 +17,8 @@ omap-4-5-common				= omap4-common.o omap-wakeupgen.o \
 
 obj-$(CONFIG_ARCH_OMAP2) += $(omap-2-3-common) $(hwmod-common)
 obj-$(CONFIG_ARCH_OMAP3) += $(omap-2-3-common) $(hwmod-common) $(secure-common)
-obj-$(CONFIG_ARCH_OMAP4) += prm44xx.o $(hwmod-common) $(secure-common) $(omap-4-5-common)
-obj-$(CONFIG_ARCH_OMAP5) += prm44xx.o $(hwmod-common) $(secure-common) $(omap-4-5-common)
+obj-$(CONFIG_ARCH_OMAP4) += $(hwmod-common) $(secure-common) $(omap-4-5-common)
+obj-$(CONFIG_ARCH_OMAP5) += $(hwmod-common) $(secure-common) $(omap-4-5-common)
 
 ifneq ($(CONFIG_SND_OMAP_SOC_MCBSP),)
 obj-y += mcbsp.o
@@ -109,7 +109,8 @@ obj-$(CONFIG_ARCH_OMAP4)		+= prcm.o cm2xxx_3xxx.o cminst44xx.o \
 obj-$(CONFIG_ARCH_OMAP5)                += prcm.o cm2xxx_3xxx.o cminst44xx.o \
                                            cm44xx.o prcm_mpu44xx.o \
                                            prminst44xx.o vc54xx_data.o \
-                                           vp54xx_data.o dvfs.o abb54xx_data.o
+                                           vp54xx_data.o dvfs.o abb54xx_data.o \
+					   prm44xx.o
 
 # OMAP voltage domains
 voltagedomain-common			:= voltage.o vc.o vp.o abb.o
