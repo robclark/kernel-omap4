@@ -57,7 +57,10 @@ static int omap4_pm_suspend(void)
 	/* Set targeted power domain states by suspend */
 	list_for_each_entry(pwrst, &pwrst_list, node) {
 		omap_set_pwrdm_state(pwrst->pwrdm, pwrst->next_state);
-		pwrdm_set_logic_retst(pwrst->pwrdm, PWRDM_POWER_OFF);
+		if (cpu_is_omap44xx())
+			pwrdm_set_logic_retst(pwrst->pwrdm, PWRDM_POWER_OFF);
+		else
+			pwrdm_set_logic_retst(pwrst->pwrdm, PWRDM_POWER_RET);
 	}
 
 	/*
