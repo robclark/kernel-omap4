@@ -2285,6 +2285,7 @@ static struct omap_hwmod omap44xx_gpio1_hwmod = {
 	.class		= &omap44xx_gpio_hwmod_class,
 	.clkdm_name	= "l4_wkup_clkdm",
 	.mpu_irqs	= omap44xx_gpio1_irqs,
+	.flags		= HWMOD_INIT_NO_RESET,
 	.main_clk	= "gpio1_ick",
 	.prcm = {
 		.omap4 = {
