@@ -308,6 +308,7 @@ void omap_sram_idle(void)
 		omap2_prm_set_mod_reg_bits(OMAP3430_EN_IO_MASK, WKUP_MOD, PM_WKEN);
 		if (omap3_has_io_chain_ctrl())
 			omap3_enable_io_chain();
+		omap3_trigger_wuclk_ctrl();
 	}
 
 	pwrdm_pre_transition();

@@ -413,6 +413,41 @@ void omap3xxx_prm_restore_irqen(u32 *saved_mask)
 				OMAP3_PRM_IRQENABLE_MPU_OFFSET);
 }
 
+/**
+ * Maximum time(us) it takes to output the signal WUCLKOUT of the last pad of
+ * the I/O ring after asserting WUCLKIN high
+ */
+#define MAX_IOPAD_LATCH_TIME 1000
+
+/* OMAP3 Daisychain trigger sequence */
+void omap3_trigger_wuclk_ctrl(void)
+{
+	int i = 0;
+
+	if ((omap_rev() >= OMAP3430_REV_ES3_1) && omap3_has_io_wakeup()) {
+		omap2_prm_set_mod_reg_bits(OMAP3430_EN_IO_CHAIN_MASK, WKUP_MOD,
+				     PM_WKEN);
+		/* Do a readback to assure write has been done */
+		omap2_prm_read_mod_reg(WKUP_MOD, PM_WKEN);
+
+		omap_test_timeout(
+		(((omap2_prm_read_mod_reg(WKUP_MOD, PM_WKST) &
+			 OMAP3430_ST_IO_CHAIN_MASK) == 1)),
+		MAX_IOPAD_LATCH_TIME, i);
+
+		omap2_prm_clear_mod_reg_bits(OMAP3430_EN_IO_CHAIN_MASK, WKUP_MOD,
+				     PM_WKEN);
+	}
+}
+
+/* OMAP3 Daisychain disable sequence */
+void omap3_disable_io_chain(void)
+{
+	if (omap_rev() >= OMAP3430_REV_ES3_1)
+			omap2_prm_clear_mod_reg_bits(OMAP3430_EN_IO_CHAIN_MASK, WKUP_MOD,
+								PM_WKEN);
+}
+
 static int __init omap3xxx_prcm_init(void)
 {
 	if (cpu_is_omap34xx())
