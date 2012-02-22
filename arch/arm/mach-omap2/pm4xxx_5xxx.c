@@ -45,7 +45,7 @@ static LIST_HEAD(pwrst_list);
 static int omap4_pm_suspend(void)
 {
 	struct power_state *pwrst;
-	int state, ret = 0;
+	int state, ret = 0, logic_state;
 	u32 cpu_id = smp_processor_id();
 
 	/* Save current powerdomain state */
@@ -56,11 +56,16 @@ static int omap4_pm_suspend(void)
 
 	/* Set targeted power domain states by suspend */
 	list_for_each_entry(pwrst, &pwrst_list, node) {
+		logic_state = PWRDM_POWER_RET;
+
+#ifdef CONFIG_OMAP_ALLOW_OSWR
+	/*OSWR is supported on silicon > ES2.0 */
+		if ((pwrst->pwrdm->pwrsts_logic_ret == PWRSTS_OFF_RET)
+		&& (omap_rev() >= OMAP4430_REV_ES2_1))
+		logic_state = PWRDM_POWER_OFF;
+#endif
 		omap_set_pwrdm_state(pwrst->pwrdm, pwrst->next_state);
-		if (cpu_is_omap44xx())
-			pwrdm_set_logic_retst(pwrst->pwrdm, PWRDM_POWER_OFF);
-		else
-			pwrdm_set_logic_retst(pwrst->pwrdm, PWRDM_POWER_RET);
+			pwrdm_set_logic_retst(pwrst->pwrdm, logic_state);
 	}
 
 	/*
