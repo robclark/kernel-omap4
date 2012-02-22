@@ -125,7 +125,7 @@ nouveau_bo_new(struct drm_device *dev, int size, int align,
 				       sizeof(struct nouveau_bo));
 
 	ret = ttm_bo_init(&dev_priv->ttm.bdev, &nvbo->bo, size,
-			  ttm_bo_type_device, &nvbo->placement,
+			  type, &nvbo->placement,
 			  align >> PAGE_SHIFT, 0, false, NULL, acc_size, sg,
 			  nouveau_bo_del_ttm);
 	if (ret) {
