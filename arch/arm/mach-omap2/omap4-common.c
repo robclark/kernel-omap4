@@ -115,6 +115,17 @@ void __init gic_init_irq(void)
 	gic_init(0, 29, gic_dist_base_addr, omap_irq_base);
 }
 
+void gic_dist_enable(void)
+{
+	__raw_writel(0x1, gic_dist_base_addr + GIC_DIST_CTRL);
+}
+
+void gic_dist_disable(void)
+{
+	__raw_writel(0, gic_dist_base_addr + GIC_DIST_CTRL);
+}
+
+
 #ifdef CONFIG_CACHE_L2X0
 
 void __iomem *omap4_get_l2cache_base(void)
