@@ -2763,9 +2763,14 @@ int omap_hwmod_get_context_loss_count(struct omap_hwmod *oh)
 	struct powerdomain *pwrdm;
 	int ret = 0;
 
-	pwrdm = omap_hwmod_get_pwrdm(oh);
-	if (pwrdm)
-		ret = pwrdm_get_context_loss_count(pwrdm);
+	if (oh->prcm.omap4.context_offs) {
+		/* Support for per-hwmod context register */
+		ret = oh->prcm.omap4.context_lost_counter;
+	} else {
+		pwrdm = omap_hwmod_get_pwrdm(oh);
+		if (pwrdm)
+			ret = pwrdm_get_context_loss_count(pwrdm);
+	}
 
 	return ret;
 }
