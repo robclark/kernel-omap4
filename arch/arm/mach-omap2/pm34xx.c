@@ -393,6 +393,7 @@ void omap_sram_idle(void)
 		if (omap3_has_io_chain_ctrl())
 			omap3_disable_io_chain();
 	}
+	pwrdm_post_transition();
 
 	clkdm_allow_idle(mpu_pwrdm->pwrdm_clkdms[0]);
 }
