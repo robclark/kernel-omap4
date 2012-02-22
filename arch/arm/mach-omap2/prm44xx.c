@@ -286,7 +286,7 @@ void omap4_trigger_wuclk_ctrl(void)
 
 static int __init omap4xxx_prcm_init(void)
 {
-	if (cpu_is_omap44xx())
+	if (cpu_is_omap44xx() || cpu_is_omap54xx())
 		return omap_prcm_register_chain_handler(&omap4_prcm_irq_setup);
 	return 0;
 }
