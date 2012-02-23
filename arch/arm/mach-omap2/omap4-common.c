@@ -37,7 +37,8 @@
 static void __iomem *l2cache_base;
 #endif
 
-static void __iomem *sar_ram_base;
+void __iomem *gic_dist_base_addr;
+void __iomem *dram_sync, *sram_sync;
 
 #ifdef CONFIG_OMAP4_ERRATA_I688
 /* Used to implement memory barrier on DRAM path */
@@ -203,32 +204,3 @@ static int __init omap_l2_cache_init(void)
 }
 early_initcall(omap_l2_cache_init);
 #endif
-
-void __iomem *omap4_get_sar_ram_base(void)
-{
-	return sar_ram_base;
-}
-
-/*
- * SAR RAM used to save and restore the HW
- * context in low power modes
- */
-static int __init omap4_sar_ram_init(void)
-{
-	unsigned long sar_base_phys;
-
-	if (cpu_is_omap44xx())
-		sar_base_phys = OMAP44XX_SAR_RAM_BASE;
-	else if (cpu_is_omap54xx())
-		sar_base_phys = OMAP54XX_SAR_RAM_BASE;
-	else
-		return -ENOMEM;
-
-	/* Static mapping, never released */
-	sar_ram_base = ioremap(sar_base_phys, SZ_16K);
-	if (WARN_ON(!sar_ram_base))
-		return -ENOMEM;
-
-	return 0;
-}
-early_initcall(omap4_sar_ram_init);
