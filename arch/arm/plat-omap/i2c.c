@@ -194,7 +194,7 @@ static inline int omap2_i2c_add_bus(int bus_id)
 	pdata->device_reset = omap_device_reset;
 	pdev = omap_device_build(name, bus_id, oh, pdata,
 			sizeof(struct omap_i2c_bus_platform_data),
-			NULL, 0, 0);
+			omap_i2c_latency, ARRAY_SIZE(omap_i2c_latency), 0);
 	WARN(IS_ERR(pdev), "Could not build omap_device for %s\n", name);
 
 	return PTR_RET(pdev);
