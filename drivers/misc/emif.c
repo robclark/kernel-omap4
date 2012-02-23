@@ -27,7 +27,7 @@
 #include <linux/notifier.h>
 #include "emif_regs.h"
 #include <plat/common.h>
-#include "common.h"
+#include "../../arch/arm/mach-omap2/common.h"
 #include "../../arch/arm/mach-omap2/voltage.h"
 
 /** struct emif_data - Per device static data for driver's use
