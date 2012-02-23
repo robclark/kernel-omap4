@@ -535,6 +535,8 @@ static int __init omap2_pm_qos_tput_init(void)
 
 static void __init omap5_init_voltages(void)
 {
+	struct omap_device *od;
+
 	if (!cpu_is_omap54xx())
 		return;
 
@@ -555,8 +557,13 @@ static int __init omap2_common_pm_init(void)
 
 #endif
 
-        if (!of_have_populated_dt())                                            
+        if (!of_have_populated_dt()) 
                 omap2_init_processor_devices();
+
+        mpu_dev = omap_device_get_by_hwmod_name("mpu");                         
+        iva_dev =  omap_device_get_by_hwmod_name("iva");                        
+        l3_dev =  omap_device_get_by_hwmod_name("l3_main_1");                   
+        dsp_dev =  omap_device_get_by_hwmod_name("dsp");   
 
 	omap_pm_if_init();
 
