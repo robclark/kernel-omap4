@@ -168,6 +168,9 @@ void omap_pm_idle(u32 cpu_id, int state)
 	if (omap4_device_prev_state_off()) {
 		omap4_dpll_resume_off();
 		omap4_cm_resume_off();
+#ifdef CONFIG_PM_DEBUG
+		omap4_device_off_counter++;
+#endif
 	}
 }
 
@@ -306,8 +309,6 @@ void omap4_pm_off_mode_enable(int enable)
 		next_logic_state = PWRDM_POWER_OFF;
 	}
 #endif
-
-	omap4_device_set_state_off(enable);
 
 	list_for_each_entry(pwrst, &pwrst_list, node) {
 		pwrst->next_state =

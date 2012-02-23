@@ -40,6 +40,8 @@
 
 u32 enable_off_mode;
 u32 wakeup_timer_seconds = 0;
+static u32 enable_dev_off;
+u32 omap4_device_off_counter;
 
 #ifdef CONFIG_DEBUG_FS
 #include <linux/debugfs.h>
@@ -176,8 +178,9 @@ static int voltdm_dbg_show_counters(struct voltagedomain *voltdm, void *user)
 static int pm_dbg_show_counters(struct seq_file *s, void *unused)
 {
 	pwrdm_for_each(pwrdm_dbg_show_counter, s);
+	if (cpu_is_omap44xx() || cpu_is_omap54xx())
+		seq_printf(s, "DEVICE-OFF:%d\n", omap4_device_off_counter);
 	voltdm_for_each(voltdm_dbg_show_counters, s);
-
 	return 0;
 }
 
@@ -270,6 +273,14 @@ static int option_set(void *data, u64 val)
 
 	*option = val;
 
+	if (option == &enable_dev_off) {
+		if (val && enable_off_mode == 0) {
+			enable_off_mode = 1;
+			omap4_pm_off_mode_enable(1);
+		}
+		omap4_device_set_state_off(val);
+	}
+
 	if (option == &enable_off_mode) {
 		if (val)
 			omap_pm_enable_off_mode();
@@ -277,8 +288,13 @@ static int option_set(void *data, u64 val)
 			omap_pm_disable_off_mode();
 		if (cpu_is_omap34xx())
 			omap3_pm_off_mode_enable(val);
-		else if (cpu_is_omap44xx() || cpu_is_omap54xx())
+		else if (cpu_is_omap44xx() || cpu_is_omap54xx()) {
 			omap4_pm_off_mode_enable(val);
+			if (!(val & enable_dev_off)) {
+				enable_dev_off = 0;
+				omap4_device_set_state_off(0);
+			}
+		}
 	}
 
 	return 0;
@@ -307,6 +323,8 @@ static int __init pm_dbg_init(void)
 #ifdef CONFIG_OMAP_ALLOW_OSWR
 	(void) debugfs_create_file("enable_off_mode", S_IRUGO | S_IWUSR, d,
 				   &enable_off_mode, &pm_dbg_option_fops);
+	(void) debugfs_create_file("enable_dev_off", S_IRUGO | S_IWUSR, d,
+				   &enable_dev_off, &pm_dbg_option_fops);
 #endif
 
 	(void) debugfs_create_file("wakeup_timer_seconds", S_IRUGO | S_IWUSR, d,

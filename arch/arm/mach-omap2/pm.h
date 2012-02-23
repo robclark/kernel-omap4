@@ -46,6 +46,7 @@ static inline bool omap4_device_next_state_off(void)
 	return false;
 }
 #endif
+extern u32 omap4_device_off_counter;
 
 #if defined(CONFIG_PM_OPP)
 extern int omap3_opp_init(void);
