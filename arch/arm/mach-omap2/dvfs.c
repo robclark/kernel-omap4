@@ -11,6 +11,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/module.h>
 #include <linux/err.h>
 #include <linux/spinlock.h>
 #include <linux/plist.h>
@@ -701,6 +702,7 @@ int omap_device_scale(struct device *req_dev, struct device *target_dev,
 		return -EINVAL;
 	}
 
+	// !!! incompatible pointer type
 	od = container_of(pdev, struct omap_device, pdev);
 	if (IS_ERR_OR_NULL(od)) {
 		pr_err("%s: od is null!\n", __func__);
