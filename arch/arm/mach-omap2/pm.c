@@ -552,10 +552,11 @@ static int __init omap2_common_pm_init(void)
 		return 0;
 	}
 
-        if (!of_have_populated_dt())                                            
-                omap2_init_processor_devices(); 
-
 #endif
+
+        if (!of_have_populated_dt())                                            
+                omap2_init_processor_devices();
+
 	omap_pm_if_init();
 
 	/* Register to the per-device PM QoS framework */
