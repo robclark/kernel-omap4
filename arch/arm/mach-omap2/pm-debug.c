@@ -277,6 +277,8 @@ static int option_set(void *data, u64 val)
 			omap_pm_disable_off_mode();
 		if (cpu_is_omap34xx())
 			omap3_pm_off_mode_enable(val);
+		else if (cpu_is_omap44xx() || cpu_is_omap54xx())
+			omap4_pm_off_mode_enable(val);
 	}
 
 	return 0;
@@ -302,8 +304,10 @@ static int __init pm_dbg_init(void)
 
 	pwrdm_for_each(pwrdms_setup, (void *)d);
 
+#ifdef CONFIG_OMAP_ALLOW_OSWR
 	(void) debugfs_create_file("enable_off_mode", S_IRUGO | S_IWUSR, d,
 				   &enable_off_mode, &pm_dbg_option_fops);
+#endif
 
 	(void) debugfs_create_file("wakeup_timer_seconds", S_IRUGO | S_IWUSR, d,
 				   &wakeup_timer_seconds, &pm_dbg_option_fops);
