@@ -442,7 +442,6 @@ static void save_secure_all(void)
 static void irq_save_context(void)
 {
 	omap_wakeupgen_save();
-	gic_save_context();
 }
 
 static void irq_save_secure_context(void)
