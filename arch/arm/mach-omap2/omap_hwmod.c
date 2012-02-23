@@ -2908,6 +2908,6 @@ struct device *omap_hwmod_name_get_dev(const char *oh_name)
 		return ERR_PTR(oh ? PTR_ERR(oh) : -ENODEV);
 	}
 
-	return &oh->od->pdev.dev;
+	return &oh->od->pdev->dev;
 }
 EXPORT_SYMBOL(omap_hwmod_name_get_dev);
