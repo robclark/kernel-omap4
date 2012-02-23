@@ -539,7 +539,7 @@ static void __init omap5_init_voltages(void)
 		return;
 
 	omap2_set_init_voltage("mpu", "virt_dpll_mpu_ck", "mpu");
-	omap2_set_init_voltage("core", "virt_l3_ck", "l3_main");
+	omap2_set_init_voltage("core", "virt_l3_ck", "l3_main_1");
 #ifndef CONFIG_OMAP_PM_STANDALONE
 	omap2_set_init_voltage("mm", "dpll_iva_h12x2_ck", "iva");
 #endif
