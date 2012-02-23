@@ -99,6 +99,14 @@ static void unpin_worker(struct work_struct *work)
 	mutex_unlock(&omap_plane->unpin_mutex);
 }
 
+/*
+ * work around for PM issue in omapdss.. otherwise omap_dispc_register_isr(),
+ * otherwise calls to omap_dispc_register_isr() result in register writes
+ * with clocks off:
+ */
+int dispc_runtime_get(void);
+int dispc_runtime_put(void);
+
 /* push changes down to dss2 */
 static int commit(struct drm_plane *plane)
 {
@@ -146,7 +154,9 @@ static int commit(struct drm_plane *plane)
 		 * NOTE: really this should be atomic w/ mgr->apply() but
 		 * omapdss does not expose such an API
 		 */
+		dispc_runtime_get();
 		ret = omap_dispc_register_isr(dispc_isr, plane, id2irq[ovl->id]);
+		dispc_runtime_put();
 
 		/*
 		 * omapdss has upper limit on # of registered irq handlers,
