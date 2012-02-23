@@ -127,6 +127,7 @@
  */
 #undef DEBUG
 
+#include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/io.h>
