@@ -112,6 +112,12 @@ static struct reg_tuple ivahd_reg[] = {
 	{.addr = OMAP4430_PM_IVAHD_PWRSTCTRL}
 };
 
+static struct reg_tuple l3instr_reg[] = {
+	{.addr = OMAP4430_CM_L3INSTR_L3_3_CLKCTRL},
+	{.addr = OMAP4430_CM_L3INSTR_L3_INSTR_CLKCTRL},
+	{.addr = OMAP4430_CM_L3INSTR_OCP_WP1_CLKCTRL},
+};
+
 static int default_finish_suspend(unsigned long cpu_state)
 {
 	omap_do_wfi();
@@ -305,6 +311,22 @@ static inline void restore_ivahd_tesla_regs(void)
 		__raw_writel(ivahd_reg[i].val, ivahd_reg[i].addr);
 }
 
+static inline void save_l3instr_regs(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(l3instr_reg); i++)
+		l3instr_reg[i].val = __raw_readl(l3instr_reg[i].addr);
+}
+
+static inline void restore_l3instr_regs(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(l3instr_reg); i++)
+		__raw_writel(l3instr_reg[i].val, l3instr_reg[i].addr);
+}
+
 /**
  * omap_enter_lowpower: OMAP4 MPUSS Low Power Entry Function
  * The purpose of this function is to manage low power programming
@@ -368,8 +390,10 @@ int omap_enter_lowpower(unsigned int cpu, unsigned int power_state)
 	pwrdm_clear_all_prev_pwrst(mpuss_pd);
 
 	if (omap4_device_next_state_off()) {
-		if (omap_type() != OMAP2_DEVICE_TYPE_GP)
+		if (omap_type() != OMAP2_DEVICE_TYPE_GP) {
 			save_ivahd_tesla_regs();
+			save_l3instr_regs();
+		}
 		save_state = 3;
 	} else if ((pwrdm_read_next_pwrst(mpuss_pd) == PWRDM_POWER_RET) &&
 		(pwrdm_read_logic_retst(mpuss_pd) == PWRDM_POWER_OFF)) {
@@ -424,8 +448,10 @@ int omap_enter_lowpower(unsigned int cpu, unsigned int power_state)
 	set_cpu_next_pwrst(wakeup_cpu, PWRDM_POWER_ON);
 
 	if ((omap4_device_prev_state_off()) &&
-			(omap_type() != OMAP2_DEVICE_TYPE_GP))
+			(omap_type() != OMAP2_DEVICE_TYPE_GP)) {
 		restore_ivahd_tesla_regs();
+		restore_l3instr_regs();
+	}
 
 
 	pwrdm_post_transition();
