@@ -125,6 +125,10 @@ void gic_dist_disable(void)
 	__raw_writel(0, gic_dist_base_addr + GIC_DIST_CTRL);
 }
 
+u32 gic_readl(u32 offset, u8 idx)
+{
+	return __raw_readl(gic_dist_base_addr + offset + 4 * idx);
+}
 
 #ifdef CONFIG_CACHE_L2X0
 
