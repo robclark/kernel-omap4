@@ -17,9 +17,9 @@
 #include <linux/clk.h>
 #include <linux/slab.h>
 
-#include <mach/omap4-common.h>
 #include <mach/ctrl_module_wkup_44xx.h>
 
+#include "common.h"
 #include "clockdomain.h"
 #include "omap4-sar-layout.h"
 #include "cm-regbits-44xx.h"

@@ -12,7 +12,7 @@
 #define OMAP_ARCH_OMAP4_SAR_LAYOUT_H
 
 #include <mach/hardware.h>
-#include <mach/omap4-common.h>
+#include "common.h"
 
 #include "cm1_44xx.h"
 #include "cm2_44xx.h"
