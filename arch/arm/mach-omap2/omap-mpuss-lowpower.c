@@ -94,6 +94,24 @@ static struct powerdomain *mpuss_pd;
 static void __iomem *sar_base;
 static struct voltagedomain *mpu_voltdm;
 
+struct reg_tuple {
+	void __iomem *addr;
+	u32 val;
+};
+
+static struct reg_tuple tesla_reg[] = {
+	{.addr = OMAP4430_CM_TESLA_CLKSTCTRL},
+	{.addr = OMAP4430_CM_TESLA_TESLA_CLKCTRL},
+	{.addr = OMAP4430_PM_TESLA_PWRSTCTRL},
+};
+
+static struct reg_tuple ivahd_reg[] = {
+	{.addr = OMAP4430_CM_IVAHD_CLKSTCTRL},
+	{.addr = OMAP4430_CM_IVAHD_IVAHD_CLKCTRL},
+	{.addr = OMAP4430_CM_IVAHD_SL2_CLKCTRL},
+	{.addr = OMAP4430_PM_IVAHD_PWRSTCTRL}
+};
+
 static int default_finish_suspend(unsigned long cpu_state)
 {
 	omap_do_wfi();
@@ -265,6 +283,28 @@ static void save_l2x0_context(void)
 {}
 #endif
 
+static inline void save_ivahd_tesla_regs(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(tesla_reg); i++)
+		tesla_reg[i].val = __raw_readl(tesla_reg[i].addr);
+
+	for (i = 0; i < ARRAY_SIZE(ivahd_reg); i++)
+		ivahd_reg[i].val = __raw_readl(ivahd_reg[i].addr);
+}
+
+static inline void restore_ivahd_tesla_regs(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(tesla_reg); i++)
+		__raw_writel(tesla_reg[i].val, tesla_reg[i].addr);
+
+	for (i = 0; i < ARRAY_SIZE(ivahd_reg); i++)
+		__raw_writel(ivahd_reg[i].val, ivahd_reg[i].addr);
+}
+
 /**
  * omap_enter_lowpower: OMAP4 MPUSS Low Power Entry Function
  * The purpose of this function is to manage low power programming
@@ -327,13 +367,16 @@ int omap_enter_lowpower(unsigned int cpu, unsigned int power_state)
 	mpuss_clear_prev_logic_pwrst();
 	pwrdm_clear_all_prev_pwrst(mpuss_pd);
 
-	if (omap4_device_next_state_off())
+	if (omap4_device_next_state_off()) {
+		if (omap_type() != OMAP2_DEVICE_TYPE_GP)
+			save_ivahd_tesla_regs();
 		save_state = 3;
-	else if ((pwrdm_read_next_pwrst(mpuss_pd) == PWRDM_POWER_RET) &&
-		(pwrdm_read_logic_retst(mpuss_pd) == PWRDM_POWER_OFF))
+	} else if ((pwrdm_read_next_pwrst(mpuss_pd) == PWRDM_POWER_RET) &&
+		(pwrdm_read_logic_retst(mpuss_pd) == PWRDM_POWER_OFF)) {
 		save_state = 2;
-	else if (pwrdm_read_next_pwrst(mpuss_pd) == PWRDM_POWER_OFF)
+	} else if (pwrdm_read_next_pwrst(mpuss_pd) == PWRDM_POWER_OFF) {
 		save_state = 3;
+	}
 
 	cpu_clear_prev_logic_pwrst(cpu);
 	set_cpu_next_pwrst(cpu, power_state);
@@ -379,6 +422,11 @@ int omap_enter_lowpower(unsigned int cpu, unsigned int power_state)
 		if (cpu_is_omap446x())
 			gic_dist_enable();
 	set_cpu_next_pwrst(wakeup_cpu, PWRDM_POWER_ON);
+
+	if ((omap4_device_prev_state_off()) &&
+			(omap_type() != OMAP2_DEVICE_TYPE_GP))
+		restore_ivahd_tesla_regs();
+
 
 	pwrdm_post_transition();
 
