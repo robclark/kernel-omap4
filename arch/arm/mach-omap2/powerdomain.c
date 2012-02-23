@@ -131,20 +131,28 @@ static int _pwrdm_register(struct powerdomain *pwrdm)
 static void _update_logic_membank_counters(struct powerdomain *pwrdm)
 {
 	int i;
-	u8 prev_logic_pwrst, prev_mem_pwrst;
+	int logic_pwrst, mem_pwrst;
+
+	logic_pwrst = pwrdm_read_prev_logic_pwrst(pwrdm);
+	if (logic_pwrst == -EINVAL)
+		logic_pwrst = pwrdm_read_logic_retst(pwrdm);
 
 	prev_logic_pwrst = pwrdm_read_prev_logic_pwrst(pwrdm);
-
+#if 0
 	/* Fake logic off counter */
 	if ((pwrdm->pwrsts_logic_ret == PWRSTS_OFF_RET) &&
 		(pwrdm_read_logic_retst(pwrdm) == PWRDM_POWER_OFF))
+#endif
+	if ((pwrdm->pwrsts_logic_ret == PWRSTS_OFF_RET) &&
+	    (logic_pwrst == PWRDM_POWER_OFF))
 		pwrdm->ret_logic_off_counter++;
 
 	for (i = 0; i < pwrdm->banks; i++) {
-		prev_mem_pwrst = pwrdm_read_prev_mem_pwrst(pwrdm, i);
-
+		mem_pwrst = pwrdm_read_prev_mem_pwrst(pwrdm, i);
+		if (mem_pwrst == -EINVAL)
+			mem_pwrst = pwrdm_read_mem_retst(pwrdm, i);
 		if ((pwrdm->pwrsts_mem_ret[i] == PWRSTS_OFF_RET) &&
-		    (prev_mem_pwrst == PWRDM_POWER_OFF))
+		    (mem_pwrst == PWRDM_POWER_OFF))
 			pwrdm->ret_mem_off_counter[i]++;
 	}
 }
