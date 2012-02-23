@@ -446,6 +446,7 @@ static int omap2_dev_pm_qos_handler(struct notifier_block *nb,
 		return -EINVAL;
 	}
 
+	// !!! says incompatible pointer type?
 	/* Find the associated omap_device for dev */
 	od = container_of(pdev, struct omap_device, pdev);
 
@@ -537,10 +538,10 @@ static void __init omap5_init_voltages(void)
 	if (!cpu_is_omap54xx())
 		return;
 
-	omap2_set_init_voltage("mpu", "virt_dpll_mpu_ck", mpu_dev);
-	omap2_set_init_voltage("core", "virt_l3_ck", l3_dev);
+	omap2_set_init_voltage("mpu", "virt_dpll_mpu_ck", "mpu");
+	omap2_set_init_voltage("core", "virt_l3_ck", "l3_main");
 #ifndef CONFIG_OMAP_PM_STANDALONE
-	omap2_set_init_voltage("mm", "dpll_iva_h12x2_ck", iva_dev);
+	omap2_set_init_voltage("mm", "dpll_iva_h12x2_ck", "iva");
 #endif
 }
 
