@@ -399,7 +399,25 @@ int tiler_release(struct tiler_block *block)
  * Utils
  */
 
-/* calculate the tiler space address of a pixel in a view orientation */
+/* calculate the tiler space address of a pixel in a view orientation...
+ * below description copied from the display subsystem section of TRM:
+ *
+ * When the TILER is addressed, the bits:
+ *   [28:27] = 0x0 for 8-bit tiled
+ *             0x1 for 16-bit tiled
+ *             0x2 for 32-bit tiled
+ *             0x3 for page mode
+ *   [31:29] = 0x0 for 0-degree view
+ *             0x1 for 180-degree view + mirroring
+ *             0x2 for 0-degree view + mirroring
+ *             0x3 for 180-degree view
+ *             0x4 for 270-degree view + mirroring
+ *             0x5 for 270-degree view
+ *             0x6 for 90-degree view
+ *             0x7 for 90-degree view + mirroring
+ * Otherwise the bits indicated the corresponding bit address to access
+ * the SDRAM.
+ */
 static u32 tiler_get_address(u32 orient, enum tiler_fmt fmt, u32 x, u32 y)
 {
 	u32 x_bits, y_bits, tmp, x_mask, y_mask, alignment;
@@ -437,6 +455,17 @@ dma_addr_t tiler_ssptr(struct tiler_block *block)
 	return TILVIEW_8BIT + tiler_get_address(0, block->fmt,
 			block->area.p0.x * geom[block->fmt].slot_w,
 			block->area.p0.y * geom[block->fmt].slot_h);
+}
+
+dma_addr_t tiler_tsptr(struct tiler_block *block, uint32_t orient,
+		uint32_t x, uint32_t y)
+{
+	struct tcm_pt *p = &block->area.p0;
+	BUG_ON(!validfmt(block->fmt));
+
+	return tiler_get_address(orient, block->fmt,
+			(p->x + x) * geom[block->fmt].slot_w,
+			(p->y + y) * geom[block->fmt].slot_h);
 }
 
 void tiler_align(enum tiler_fmt fmt, uint16_t *w, uint16_t *h)

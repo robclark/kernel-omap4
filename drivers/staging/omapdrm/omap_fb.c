@@ -18,6 +18,7 @@
  */
 
 #include "omap_drv.h"
+#include "omap_dmm_tiler.h"
 
 #include "drm_crtc.h"
 #include "drm_crtc_helper.h"
@@ -137,6 +138,18 @@ static const struct drm_framebuffer_funcs omap_framebuffer_funcs = {
 	.dirty = omap_framebuffer_dirty,
 };
 
+static uint32_t get_inc_addr(struct plane *plane, const struct format *format,
+		int n, int x, int y)
+{
+	uint32_t offset;
+
+	offset = plane->offset +
+			(x * format->planes[n].stride_bpp) +
+			(y * plane->pitch / format->planes[n].sub_y);
+
+	return plane->paddr + offset;
+}
+
 /* update ovl info for scanout, handles cases of multi-planar fb's, etc.
  */
 void omap_framebuffer_update_scanout(struct drm_framebuffer *fb, int x, int y,
@@ -145,22 +158,41 @@ void omap_framebuffer_update_scanout(struct drm_framebuffer *fb, int x, int y,
 	struct omap_framebuffer *omap_fb = to_omap_framebuffer(fb);
 	const struct format *format = omap_fb->format;
 	struct plane *plane = &omap_fb->planes[0];
-	unsigned int offset;
+	uint32_t orient;
 
-	offset = plane->offset +
-			(x * format->planes[0].stride_bpp) +
-			(y * plane->pitch / format->planes[0].sub_y);
+	/*
+	 * we don't have any userspace API yet for setting rotation,
+	 * so just hard-code it to zero-degree (no rotation/mirroring)
+	 * for now:
+	 */
+	orient = 0;
 
-	info->color_mode   = format->dss_format;
-	info->paddr        = plane->paddr + offset;
-	info->screen_width = plane->pitch / format->planes[0].stride_bpp;
+	info->color_mode = format->dss_format;
+
+	if (omap_gem_flags(plane->bo) & OMAP_BO_TILED) {
+		omap_gem_rotated_paddr(plane->bo, orient, x, y, &info->paddr);
+		info->burst_type   = OMAP_DSS_BURST_2D;
+		info->screen_width = tiler_stride(gem2fmt(
+				omap_gem_flags(plane->bo)));
+	} else {
+		info->paddr        = get_inc_addr(plane, format, 0, x, y);
+		info->burst_type   = OMAP_DSS_BURST_INC;
+		info->screen_width = plane->pitch;
+	}
+
+	/* convert to pixels: */
+	info->screen_width /= format->planes[0].stride_bpp;
 
 	if (format->dss_format == OMAP_DSS_COLOR_NV12) {
 		plane = &omap_fb->planes[1];
-		offset = plane->offset +
-				(x * format->planes[1].stride_bpp) +
-				(y * plane->pitch / format->planes[1].sub_y);
-		info->p_uv_addr = plane->paddr + offset;
+
+		if (info->burst_type == OMAP_DSS_BURST_2D) {
+			WARN_ON(!(omap_gem_flags(plane->bo) & OMAP_BO_TILED));
+			omap_gem_rotated_paddr(plane->bo, orient, x/2, y/2,
+					&info->p_uv_addr);
+		} else {
+			info->paddr = get_inc_addr(plane, format, 1, x, y);
+		}
 	} else {
 		info->p_uv_addr = 0;
 	}
@@ -374,7 +406,7 @@ struct drm_framebuffer *omap_framebuffer_init(struct drm_device *dev,
 
 		size = pitch * mode_cmd->height / format->planes[i].sub_y;
 
-		if (size > (bos[i]->size - mode_cmd->offsets[i])) {
+		if (size > (omap_gem_mmap_size(bos[i]) - mode_cmd->offsets[i])) {
 			dev_err(dev->dev, "provided buffer object is too small! %d < %d\n",
 					bos[i]->size - mode_cmd->offsets[i], size);
 			ret = -EINVAL;

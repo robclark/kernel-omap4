@@ -93,6 +93,8 @@ int tiler_release(struct tiler_block *block);
 
 /* utilities */
 dma_addr_t tiler_ssptr(struct tiler_block *block);
+dma_addr_t tiler_tsptr(struct tiler_block *block, uint32_t orient,
+		uint32_t x, uint32_t y);
 uint32_t tiler_stride(enum tiler_fmt fmt);
 size_t tiler_size(enum tiler_fmt fmt, uint16_t w, uint16_t h);
 size_t tiler_vsize(enum tiler_fmt fmt, uint16_t w, uint16_t h);
