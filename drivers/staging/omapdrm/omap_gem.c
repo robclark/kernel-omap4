@@ -1325,9 +1325,9 @@ void omap_gem_vm_open(struct vm_area_struct *vma)
 
 	if (omap_obj->ops && omap_obj->ops->open) {
 		omap_obj->ops->open(vma);
-	} else {
-		drm_gem_vm_open(vma);
 	}
+
+	drm_gem_vm_open(vma);
 }
 
 void omap_gem_vm_close(struct vm_area_struct *vma)
@@ -1337,9 +1337,11 @@ void omap_gem_vm_close(struct vm_area_struct *vma)
 
 	if (omap_obj->ops && omap_obj->ops->close) {
 		omap_obj->ops->close(vma);
-	} else {
-		drm_gem_vm_close(vma);
+		/* don't rely on close function to not have munged things up */
+		vma->vm_private_data = obj;
 	}
+
+	drm_gem_vm_close(vma);
 }
 
 /* get buffer flags */
