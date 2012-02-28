@@ -25,6 +25,7 @@
 #include "iss_regs.h"
 #include "iss_csiphy.h"
 #include "iss_csi2.h"
+#include "iss_ipipeif.h"
 
 #define to_iss_device(ptr_module)				\
 	container_of(ptr_module, struct iss_device, ptr_module)
@@ -37,6 +38,9 @@ enum iss_mem_resources {
 	OMAP4_ISS_MEM_CAMERARX_CORE1,
 	OMAP4_ISS_MEM_CSI2_B_REGS1,
 	OMAP4_ISS_MEM_CAMERARX_CORE2,
+	OMAP4_ISS_MEM_ISP_SYS1,
+	OMAP4_ISS_MEM_ISP_ISIF,
+	OMAP4_ISS_MEM_ISP_IPIPEIF,
 	OMAP4_ISS_MEM_LAST,
 };
 
@@ -46,6 +50,15 @@ enum iss_subclk_resource {
 	OMAP4_ISS_SUBCLK_CSI2_A		= (1 << 2),
 	OMAP4_ISS_SUBCLK_CSI2_B		= (1 << 3),
 	OMAP4_ISS_SUBCLK_CCP2		= (1 << 4),
+};
+
+enum iss_isp_subclk_resource {
+	OMAP4_ISS_ISP_SUBCLK_BL		= (1 << 0),
+	OMAP4_ISS_ISP_SUBCLK_ISIF	= (1 << 1),
+	OMAP4_ISS_ISP_SUBCLK_H3A	= (1 << 2),
+	OMAP4_ISS_ISP_SUBCLK_RSZ	= (1 << 3),
+	OMAP4_ISS_ISP_SUBCLK_IPIPE	= (1 << 4),
+	OMAP4_ISS_ISP_SUBCLK_IPIPEIF	= (1 << 5),
 };
 
 /*
@@ -86,8 +99,10 @@ struct iss_device {
 	struct iss_csi2_device csi2b;
 	struct iss_csiphy csiphy1;
 	struct iss_csiphy csiphy2;
+	struct iss_ipipeif_device ipipeif;
 
 	unsigned int subclk_resources;
+	unsigned int isp_subclk_resources;
 };
 
 #define v4l2_dev_to_iss_device(dev) \
@@ -105,12 +120,22 @@ int omap4iss_module_sync_is_stopping(wait_queue_head_t *wait,
 int omap4iss_pipeline_set_stream(struct iss_pipeline *pipe,
 				 enum iss_pipeline_stream_state state);
 
+void omap4iss_configure_bridge(struct iss_device *iss,
+			       enum ipipeif_input_entity input);
+
 struct iss_device *omap4iss_get(struct iss_device *iss);
 void omap4iss_put(struct iss_device *iss);
 int omap4iss_subclk_enable(struct iss_device *iss,
 			   enum iss_subclk_resource res);
 int omap4iss_subclk_disable(struct iss_device *iss,
 			    enum iss_subclk_resource res);
+int omap4iss_isp_subclk_enable(struct iss_device *iss,
+				enum iss_isp_subclk_resource res);
+int omap4iss_isp_subclk_disable(struct iss_device *iss,
+				enum iss_isp_subclk_resource res);
+
+void omap4iss_isp_enable_interrupts(struct iss_device *iss);
+void omap4iss_isp_disable_interrupts(struct iss_device *iss);
 
 int omap4iss_pipeline_pm_use(struct media_entity *entity, int use);
 

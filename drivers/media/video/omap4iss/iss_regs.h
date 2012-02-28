@@ -32,8 +32,14 @@
 #define ISS_HL_IRQ_CBUFF				(1 << 10)
 #define ISS_HL_IRQ_CSIB					(1 << 5)
 #define ISS_HL_IRQ_CSIA					(1 << 4)
+#define ISS_HL_IRQ_ISP(i)				(1 << (i))
 
 #define ISS_CTRL					0x80
+#define ISS_CTRL_CLK_DIV_MASK				(3 << 4)
+#define ISS_CTRL_INPUT_SEL_MASK				(3 << 2)
+#define ISS_CTRL_INPUT_SEL_CSI2A			(0 << 2)
+#define ISS_CTRL_INPUT_SEL_CSI2B			(1 << 2)
+#define ISS_CTRL_SYNC_DETECT_VS_RAISING			(3 << 0)
 
 #define ISS_CLKCTRL					0x84
 #define ISS_CLKCTRL_VPORT2_CLK				(1 << 30)
@@ -241,4 +247,132 @@
 #define CSI2_CTX_IRQ_FE					(1 << 1)
 #define CSI2_CTX_IRQ_FS					(1 << 0)
 
-#endif /* _OMAP4_CAMERA_REGS_H_ */
+/* ISS ISP_SYS1 */
+#define ISP5_REVISION					(0x0000)
+#define ISP5_SYSCONFIG					(0x0010)
+#define ISP5_SYSCONFIG_STANDBYMODE_MASK			(3 << 4)
+#define ISP5_SYSCONFIG_STANDBYMODE_FORCE		(0 << 4)
+#define ISP5_SYSCONFIG_STANDBYMODE_NO			(1 << 4)
+#define ISP5_SYSCONFIG_STANDBYMODE_SMART		(2 << 4)
+#define ISP5_SYSCONFIG_SOFTRESET			(1 << 1)
+
+#define ISP5_IRQSTATUS(i)				(0x0028 + (0x10 * (i)))
+#define ISP5_IRQENABLE_SET(i)				(0x002C + (0x10 * (i)))
+#define ISP5_IRQENABLE_CLR(i)				(0x0030 + (0x10 * (i)))
+
+/* Bits shared for ISP5_IRQ* registers */
+#define ISP5_IRQ_OCP_ERR				(1 << 31)
+#define ISP5_IRQ_RSZ_INT_EOF0				(1 << 22)
+#define ISP5_IRQ_RSZ_FIFO_IN_BLK			(1 << 19)
+#define ISP5_IRQ_RSZ_FIFO_OVF				(1 << 18)
+#define ISP5_IRQ_RSZ_INT_CYC_RSZA			(1 << 16)
+#define ISP5_IRQ_RSZ_INT_DMA				(1 << 15)
+#define ISP5_IRQ_IPIPEIF				(1 << 9)
+#define ISP5_IRQ_ISIF3					(1 << 3)
+#define ISP5_IRQ_ISIF2					(1 << 2)
+#define ISP5_IRQ_ISIF1					(1 << 1)
+#define ISP5_IRQ_ISIF0					(1 << 0)
+
+#define ISP5_CTRL					(0x006C)
+#define ISP5_CTRL_MSTANDBY				(1 << 24)
+#define ISP5_CTRL_VD_PULSE_EXT				(1 << 23)
+#define ISP5_CTRL_MSTANDBY_WAIT				(1 << 20)
+#define ISP5_CTRL_BL_CLK_ENABLE				(1 << 15)
+#define ISP5_CTRL_ISIF_CLK_ENABLE			(1 << 14)
+#define ISP5_CTRL_H3A_CLK_ENABLE			(1 << 13)
+#define ISP5_CTRL_RSZ_CLK_ENABLE			(1 << 12)
+#define ISP5_CTRL_IPIPE_CLK_ENABLE			(1 << 11)
+#define ISP5_CTRL_IPIPEIF_CLK_ENABLE			(1 << 10)
+#define ISP5_CTRL_SYNC_ENABLE				(1 << 9)
+#define ISP5_CTRL_PSYNC_CLK_SEL				(1 << 8)
+
+/* ISS ISP ISIF register offsets */
+#define ISIF_SYNCEN					(0x0000)
+#define ISIF_SYNCEN_DWEN				(1 << 1)
+#define ISIF_SYNCEN_SYEN				(1 << 0)
+
+#define ISIF_MODESET					(0x0004)
+#define ISIF_MODESET_INPMOD_MASK			(3 << 12)
+#define ISIF_MODESET_INPMOD_RAW				(0 << 12)
+#define ISIF_MODESET_INPMOD_YCBCR16			(1 << 12)
+#define ISIF_MODESET_INPMOD_YCBCR8			(2 << 12)
+#define ISIF_MODESET_CCDW_MASK				(7 << 8)
+#define ISIF_MODESET_CCDW_2BIT				(2 << 8)
+#define ISIF_MODESET_CCDMD				(1 << 7)
+#define ISIF_MODESET_SWEN				(1 << 5)
+#define ISIF_MODESET_HDPOL				(1 << 3)
+#define ISIF_MODESET_VDPOL				(1 << 2)
+
+#define ISIF_SPH					(0x0018)
+#define ISIF_SPH_MASK					(0x7FFF)
+
+#define ISIF_LNH					(0x001C)
+#define ISIF_LNH_MASK					(0x7FFF)
+
+#define ISIF_LNV					(0x0028)
+#define ISIF_LNV_MASK					(0x7FFF)
+
+#define ISIF_HSIZE					(0x0034)
+#define ISIF_HSIZE_ADCR					(1 << 12)
+#define ISIF_HSIZE_HSIZE_MASK				(0xFFF)
+
+#define ISIF_CADU					(0x003C)
+#define ISIF_CADU_MASK					(0x7FF)
+
+#define ISIF_CADL					(0x0040)
+#define ISIF_CADL_MASK					(0xFFFF)
+
+#define ISIF_CCOLP					(0x004C)
+#define ISIF_CCOLP_CP0_F0_R				(0 << 6)
+#define ISIF_CCOLP_CP0_F0_GR				(1 << 6)
+#define ISIF_CCOLP_CP0_F0_B				(3 << 6)
+#define ISIF_CCOLP_CP0_F0_GB				(2 << 6)
+#define ISIF_CCOLP_CP1_F0_R				(0 << 4)
+#define ISIF_CCOLP_CP1_F0_GR				(1 << 4)
+#define ISIF_CCOLP_CP1_F0_B				(3 << 4)
+#define ISIF_CCOLP_CP1_F0_GB				(2 << 4)
+#define ISIF_CCOLP_CP2_F0_R				(0 << 2)
+#define ISIF_CCOLP_CP2_F0_GR				(1 << 2)
+#define ISIF_CCOLP_CP2_F0_B				(3 << 2)
+#define ISIF_CCOLP_CP2_F0_GB				(2 << 2)
+#define ISIF_CCOLP_CP3_F0_R				(0 << 0)
+#define ISIF_CCOLP_CP3_F0_GR				(1 << 0)
+#define ISIF_CCOLP_CP3_F0_B				(3 << 0)
+#define ISIF_CCOLP_CP3_F0_GB				(2 << 0)
+
+#define ISIF_VDINT0					(0x0070)
+#define ISIF_VDINT0_MASK				(0x7FFF)
+
+#define ISIF_CGAMMAWD					(0x0080)
+#define ISIF_CGAMMAWD_GWDI_MASK				(0xF << 1)
+#define ISIF_CGAMMAWD_GWDI_BIT11			(0x4 << 1)
+
+#define ISIF_CCDCFG					(0x0088)
+#define ISIF_CCDCFG_Y8POS				(1 << 11)
+
+/* ISS ISP IPIPEIF register offsets */
+#define IPIPEIF_ENABLE					(0x0000)
+
+#define IPIPEIF_CFG1					(0x0004)
+#define IPIPEIF_CFG1_INPSRC1_MASK			(3 << 14)
+#define IPIPEIF_CFG1_INPSRC1_VPORT_RAW			(0 << 14)
+#define IPIPEIF_CFG1_INPSRC1_SDRAM_RAW			(1 << 14)
+#define IPIPEIF_CFG1_INPSRC1_ISIF_DARKFM		(2 << 14)
+#define IPIPEIF_CFG1_INPSRC1_SDRAM_YUV			(3 << 14)
+#define IPIPEIF_CFG1_INPSRC2_MASK			(3 << 2)
+#define IPIPEIF_CFG1_INPSRC2_ISIF			(0 << 2)
+#define IPIPEIF_CFG1_INPSRC2_SDRAM_RAW			(1 << 2)
+#define IPIPEIF_CFG1_INPSRC2_ISIF_DARKFM		(2 << 2)
+#define IPIPEIF_CFG1_INPSRC2_SDRAM_YUV			(3 << 2)
+
+#define IPIPEIF_CFG2					(0x0030)
+#define IPIPEIF_CFG2_YUV8P				(1 << 7)
+#define IPIPEIF_CFG2_YUV8				(1 << 6)
+#define IPIPEIF_CFG2_YUV16				(1 << 3)
+#define IPIPEIF_CFG2_VDPOL				(1 << 2)
+#define IPIPEIF_CFG2_HDPOL				(1 << 1)
+#define IPIPEIF_CFG2_INTSW				(1 << 0)
+
+#define IPIPEIF_CLKDIV					(0x0040)
+
+#endif /* _OMAP4_ISS_REGS_H_ */

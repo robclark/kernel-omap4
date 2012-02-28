@@ -30,6 +30,26 @@
 #include "iss.h"
 #include "iss_regs.h"
 
+#define ISS_PRINT_REGISTER(iss, name)\
+	dev_dbg(iss->dev, "###ISS " #name "=0x%08x\n", \
+		readl(iss->regs[OMAP4_ISS_MEM_TOP] + ISS_##name))
+
+static void iss_print_status(struct iss_device *iss)
+{
+	dev_dbg(iss->dev, "-------------ISS HL Register dump-------------\n");
+
+	ISS_PRINT_REGISTER(iss, HL_REVISION);
+	ISS_PRINT_REGISTER(iss, HL_SYSCONFIG);
+	ISS_PRINT_REGISTER(iss, HL_IRQSTATUS_5);
+	ISS_PRINT_REGISTER(iss, HL_IRQENABLE_5_SET);
+	ISS_PRINT_REGISTER(iss, HL_IRQENABLE_5_CLR);
+	ISS_PRINT_REGISTER(iss, CTRL);
+	ISS_PRINT_REGISTER(iss, CLKCTRL);
+	ISS_PRINT_REGISTER(iss, CLKSTAT);
+
+	dev_dbg(iss->dev, "-----------------------------------------------\n");
+}
+
 /*
  * omap4iss_flush - Post pending L3 bus writes by doing a register readback
  * @iss: OMAP4 ISS device
@@ -52,11 +72,12 @@ void omap4iss_flush(struct iss_device *iss)
  */
 static void iss_enable_interrupts(struct iss_device *iss)
 {
-	static const u32 irq = ISS_HL_IRQ_CSIA | ISS_HL_IRQ_CSIB;
+	static const u32 hl_irq = ISS_HL_IRQ_CSIA | ISS_HL_IRQ_CSIB | ISS_HL_IRQ_ISP(0);
 
 	/* Enable HL interrupts */
-	writel(irq, iss->regs[OMAP4_ISS_MEM_TOP] + ISS_HL_IRQSTATUS_5);
-	writel(irq, iss->regs[OMAP4_ISS_MEM_TOP] + ISS_HL_IRQENABLE_5_SET);
+	writel(hl_irq, iss->regs[OMAP4_ISS_MEM_TOP] + ISS_HL_IRQSTATUS_5);
+	writel(hl_irq, iss->regs[OMAP4_ISS_MEM_TOP] + ISS_HL_IRQENABLE_5_SET);
+
 }
 
 /*
@@ -66,6 +87,28 @@ static void iss_enable_interrupts(struct iss_device *iss)
 static void iss_disable_interrupts(struct iss_device *iss)
 {
 	writel(-1, iss->regs[OMAP4_ISS_MEM_TOP] + ISS_HL_IRQENABLE_5_CLR);
+}
+
+/*
+ * iss_isp_enable_interrupts - Enable ISS ISP interrupts.
+ * @iss: OMAP4 ISS device
+ */
+void omap4iss_isp_enable_interrupts(struct iss_device *iss)
+{
+	static const u32 isp_irq = ISP5_IRQ_ISIF0;
+
+	/* Enable ISP interrupts */
+	writel(isp_irq, iss->regs[OMAP4_ISS_MEM_ISP_SYS1] + ISP5_IRQSTATUS(0));
+	writel(isp_irq, iss->regs[OMAP4_ISS_MEM_ISP_SYS1] + ISP5_IRQENABLE_SET(0));
+}
+
+/*
+ * iss_isp_disable_interrupts - Disable ISS interrupts.
+ * @iss: OMAP4 ISS device
+ */
+void omap4iss_isp_disable_interrupts(struct iss_device *iss)
+{
+	writel(-1, iss->regs[OMAP4_ISS_MEM_ISP_SYS1] + ISP5_IRQENABLE_CLR(0));
 }
 
 int omap4iss_get_external_info(struct iss_pipeline *pipe,
@@ -114,6 +157,50 @@ int omap4iss_get_external_info(struct iss_pipeline *pipe,
 	pipe->external_rate = ctrl.value64;
 
 	return 0;
+}
+
+/*
+ * Configure the bridge. Valid inputs are
+ *
+ * IPIPEIF_INPUT_CSI2A: CSI2a receiver
+ * IPIPEIF_INPUT_CSI2B: CSI2b receiver
+ *
+ * The bridge and lane shifter are configured according to the selected input
+ * and the ISP platform data.
+ */
+void omap4iss_configure_bridge(struct iss_device *iss,
+			       enum ipipeif_input_entity input)
+{
+	u32 issctrl_val;
+	u32 isp5ctrl_val;
+
+	issctrl_val  = readl(iss->regs[OMAP4_ISS_MEM_TOP] + ISS_CTRL);
+	issctrl_val &= ~ISS_CTRL_INPUT_SEL_MASK;
+	issctrl_val &= ~ISS_CTRL_CLK_DIV_MASK;
+
+	isp5ctrl_val  = readl(iss->regs[OMAP4_ISS_MEM_ISP_SYS1] + ISP5_CTRL);
+
+	switch (input) {
+	case IPIPEIF_INPUT_CSI2A:
+		issctrl_val |= ISS_CTRL_INPUT_SEL_CSI2A;
+		isp5ctrl_val |= ISP5_CTRL_VD_PULSE_EXT;
+		break;
+
+	case IPIPEIF_INPUT_CSI2B:
+		issctrl_val |= ISS_CTRL_INPUT_SEL_CSI2B;
+		isp5ctrl_val |= ISP5_CTRL_VD_PULSE_EXT;
+		break;
+
+	default:
+		return;
+	}
+
+	issctrl_val |= ISS_CTRL_SYNC_DETECT_VS_RAISING;
+
+	isp5ctrl_val |= ISP5_CTRL_PSYNC_CLK_SEL | ISP5_CTRL_SYNC_ENABLE;
+
+	writel(issctrl_val, iss->regs[OMAP4_ISS_MEM_TOP] + ISS_CTRL);
+	writel(isp5ctrl_val, iss->regs[OMAP4_ISS_MEM_ISP_SYS1] + ISP5_CTRL);
 }
 
 static inline void iss_isr_dbg(struct iss_device *iss, u32 irqstatus)
@@ -175,6 +262,8 @@ static inline void iss_isr_dbg(struct iss_device *iss, u32 irqstatus)
  */
 static irqreturn_t iss_isr(int irq, void *_iss)
 {
+	static const u32 ipipeif_events = ISP5_IRQ_IPIPEIF |
+					  ISP5_IRQ_ISIF0;
 	struct iss_device *iss = _iss;
 	u32 irqstatus;
 
@@ -186,6 +275,18 @@ static irqreturn_t iss_isr(int irq, void *_iss)
 
 	if (irqstatus & ISS_HL_IRQ_CSIB)
 		omap4iss_csi2_isr(&iss->csi2b);
+
+	if (irqstatus & ISS_HL_IRQ_ISP(0)) {
+		u32 isp_irqstatus = readl(iss->regs[OMAP4_ISS_MEM_ISP_SYS1] +
+					  ISP5_IRQSTATUS(0));
+		writel(isp_irqstatus, iss->regs[OMAP4_ISS_MEM_ISP_SYS1] +
+			ISP5_IRQSTATUS(0));
+
+		if (isp_irqstatus & ipipeif_events) {
+			omap4iss_ipipeif_isr(&iss->ipipeif,
+					     isp_irqstatus & ipipeif_events);
+		}
+	}
 
 	omap4iss_flush(iss);
 
@@ -431,7 +532,7 @@ static int iss_pipeline_enable(struct iss_pipeline *pipe,
 		if (ret < 0 && ret != -ENOIOCTLCMD)
 			return ret;
 	}
-
+	iss_print_status(pipe->output->iss);
 	return 0;
 }
 
@@ -541,6 +642,49 @@ static int iss_reset(struct iss_device *iss)
 	return 0;
 }
 
+static int iss_isp_reset(struct iss_device *iss)
+{
+	unsigned long timeout = 0;
+
+	/* Fist, ensure that the ISP is IDLE (no transactions happening) */
+	writel((readl(iss->regs[OMAP4_ISS_MEM_ISP_SYS1] + ISP5_SYSCONFIG) &
+		~ISP5_SYSCONFIG_STANDBYMODE_MASK) |
+		ISP5_SYSCONFIG_STANDBYMODE_SMART,
+		iss->regs[OMAP4_ISS_MEM_ISP_SYS1] + ISP5_SYSCONFIG);
+
+	writel(readl(iss->regs[OMAP4_ISS_MEM_ISP_SYS1] + ISP5_CTRL) |
+		ISP5_CTRL_MSTANDBY,
+		iss->regs[OMAP4_ISS_MEM_ISP_SYS1] + ISP5_CTRL);
+
+	for (;;) {
+		if (readl(iss->regs[OMAP4_ISS_MEM_ISP_SYS1] + ISP5_CTRL) &
+				ISP5_CTRL_MSTANDBY_WAIT)
+			break;
+		if (timeout++ > 1000) {
+			dev_alert(iss->dev, "cannot set ISP5 to standby\n");
+			return -ETIMEDOUT;
+		}
+		msleep(1);
+	}
+
+	/* Now finally, do the reset */
+	writel(readl(iss->regs[OMAP4_ISS_MEM_ISP_SYS1] + ISP5_SYSCONFIG) |
+		ISP5_SYSCONFIG_SOFTRESET,
+		iss->regs[OMAP4_ISS_MEM_ISP_SYS1] + ISP5_SYSCONFIG);
+
+	timeout = 0;
+	while (readl(iss->regs[OMAP4_ISS_MEM_ISP_SYS1] + ISP5_SYSCONFIG) &
+			ISP5_SYSCONFIG_SOFTRESET) {
+		if (timeout++ > 1000) {
+			dev_alert(iss->dev, "cannot reset ISP5\n");
+			return -ETIMEDOUT;
+		}
+		msleep(1);
+	}
+
+	return 0;
+}
+
 /*
  * iss_module_sync_idle - Helper to sync module with its idle state
  * @me: ISS submodule's media entity
@@ -623,7 +767,9 @@ int omap4iss_module_sync_is_stopping(wait_queue_head_t *wait,
  * Clock management
  */
 
-#define ISS_CLKCTRL_MASK	(ISS_CLKCTRL_CSI2_A | ISS_CLKCTRL_CSI2_B)
+#define ISS_CLKCTRL_MASK	(ISS_CLKCTRL_CSI2_A |\
+				 ISS_CLKCTRL_CSI2_B |\
+				 ISS_CLKCTRL_ISP)
 
 static int __iss_subclk_update(struct iss_device *iss)
 {
@@ -635,6 +781,9 @@ static int __iss_subclk_update(struct iss_device *iss)
 
 	if (iss->subclk_resources & OMAP4_ISS_SUBCLK_CSI2_B)
 		clk |= ISS_CLKCTRL_CSI2_B;
+
+	if (iss->subclk_resources & OMAP4_ISS_SUBCLK_ISP)
+		clk |= ISS_CLKCTRL_ISP;
 
 	writel((readl(iss->regs[OMAP4_ISS_MEM_TOP] + ISS_CLKCTRL) &
 		~ISS_CLKCTRL_MASK) | clk,
@@ -668,6 +817,58 @@ int omap4iss_subclk_disable(struct iss_device *iss,
 	iss->subclk_resources &= ~res;
 
 	return __iss_subclk_update(iss);
+}
+
+#define ISS_ISP5_CLKCTRL_MASK	(ISP5_CTRL_BL_CLK_ENABLE |\
+				 ISP5_CTRL_ISIF_CLK_ENABLE |\
+				 ISP5_CTRL_H3A_CLK_ENABLE |\
+				 ISP5_CTRL_RSZ_CLK_ENABLE |\
+				 ISP5_CTRL_IPIPE_CLK_ENABLE |\
+				 ISP5_CTRL_IPIPEIF_CLK_ENABLE)
+
+static int __iss_isp_subclk_update(struct iss_device *iss)
+{
+	u32 clk = 0;
+
+	if (iss->isp_subclk_resources & OMAP4_ISS_ISP_SUBCLK_ISIF)
+		clk |= ISP5_CTRL_ISIF_CLK_ENABLE;
+
+	if (iss->isp_subclk_resources & OMAP4_ISS_ISP_SUBCLK_H3A)
+		clk |= ISP5_CTRL_H3A_CLK_ENABLE;
+
+	if (iss->isp_subclk_resources & OMAP4_ISS_ISP_SUBCLK_RSZ)
+		clk |= ISP5_CTRL_RSZ_CLK_ENABLE;
+
+	if (iss->isp_subclk_resources & OMAP4_ISS_ISP_SUBCLK_IPIPE)
+		clk |= ISP5_CTRL_IPIPE_CLK_ENABLE;
+
+	if (iss->isp_subclk_resources & OMAP4_ISS_ISP_SUBCLK_IPIPEIF)
+		clk |= ISP5_CTRL_IPIPEIF_CLK_ENABLE;
+
+	if (clk)
+		clk |= ISP5_CTRL_BL_CLK_ENABLE;
+
+	writel((readl(iss->regs[OMAP4_ISS_MEM_ISP_SYS1] + ISP5_CTRL) &
+		~ISS_ISP5_CLKCTRL_MASK) | clk,
+		iss->regs[OMAP4_ISS_MEM_ISP_SYS1] + ISP5_CTRL);
+
+	return 0;
+}
+
+int omap4iss_isp_subclk_enable(struct iss_device *iss,
+				enum iss_isp_subclk_resource res)
+{
+	iss->isp_subclk_resources |= res;
+
+	return __iss_isp_subclk_update(iss);
+}
+
+int omap4iss_isp_subclk_disable(struct iss_device *iss,
+				enum iss_isp_subclk_resource res)
+{
+	iss->isp_subclk_resources &= ~res;
+
+	return __iss_isp_subclk_update(iss);
 }
 
 /*
@@ -829,6 +1030,7 @@ static int iss_map_mem_resource(struct platform_device *pdev,
 
 static void iss_unregister_entities(struct iss_device *iss)
 {
+	omap4iss_ipipeif_unregister_entities(&iss->ipipeif);
 	omap4iss_csi2_unregister_entities(&iss->csi2a);
 	omap4iss_csi2_unregister_entities(&iss->csi2b);
 
@@ -920,6 +1122,10 @@ static int iss_register_entities(struct iss_device *iss)
 	if (ret < 0)
 		goto done;
 
+	ret = omap4iss_ipipeif_register_entities(&iss->ipipeif, &iss->v4l2_dev);
+	if (ret < 0)
+		goto done;
+
 	/* Register external entities */
 	for (subdevs = pdata->subdevs; subdevs && subdevs->subdevs; ++subdevs) {
 		struct v4l2_subdev *sensor;
@@ -977,6 +1183,7 @@ done:
 static void iss_cleanup_modules(struct iss_device *iss)
 {
 	omap4iss_csi2_cleanup(iss);
+	omap4iss_ipipeif_cleanup(iss);
 }
 
 static int iss_initialize_modules(struct iss_device *iss)
@@ -986,16 +1193,43 @@ static int iss_initialize_modules(struct iss_device *iss)
 	ret = omap4iss_csiphy_init(iss);
 	if (ret < 0) {
 		dev_err(iss->dev, "CSI PHY initialization failed\n");
-		return ret;
+		goto error_csiphy;
 	}
 
 	ret = omap4iss_csi2_init(iss);
 	if (ret < 0) {
 		dev_err(iss->dev, "CSI2 initialization failed\n");
-		return ret;
+		goto error_csi2;
 	}
 
+	ret = omap4iss_ipipeif_init(iss);
+	if (ret < 0) {
+		dev_err(iss->dev, "ISP IPIPEIF initialization failed\n");
+		goto error_ipipeif;
+	}
+
+	/* Connect the submodules. */
+	ret = media_entity_create_link(
+			&iss->csi2a.subdev.entity, CSI2_PAD_SOURCE,
+			&iss->ipipeif.subdev.entity, IPIPEIF_PAD_SINK, 0);
+	if (ret < 0)
+		goto error_link;
+
+	ret = media_entity_create_link(
+			&iss->csi2b.subdev.entity, CSI2_PAD_SOURCE,
+			&iss->ipipeif.subdev.entity, IPIPEIF_PAD_SINK, 0);
+	if (ret < 0)
+		goto error_link;
+
 	return 0;
+
+error_link:
+	omap4iss_ipipeif_cleanup(iss);
+error_ipipeif:
+	omap4iss_csi2_cleanup(iss);
+error_csi2:
+error_csiphy:
+	return ret;
 }
 
 static int iss_probe(struct platform_device *pdev)
@@ -1049,6 +1283,18 @@ static int iss_probe(struct platform_device *pdev)
 		if (ret)
 			goto error_iss;
 	}
+
+	/* Perform ISP reset */
+	ret = omap4iss_subclk_enable(iss, OMAP4_ISS_SUBCLK_ISP);
+	if (ret < 0)
+		goto error_iss;
+
+	ret = iss_isp_reset(iss);
+	if (ret < 0)
+		goto error_iss;
+
+	dev_info(iss->dev, "ISP Revision %08x found\n",
+		 readl(iss->regs[OMAP4_ISS_MEM_ISP_SYS1] + ISP5_REVISION));
 
 	/* Interrupt */
 	iss->irq_num = platform_get_irq(pdev, 0);
