@@ -245,8 +245,8 @@ const char * const *v4l2_ctrl_get_menu(u32 id)
 	};
 	static const char * const tune_preemphasis[] = {
 		"No Preemphasis",
-		"50 Microseconds",
-		"75 Microseconds",
+		"50 useconds",
+		"75 useconds",
 		NULL,
 	};
 	static const char * const header_mode[] = {
@@ -644,6 +644,12 @@ const char *v4l2_ctrl_get_name(u32 id)
 	case V4L2_CID_JPEG_COMPRESSION_QUALITY:	return "Compression Quality";
 	case V4L2_CID_JPEG_ACTIVE_MARKER:	return "Active Markers";
 
+	/* Image source controls */
+	case V4L2_CID_IMAGE_SOURCE_CLASS:	return "Image source controls";
+	case V4L2_CID_IMAGE_SOURCE_VBLANK:	return "Vertical blanking";
+	case V4L2_CID_IMAGE_SOURCE_HBLANK:	return "Horizontal blanking";
+	case V4L2_CID_IMAGE_SOURCE_ANALOGUE_GAIN: return "Analogue gain";
+
 	default:
 		return NULL;
 	}
@@ -745,6 +751,7 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
 	case V4L2_CID_FM_TX_CLASS:
 	case V4L2_CID_FLASH_CLASS:
 	case V4L2_CID_JPEG_CLASS:
+	case V4L2_CID_IMAGE_SOURCE_CLASS:
 		*type = V4L2_CTRL_TYPE_CTRL_CLASS;
 		/* You can neither read not write these */
 		*flags |= V4L2_CTRL_FLAG_READ_ONLY | V4L2_CTRL_FLAG_WRITE_ONLY;
@@ -1536,7 +1543,7 @@ EXPORT_SYMBOL(v4l2_ctrl_add_ctrl);
 int v4l2_ctrl_add_handler(struct v4l2_ctrl_handler *hdl,
 			  struct v4l2_ctrl_handler *add)
 {
-	struct v4l2_ctrl_ref *ref;
+	struct v4l2_ctrl *ctrl;
 	int ret = 0;
 
 	/* Do nothing if either handler is NULL or if they are the same */
@@ -1545,9 +1552,7 @@ int v4l2_ctrl_add_handler(struct v4l2_ctrl_handler *hdl,
 	if (hdl->error)
 		return hdl->error;
 	mutex_lock(&add->lock);
-	list_for_each_entry(ref, &add->ctrl_refs, node) {
-		struct v4l2_ctrl *ctrl = ref->ctrl;
-
+	list_for_each_entry(ctrl, &add->ctrls, node) {
 		/* Skip handler-private controls. */
 		if (ctrl->is_private)
 			continue;
@@ -2448,35 +2453,3 @@ void v4l2_ctrl_del_event(struct v4l2_ctrl *ctrl,
 	v4l2_ctrl_unlock(ctrl);
 }
 EXPORT_SYMBOL(v4l2_ctrl_del_event);
-
-int v4l2_ctrl_log_status(struct file *file, void *fh)
-{
-	struct video_device *vfd = video_devdata(file);
-	struct v4l2_fh *vfh = file->private_data;
-
-	if (test_bit(V4L2_FL_USES_V4L2_FH, &vfd->flags) && vfd->v4l2_dev)
-		v4l2_ctrl_handler_log_status(vfh->ctrl_handler,
-			vfd->v4l2_dev->name);
-	return 0;
-}
-EXPORT_SYMBOL(v4l2_ctrl_log_status);
-
-int v4l2_ctrl_subscribe_event(struct v4l2_fh *fh,
-				struct v4l2_event_subscription *sub)
-{
-	if (sub->type == V4L2_EVENT_CTRL)
-		return v4l2_event_subscribe(fh, sub, 0);
-	return -EINVAL;
-}
-EXPORT_SYMBOL(v4l2_ctrl_subscribe_event);
-
-unsigned int v4l2_ctrl_poll(struct file *file, struct poll_table_struct *wait)
-{
-	struct v4l2_fh *fh = file->private_data;
-
-	if (v4l2_event_pending(fh))
-		return POLLPRI;
-	poll_wait(file, &fh->wait, wait);
-	return 0;
-}
-EXPORT_SYMBOL(v4l2_ctrl_poll);
