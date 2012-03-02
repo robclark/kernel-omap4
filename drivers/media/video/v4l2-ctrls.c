@@ -650,6 +650,11 @@ const char *v4l2_ctrl_get_name(u32 id)
 	case V4L2_CID_IMAGE_SOURCE_HBLANK:	return "Horizontal blanking";
 	case V4L2_CID_IMAGE_SOURCE_ANALOGUE_GAIN: return "Analogue gain";
 
+	/* Image processing controls */
+	case V4L2_CID_IMAGE_PROC_CLASS:		return "Image processing controls";
+	case V4L2_CID_IMAGE_PROC_LINK_FREQ:	return "Link frequency";
+	case V4L2_CID_IMAGE_PROC_PIXEL_RATE:	return "Pixel rate";
+
 	default:
 		return NULL;
 	}
@@ -741,6 +746,9 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
 	case V4L2_CID_JPEG_CHROMA_SUBSAMPLING:
 		*type = V4L2_CTRL_TYPE_MENU;
 		break;
+	case V4L2_CID_IMAGE_PROC_LINK_FREQ:
+		*type = V4L2_CTRL_TYPE_INTEGER_MENU;
+		break;
 	case V4L2_CID_RDS_TX_PS_NAME:
 	case V4L2_CID_RDS_TX_RADIO_TEXT:
 		*type = V4L2_CTRL_TYPE_STRING;
@@ -752,6 +760,7 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
 	case V4L2_CID_FLASH_CLASS:
 	case V4L2_CID_JPEG_CLASS:
 	case V4L2_CID_IMAGE_SOURCE_CLASS:
+	case V4L2_CID_IMAGE_PROC_CLASS:
 		*type = V4L2_CTRL_TYPE_CTRL_CLASS;
 		/* You can neither read not write these */
 		*flags |= V4L2_CTRL_FLAG_READ_ONLY | V4L2_CTRL_FLAG_WRITE_ONLY;
@@ -777,6 +786,9 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
 	case V4L2_CID_MPEG_VIDEO_DEC_PTS:
 		*type = V4L2_CTRL_TYPE_INTEGER64;
 		*flags |= V4L2_CTRL_FLAG_READ_ONLY | V4L2_CTRL_FLAG_VOLATILE;
+	case V4L2_CID_IMAGE_PROC_PIXEL_RATE:
+		*flags |= V4L2_CTRL_FLAG_READ_ONLY;
+		*type = V4L2_CTRL_TYPE_INTEGER64;
 		break;
 	default:
 		*type = V4L2_CTRL_TYPE_INTEGER;
