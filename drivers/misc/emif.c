@@ -982,7 +982,7 @@ static int __init setup_interrupts(struct emif_data *emif)
 
 }
 
-static void __init emif_onetime_settings(struct emif_data *emif)
+static void __devinit emif_onetime_settings(struct emif_data *emif)
 {
 	u32				pwr_mgmt_ctrl, zq, temp_alert_cfg;
 	void __iomem			*base = emif->base;
@@ -1046,7 +1046,7 @@ static void __init emif_onetime_settings(struct emif_data *emif)
 	writel(EMIF_EXT_PHY_CTRL_24_VAL, base + EMIF_EXT_PHY_CTRL_24_SHDW);
 }
 
-static void __devexit cleanup_emif(struct emif_data *emif)
+static void  cleanup_emif(struct emif_data *emif)
 {
 	if (emif) {
 		if (emif->plat_data) {
