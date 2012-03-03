@@ -430,17 +430,17 @@ static int omap2_dev_pm_qos_handler(struct notifier_block *nb,
 {
 	struct omap_device *od;
 	struct omap_hwmod *oh;
-	struct platform_device *pdev;
+	struct platform_device *p_dev;
 	struct dev_pm_qos_request *dev_pm_qos_req = req;
 
 	pr_debug("OMAP PM CONSTRAINTS: req@0x%p, new_value=%lu\n",
 		 req, new_value);
 
 	/* Look for the platform device for the constraint target device */
-	pdev = to_platform_device(dev_pm_qos_req->dev);
+	p_dev = to_platform_device(dev_pm_qos_req->dev);
 
 	/* Try to catch non platform devices */
-	if (pdev->name == NULL) {
+	if (p_dev->name == NULL) {
 		pr_err("%s: Error: platform device for device %s not valid\n",
 		       __func__, dev_name(dev_pm_qos_req->dev));
 		return -EINVAL;
@@ -448,7 +448,7 @@ static int omap2_dev_pm_qos_handler(struct notifier_block *nb,
 
 	// !!! says incompatible pointer type?
 	/* Find the associated omap_device for dev */
-	od = container_of(pdev, struct omap_device, pdev);
+	od = container_of(p_dev, struct omap_device, pdev);
 
 	/* Find the primary omap_hwmod for dev */
 	oh = od->hwmods[0];
@@ -535,8 +535,6 @@ static int __init omap2_pm_qos_tput_init(void)
 
 static void __init omap5_init_voltages(void)
 {
-	struct omap_device *od;
-
 	if (!cpu_is_omap54xx())
 		return;
 

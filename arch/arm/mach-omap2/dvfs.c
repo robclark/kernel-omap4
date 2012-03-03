@@ -692,18 +692,18 @@ int omap_device_scale(struct device *req_dev, struct device *target_dev,
 	struct opp *opp;
 	unsigned long volt, freq = rate;
 	struct omap_vdd_dvfs_info *tdvfs_info;
-	struct platform_device *pdev;
+	struct platform_device *p_dev;
 	struct omap_device *od;
 	int ret = 0;
 
-	pdev = container_of(target_dev, struct platform_device, dev);
-	if (IS_ERR_OR_NULL(pdev)) {
+	p_dev = container_of(target_dev, struct platform_device, dev);
+	if (IS_ERR_OR_NULL(p_dev)) {
 		pr_err("%s: pdev is null!\n", __func__);
 		return -EINVAL;
 	}
 
 	// !!! incompatible pointer type
-	od = container_of(pdev, struct omap_device, pdev);
+	od = container_of(p_dev, struct omap_device, pdev);
 	if (IS_ERR_OR_NULL(od)) {
 		pr_err("%s: od is null!\n", __func__);
 		return -EINVAL;
