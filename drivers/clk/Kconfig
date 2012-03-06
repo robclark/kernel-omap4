@@ -53,4 +53,10 @@ config COMMON_CLK_MAX77686
 	---help---
 	  This driver supports Maxim 77686 crystal oscillator clock. 
 
+config CLK_PALMAS
+	tristate "Palmas PMIC Clock Support"
+	depends on MFD_PALMAS
+	help
+	   Enable clock support for the two clocks on Palmas PMIC chips
+
 endmenu
