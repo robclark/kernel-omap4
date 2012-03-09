@@ -183,7 +183,7 @@ static const u16 __csi2_fmt_map[][2][2] = {
 		/* Output to both */
 		{
 			/* No DPCM decompression */
-			CSI2_PIX_FMT_YUV422_8BIT_VP,
+			CSI2_PIX_FMT_YUV422_8BIT_VP16,
 			/* DPCM decompression */
 			0,
 		},
