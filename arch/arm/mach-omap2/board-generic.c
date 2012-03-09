@@ -40,6 +40,8 @@ static void __init omap_generic_init(void)
 	omap_sdrc_init(NULL, NULL);
 
 	of_platform_populate(NULL, omap_dt_match_table, NULL, NULL);
+
+	omapdss_init_of();
 }
 
 #ifdef CONFIG_SOC_OMAP2420
