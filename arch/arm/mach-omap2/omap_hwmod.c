@@ -2001,11 +2001,8 @@ int omap_hwmod_for_each(int (*fn)(struct omap_hwmod *oh, void *data),
 	if (!fn)
 		return -EINVAL;
 
-	list_for_each_entry(temp_oh, &omap_hwmod_list, node) {
-		ret = (*fn)(temp_oh, data);
-		if (ret)
-			break;
-	}
+	list_for_each_entry(temp_oh, &omap_hwmod_list, node)
+		(*fn)(temp_oh, data);
 
 	return ret;
 }
