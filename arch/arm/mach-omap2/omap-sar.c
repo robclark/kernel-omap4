@@ -36,8 +36,8 @@
 
 static void __iomem *sar_ram_base;
 static struct powerdomain *l3init_pwrdm;
-	static struct clockdomain *l3init_clkdm;
-static struct clk *usb_host_ck, *usb_tll_ck;
+static struct clockdomain *l3init_clkdm;
+static struct omap_hwmod *uhh_hwm, *tll_hwm;
 
 struct sar_ram_entry {
 	void __iomem *io_base;
@@ -199,14 +199,16 @@ int omap_sar_save(void)
 	 */
 	clkdm_wakeup(l3init_clkdm);
 	pwrdm_enable_hdwr_sar(l3init_pwrdm);
-	clk_enable(usb_host_ck);
-	clk_enable(usb_tll_ck);
+
+	omap_hwmod_enable_clocks(uhh_hwm);
+	omap_hwmod_enable_clocks(tll_hwm);
 
 	/* Save SAR BANK1 */
 	sar_save(sar_ram_layout[0]);
 
-	clk_disable(usb_host_ck);
-	clk_disable(usb_tll_ck);
+	omap_hwmod_disable_clocks(uhh_hwm);
+	omap_hwmod_disable_clocks(tll_hwm);
+
 	pwrdm_disable_hdwr_sar(l3init_pwrdm);
 	clkdm_allow_idle(l3init_clkdm);
 
@@ -447,6 +449,17 @@ static struct sar_module omap44xx_sar_modules[] = {
 	{ .base = 0 },
 };
 
+static void __init omap_usb_clk_init(void)
+{
+	uhh_hwm = omap_hwmod_lookup("usb_host_hs");
+	if (!uhh_hwm)
+		pr_err("Could not look up usb_host_hs\n");
+
+	tll_hwm = omap_hwmod_lookup("usb_tll_hs");
+	if (!tll_hwm)
+		pr_err("Could not look up usb_tll_hs\n");
+}
+
 /*
  * SAR RAM used to save and restore the HW
  * context in low power modes
@@ -515,15 +528,7 @@ static int __init omap4_sar_ram_init(void)
 	if (!l3init_clkdm)
 		pr_err("Failed to get l3_init_clkdm\n");
 
-	usb_host_ck = clk_get(NULL, "usb_host_hs_fck");
-	if (IS_ERR(usb_host_ck))
-		pr_err("Could not get usb_host_ck\n");
-
-	usb_tll_ck = clk_get(NULL, "usb_tll_hs_ick");
-	if (IS_ERR(usb_tll_ck))
-		pr_err("Could not get usb_tll_ck\n");
-
-	return 0;
+	omap_usb_clk_init();
 }
 early_initcall(omap4_sar_ram_init);
 
@@ -597,13 +602,7 @@ static int __init omap5_sar_ram_init(void)
 	if (!l3init_clkdm)
 		pr_err("Failed to get l3init_clkdm\n");
 
-	usb_host_ck = clk_get(NULL, "usb_host_hs_fck");
-	if (IS_ERR(usb_host_ck))
-		pr_err("Could not get usb_host_ck\n");
-
-	usb_tll_ck = clk_get(NULL, "usb_tll_hs_ick");
-	if (IS_ERR(usb_tll_ck))
-		pr_err("Could not get usb_tll_ck\n");
+	omap_usb_clk_init();
 
 	return 0;
 }

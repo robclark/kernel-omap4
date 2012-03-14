@@ -2239,6 +2239,7 @@ int omap_hwmod_enable_clocks(struct omap_hwmod *oh)
 
 	spin_lock_irqsave(&oh->_lock, flags);
 	_enable_clocks(oh);
+	_enable_module(oh);
 	spin_unlock_irqrestore(&oh->_lock, flags);
 
 	return 0;
@@ -2256,6 +2257,7 @@ int omap_hwmod_disable_clocks(struct omap_hwmod *oh)
 
 	spin_lock_irqsave(&oh->_lock, flags);
 	_disable_clocks(oh);
+	_omap4_disable_module(oh);
 	spin_unlock_irqrestore(&oh->_lock, flags);
 
 	return 0;
