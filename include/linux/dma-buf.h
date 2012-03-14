@@ -63,7 +63,8 @@ struct dma_buf_ops {
 	struct sg_table * (*map_dma_buf)(struct dma_buf_attachment *,
 						enum dma_data_direction);
 	void (*unmap_dma_buf)(struct dma_buf_attachment *,
-						struct sg_table *);
+						struct sg_table *,
+						enum dma_data_direction);
 	/* TODO: Add try_map_dma_buf version, to return immed with -EBUSY
 	 * if the call would block.
 	 */
@@ -114,15 +115,16 @@ struct dma_buf_attachment *dma_buf_attach(struct dma_buf *dmabuf,
 							struct device *dev);
 void dma_buf_detach(struct dma_buf *dmabuf,
 				struct dma_buf_attachment *dmabuf_attach);
-struct dma_buf *dma_buf_export(void *priv, struct dma_buf_ops *ops,
-			size_t size, int flags);
+struct dma_buf *dma_buf_export(void *priv, const struct dma_buf_ops *ops,
+			       size_t size, int flags);
 int dma_buf_fd(struct dma_buf *dmabuf);
 struct dma_buf *dma_buf_get(int fd);
 void dma_buf_put(struct dma_buf *dmabuf);
 
 struct sg_table *dma_buf_map_attachment(struct dma_buf_attachment *,
 					enum dma_data_direction);
-void dma_buf_unmap_attachment(struct dma_buf_attachment *, struct sg_table *);
+void dma_buf_unmap_attachment(struct dma_buf_attachment *, struct sg_table *,
+				enum dma_data_direction);
 #else
 
 static inline struct dma_buf_attachment *dma_buf_attach(struct dma_buf *dmabuf,
@@ -138,8 +140,8 @@ static inline void dma_buf_detach(struct dma_buf *dmabuf,
 }
 
 static inline struct dma_buf *dma_buf_export(void *priv,
-						struct dma_buf_ops *ops,
-						size_t size, int flags)
+					     const struct dma_buf_ops *ops,
+					     size_t size, int flags)
 {
 	return ERR_PTR(-ENODEV);
 }
@@ -166,7 +168,7 @@ static inline struct sg_table *dma_buf_map_attachment(
 }
 
 static inline void dma_buf_unmap_attachment(struct dma_buf_attachment *attach,
-						struct sg_table *sg)
+			struct sg_table *sg, enum dma_data_direction dir)
 {
 	return;
 }
