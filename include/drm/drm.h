@@ -620,7 +620,10 @@ struct drm_get_cap {
 struct drm_prime_handle {
 	__u32 handle;
 
-	/* returned fd for prime */
+	/** Flags.. only applicable for handle->fd */
+	__u32 flags;
+
+	/** Returned dmabuf file descriptor */
 	__s32 fd;
 };
 

@@ -418,6 +418,11 @@ struct drm_pending_event {
 	void (*destroy)(struct drm_pending_event *event);
 };
 
+/* initial implementaton using a linked list - todo hashtab */
+struct drm_prime_file_private {
+	struct list_head head;
+};
+
 /** File private data */
 struct drm_file {
 	int authenticated;
@@ -445,6 +450,8 @@ struct drm_file {
 	wait_queue_head_t event_wait;
 	struct list_head event_list;
 	int event_space;
+
+	struct drm_prime_file_private prime;
 };
 
 /** Wait queue */
@@ -661,8 +668,6 @@ struct drm_gem_object {
 
 	void *driver_private;
 
-	/* prime fd exporting this object, -1 for no fd */
-	int prime_fd;
 	/* dma buf exported from this GEM object */
 	struct dma_buf *export_dma_buf;
 
@@ -670,11 +675,6 @@ struct drm_gem_object {
 	struct dma_buf_attachment *import_attach;
 
 	struct hlist_node brown;
-};
-
-/* initial implementaton using a linked list - todo hashtab */
-struct drm_prime_file_private {
-	struct list_head head;
 };
 
 #include "drm_crtc.h"
@@ -916,12 +916,13 @@ struct drm_driver {
 	int (*gem_open_object) (struct drm_gem_object *, struct drm_file *);
 	void (*gem_close_object) (struct drm_gem_object *, struct drm_file *);
 
-	/* prime */
-	int (*prime_handle_to_fd)(struct drm_device *dev, struct drm_file *file_priv,
-				  uint32_t handle, int *prime_fd);
-
-	int (*prime_fd_to_handle)(struct drm_device *dev, struct drm_file *file_priv,
-				  int prime_fd, uint32_t *handle);
+	/* prime: */
+	/* export GEM -> dmabuf */
+	struct dma_buf * (*prime_export)(struct drm_device *dev,
+				struct drm_gem_object *obj, int flags);
+	/* import dmabuf -> GEM */
+	struct drm_gem_object * (*prime_import)(struct drm_device *dev,
+				struct dma_buf *dma_buf);
 
 	/* vga arb irq handler */
 	void (*vgaarb_irq)(struct drm_device *dev, bool state);

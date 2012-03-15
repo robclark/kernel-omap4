@@ -13,22 +13,85 @@ int drm_prime_handle_to_fd_ioctl(struct drm_device *dev, void *data,
 				 struct drm_file *file_priv)
 {
 	struct drm_prime_handle *args = data;
+	struct drm_gem_object *obj;
 
 	if (!drm_core_check_feature(dev, DRIVER_PRIME))
 		return -EINVAL;
 
-	return dev->driver->prime_handle_to_fd(dev, file_priv, args->handle, &args->fd);
+	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
+	if (!obj)
+		return -ENOENT;
+
+	if (obj->export_dma_buf) {
+		/* TODO what if flags have changed? */
+	} else {
+		obj->export_dma_buf = dev->driver->prime_export(dev, obj, args->flags);
+		if (IS_ERR_OR_NULL(obj->export_dma_buf)) {
+			/* normally the created dma-buf takes ownership of the ref,
+			 * but if that fails then drop the ref
+			 */
+			drm_gem_object_unreference_unlocked(obj);
+			return PTR_ERR(obj->export_dma_buf);
+		}
+	}
+
+	args->fd = dma_buf_fd(obj->export_dma_buf);
+
+	return 0;
 }
 
 int drm_prime_fd_to_handle_ioctl(struct drm_device *dev, void *data,
 				 struct drm_file *file_priv)
 {
 	struct drm_prime_handle *args = data;
+	struct dma_buf *dma_buf;
+	struct drm_gem_object *obj;
+	uint32_t handle;
+	int ret;
 
 	if (!drm_core_check_feature(dev, DRIVER_PRIME))
 		return -EINVAL;
 
-	return dev->driver->prime_fd_to_handle(dev, file_priv, args->fd, &args->handle);
+	dma_buf = dma_buf_get(args->fd);
+	if (IS_ERR(dma_buf))
+		return PTR_ERR(dma_buf);
+
+	ret = drm_prime_lookup_fd_handle_mapping(&file_priv->prime,
+			dma_buf, &handle);
+	if (!ret) {
+		dma_buf_put(dma_buf);
+		args->handle = handle;
+		return 0;
+	}
+
+	/* never seen this one, need to import */
+	obj = dev->driver->prime_import(dev, dma_buf);
+	if (IS_ERR_OR_NULL(obj)) {
+		ret = PTR_ERR(obj);
+		goto fail_put;
+	}
+
+	ret = drm_gem_handle_create(file_priv, obj, &handle);
+	drm_gem_object_unreference_unlocked(obj);
+	if (ret)
+		goto fail_put;
+
+	ret = drm_prime_insert_fd_handle_mapping(&file_priv->prime,
+			dma_buf, handle);
+	if (ret)
+		goto fail;
+
+	args->handle = handle;
+	return 0;
+
+fail:
+	/* hmm, if driver attached, we are relying on the free-object path
+	 * to detach.. which seems ok..
+	 */
+	drm_gem_object_handle_unreference_unlocked(obj);
+fail_put:
+	dma_buf_put(dma_buf);
+	return ret;
 }
 
 struct sg_table *drm_prime_pages_to_sg(struct page **pages, int nr_pages)
@@ -63,7 +126,7 @@ void drm_prime_gem_destroy(struct drm_gem_object *obj, struct sg_table *sg)
 
 	attach = obj->import_attach;
 	if (sg)
-		dma_buf_unmap_attachment(attach, sg);
+		dma_buf_unmap_attachment(attach, sg, DMA_BIDIRECTIONAL);
 	dma_buf_detach(attach->dmabuf, attach);
 }
 EXPORT_SYMBOL(drm_prime_gem_destroy);

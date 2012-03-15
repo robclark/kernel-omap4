@@ -313,7 +313,7 @@ int drm_fill_in_dev(struct drm_device *dev,
 		}
 	}
 
-	if (driver->driver_features & DRIVER_PRIME) {
+	if (drm_core_check_feature(dev, DRIVER_PRIME)) {
 		int i;
 		for (i = 0; i < DRM_DMA_BUF_HASH_ENTRIES; i++)
 			INIT_HLIST_HEAD(&dev->dma_buf_hash[i]);
