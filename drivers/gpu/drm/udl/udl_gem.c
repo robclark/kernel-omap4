@@ -276,33 +276,18 @@ static int udl_prime_create(struct drm_device *dev,
 	return 0;
 }
 
-int udl_gem_prime_fd_to_handle(struct drm_device *dev,
-			       struct drm_file *file,
-			       int prime_fd, uint32_t *handle)
+struct drm_gem_object * udl_gem_prime_import(struct drm_device *dev,
+				struct dma_buf *dma_buf)
 {
-	struct udl_file_private *fpriv = file->driver_priv;
-	struct dma_buf *dma_buf;
 	struct dma_buf_attachment *attach;
 	struct sg_table *sg;
 	struct udl_gem_object *uobj;
 	int ret;
 
-	dma_buf = dma_buf_get(prime_fd);
-	if (IS_ERR(dma_buf))
-		return PTR_ERR(dma_buf);
-
-	ret = drm_prime_lookup_fd_handle_mapping(&fpriv->prime, dma_buf, handle);
-	if (!ret) {
-		dma_buf_put(dma_buf);
-		return 0;
-	}
-
 	/* need to attach */
 	attach = dma_buf_attach(dma_buf, dev->dev);
-	if (IS_ERR(attach)) {
-		ret = PTR_ERR(attach);
-		goto fail_put;
-	}
+	if (IS_ERR(attach))
+		return ERR_PTR(PTR_ERR(attach));
 
 	sg = dma_buf_map_attachment(attach, DMA_BIDIRECTIONAL);
 	if (IS_ERR(sg)) {
@@ -317,25 +302,11 @@ int udl_gem_prime_fd_to_handle(struct drm_device *dev,
 
 	uobj->base.import_attach = attach;
 
-	ret = drm_gem_handle_create(file, &uobj->base, handle);
-	if (ret) {
-		drm_gem_object_unreference_unlocked(&uobj->base);
-		goto fail_unmap;
-	}
+	return &uobj->base;
 
-	drm_gem_object_unreference_unlocked(&uobj->base);
-
-	ret = drm_prime_insert_fd_handle_mapping(&fpriv->prime, dma_buf, *handle);
-	if (ret) {
-		drm_gem_object_handle_unreference_unlocked(&uobj->base);
-		goto fail_unmap;
-	}
-	return ret;
 fail_unmap:
-	dma_buf_unmap_attachment(attach, sg);
+	dma_buf_unmap_attachment(attach, sg, DMA_BIDIRECTIONAL);
 fail_detach:
 	dma_buf_detach(dma_buf, attach);
-fail_put:
-	dma_buf_put(dma_buf);
-	return ret;
+	return ERR_PTR(ret);
 }

@@ -127,9 +127,8 @@ void udl_gem_free_object(struct drm_gem_object *gem_obj);
 void udl_gem_close_object(struct drm_gem_object *gem, struct drm_file *file_priv);
 struct udl_gem_object *udl_gem_alloc_object(struct drm_device *dev,
 					    size_t size);
-int udl_gem_prime_fd_to_handle(struct drm_device *dev,
-			       struct drm_file *file,
-			       int prime_fd, uint32_t *handle);
+struct drm_gem_object * udl_gem_prime_import(struct drm_device *dev,
+				struct dma_buf *dma_buf);
 
 int udl_gem_vmap(struct udl_gem_object *obj);
 void udl_gem_vunmap(struct udl_gem_object *obj);
