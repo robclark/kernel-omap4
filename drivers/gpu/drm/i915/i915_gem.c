@@ -3697,7 +3697,7 @@ void i915_gem_free_object(struct drm_gem_object *gem_obj)
 		i915_gem_detach_phys_object(dev, obj);
 
 	if (gem_obj->import_attach)
-		drm_prime_gem_destroy(gem_obj, obj->sg, gem_obj->import_attach);
+		drm_prime_gem_destroy(gem_obj, obj->sg);
 
 	i915_gem_free_object_tail(obj);
 }
@@ -4216,8 +4216,4 @@ rescan:
 void
 i915_gem_close_object(struct drm_gem_object *gem, struct drm_file *file)
 {
-	struct drm_i915_file_private *file_priv = file->driver_priv;
-
-	if (gem->import_attach)
-		drm_prime_remove_fd_handle_mapping(&file_priv->prime, gem->import_attach->dmabuf);
 }

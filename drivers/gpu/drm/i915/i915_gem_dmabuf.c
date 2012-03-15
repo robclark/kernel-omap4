@@ -29,7 +29,7 @@ out:
 }
 
 void i915_gem_unmap_dma_buf(struct dma_buf_attachment *attachment,
-			    struct sg_table *sg)
+			    struct sg_table *sg, enum dma_data_direction dir)
 {
 	sg_free_table(sg);
 	kfree(sg);
@@ -41,7 +41,6 @@ void i915_gem_dmabuf_release(struct dma_buf *dma_buf)
 
 	if (obj->base.export_dma_buf == dma_buf) {
 		/* drop the reference on the export fd holds */
-		obj->base.prime_fd = -1;
 		obj->base.export_dma_buf = NULL;
 		drm_gem_object_unreference_unlocked(&obj->base);
 	}
@@ -104,7 +103,8 @@ struct drm_gem_object * i915_gem_prime_import(struct drm_device *dev,
 	obj->pages = drm_malloc_ab(npages, sizeof(struct page *));
 	if (obj->pages == NULL) {
 		DRM_ERROR("obj pages is NULL %d\n", npages);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto fail_unmap;
 	}
 
 	for_each_sg(sg->sgl, iter, npages, i)
@@ -119,5 +119,5 @@ fail_unmap:
 	dma_buf_unmap_attachment(attach, sg, DMA_BIDIRECTIONAL);
 fail_detach:
 	dma_buf_detach(dma_buf, attach);
-	return ret;
+	return ERR_PTR(ret);
 }

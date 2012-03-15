@@ -1232,12 +1232,12 @@ i915_gem_get_unfenced_gtt_alignment(struct drm_device *dev,
 int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 				    enum i915_cache_level cache_level);
 
-int i915_gem_prime_handle_to_fd(struct drm_device *dev,
-				struct drm_file *file_priv,
-				uint32_t handle, int *prime_fd);
-int i915_gem_prime_fd_to_handle(struct drm_device *dev,
-				struct drm_file *file_priv,
-				int prime_fd, uint32_t *handle);
+struct drm_gem_object * i915_gem_prime_import(struct drm_device *dev,
+				struct dma_buf *dma_buf);
+
+struct dma_buf * i915_gem_prime_export(struct drm_device *dev,
+				struct drm_gem_object *gem_obj, int flags);
+
 
 /* i915_gem_gtt.c */
 void i915_gem_restore_gtt_mappings(struct drm_device *dev);

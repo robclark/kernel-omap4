@@ -883,8 +883,8 @@ static struct drm_driver driver = {
 	.gem_vm_ops = &i915_gem_vm_ops,
 	.gem_close_object = i915_gem_close_object,
 
-	.prime_handle_to_fd = i915_gem_prime_handle_to_fd,
-	.prime_fd_to_handle = i915_gem_prime_fd_to_handle,
+	.prime_export = i915_gem_prime_export,
+	.prime_import = i915_gem_prime_import,
 
 	.dumb_create = i915_gem_dumb_create,
 	.dumb_map_offset = i915_gem_mmap_gtt,
