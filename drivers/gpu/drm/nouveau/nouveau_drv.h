@@ -49,7 +49,6 @@ struct nouveau_fpriv {
 	spinlock_t lock;
 	struct list_head channels;
 	struct nouveau_vm *vm;
-	struct drm_prime_file_private prime;
 };
 
 static inline struct nouveau_fpriv *
@@ -1457,12 +1456,10 @@ extern int nouveau_gem_ioctl_cpu_fini(struct drm_device *, void *,
 extern int nouveau_gem_ioctl_info(struct drm_device *, void *,
 				  struct drm_file *);
 
-extern int nouveau_gem_prime_handle_to_fd(struct drm_device *dev,
-					  struct drm_file *file_priv,
-					  uint32_t handle, int *prime_fd);
-extern int nouveau_gem_prime_fd_to_handle(struct drm_device *dev,
-					  struct drm_file *file_priv,
-					  int prime_fd, uint32_t *handle_p);
+extern struct dma_buf * nouveau_gem_prime_export(struct drm_device *dev,
+				struct drm_gem_object *obj, int flags);
+extern struct drm_gem_object * nouveau_gem_prime_import(struct drm_device *dev,
+				struct dma_buf *dma_buf);
 
 /* nouveau_display.c */
 int nouveau_display_create(struct drm_device *dev);

@@ -35,7 +35,6 @@ static void nouveau_gem_dmabuf_release(struct dma_buf *dma_buf)
 
 	if (nvbo->gem->export_dma_buf == dma_buf) {
 		DRM_ERROR("unreference dmabuf %p\n", nvbo->gem);
-		nvbo->gem->prime_fd = -1;
 		nvbo->gem->export_dma_buf = NULL;
 		drm_gem_object_unreference_unlocked(nvbo->gem);
 	}
@@ -81,77 +80,32 @@ nouveau_prime_new(struct drm_device *dev,
 	return 0;
 }
 
-int nouveau_gem_prime_handle_to_fd(struct drm_device *dev,
-				   struct drm_file *file_priv,
-				   uint32_t handle, int *prime_fd)
+struct dma_buf * nouveau_gem_prime_export(struct drm_device *dev,
+				struct drm_gem_object *obj, int flags)
 {
-	struct nouveau_bo *nvbo;
-	struct drm_gem_object *gem;
+	struct nouveau_bo *nvbo = nouveau_gem_object(obj);
 	int ret = 0;
-
-	gem = drm_gem_object_lookup(dev, file_priv, handle);
-	if (!gem)
-		return -ENOENT;
-	nvbo = nouveau_gem_object(gem);
-
-	if (gem->prime_fd != -1) {
-		/* drop lookup reference here already one on the fd */
-		drm_gem_object_unreference_unlocked(gem);
-		goto have_fd;
-	}
 
 	/* pin buffer into GTT */
 	ret = nouveau_bo_pin(nvbo, TTM_PL_FLAG_TT);
-	if (ret) {
-		ret = -EINVAL;
-		goto out_unlock;
-	}
+	if (ret)
+		return ERR_PTR(-EINVAL);
 
-	gem->export_dma_buf = dma_buf_export(nvbo, &nouveau_dmabuf_ops, gem->size, 0600);
-	if (IS_ERR(gem->export_dma_buf)) {
-		ret = PTR_ERR(gem->export_dma_buf);
-		goto out_unlock;
-	}
-	gem->prime_fd = dma_buf_fd(gem->export_dma_buf);
-
-	/* don't drop reference since fd doesn't have it */
-have_fd:
-	*prime_fd = gem->prime_fd;
-	return ret;
-out_unlock:
-	drm_gem_object_unreference_unlocked(gem);
-	return ret;
+	return dma_buf_export(nvbo, &nouveau_dmabuf_ops, obj->size, flags);
 }
 
-int nouveau_gem_prime_fd_to_handle(struct drm_device *dev,
-				   struct drm_file *file_priv,
-				   int prime_fd, uint32_t *handle_p)
+struct drm_gem_object * nouveau_gem_prime_import(struct drm_device *dev,
+				struct dma_buf *dma_buf)
 {
-	struct nouveau_fpriv *fpriv = file_priv->driver_priv;
-	struct dma_buf *dma_buf;
 	struct dma_buf_attachment *attach;
 	struct sg_table *sg;
 	struct nouveau_bo *nvbo;
 	int ret;
-	uint32_t handle;
-
-	dma_buf = dma_buf_get(prime_fd);
-	if (IS_ERR(dma_buf))
-		return PTR_ERR(dma_buf);
-
-	ret = drm_prime_lookup_fd_handle_mapping(&fpriv->prime, dma_buf, &handle);
-	if (!ret) {
-		dma_buf_put(dma_buf);
-		*handle_p = handle;
-		return 0;
-	}
 
 	/* need to attach */
 	attach = dma_buf_attach(dma_buf, dev->dev);
-	if (IS_ERR(attach)) {
-		ret = PTR_ERR(attach);
-		goto fail_put;
-	}
+	if (IS_ERR(attach))
+		return ERR_PTR(PTR_ERR(attach));
 
 	sg = dma_buf_map_attachment(attach, DMA_BIDIRECTIONAL);
 	if (IS_ERR(sg)) {
@@ -164,26 +118,13 @@ int nouveau_gem_prime_fd_to_handle(struct drm_device *dev,
 		goto fail_unmap;
 
 	nvbo->gem->import_attach = attach;
-	ret = drm_gem_handle_create(file_priv, nvbo->gem, &handle);
-	drm_gem_object_unreference_unlocked(nvbo->gem);
-	if (ret)
-		goto fail_unmap;
 
-	ret = drm_prime_insert_fd_handle_mapping(&fpriv->prime, dma_buf, handle);
-	if (ret)
-		goto fail_handle;
+	return nvbo->gem;
 
-	*handle_p = handle;
-	return 0;
-
-fail_handle:
-	drm_gem_object_handle_unreference_unlocked(nvbo->gem);
 fail_unmap:
-	dma_buf_unmap_attachment(attach, sg);
+	dma_buf_unmap_attachment(attach, sg, DMA_BIDIRECTIONAL);
 fail_detach:
 	dma_buf_detach(dma_buf, attach);
-fail_put:
-	dma_buf_put(dma_buf);
-	return ret;
+	return ERR_PTR(ret);
 }
 
