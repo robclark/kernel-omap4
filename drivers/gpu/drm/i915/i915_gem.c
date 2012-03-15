@@ -3697,7 +3697,7 @@ void i915_gem_free_object(struct drm_gem_object *gem_obj)
 		i915_gem_detach_phys_object(dev, obj);
 
 	if (gem_obj->import_attach)
-		drm_prime_gem_destroy(gem_obj, obj->sg);
+		drm_prime_gem_destroy(gem_obj, obj->sg, gem_obj->import_attach);
 
 	i915_gem_free_object_tail(obj);
 }
