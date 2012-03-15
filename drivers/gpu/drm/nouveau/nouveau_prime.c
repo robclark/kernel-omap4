@@ -23,7 +23,7 @@ static struct sg_table *nouveau_gem_map_dma_buf(struct dma_buf_attachment *attac
 }
 
 static void nouveau_gem_unmap_dma_buf(struct dma_buf_attachment *attachment,
-				      struct sg_table *sg)
+				      struct sg_table *sg, enum dma_data_direction dir)
 {
 	sg_free_table(sg);
 	kfree(sg);

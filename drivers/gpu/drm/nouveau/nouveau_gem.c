@@ -109,9 +109,6 @@ nouveau_gem_object_close(struct drm_gem_object *gem, struct drm_file *file_priv)
 	struct nouveau_vma *vma;
 	int ret;
 
-	if (gem->import_attach)
-		drm_prime_remove_fd_handle_mapping(&fpriv->prime, gem->import_attach->dmabuf);
-
 	if (!fpriv->vm)
 		return;
 
