@@ -18,6 +18,9 @@ int drm_prime_handle_to_fd_ioctl(struct drm_device *dev, void *data,
 	if (!drm_core_check_feature(dev, DRIVER_PRIME))
 		return -EINVAL;
 
+	if (!dev->driver->prime_export)
+		return -ENOSYS;
+
 	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
 	if (!obj)
 		return -ENOENT;
@@ -51,6 +54,9 @@ int drm_prime_fd_to_handle_ioctl(struct drm_device *dev, void *data,
 
 	if (!drm_core_check_feature(dev, DRIVER_PRIME))
 		return -EINVAL;
+
+	if (!dev->driver->prime_import)
+		return -ENOSYS;
 
 	dma_buf = dma_buf_get(args->fd);
 	if (IS_ERR(dma_buf))
