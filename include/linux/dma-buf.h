@@ -34,6 +34,17 @@
 struct dma_buf;
 struct dma_buf_attachment;
 
+/* TODO: dma-buf.h should be the userspace visible header, and dma-buf-priv.h (?)
+ * the kernel internal header.. for now just stuff these here to avoid conflicting
+ * with other patches..
+ *
+ * For now, no arg to keep things simple, but we could consider adding an
+ * optional region of interest later.
+ */
+#define DMA_BUF_IOCTL_PREPARE_ACCESS   _IO('Z', 0)
+#define DMA_BUF_IOCTL_FINISH_ACCESS    _IO('Z', 1)
+
+
 /**
  * struct dma_buf_ops - operations possible on struct dma_buf
  * @attach: [optional] allows different devices to 'attach' themselves to the
@@ -49,6 +60,13 @@ struct dma_buf_attachment;
  * @unmap_dma_buf: decreases usecount of buffer, might deallocate scatter
  *		   pages.
  * @release: release this buffer; to be called after the last dma_buf_put.
+ * @mmap: [optional, allowed to fail] operation called if userspace calls
+ *		 mmap() on the dmabuf fd.  Note that userspace should use the
+ *		 DMA_BUF_PREPARE_ACCESS / DMA_BUF_FINISH_ACCESS ioctls before/after
+ *		 sw access to the buffer, to give the exporter an opportunity to
+ *		 deal with cache maintenance.
+ * @prepare_access: [optional] handler for PREPARE_ACCESS ioctl.
+ * @finish_access: [optional] handler for FINISH_ACCESS ioctl.
  */
 struct dma_buf_ops {
 	int (*attach)(struct dma_buf *, struct device *,
@@ -71,6 +89,10 @@ struct dma_buf_ops {
 
 	/* after final dma_buf_put() */
 	void (*release)(struct dma_buf *);
+
+	int (*mmap)(struct dma_buf *, struct file *, struct vm_area_struct *);
+	int (*prepare_access)(struct dma_buf *);
+	int (*finish_access)(struct dma_buf *);
 
 };
 

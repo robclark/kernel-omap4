@@ -30,6 +30,46 @@
 
 static inline int is_dma_buf_file(struct file *);
 
+static int dma_buf_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	struct dma_buf *dmabuf;
+
+	if (!is_dma_buf_file(file))
+		return -EINVAL;
+
+	dmabuf = file->private_data;
+
+	if (dmabuf->ops->mmap)
+		return dmabuf->ops->mmap(dmabuf, file, vma);
+
+	return -ENODEV;
+}
+
+static long dma_buf_ioctl(struct file *file, unsigned int cmd,
+		unsigned long arg)
+{
+	struct dma_buf *dmabuf;
+
+	if (!is_dma_buf_file(file))
+		return -EINVAL;
+
+	dmabuf = file->private_data;
+
+	switch (_IOC_NR(cmd)) {
+	case _IOC_NR(DMA_BUF_IOCTL_PREPARE_ACCESS):
+		if (dmabuf->ops->prepare_access)
+			return dmabuf->ops->prepare_access(dmabuf);
+		return 0;
+	case _IOC_NR(DMA_BUF_IOCTL_FINISH_ACCESS):
+		if (dmabuf->ops->finish_access)
+			return dmabuf->ops->finish_access(dmabuf);
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
+
 static int dma_buf_release(struct inode *inode, struct file *file)
 {
 	struct dma_buf *dmabuf;
@@ -45,6 +85,8 @@ static int dma_buf_release(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations dma_buf_fops = {
+	.mmap 		= dma_buf_mmap,
+	.unlocked_ioctl = dma_buf_ioctl,
 	.release	= dma_buf_release,
 };
 
