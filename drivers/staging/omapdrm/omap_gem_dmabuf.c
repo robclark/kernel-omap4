@@ -57,7 +57,7 @@ out:
 }
 
 void omap_gem_unmap_dma_buf(struct dma_buf_attachment *attachment,
-		struct sg_table *sg)
+		struct sg_table *sg, enum dma_data_direction dir)
 {
 	struct drm_gem_object *obj = attachment->dmabuf->priv;
 	omap_gem_put_paddr(obj);
@@ -80,38 +80,8 @@ struct dma_buf_ops omap_dmabuf_ops = {
 		.release = omap_gem_dmabuf_release,
 };
 
-int omap_gem_prime_set(struct drm_device *dev,
-		struct drm_file *file_priv,
-		uint32_t handle, int *prime_fd)
+struct dma_buf * omap_gem_prime_export(struct drm_device *dev,
+		struct drm_gem_object *obj, int flags)
 {
-	struct drm_gem_object *obj;
-	int ret;
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
-
-	obj = drm_gem_object_lookup(dev, file_priv, handle);
-	if (!obj) {
-		ret = -ENOENT;
-		goto unlock;
-	}
-
-	/* note: dmabuf takes ownership of the bo ref */
-	obj->dma_buf = dma_buf_export(obj, &omap_dmabuf_ops, obj->size, 0600);
-	if (obj->dma_buf)
-		*prime_fd = dma_buf_fd(obj->dma_buf);
-	else
-		ret = -ENOMEM;
-
-unlock:
-	mutex_unlock(&dev->struct_mutex);
-	return ret;
-}
-
-int omap_gem_prime_get(struct drm_device *dev,
-		struct drm_file *file_priv,
-		int prime_fd, uint32_t *handle)
-{
-	return -EINVAL;
+	return dma_buf_export(obj, &omap_dmabuf_ops, obj->size, 0600);
 }
