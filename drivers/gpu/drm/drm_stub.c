@@ -304,7 +304,7 @@ int drm_fill_in_dev(struct drm_device *dev,
 		goto error_out_unreg;
 	}
 
-	if (driver->driver_features & DRIVER_GEM) {
+	if (drm_core_check_feature(dev, DRIVER_GEM)) {
 		retcode = drm_gem_init(dev);
 		if (retcode) {
 			DRM_ERROR("Cannot initialize graphics execution "
@@ -492,7 +492,7 @@ void drm_put_dev(struct drm_device *dev)
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		drm_put_minor(&dev->control);
 
-	if (driver->driver_features & DRIVER_GEM)
+	if (drm_core_check_feature(dev, DRIVER_GEM))
 		drm_gem_destroy(dev);
 
 	drm_put_minor(&dev->primary);

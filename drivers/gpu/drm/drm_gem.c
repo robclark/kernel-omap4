@@ -409,7 +409,7 @@ drm_gem_close_ioctl(struct drm_device *dev, void *data,
 	struct drm_gem_close *args = data;
 	int ret;
 
-	if (!(dev->driver->driver_features & DRIVER_GEM))
+	if (!drm_core_check_feature(dev, DRIVER_GEM))
 		return -ENODEV;
 
 	ret = drm_gem_handle_delete(file_priv, args->handle);
@@ -431,7 +431,7 @@ drm_gem_flink_ioctl(struct drm_device *dev, void *data,
 	struct drm_gem_object *obj;
 	int ret;
 
-	if (!(dev->driver->driver_features & DRIVER_GEM))
+	if (!drm_core_check_feature(dev, DRIVER_GEM))
 		return -ENODEV;
 
 	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
@@ -485,7 +485,7 @@ drm_gem_open_ioctl(struct drm_device *dev, void *data,
 	int ret;
 	u32 handle;
 
-	if (!(dev->driver->driver_features & DRIVER_GEM))
+	if (!drm_core_check_feature(dev, DRIVER_GEM))
 		return -ENODEV;
 
 	spin_lock(&dev->object_name_lock);
