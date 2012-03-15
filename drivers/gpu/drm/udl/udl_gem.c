@@ -203,11 +203,6 @@ void udl_gem_free_object(struct drm_gem_object *gem_obj)
 
 void udl_gem_close_object(struct drm_gem_object *gem, struct drm_file *file_priv)
 {
-	struct udl_file_private *fpriv = file_priv->driver_priv;
-
-	if (gem->import_attach)
-		drm_prime_remove_fd_handle_mapping(&fpriv->prime, gem->import_attach->dmabuf);
-
 }
 
 /* the dumb interface doesn't work with the GEM straight MMAP
