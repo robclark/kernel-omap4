@@ -1,0 +1,14 @@
+
+config RPC_OMAP
+	tristate "OMAP RPC driver"
+	default y
+	depends on ARCH_OMAP2PLUS
+	depends on RPMSG
+	depends on DRM_OMAP
+	---help---
+	  An rpmsg driver that exposes the Remote Procedure Call API to
+	  user space, in order to allow applications to distribute
+	  remote calls to more power-efficient remote processors.
+
+	  If unsure, say N.
+
