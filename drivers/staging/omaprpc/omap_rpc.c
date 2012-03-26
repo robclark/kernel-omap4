@@ -29,7 +29,7 @@
 #include <linux/skbuff.h>
 #include <linux/sched.h>
 #include <linux/rpmsg.h>
-#include <linux/rpmsg_rpc.h>
+#include <linux/omap_rpc.h>
 #include <linux/completion.h>
 
 #if defined(CONFIG_TI_TILER)
@@ -37,7 +37,7 @@
 #endif
 
 #if defined(CONFIG_DRM_OMAP)
-#include <omap_dmm_tiler.h>
+#include "../omapdrm/omap_dmm_tiler.h"
 #endif
 
 #if defined(CONFIG_ION_OMAP)
@@ -130,8 +130,8 @@ static struct mutex aht_lock;
 #endif
 
 #if defined(CONFIG_ION_OMAP)
-#ifdef CONFIG_PVR_SGX
-#include "../gpu/pvr/ion.h"
+#if defined(CONFIG_PVR_SGX)
+#include "../../gpu/pvr/ion.h"
 #endif
 #endif
 
@@ -333,7 +333,7 @@ static phys_addr_t omaprpc_buffer_lookup(struct omaprpc_instance_t *rpc, uint32_
             lpa+=uoff;
             goto to_va;
         }
- #ifdef CONFIG_PVR_SGX
+ #if defined(CONFIG_PVR_SGX)
         else
         {
             /* is it an sgx buffer wrapping an ion handle? */
@@ -353,9 +353,12 @@ static phys_addr_t omaprpc_buffer_lookup(struct omaprpc_instance_t *rpc, uint32_
     }
 #endif
 
+#if defined(CONFIG_TI_TILER)
     /* Ask the TILER to convert from virtual to physical */
     lpa = (phys_addr_t)tiler_virt2phys(uva);
 to_va:
+#endif
+
     /* convert the local physical address to remote physical address */
     rpa = rpmsg_local_to_remote_pa(core, lpa);
 #if defined(OMAPRPC_USE_HASH)
@@ -477,7 +480,7 @@ restart:
                 /* calc the new RPA (remote physical address) */
                 rpa = omaprpc_buffer_lookup(rpc, rpc->core, uva, buva, reserved);
                 /* save the old value */
-                function->translations[idx].reserved = uva;
+                function->translations[idx].reserved = (void *)uva;
                 /* replace with new RPA */
                 *(phys_addr_t *)kva = rpa;
 #if defined(OMAPRPC_DEBUGGING)
@@ -1219,10 +1222,10 @@ static ssize_t omaprpc_write(struct file *filp,
             /* internally the buffer translations takes care of the offsets */
             void *reserved = (void *)function->params[param].reserved;
 
-            parameters[param].data = omaprpc_buffer_lookup(rpc,
+            parameters[param].data = (void *)omaprpc_buffer_lookup(rpc,
                                                            rpc->core,
-                                                           function->params[param].data,
-                                                           function->params[param].base,
+                                                           (virt_addr_t)function->params[param].data,
+                                                           (virt_addr_t)function->params[param].base,
                                                            reserved);
         }
         else if (function->params[param].type == OMAPRPC_PARAM_TYPE_ATOMIC)
