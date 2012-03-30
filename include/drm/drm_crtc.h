@@ -360,6 +360,9 @@ struct drm_crtc_funcs {
  * @enabled: is this CRTC enabled?
  * @mode: current mode timings
  * @hwmode: mode timings as programmed to hw regs
+ * @invert_dimensions: for purposes of error checking crtc vs fb sizes,
+ *    invert the width/height of the crtc.  This is used if the driver
+ *    is performing 90 or 270 degree rotated scanout
  * @x: x position on screen
  * @y: y position on screen
  * @funcs: CRTC control functions
@@ -392,6 +395,8 @@ struct drm_crtc {
 	 * crtc, panel scaling etc. Needed for timestamping etc.
 	 */
 	struct drm_display_mode hwmode;
+
+	bool invert_dimensions;
 
 	int x, y;
 	const struct drm_crtc_funcs *funcs;
@@ -630,6 +635,9 @@ struct drm_plane_funcs {
  * @gamma_size: size of gamma table
  * @gamma_store: gamma correction table
  * @enabled: enabled flag
+ * @invert_dimensions: for purposes of error checking plane vs fb sizes,
+ *    invert the width/height of the plane.  This is used if the driver
+ *    is performing 90 or 270 degree rotated scanout
  * @funcs: helper functions
  * @helper_private: storage for drver layer
  * @properties: property tracking for this plane
@@ -652,6 +660,7 @@ struct drm_plane {
 	uint16_t *gamma_store;
 
 	bool enabled;
+	bool invert_dimensions;
 
 	const struct drm_plane_funcs *funcs;
 	void *helper_private;
