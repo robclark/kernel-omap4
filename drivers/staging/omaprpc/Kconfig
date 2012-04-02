@@ -4,6 +4,9 @@ config RPC_OMAP
 	default y
 	depends on ARCH_OMAP2PLUS
 	depends on RPMSG
+	#depends on TI_TILER
+	depends on REMOTEPROC
+	depends on OMAP_REMOTEPROC
 	depends on DRM_OMAP
 	---help---
 	  An rpmsg driver that exposes the Remote Procedure Call API to
