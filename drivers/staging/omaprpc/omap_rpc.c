@@ -62,9 +62,7 @@ static struct omaprpc_call_function_t *omaprpc_fxn_get(struct omaprpc_instance_t
     mutex_lock(&rpc->lock);
     list_for_each_entry_safe(pos, n, &rpc->fxn_list, list)
     {
-#if defined(OMAPRPC_DEBUGGING)
-        dev_info(rpc->rpcserv->dev, "Looking for msg %u, found msg %u\n", msgId, pos->msgId);
-#endif
+        OMAPRPC_INFO(rpc->rpcserv->dev, "Looking for msg %u, found msg %u\n", msgId, pos->msgId);
         if (pos->msgId == msgId) {
             function = pos->function;
             list_del(&pos->list);
@@ -88,9 +86,7 @@ static int omaprpc_fxn_add(struct omaprpc_instance_t *rpc, struct omaprpc_call_f
         mutex_lock(&rpc->lock);
         list_add(&fxn->list, &rpc->fxn_list);
         mutex_unlock(&rpc->lock);
-#if defined(OMAPRPC_DEBUGGING)
-        dev_info(rpc->rpcserv->dev, "Added msg id %u to list", msgId);
-#endif
+        OMAPRPC_INFO(rpc->rpcserv->dev, "Added msg id %u to list", msgId);
     }
     else
     {
@@ -111,9 +107,7 @@ static void omaprpc_cb(struct rpmsg_channel *rpdev, void *data, int len, void *p
     char *skbdata;
     u32 expected = 0;
 
-#if defined(OMAPRPC_DEBUGGING)
-    dev_info(rpc->rpcserv->dev, "OMAPRPC: incoming msg src %d len %d msg_type %d msg_len %d\n", src, len, hdr->msg_type, hdr->msg_len);
-#endif
+    OMAPRPC_INFO(rpc->rpcserv->dev, "OMAPRPC: incoming msg src %d len %d msg_type %d msg_len %d\n", src, len, hdr->msg_type, hdr->msg_len);
 #if 0
     print_hex_dump(KERN_DEBUG, "OMAPRPC: RX: ", DUMP_PREFIX_NONE, 16, 1, data, len, true);
 #endif
@@ -145,7 +139,7 @@ static void omaprpc_cb(struct rpmsg_channel *rpdev, void *data, int len, void *p
             }
             else
             {
-                dev_info(rpc->rpcserv->dev, "OMAPRPC: Created addr %d status %d \n", hdl->endpoint_address, hdl->status);
+                OMAPRPC_INFO(rpc->rpcserv->dev, "OMAPRPC: Created addr %d status %d \n", hdl->endpoint_address, hdl->status);
                 rpc->dst = hdl->endpoint_address; // only save the address if it connected.
                 rpc->state = OMAPRPC_STATE_CONNECTED;
                 rpc->core = OMAPRPC_CORE_MCU1; // default core
@@ -162,7 +156,7 @@ static void omaprpc_cb(struct rpmsg_channel *rpdev, void *data, int len, void *p
                 rpc->state = OMAPRPC_STATE_FAULT;
                 break;
             }
-            dev_info(rpc->rpcserv->dev, "OMAPRPC: endpoint %d disconnected!\n", hdl->endpoint_address);
+            OMAPRPC_INFO(rpc->rpcserv->dev, "OMAPRPC: endpoint %d disconnected!\n", hdl->endpoint_address);
             rpc->state = OMAPRPC_STATE_DISCONNECTED;
             rpc->dst = 0;
             rpc->transisioning = 0;
@@ -177,7 +171,7 @@ static void omaprpc_cb(struct rpmsg_channel *rpdev, void *data, int len, void *p
 #if defined(OMAPRPC_PERF_MEASUREMENT)
             do_gettimeofday(&end_time);
             usec_elapsed = (end_time.tv_sec - start_time.tv_sec) * 1000000 + end_time.tv_usec - start_time.tv_usec;
-            dev_info(rpc->rpcserv->dev, "write to callback took %lu usec\n", usec_elapsed);
+            OMAPRPC_INFO(rpc->rpcserv->dev, "write to callback took %lu usec\n", usec_elapsed);
 #endif
 
             skb = alloc_skb(hdr->msg_len, GFP_KERNEL);
@@ -400,7 +394,7 @@ static int omaprpc_open(struct inode *inode, struct file *filp)
     list_add(&rpc->list, &rpcserv->instance_list);
     mutex_unlock(&rpcserv->lock);
 
-    dev_info(rpcserv->dev, "OMAPRPC: local addr assigned: 0x%x\n", rpc->ept->addr);
+    OMAPRPC_INFO(rpcserv->dev, "OMAPRPC: local addr assigned: 0x%x\n", rpc->ept->addr);
 
     return 0;
 }
@@ -435,7 +429,7 @@ static int omaprpc_release(struct inode *inode, struct file *filp)
                     handle->status = 0;
                     len = sizeof(struct omaprpc_msg_header_t) + hdr->msg_len;
 
-                    dev_info(rpcserv->dev, "OMAPRPC: Disconnecting from RPC service at %d\n", rpc->dst);
+                    OMAPRPC_INFO(rpcserv->dev, "OMAPRPC: Disconnecting from RPC service at %d\n", rpc->dst);
 
                     /* send the msg to the remote RPC connection service */
                     ret = rpmsg_send_offchannel(rpcserv->rpdev, rpc->ept->addr,
@@ -472,10 +466,10 @@ static int omaprpc_release(struct inode *inode, struct file *filp)
             list_del(&rpc->list);
             mutex_unlock(&rpcserv->lock);
 
-            dev_info(rpcserv->dev, "OMAPRPC: Instance %p has been deleted!\n", rpc);
+            OMAPRPC_INFO(rpcserv->dev, "OMAPRPC: Instance %p has been deleted!\n", rpc);
 
             if (list_empty(&rpcserv->instance_list)) {
-                dev_info(rpcserv->dev, "OMAPRPC: All instances have been removed!\n");
+                OMAPRPC_INFO(rpcserv->dev, "OMAPRPC: All instances have been removed!\n");
             }
 
             /* Delete the instance memory */
@@ -570,7 +564,7 @@ static ssize_t omaprpc_read(struct file *filp, char __user *buf, size_t len, lof
 #if defined(OMAPRPC_PERF_MEASUREMENT)
     do_gettimeofday(&end_time);
     usec_elapsed = (end_time.tv_sec - start_time.tv_sec) * 1000000 + end_time.tv_usec - start_time.tv_usec;
-    dev_info(rpc->rpcserv->dev, "callback to read took %lu usec\n", usec_elapsed);
+    OMAPRPC_INFO(rpc->rpcserv->dev, "callback to read took %lu usec\n", usec_elapsed);
 #endif
 
     /* unlock the instances */
@@ -746,9 +740,7 @@ static ssize_t omaprpc_write(struct file *filp,
         omaprpc_xlate_buffers(rpc, function, OMAPRPC_RPA_TO_UVA);
         goto failure;
     }
-#if defined(OMAPRPC_DEBUGGING)
-    dev_info(rpcserv->dev, "OMAPRPC: Send msg to remote endpoint %u\n", rpc->dst);
-#endif
+    OMAPRPC_INFO(rpcserv->dev, "OMAPRPC: Send msg to remote endpoint %u\n", rpc->dst);
 failure:
     if (ret >= 0)
         ret = len;
@@ -828,7 +820,7 @@ static int omaprpc_probe(struct rpmsg_channel *rpdev)
     int ret, major, minor;
     struct omaprpc_service_t *rpcserv = NULL, *tmp;
 
-    dev_info(&rpdev->dev, "OMAPRPC: Probing service with src %u dst %u\n", rpdev->src, rpdev->dst);
+    OMAPRPC_INFO(&rpdev->dev, "OMAPRPC: Probing service with src %u dst %u\n", rpdev->src, rpdev->dst);
 
 again: /* SMP systems could race device probes */
 
@@ -922,7 +914,7 @@ serv_up:
     /* Signal that the driver setup is complete */
     complete_all(&rpcserv->comp);
 
-    dev_info(&rpdev->dev, "OMAPRPC: new RPC connection srv channel: %u -> %u!\n",
+    OMAPRPC_INFO(&rpdev->dev, "OMAPRPC: new RPC connection srv channel: %u -> %u!\n",
                         rpdev->src, rpdev->dst);
     return 0;
 
@@ -949,7 +941,7 @@ static void __devexit omaprpc_remove(struct rpmsg_channel *rpdev)
 
     if (rpcserv)
     {
-        dev_info(rpcserv->dev, "OMAPRPC: removing rpmsg omaprpc driver %u.%u\n", major,rpcserv->minor);
+        OMAPRPC_INFO(rpcserv->dev, "OMAPRPC: removing rpmsg omaprpc driver %u.%u\n", major,rpcserv->minor);
 
         spin_lock(&omaprpc_services_lock);
         idr_remove(&omaprpc_services, rpcserv->minor);
@@ -963,7 +955,7 @@ static void __devexit omaprpc_remove(struct rpmsg_channel *rpdev)
             cdev_del(&rpcserv->cdev);
             list_del(&rpcserv->list);
             mutex_unlock(&rpcserv->lock);
-            dev_info(&rpdev->dev, "OMAPRPC: no instances, removed driver!\n");
+            OMAPRPC_INFO(&rpdev->dev, "OMAPRPC: no instances, removed driver!\n");
             kfree(rpcserv);
             return;
         }
@@ -975,7 +967,7 @@ static void __devexit omaprpc_remove(struct rpmsg_channel *rpdev)
         init_completion(&rpcserv->comp);
         rpcserv->state = OMAPRPC_SERVICE_STATE_DOWN;
         list_for_each_entry(rpc, &rpcserv->instance_list, list) {
-            dev_info(rpcserv->dev, "Instance %p in state %d\n", rpc, rpc->state);
+            OMAPRPC_INFO(rpcserv->dev, "Instance %p in state %d\n", rpc, rpc->state);
             /* set rpc instance to fault state */
             rpc->state = OMAPRPC_STATE_FAULT;
             /* complete any on-going transactions */
@@ -991,7 +983,7 @@ static void __devexit omaprpc_remove(struct rpmsg_channel *rpdev)
         }
         mutex_unlock(&rpcserv->lock);
 
-        dev_info(&rpdev->dev, "OMAPRPC: removed rpmsg omaprpc driver.\n");
+        OMAPRPC_INFO(&rpdev->dev, "OMAPRPC: removed rpmsg omaprpc driver.\n");
     }
     else
     {
@@ -1032,7 +1024,7 @@ static void omaprpc_driver_cb(struct rpmsg_channel *rpdev,
             info = OMAPRPC_PAYLOAD(buf, omaprpc_channel_info_t);
             info->name[sizeof(info->name) - 1] = '\0';
             if (rpcserv->dev == NULL) {
-                dev_info(&rpdev->dev, "OMAPRPC: creating device: %s\n", info->name);
+                OMAPRPC_INFO(&rpdev->dev, "OMAPRPC: creating device: %s\n", info->name);
                 /* Create the /dev sysfs entry */
                 rpcserv->dev = device_create(omaprpc_class, &rpdev->dev,
                                              MKDEV(major, rpcserv->minor), NULL,
@@ -1111,7 +1103,7 @@ static int __init omaprpc_init(void)
 #endif
 
     ret = register_rpmsg_driver(&omaprpc_driver);
-    pr_err("OMAPRPC: Registration of RPC RPMSG Service returned %d!\n", ret);
+    pr_err("OMAPRPC: Registration of OMAPRPC rpmsg service returned %d!\n", ret);
     return ret;
 unreg_region:
     unregister_chrdev_region(omaprpc_dev, OMAPRPC_CORE_REMOTE_MAX);
@@ -1144,6 +1136,6 @@ module_exit(omaprpc_fini);
 
 MODULE_AUTHOR("Erik Rainey <erik.rainey@ti.com>");
 MODULE_DESCRIPTION("OMAP Remote Procedure Call Driver");
-//MODULE_ALIAS("platform:" MODULE_NAME);
+MODULE_ALIAS("platform:" MODULE_NAME);
 MODULE_LICENSE("GPL v2");
 
