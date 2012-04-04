@@ -1048,7 +1048,7 @@ static inline bool is_waiting(struct omap_gem_sync_waiter *waiter)
 }
 
 /* macro for sync debug.. */
-#define SYNCDBG 1
+#define SYNCDBG 0
 #define SYNC(str, waiter) do { if (SYNCDBG) \
 		printk(KERN_ERR "%s:%d: "str": %p (%d/%d/%d, %d/%d/%d)\n", \
 				__func__, __LINE__, (waiter)->omap_obj, \
