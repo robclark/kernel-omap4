@@ -2,9 +2,8 @@
 config RPC_OMAP
 	tristate "OMAP Remote Procedure Call driver"
 	default y
-	depends on ARCH_OMAP2PLUS
 	depends on RPMSG
-	#depends on TI_TILER
+	depends on (TI_TILER && ION_OMAP) || DMA_SHARED_BUFFER
 	depends on REMOTEPROC
 	depends on OMAP_REMOTEPROC
 	depends on DRM_OMAP
