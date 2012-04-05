@@ -58,7 +58,7 @@ phys_addr_t omaprpc_dma_find(struct omaprpc_instance_t *rpc, void *reserved)
     list_for_each(pos, &rpc->dma_list)
     {
         node = (dma_info_t *)pos;
-        OMAPRPC_INFO(rpc->rpcserv->dev, "Looking for FD %u, found FD %u\n", fd, node->fd);
+//        OMAPRPC_INFO(rpc->rpcserv->dev, "Looking for FD %u, found FD %u\n", fd, node->fd);
         if (node->fd == (int)reserved) {
             addr = sg_dma_address(node->sgt->sgl);
             break;
@@ -205,7 +205,7 @@ int omaprpc_xlate_buffers(struct omaprpc_instance_t *rpc, struct omaprpc_call_fu
                 /* load the user's VA */
                 uva = *(virt_addr_t *)kva;
 
-                OMAPRPC_INFO(rpc->rpcserv->dev, "Replacing UVA %p at KVA %p PTRIDX:%u OFFSET:%u IDX:%d\n", (void *)uva, (void *)kva, ptr_idx, offset, idx);
+//                OMAPRPC_INFO(rpc->rpcserv->dev, "Replacing UVA %p at KVA %p PTRIDX:%u OFFSET:%u IDX:%d\n", (void *)uva, (void *)kva, ptr_idx, offset, idx);
 
 
 
