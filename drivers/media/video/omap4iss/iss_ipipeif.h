@@ -28,7 +28,8 @@ enum ipipeif_input_entity {
 /* Sink and source IPIPEIF pads */
 #define IPIPEIF_PAD_SINK			0
 #define IPIPEIF_PAD_SOURCE_ISIF_SF		1
-#define IPIPEIF_PADS_NUM			2
+#define IPIPEIF_PAD_SOURCE_VP			2
+#define IPIPEIF_PADS_NUM			3
 
 /*
  * struct iss_ipipeif_device - Structure for the IPIPEIF module to store its own
