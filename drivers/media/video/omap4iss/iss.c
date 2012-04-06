@@ -95,7 +95,7 @@ static void iss_disable_interrupts(struct iss_device *iss)
  */
 void omap4iss_isp_enable_interrupts(struct iss_device *iss)
 {
-	static const u32 isp_irq = ISP5_IRQ_ISIF0;
+	static const u32 isp_irq = ISP5_IRQ_ISIF0 | ISP5_IRQ_RSZ_INT_DMA;
 
 	/* Enable ISP interrupts */
 	writel(isp_irq, iss->regs[OMAP4_ISS_MEM_ISP_SYS1] + ISP5_IRQSTATUS(0));
@@ -285,6 +285,10 @@ static irqreturn_t iss_isr(int irq, void *_iss)
 		if (isp_irqstatus & ipipeif_events) {
 			omap4iss_ipipeif_isr(&iss->ipipeif,
 					     isp_irqstatus & ipipeif_events);
+		}
+
+		if (isp_irqstatus & ISP5_IRQ_RSZ_INT_DMA) {
+			omap4iss_resizer_isr(&iss->resizer, isp_irqstatus & ISP5_IRQ_RSZ_INT_DMA);
 		}
 	}
 
@@ -1030,6 +1034,7 @@ static int iss_map_mem_resource(struct platform_device *pdev,
 
 static void iss_unregister_entities(struct iss_device *iss)
 {
+	omap4iss_resizer_unregister_entities(&iss->resizer);
 	omap4iss_ipipeif_unregister_entities(&iss->ipipeif);
 	omap4iss_csi2_unregister_entities(&iss->csi2a);
 	omap4iss_csi2_unregister_entities(&iss->csi2b);
@@ -1126,6 +1131,10 @@ static int iss_register_entities(struct iss_device *iss)
 	if (ret < 0)
 		goto done;
 
+	ret = omap4iss_resizer_register_entities(&iss->resizer, &iss->v4l2_dev);
+	if (ret < 0)
+		goto done;
+
 	/* Register external entities */
 	for (subdevs = pdata->subdevs; subdevs && subdevs->subdevs; ++subdevs) {
 		struct v4l2_subdev *sensor;
@@ -1184,6 +1193,7 @@ static void iss_cleanup_modules(struct iss_device *iss)
 {
 	omap4iss_csi2_cleanup(iss);
 	omap4iss_ipipeif_cleanup(iss);
+	omap4iss_resizer_cleanup(iss);
 }
 
 static int iss_initialize_modules(struct iss_device *iss)
@@ -1208,6 +1218,12 @@ static int iss_initialize_modules(struct iss_device *iss)
 		goto error_ipipeif;
 	}
 
+	ret = omap4iss_resizer_init(iss);
+	if (ret < 0) {
+		dev_err(iss->dev, "ISP RESIZER initialization failed\n");
+		goto error_resizer;
+	}
+
 	/* Connect the submodules. */
 	ret = media_entity_create_link(
 			&iss->csi2a.subdev.entity, CSI2_PAD_SOURCE,
@@ -1221,9 +1237,17 @@ static int iss_initialize_modules(struct iss_device *iss)
 	if (ret < 0)
 		goto error_link;
 
+	ret = media_entity_create_link(
+			&iss->ipipeif.subdev.entity, IPIPEIF_PAD_SOURCE_VP,
+			&iss->resizer.subdev.entity, RESIZER_PAD_SINK, 0);
+	if (ret < 0)
+		goto error_link;
+
 	return 0;
 
 error_link:
+	omap4iss_resizer_cleanup(iss);
+error_resizer:
 	omap4iss_ipipeif_cleanup(iss);
 error_ipipeif:
 	omap4iss_csi2_cleanup(iss);

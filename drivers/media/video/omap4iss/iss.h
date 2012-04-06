@@ -26,6 +26,7 @@
 #include "iss_csiphy.h"
 #include "iss_csi2.h"
 #include "iss_ipipeif.h"
+#include "iss_resizer.h"
 
 #define to_iss_device(ptr_module)				\
 	container_of(ptr_module, struct iss_device, ptr_module)
@@ -39,6 +40,7 @@ enum iss_mem_resources {
 	OMAP4_ISS_MEM_CSI2_B_REGS1,
 	OMAP4_ISS_MEM_CAMERARX_CORE2,
 	OMAP4_ISS_MEM_ISP_SYS1,
+	OMAP4_ISS_MEM_ISP_RESIZER,
 	OMAP4_ISS_MEM_ISP_ISIF,
 	OMAP4_ISS_MEM_ISP_IPIPEIF,
 	OMAP4_ISS_MEM_LAST,
@@ -100,6 +102,7 @@ struct iss_device {
 	struct iss_csiphy csiphy1;
 	struct iss_csiphy csiphy2;
 	struct iss_ipipeif_device ipipeif;
+	struct iss_resizer_device resizer;
 
 	unsigned int subclk_resources;
 	unsigned int isp_subclk_resources;
