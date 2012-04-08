@@ -86,6 +86,9 @@ static struct iss_format_info formats[] = {
 	{ V4L2_MBUS_FMT_YUYV8_1X16, V4L2_MBUS_FMT_YUYV8_1X16,
 	  V4L2_MBUS_FMT_YUYV8_1X16, 0,
 	  V4L2_PIX_FMT_YUYV, 16, },
+	{ V4L2_MBUS_FMT_YUYV8_1_5X8, V4L2_MBUS_FMT_YUYV8_1_5X8,
+	  V4L2_MBUS_FMT_YUYV8_1_5X8, 0,
+	  V4L2_PIX_FMT_NV12, 8, },
 };
 
 const struct iss_format_info *
@@ -152,6 +155,10 @@ static unsigned int iss_video_mbus_to_pix(const struct iss_video *video,
 	pix->sizeimage = pix->bytesperline * pix->height;
 	pix->colorspace = mbus->colorspace;
 	pix->field = mbus->field;
+
+	/* FIXME: Special case for NV12! We should make this nicer... */
+	if (pix->pixelformat == V4L2_PIX_FMT_NV12)
+		pix->sizeimage += (pix->bytesperline * pix->height) / 2;
 
 	return bpl - min_bpl;
 }

@@ -146,6 +146,10 @@ static void resizer_enable(struct iss_resizer_device *resizer, u8 enable)
 static void resizer_set_outaddr(struct iss_resizer_device *resizer, u32 addr)
 {
 	struct iss_device *iss = to_iss_device(resizer);
+	struct v4l2_mbus_framefmt *informat, *outformat;
+
+	informat = &resizer->formats[RESIZER_PAD_SINK];
+	outformat = &resizer->formats[RESIZER_PAD_SOURCE_MEM];
 
 	/* Save address splitted in Base Address H & L */
 	writel((addr >> 16) & 0xffff,
@@ -158,6 +162,32 @@ static void resizer_set_outaddr(struct iss_resizer_device *resizer, u32 addr)
 		iss->regs[OMAP4_ISS_MEM_ISP_RESIZER] + RZA_SDR_Y_SAD_H);
 	writel(addr & 0xffff,
 		iss->regs[OMAP4_ISS_MEM_ISP_RESIZER] + RZA_SDR_Y_SAD_L);
+
+	/* Program UV buffer address... Hardcoded to be contiguous! */
+	if ((informat->code == V4L2_MBUS_FMT_UYVY8_1X16) &&
+	    (outformat->code == V4L2_MBUS_FMT_YUYV8_1_5X8)) {
+		u32 c_addr = addr + (resizer->video_out.bpl_value *
+				     (outformat->height - 1));
+
+		/* Ensure Y_BAD_L[6:0] = C_BAD_L[6:0]*/
+		if ((c_addr ^ addr) & 0x7f) {
+			c_addr &= ~0x7f;
+			c_addr += 0x80;
+			c_addr |= addr & 0x7f;
+		}
+
+		/* Save address splitted in Base Address H & L */
+		writel((c_addr >> 16) & 0xffff,
+			iss->regs[OMAP4_ISS_MEM_ISP_RESIZER] + RZA_SDR_C_BAD_H);
+		writel(c_addr & 0xffff,
+			iss->regs[OMAP4_ISS_MEM_ISP_RESIZER] + RZA_SDR_C_BAD_L);
+
+		/* SAD = BAD */
+		writel((c_addr >> 16) & 0xffff,
+			iss->regs[OMAP4_ISS_MEM_ISP_RESIZER] + RZA_SDR_C_SAD_H);
+		writel(c_addr & 0xffff,
+			iss->regs[OMAP4_ISS_MEM_ISP_RESIZER] + RZA_SDR_C_SAD_L);
+	}
 }
 
 static void resizer_configure(struct iss_resizer_device *resizer)
@@ -168,9 +198,9 @@ static void resizer_configure(struct iss_resizer_device *resizer)
 	informat = &resizer->formats[RESIZER_PAD_SINK];
 	outformat = &resizer->formats[RESIZER_PAD_SOURCE_MEM];
 
-	/* FIXME: dont bypass resizer! */
-	writel(readl(iss->regs[OMAP4_ISS_MEM_ISP_RESIZER] + RSZ_SRC_FMT0) |
-		RSZ_SRC_FMT0_BYPASS,
+	/* Make sure we don't bypass the resizer */
+	writel(readl(iss->regs[OMAP4_ISS_MEM_ISP_RESIZER] + RSZ_SRC_FMT0) &
+		~RSZ_SRC_FMT0_BYPASS,
 		iss->regs[OMAP4_ISS_MEM_ISP_RESIZER] + RSZ_SRC_FMT0);
 
 	/* Select RSZ input */
@@ -209,13 +239,31 @@ static void resizer_configure(struct iss_resizer_device *resizer)
 	writel(0x100, iss->regs[OMAP4_ISS_MEM_ISP_RESIZER] + RZA_V_DIF);
 	writel(0x100, iss->regs[OMAP4_ISS_MEM_ISP_RESIZER] + RZA_H_DIF);
 
-	/* Buffer output things */
+	/* Buffer output settings */
 	writel(0, iss->regs[OMAP4_ISS_MEM_ISP_RESIZER] + RZA_SDR_Y_PTR_S);
 	writel(outformat->height - 1,
 		iss->regs[OMAP4_ISS_MEM_ISP_RESIZER] + RZA_SDR_Y_PTR_E);
 
 	writel(resizer->video_out.bpl_value,
 		iss->regs[OMAP4_ISS_MEM_ISP_RESIZER] + RZA_SDR_Y_OFT);
+
+	/* UYVY -> NV12 conversion */
+	if ((informat->code == V4L2_MBUS_FMT_UYVY8_1X16) &&
+	    (outformat->code == V4L2_MBUS_FMT_YUYV8_1_5X8)) {
+		writel(RSZ_420_CEN | RSZ_420_YEN,
+			iss->regs[OMAP4_ISS_MEM_ISP_RESIZER] + RZA_420);
+
+		/* UV Buffer output settings */
+		writel(0, iss->regs[OMAP4_ISS_MEM_ISP_RESIZER] + RZA_SDR_C_PTR_S);
+		writel(outformat->height - 1,
+			iss->regs[OMAP4_ISS_MEM_ISP_RESIZER] + RZA_SDR_C_PTR_E);
+
+		writel(resizer->video_out.bpl_value,
+			iss->regs[OMAP4_ISS_MEM_ISP_RESIZER] + RZA_SDR_C_OFT);
+	} else {
+		writel(0,
+			iss->regs[OMAP4_ISS_MEM_ISP_RESIZER] + RZA_420);
+	}
 
 	omap4iss_isp_enable_interrupts(iss);
 }
@@ -412,6 +460,7 @@ resizer_try_format(struct iss_resizer_device *resizer, struct v4l2_subdev_fh *fh
 		unsigned int pad, struct v4l2_mbus_framefmt *fmt,
 		enum v4l2_subdev_format_whence which)
 {
+	enum v4l2_mbus_pixelcode pixelcode;
 	struct v4l2_mbus_framefmt *format;
 	unsigned int width = fmt->width;
 	unsigned int height = fmt->height;
@@ -434,8 +483,13 @@ resizer_try_format(struct iss_resizer_device *resizer, struct v4l2_subdev_fh *fh
 		break;
 
 	case RESIZER_PAD_SOURCE_MEM:
+		pixelcode = fmt->code;
 		format = __resizer_get_format(resizer, fh, RESIZER_PAD_SINK, which);
 		memcpy(fmt, format, sizeof(*fmt));
+
+		if ((pixelcode == V4L2_MBUS_FMT_YUYV8_1_5X8) &&
+		    (fmt->code == V4L2_MBUS_FMT_UYVY8_1X16))
+			fmt->code = pixelcode;
 
 		/* The data formatter truncates the number of horizontal output
 		 * pixels to a multiple of 16. To avoid clipping data, allow
@@ -476,14 +530,26 @@ static int resizer_enum_mbus_code(struct v4l2_subdev *sd,
 		break;
 
 	case RESIZER_PAD_SOURCE_MEM:
-		/* No format conversion inside RESIZER... for now... ;) */
-		if (code->index != 0)
-			return -EINVAL;
-
 		format = __resizer_get_format(resizer, fh, RESIZER_PAD_SINK,
 					      V4L2_SUBDEV_FORMAT_TRY);
 
-		code->code = format->code;
+		if (code->index == 0) {
+			code->code = format->code;
+			break;
+		}
+
+		switch (format->code) {
+		case V4L2_MBUS_FMT_UYVY8_1X16:
+			if (code->index == 1)
+				code->code = V4L2_MBUS_FMT_YUYV8_1_5X8;
+			else
+				return -EINVAL;
+			break;
+		default:
+			if (code->index != 0)
+				return -EINVAL;
+		}
+
 		break;
 
 	default:
