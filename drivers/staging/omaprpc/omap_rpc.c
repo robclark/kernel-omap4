@@ -792,6 +792,7 @@ static const struct file_operations omaprpc_fops = {
     .poll           = omaprpc_poll,
 };
 
+#if 0 // because not compiling
 static int omaprpc_device_create(struct rpmsg_channel *rpdev)
 {
     char kbuf[512];
@@ -813,7 +814,7 @@ static int omaprpc_device_create(struct rpmsg_channel *rpdev)
 
     return 0;
 }
-
+#endif
 
 static int omaprpc_probe(struct rpmsg_channel *rpdev)
 {
@@ -886,6 +887,11 @@ again: /* SMP systems could race device probes */
     /* get the assigned major number from the dev_t */
     major = MAJOR(omaprpc_dev);
 
+    /* device_create for sysfs */
+    rpcserv->dev = device_create(omaprpc_class, &rpdev->dev,
+				 MKDEV(major, rpcserv->minor), NULL,
+				 "dev_kgm_dsp");
+
     /* Create the character device */
     cdev_init(&rpcserv->cdev, &omaprpc_fops);
     rpcserv->cdev.owner = THIS_MODULE;
@@ -895,12 +901,6 @@ again: /* SMP systems could race device probes */
     if (ret) {
         OMAPRPC_ERR(&rpdev->dev, "OMAPRPC: cdev_add failed: %d\n", ret);
         goto free_rpc;
-    }
-
-    ret = omaprpc_device_create(rpdev);
-    if (ret) {
-        dev_err(&rpdev->dev, "OMAPRPC: failed querying channel info: %d\n", ret);
-        goto clean_cdev;
     }
 
 serv_up:
@@ -991,6 +991,7 @@ static void __devexit omaprpc_remove(struct rpmsg_channel *rpdev)
     }
 }
 
+#if 0
 static void omaprpc_driver_cb(struct rpmsg_channel *rpdev,
                                 void *data,
                                 int len,
@@ -1050,6 +1051,7 @@ static void omaprpc_driver_cb(struct rpmsg_channel *rpdev,
         }
     }
 }
+#endif
 
 static struct rpmsg_device_id omaprpc_id_table[] = {
     { .name = "omaprpc" },
@@ -1063,7 +1065,7 @@ static struct rpmsg_driver omaprpc_driver = {
     .id_table   = omaprpc_id_table,
     .probe      = omaprpc_probe,
     .remove     = __devexit_p(omaprpc_remove),
-    .callback   = omaprpc_driver_cb,
+    .callback   = omaprpc_cb,
 };
 
 static int __init omaprpc_init(void)
