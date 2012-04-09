@@ -890,7 +890,7 @@ again: /* SMP systems could race device probes */
     /* device_create for sysfs */
     rpcserv->dev = device_create(omaprpc_class, &rpdev->dev,
 				 MKDEV(major, rpcserv->minor), NULL,
-				 "dev_kgm_dsp");
+				 "dvp_kgm_dsp");
 
     /* Create the character device */
     cdev_init(&rpcserv->cdev, &omaprpc_fops);
