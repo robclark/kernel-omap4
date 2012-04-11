@@ -89,11 +89,10 @@ extern struct ion_device *omap_ion_device;
 #endif
 
 // Testing and debugging defines
-#undef OMAPRPC_DEBUGGING
+#define OMAPRPC_DEBUGGING
 #undef OMAPRPC_USE_HASH
 #undef OMAPRPC_PERF_MEASUREMENT
 
-#define OMAPRPC_DEBUGGING
 #if defined(OMAPRPC_DEBUGGING)
 #define OMAPRPC_INFO(dev, fmt, ...)    dev_info(dev, fmt, ## __VA_ARGS__)
 #define OMAPRPC_ERR(dev, fmt, ...)     dev_err(dev, fmt, ## __VA_ARGS__)

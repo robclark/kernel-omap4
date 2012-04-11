@@ -40,11 +40,19 @@ phys_addr_t omaprpc_pin_buffer(struct omaprpc_instance_t *rpc, void *reserved)
     if (dma)
     {
         dma->fd = (int)reserved;
+        OMAPRPC_INFO(rpc->rpcserv->dev, "Pining with FD %u\n", dma->fd);
         dma->dbuf = dma_buf_get((int)reserved);
-        dma->attach = dma_buf_attach(dma->dbuf, rpc->rpcserv->dev);
-        dma->sgt = dma_buf_map_attachment(dma->attach, DMA_BIDIRECTIONAL);
-        omaprpc_dma_add(rpc, dma);
-        return sg_dma_address(dma->sgt->sgl);
+        if (!(IS_ERR(dma->dbuf)))
+        {
+            OMAPRPC_INFO(rpc->rpcserv->dev, "DMA_BUF=%p\n", dma->dbuf);
+            dma->attach = dma_buf_attach(dma->dbuf, rpc->rpcserv->dev);
+            OMAPRPC_INFO(rpc->rpcserv->dev, "attach=%p\n", dma->attach);
+            dma->sgt = dma_buf_map_attachment(dma->attach, DMA_BIDIRECTIONAL);
+            omaprpc_dma_add(rpc, dma);
+            return sg_dma_address(dma->sgt->sgl);
+        }
+        else
+            kfree(dma);
     }
     return 0;
 }
@@ -54,16 +62,18 @@ phys_addr_t omaprpc_dma_find(struct omaprpc_instance_t *rpc, void *reserved)
     phys_addr_t addr = 0;
     struct list_head *pos = NULL;
     dma_info_t *node = NULL;
+    int fd = (int)reserved;
     mutex_lock(&rpc->lock);
     list_for_each(pos, &rpc->dma_list)
     {
         node = (dma_info_t *)pos;
-//        OMAPRPC_INFO(rpc->rpcserv->dev, "Looking for FD %u, found FD %u\n", fd, node->fd);
+        OMAPRPC_INFO(rpc->rpcserv->dev, "Looking for FD %u, found FD %u\n", fd, node->fd);
         if (node->fd == (int)reserved) {
             addr = sg_dma_address(node->sgt->sgl);
             break;
         }
     }
+    OMAPRPC_INFO(rpc->rpcserv->dev, "Returning Addr %p for FD %u\n", (void *)addr, fd);
     mutex_unlock(&rpc->lock);
     return addr;
 }
@@ -96,18 +106,17 @@ phys_addr_t omaprpc_buffer_lookup(struct omaprpc_instance_t *rpc, uint32_t core,
     {
         /* find the base of the dam buf from the list */
         lpa = omaprpc_dma_find(rpc, reserved);
-        if (lpa != 0)
+        if (lpa == 0)
         {
-            /* offset the lpa by the offset in the user buffer */
-            lpa += uoff;
+            /* wasn't in the list, convert the pointer */
+            lpa = omaprpc_pin_buffer(rpc, reserved);
+        }
 
-            /* convert the local physical address to remote physical address */
-            rpa = rpmsg_local_to_remote_pa(core, lpa);
-        }
-        else
-        {
-            /* wasn't in the list */
-        }
+        /* offset the lpa by the offset in the user buffer */
+        lpa += uoff;
+
+        /* convert the local physical address to remote physical address */
+        rpa = rpmsg_local_to_remote_pa(core, lpa);
     }
     OMAPRPC_INFO(rpc->rpcserv->dev, "ARM VA %p == ARM PA %p => REMOTE[%u] PA %p (RESV %p)\n", (void *)uva, (void *)lpa, core, (void *)rpa, reserved);
     return rpa;
@@ -133,6 +142,7 @@ int omaprpc_xlate_buffers(struct omaprpc_instance_t *rpc, struct omaprpc_call_fu
 
     for (idx = start; idx != limit; idx+=inc)
     {
+        OMAPRPC_INFO(rpc->rpcserv->dev, "#### Starting Translation %d of %d by %d\n", idx, limit, inc);
         /* conveinence variables */
         ptr_idx = function->translations[idx].index;
         sec_offset  = function->translations[idx].offset;
@@ -183,6 +193,8 @@ int omaprpc_xlate_buffers(struct omaprpc_instance_t *rpc, struct omaprpc_call_fu
 
             /* calculate the new offset within that page */
             pg_offset = ((pri_offset + sec_offset) & (PAGE_SIZE-1));
+
+            OMAPRPC_INFO(rpc->rpcserv->dev, "KMap'd base_ptr[%u]=%p into kernel, PG_OFFSET=%u\n", base_ptrs[ptr_idx], ptr_idx, pg_offset);
         }
 
         /* if the KVA pointer is not NULL */
@@ -205,14 +217,12 @@ int omaprpc_xlate_buffers(struct omaprpc_instance_t *rpc, struct omaprpc_call_fu
                 /* load the user's VA */
                 uva = *(virt_addr_t *)kva;
 
-//                OMAPRPC_INFO(rpc->rpcserv->dev, "Replacing UVA %p at KVA %p PTRIDX:%u OFFSET:%u IDX:%d\n", (void *)uva, (void *)kva, ptr_idx, offset, idx);
-
-
+                OMAPRPC_INFO(rpc->rpcserv->dev, "Replacing UVA %p at KVA %p PTRIDX:%u PG_OFFSET:%u IDX:%d RESV:%p\n", (void *)uva, (void *)kva, ptr_idx, pg_offset, idx, reserved);
 
                 /* calc the new RPA (remote physical address) */
                 rpa = omaprpc_buffer_lookup(rpc, rpc->core, uva, buva, reserved);
                 /* save the old value */
-                function->translations[idx].reserved = (void *)uva;
+                function->translations[idx].reserved = (address_t)uva;
                 /* replace with new RPA */
                 *(phys_addr_t *)kva = rpa;
 
@@ -297,6 +307,7 @@ restart:
             base_ptrs[ptr_idx] = NULL;
             dma_buf_put(dbufs[ptr_idx]);
             dbufs[ptr_idx] = NULL;
+            pg_offset = 0;
         }
     }
     return ret;
