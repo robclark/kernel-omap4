@@ -48,8 +48,15 @@
 
 #define OMAPRPC_IOC_MAXNR          (4)
 
+typedef unsigned long offset_t;
+typedef unsigned long address_t; // 32 on 32, 64 on 64
+
 struct omaprpc_create_instance_t {
     char name[48];
+};
+
+struct omaprpc_channel_info_t {
+    char name[64];
 };
 
 enum omaprpc_info_type_e {
@@ -75,7 +82,7 @@ struct omaprpc_func_perf_t {
 /** These core are specific to OMAP processors */
 typedef enum omaprpc_core_e {
     OMAPRPC_CORE_DSP = 0,       /**< DSP Co-processor */
-    OMAPRPC_CORE_VICP,          /**< Video/Imaging Co-processor */
+    OMAPRPC_CORE_SIMCOP,        /**< Video/Imaging Co-processor */
     OMAPRPC_CORE_MCU0,          /**< Cortex M3/M4 [0] */
     OMAPRPC_CORE_MCU1,          /**< Cortex M3/M4 [1] */
     OMAPRPC_CORE_EVE,           /**< Imaging Accelerator */
@@ -106,9 +113,9 @@ typedef enum omaprpc_cache_ops_e {
 struct omaprpc_param_translation_t {
     uint32_t  index;                /**< The parameter index which indicates which is the base pointer */
     ptrdiff_t offset;               /**< The offset from the base address to the pointer to translate */
-    void *    base;                 /**< The base user virtual address of the pointer to translate (used to calc translated pointer offset). */
-    void *    reserved;             /**< Handle to shared memory. */
+    address_t base;                 /**< The base user virtual address of the pointer to translate (used to calc translated pointer offset). */
     uint32_t  cacheOps;             /**< The enumeration of desired cache operations for efficiency */
+    address_t reserved;                  /**< Reserved field */
 };
 
 enum omaprpc_param_e {
@@ -121,9 +128,9 @@ enum omaprpc_param_e {
 struct omaprpc_param_t {
     uint32_t type;                  /**< @see omaprpc_param_e */
     size_t   size;                  /**< The size of the data */
-    void *   data;                  /**< Either the pointer to the data or the data itself, @see .type */
-    void *   base;                  /**< If a pointer is in data, this is the base pointer (if data has an offset from base). */
-    void *   reserved;              /**< Shared Memory Handle (used only with pointers) */
+    address_t data;                  /**< Either the pointer to the data or the data itself, @see .type */
+    address_t base;                  /**< If a pointer is in data, this is the base pointer (if data has an offset from base). */
+    address_t reserved;              /**< Shared Memory Handle (used only with pointers) */
 };
 
 #define OMAPRPC_MAX_PARAMETERS (10)
@@ -160,6 +167,8 @@ enum omaprpc_msg_type_e {
     OMAPRPC_MSG_INSTANCE_DESTROYED = 6, /**< The return message from OMAPRPC_DESTROY_INSTANCE. contains the old endpoint address in the omaprpc_instance_handle_t */
     OMAPRPC_MSG_ERROR = 7,              /**< Returned from either the ServiceMgr or Service Instance when an error occurs */
     OMAPRPC_MSG_FUNCTION_RETURN = 8,    /**< The return values from a function call */
+    OMAPRPC_MSG_QUERY_CHAN_INFO = 9,    /**< Ask Service for channel information*/
+    OMAPRPC_MSG_CHAN_INFO = 10,         /**< The return message from OMAPRPC_MSG_QUERY_CHAN_INFO*/
 
     /** @hidden used to define the max msg enum, not an actual message */
     OMAPRPC_MSG_MAX
@@ -193,7 +202,7 @@ struct omaprpc_error_t {
 
 struct omaprpc_parameter_t {
      size_t size;
-     void * data;
+     address_t data;
  }__packed;
 
 #define OMAPRPC_NUM_PARAMETERS(size)      (size/sizeof(struct omaprpc_parameter_t))
