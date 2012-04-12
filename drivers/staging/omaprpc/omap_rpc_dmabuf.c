@@ -176,8 +176,9 @@ int omaprpc_xlate_buffers(struct omaprpc_instance_t *rpc, struct omaprpc_call_fu
         /* if the KVA pointer has not been mapped */
         if (base_ptrs[ptr_idx] == NULL)
         {
-            size_t start = pri_offset + sec_offset;
-            size_t end   = start + PAGE_SIZE;
+            size_t start = (pri_offset + sec_offset) & PAGE_MASK;
+            size_t end   = PAGE_SIZE;
+            int ret = 0;
 
             /* compute the secondary offset */
             pri_offset = function->params[ptr_idx].data - function->params[ptr_idx].base;
@@ -186,7 +187,13 @@ int omaprpc_xlate_buffers(struct omaprpc_instance_t *rpc, struct omaprpc_call_fu
             dbufs[ptr_idx] = dma_buf_get((int)function->params[ptr_idx].reserved);
 
             /* map the dma buf into cpu memory? */
-            dma_buf_begin_cpu_access(dbufs[ptr_idx], start, end, DMA_BIDIRECTIONAL);
+            ret = dma_buf_begin_cpu_access(dbufs[ptr_idx], start, end, DMA_BIDIRECTIONAL);
+            if (ret < 0)
+            {
+                OMAPRPC_ERR(rpc->rpcserv->dev, "OMAPRPC: Failed to acquire cpu access to the DMA Buf! ret=%d\n", ret);
+                dma_buf_put(dbufs[ptr_idx]);
+                goto unwind;
+            }
 
             /* caluculate the base pointer for the region. */
             base_ptrs[ptr_idx] = dma_buf_kmap(dbufs[ptr_idx], ((pri_offset + sec_offset)>>PAGE_SHIFT));
@@ -194,7 +201,10 @@ int omaprpc_xlate_buffers(struct omaprpc_instance_t *rpc, struct omaprpc_call_fu
             /* calculate the new offset within that page */
             pg_offset = ((pri_offset + sec_offset) & (PAGE_SIZE-1));
 
-            OMAPRPC_INFO(rpc->rpcserv->dev, "KMap'd base_ptr[%u]=%p into kernel, PG_OFFSET=%u\n", base_ptrs[ptr_idx], ptr_idx, pg_offset);
+            if (base_ptrs[ptr_idx] != NULL)
+            {
+                OMAPRPC_INFO(rpc->rpcserv->dev, "KMap'd base_ptr[%u]=%p dbuf=%p into kernel from %zu for %zu bytes, PG_OFFSET=%u\n", ptr_idx, base_ptrs[ptr_idx], dbufs[ptr_idx], start, end, pg_offset);
+            }
         }
 
         /* if the KVA pointer is not NULL */
@@ -216,6 +226,12 @@ int omaprpc_xlate_buffers(struct omaprpc_instance_t *rpc, struct omaprpc_call_fu
                 }
                 /* load the user's VA */
                 uva = *(virt_addr_t *)kva;
+                if (uva == 0)
+                {
+                    OMAPRPC_ERR(rpc->rpcserv->dev, "ERROR: Failed to access user buffer to translate pointer\n");
+                    print_hex_dump(KERN_DEBUG, "OMAPRPC: KMAP: ", DUMP_PREFIX_NONE, 16, 1, base_ptrs[ptr_idx], PAGE_SIZE, true);
+                    goto unwind;
+                }
 
                 OMAPRPC_INFO(rpc->rpcserv->dev, "Replacing UVA %p at KVA %p PTRIDX:%u PG_OFFSET:%u IDX:%d RESV:%p\n", (void *)uva, (void *)kva, ptr_idx, pg_offset, idx, reserved);
 
@@ -297,9 +313,10 @@ unwind:
         }
 restart:
         if (base_ptrs[ptr_idx]) {
-            size_t start = pri_offset + sec_offset;
-            size_t end = start + PAGE_SIZE;
+            size_t start = (pri_offset + sec_offset) & PAGE_MASK;
+            size_t end   = PAGE_SIZE;
 
+            OMAPRPC_INFO(rpc->rpcserv->dev, "Unkmaping base_ptrs[%u]=%p from dbuf=%p %zu for %zu bytes\n", ptr_idx, base_ptrs[ptr_idx], dbufs[ptr_idx], start, end);
             /* unmap the page in case this pointer needs to move to a different adddress */
             dma_buf_kunmap(dbufs[ptr_idx], ((pri_offset + sec_offset)>>PAGE_SHIFT), base_ptrs[ptr_idx]);
             /* end access to this page */
