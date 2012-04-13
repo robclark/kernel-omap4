@@ -10,3 +10,5 @@ pata-modules
 message-modules
 virtio-modules
 nfs-modules
+crypto-modules
+sata-modules
