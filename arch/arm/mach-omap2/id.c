@@ -32,6 +32,8 @@ static unsigned int omap_revision;
 static const char *cpu_rev;
 u32 omap_features;
 
+static void __init omap3_cpuinfo(void);
+
 unsigned int omap_rev(void)
 {
 	return omap_revision;
@@ -205,6 +207,8 @@ void __init omap3xxx_check_features(void)
 		omap_features |= OMAP3_HAS_IO_CHAIN_CTRL;
 
 	omap_features |= OMAP3_HAS_SDRC;
+
+	omap3_cpuinfo();
 }
 
 void __init omap4xxx_check_features(void)
@@ -235,6 +239,7 @@ void __init omap4xxx_check_features(void)
 void __init ti81xx_check_features(void)
 {
 	omap_features = OMAP3_HAS_NEON;
+	omap3_cpuinfo();
 }
 
 void __init omap3xxx_check_revision(void)
@@ -451,7 +456,7 @@ void __init omap4xxx_check_revision(void)
 		((omap_rev() >> 12) & 0xf), ((omap_rev() >> 8) & 0xf));
 }
 
-static void __init omap5_check_revision(void)
+void __init omap5_check_revision(void)
 {
 	u32 idcode;
 	u16 hawkeye;
@@ -493,7 +498,7 @@ static void __init omap5_check_revision(void)
 	if (omap3_has_ ##feat())		\
 		printk(#feat" ");
 
-static void __init omap3_cpuinfo(const char *cpu_rev)
+static void __init omap3_cpuinfo(void)
 {
 	const char *cpu_name;
 
@@ -537,42 +542,6 @@ static void __init omap3_cpuinfo(const char *cpu_rev)
 	OMAP3_SHOW_FEATURE(192mhz_clk);
 
 	printk(")\n");
-}
-
-/*
- * Try to detect the exact revision of the omap we're running on
- */
-void __init omap2_check_revision(void)
-{
-	const char *cpu_rev;
-
-	/*
-	 * At this point we have an idea about the processor revision set
-	 * earlier with omap2_set_globals_tap().
-	 */
-	if (cpu_is_omap24xx()) {
-		omap24xx_check_revision();
-	} else if (cpu_is_omap34xx()) {
-		omap3_check_revision(&cpu_rev);
-
-		/* TI81XX doesn't have feature register */
-		if (!cpu_is_ti81xx())
-			omap3_check_features();
-		else
-			ti81xx_check_features();
-
-		omap3_cpuinfo(cpu_rev);
-		return;
-	} else if (cpu_is_omap44xx()) {
-		omap4_check_revision();
-		omap4_check_features();
-		return;
-	} else if (cpu_is_omap54xx()) {
-		omap5_check_revision();
-		return;
-	} else {
-		pr_err("OMAP revision unknown, please fix!\n");
-	}
 }
 
 /*
