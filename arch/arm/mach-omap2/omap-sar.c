@@ -26,6 +26,7 @@
 #include "cm-regbits-54xx.h"
 #include "prcm44xx.h"
 #include "cminst44xx.h"
+#include "iomap.h"
 
 /*
  * These SECURE control registers are used to work-around
@@ -529,6 +530,8 @@ static int __init omap4_sar_ram_init(void)
 		pr_err("Failed to get l3_init_clkdm\n");
 
 	omap_usb_clk_init();
+
+	return 0;
 }
 early_initcall(omap4_sar_ram_init);
 

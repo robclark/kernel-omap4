@@ -67,7 +67,7 @@
 #include "prcm_mpu54xx.h"
 #include "prm54xx.h"
 #include "prm-regbits-54xx.h"
-
+#include "iomap.h"
 #ifdef CONFIG_SMP
 #define NUM_DEN_MASK			0xfffff000
 
