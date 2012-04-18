@@ -2580,6 +2580,7 @@ static struct omap_hwmod_class_sysconfig omap54xx_sata_sysc = {
 	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |
 			   SIDLE_SMART_WKUP | MSTANDBY_FORCE | MSTANDBY_NO |
 			   MSTANDBY_SMART | MSTANDBY_SMART_WKUP),
+	.srst_udelay    = 2,
 	.sysc_fields	= &omap_hwmod_sysc_type2,
 };
 
