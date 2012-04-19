@@ -510,6 +510,7 @@ static void omap_default_idle(void)
 	omap_do_wfi();
 
 	local_fiq_enable();
+	local_irq_enable();
 }
 
 static inline int omap4_init_static_deps(void)
@@ -736,9 +737,6 @@ static int __init omap_pm_init(void)
 #ifdef CONFIG_SUSPEND
 	omap_pm_suspend = omap4_pm_suspend;
 #endif
-
-	/* Overwrite the default cpu_do_idle() */
-	arm_pm_idle = omap_default_idle;
 
 	mpu_pwrdm = pwrdm_lookup("mpu_pwrdm");
 	core_pwrdm = pwrdm_lookup("core_pwrdm");
