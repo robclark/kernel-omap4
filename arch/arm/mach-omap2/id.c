@@ -459,7 +459,7 @@ void __init omap4xxx_check_revision(void)
 		((omap_rev() >> 12) & 0xf), ((omap_rev() >> 8) & 0xf));
 }
 
-void __init omap5_check_revision(void)
+void __init omap5xxx_check_revision(void)
 {
 	u32 idcode;
 	u16 hawkeye;
@@ -546,6 +546,7 @@ static void __init omap3_cpuinfo(void)
 
 	printk(")\n");
 }
+
 
 /*
  * Set up things for map_io and processor detection later on. Gets called
