@@ -638,6 +638,10 @@ void omapdss_hdmi_display_set_timing(struct omap_dss_device *dssdev)
 	struct hdmi_cm cm;
 
 	cm = hdmi_get_code(&dssdev->panel.timings);
+
+	/* HDMI audio looks at this */
+	hdmi.mode = cm.mode;
+
 	if (cm.code == -1) {
 		hdmi.ip_data.cfg.cm.code = 0;
 		/* Assume VESA timing if non-standard */
