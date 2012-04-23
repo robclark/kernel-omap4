@@ -946,6 +946,8 @@ static int omapdss_hdmihw_probe(struct platform_device *pdev)
 
 	mutex_init(&hdmi.lock);
 
+	pio_a_init();
+
 	hdmi_mem = platform_get_resource(hdmi.pdev, IORESOURCE_MEM, 0);
 	if (!hdmi_mem) {
 		DSSERR("can't get IORESOURCE_MEM HDMI\n");
@@ -1007,6 +1009,8 @@ static int omapdss_hdmihw_remove(struct platform_device *pdev)
 		regulator_put(hdmi.vdds_hdmi);
 		hdmi.vdds_hdmi = NULL;
 	}
+
+	pio_a_exit();
 
 	iounmap(hdmi.ip_data.base_wp);
 
