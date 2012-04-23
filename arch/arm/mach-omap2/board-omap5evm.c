@@ -1554,6 +1554,9 @@ static void __init omap_5430_sevm_init(void)
 	status = omap4_keyboard_init(&evm5430_keypad_data, &keypad_data);
 	if (status)
 		pr_err("Keypad initialization failed: %d\n", status);
+
+        /* Disable pulls on DCC lines - necessary for EDID detection */         
+        omap_writel(0x50000000, 0x4A002E20);
 }
 
 struct omap_mux_setting omap5432_uevm_mux[] __initdata = {
