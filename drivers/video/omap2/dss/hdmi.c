@@ -56,6 +56,8 @@
 #define HDMI_DEFAULT_REGN 16
 #define HDMI_DEFAULT_REGM2 1
 
+#define IGNORE_HPD 1
+
 static struct {
 	struct mutex lock;
 	struct omap_display_platform_data *pdata;
@@ -176,20 +178,6 @@ int hdmi_init_display(struct omap_dss_device *dssdev)
 	DSSDBG("init_display\n");
 
 	dss_init_hdmi_ip_ops(&hdmi.ip_data);
-	return 0;
-}
-
-static int omapdss_hdmi_io_configure(void)
-{
-	int r;
-	printk(KERN_DEBUG "configure TPD\n");
-	r = pio_a_read_byte(0xC);
-	r &= 0xFC;
-	pio_a_i2c_write(0xC, r);
-	r = pio_a_read_byte(0x4);
-	r |= 0x3;
-	pio_a_i2c_write(0x4, r);
-
 	return 0;
 }
 
@@ -665,6 +653,15 @@ void hdmi_dump_regs(struct seq_file *s)
 	mutex_unlock(&hdmi.lock);
 }
 
+static irqreturn_t hpd_enable_handler(int irq, void *ptr)
+{
+	DSSDBG("hpd enable %d\n", hdmi.hpd);
+
+	hdmi.ip_data.ops->notify_hpd(&hdmi.ip_data, hdmi.hpd);
+
+	return IRQ_HANDLED;
+}
+
 int omapdss_hdmi_read_edid(u8 *buf, int len)
 {
 	int r;
@@ -731,9 +728,6 @@ int omapdss_hdmi_display_enable(struct omap_dss_device *dssdev)
 			goto err1;
 		}
 	}
-
-	if (cpu_is_omap54xx())
-		omapdss_hdmi_io_configure();
 
 	r = hdmi_power_on(dssdev);
 	if (r) {

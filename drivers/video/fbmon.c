@@ -937,10 +937,10 @@ void fb_edid_to_monspecs(unsigned char *edid, struct fb_monspecs *specs)
 	specs->version = edid[EDID_STRUCT_VERSION];
 	specs->revision = edid[EDID_STRUCT_REVISION];
 
-	DPRINTK("========================================\n");
-	DPRINTK("Display Information (EDID)\n");
-	DPRINTK("========================================\n");
-	DPRINTK("   EDID Version %d.%d\n", (int) specs->version,
+	pr_info("========================================\n");
+	pr_info("Display Information (EDID)\n");
+	pr_info("========================================\n");
+	pr_info("   EDID Version %d.%d\n", (int) specs->version,
 	       (int) specs->revision);
 
 	parse_vendor_block(edid + ID_MANUFACTURER_NAME, specs);
@@ -949,13 +949,13 @@ void fb_edid_to_monspecs(unsigned char *edid, struct fb_monspecs *specs)
 	for (i = 0; i < 4; i++, block += DETAILED_TIMING_DESCRIPTION_SIZE) {
 		if (edid_is_serial_block(block)) {
 			copy_string(block, specs->serial_no);
-			DPRINTK("   Serial Number: %s\n", specs->serial_no);
+			pr_info("   Serial Number: %s\n", specs->serial_no);
 		} else if (edid_is_ascii_block(block)) {
 			copy_string(block, specs->ascii);
-			DPRINTK("   ASCII Block: %s\n", specs->ascii);
+			pr_info("   ASCII Block: %s\n", specs->ascii);
 		} else if (edid_is_monitor_block(block)) {
 			copy_string(block, specs->monitor);
-			DPRINTK("   Monitor Name: %s\n", specs->monitor);
+			pr_info("   Monitor Name: %s\n", specs->monitor);
 		}
 	}
 
@@ -979,7 +979,7 @@ void fb_edid_to_monspecs(unsigned char *edid, struct fb_monspecs *specs)
 	if (!found)
 		specs->misc &= ~FB_MISC_1ST_DETAIL;
 
-	DPRINTK("========================================\n");
+	pr_info("========================================\n");
 }
 
 /**

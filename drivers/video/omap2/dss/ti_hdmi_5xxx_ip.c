@@ -27,12 +27,84 @@
 #include <linux/delay.h>
 #include <linux/string.h>
 #include <linux/seq_file.h>
+#include <linux/i2c.h>
 #if defined(CONFIG_OMAP5_DSS_HDMI_AUDIO)
 #include <sound/asoundef.h>
 #endif
+#include <drm/drm_edid.h>
 
 #include "ti_hdmi_5xxx_ip.h"
 #include "dss.h"
+
+#define USE_I2C_EDID 1
+
+static int panel_hdmi_ddc_read(struct i2c_adapter *adapter,
+		unsigned char *buf, u16 count, u8 offset)
+{
+	int r, retries;
+
+	for (retries = 3; retries > 0; retries--) {
+		struct i2c_msg msgs[] = {
+			{
+				.addr   = DDC_ADDR,
+				.flags  = 0,
+				.len    = 1,
+				.buf    = &offset,
+			}, {
+				.addr   = DDC_ADDR,
+				.flags  = I2C_M_RD,
+				.len    = count,
+				.buf    = buf,
+			}
+		};
+
+		r = i2c_transfer(adapter, msgs, 2);
+		if (r == 2)
+			return 0;
+
+		if (r != -EAGAIN)
+			break;
+	}
+
+	return r < 0 ? r : -EIO;
+}
+
+static int panel_hdmi_read_edid(u8 *edid, int len)
+{
+	struct i2c_adapter *adapter;
+	int r, l, bytes_read;
+
+	adapter = i2c_get_adapter(0);
+	if (!adapter) {
+		printk("panel_dvi_read_edid: Failed to get I2C adapter, bus 0\n");
+		r = -EINVAL;
+		goto err;
+	}
+
+	l = min(EDID_LENGTH, len);
+	r = panel_hdmi_ddc_read(adapter, edid, l, 0);
+	if (r)
+		goto err;
+
+	bytes_read = l;
+
+	/* if there are extensions, read second block */
+	if (len > EDID_LENGTH && edid[0x7e] > 0) {
+		l = min(EDID_LENGTH, len - EDID_LENGTH);
+
+		r = panel_hdmi_ddc_read(adapter, edid + EDID_LENGTH,
+				l, EDID_LENGTH);
+		if (r)
+			goto err;
+
+		bytes_read += l;
+	}
+
+	return bytes_read;
+
+err:
+	return r;
+}
 
 const struct csc_table csc_table_deepcolor[4] = {
 	/* HDMI_DEEP_COLOR_24BIT */
@@ -173,6 +245,10 @@ int ti_hdmi_5xxx_read_edid(struct hdmi_ip_data *ip_data,
 	if (len < 128)
 		return -EINVAL;
 
+#if USE_I2C_EDID
+	r = panel_hdmi_read_edid(edid, len);
+	return r;
+#else
 	hdmi_core_ddc_init(ip_data);
 
 	r = hdmi_core_ddc_edid(ip_data, edid, 0);
@@ -189,6 +265,7 @@ int ti_hdmi_5xxx_read_edid(struct hdmi_ip_data *ip_data,
 	}
 
 	return l;
+#endif
 }
 
 
