@@ -1480,11 +1480,11 @@ static int omap5evm_panel_enable_hdmi(struct omap_dss_device *dssdev)
 
 static void omap5evm_panel_disable_hdmi(struct omap_dss_device *dssdev)
 {
-        gpio_set_value_cansleep(HDMI_HPD_EN_GPIO, 0);
-        gpio_set_value_cansleep(HDMI_OE_GPIO, 0);
+	gpio_set_value_cansleep(HDMI_HPD_EN_GPIO, 0);
+	gpio_set_value_cansleep(HDMI_OE_GPIO, 0);
 
-        gpio_free(HDMI_HPD_EN_GPIO);
-        gpio_free(HDMI_OE_GPIO);
+	gpio_free(HDMI_HPD_EN_GPIO);
+	gpio_free(HDMI_OE_GPIO);
 }
 
 static struct omap_dss_hdmi_data sdp54xx_hdmi_data = {
