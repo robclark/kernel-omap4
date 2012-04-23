@@ -56,8 +56,6 @@
 #define HDMI_DEFAULT_REGN 16
 #define HDMI_DEFAULT_REGM2 1
 
-#define IGNORE_HPD 1
-
 static struct {
 	struct mutex lock;
 	struct omap_display_platform_data *pdata;
