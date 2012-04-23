@@ -1629,8 +1629,8 @@ struct omap_mux_setting omap5432_uevm_mux[] __initdata = {
         },                                                                      
         {                                                                       
                 /* HDMI HPD */                                           
-		.name = "hdmi_hpd.hdmi_hpd",
-                .mode = OMAP_PIN_INPUT | OMAP_MUX_MODE0,
+		.name = "hdmi_hpd.gpio7_193",
+                .mode = OMAP_PIN_INPUT | OMAP_MUX_MODE6,
         },
         {                                                                       
                 /* GPIO 194 HDMI EDID BITBANG I2C scl */                                       
