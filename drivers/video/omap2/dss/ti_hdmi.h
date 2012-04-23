@@ -151,6 +151,7 @@ struct ti_hdmi_ip_ops {
 
 	int (*irq_process) (struct hdmi_ip_data *ip_data);
 
+	int (*configure_range)(struct hdmi_ip_data *ip_data);
 };
 
 /*
@@ -234,6 +235,7 @@ void ti_hdmi_5xxx_core_dump(struct hdmi_ip_data *ip_data, struct seq_file *s);
 int ti_hdmi_5xxx_read_edid(struct hdmi_ip_data *ip_data,
 				u8 *edid, int len);
 int ti_hdmi_5xxx_irq_process(struct hdmi_ip_data *ip_data);
+int ti_hdmi_5xxx_configure_range(struct hdmi_ip_data *ip_data);
 
 int pio_a_read_byte(int reg);
 int pio_a_i2c_write(u8 reg, u8 value);
