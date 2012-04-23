@@ -282,3 +282,6 @@ bool ti_hdmi_5xxx_detect(struct hdmi_ip_data *ip_data);
 int ti_hdmi_5xxx_irq_process(struct hdmi_ip_data *ip_data);
 int ti_hdmi_5xxx_configure_range(struct hdmi_ip_data *ip_data);
 
+
+#endif
+

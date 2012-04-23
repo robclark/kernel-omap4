@@ -28,6 +28,7 @@
 #include <linux/string.h>
 #include <linux/seq_file.h>
 #include <linux/i2c.h>
+#include <linux/gpio.h>
 #if defined(CONFIG_OMAP5_DSS_HDMI_AUDIO)
 #include <sound/asoundef.h>
 #endif
