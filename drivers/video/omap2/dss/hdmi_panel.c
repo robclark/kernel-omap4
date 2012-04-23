@@ -29,10 +29,12 @@
 
 #include "dss.h"
 
+#define DEBUG 1
+
 static struct {
 	struct omap_dss_device *dssdev;
 	struct mutex hdmi_lock;
-#if defined(CONFIG_OMAP4_DSS_HDMI_AUDIO)
+#if defined(CONFIG_OMAP4_DSS_HDMI_AUDIO) || defined(CONFIG_OMAP5_DSS_HDMI_AUDIO)
 	/* protects calls to HDMI driver audio functionality */
 	spinlock_t hdmi_sp_lock;
 #endif
@@ -105,7 +107,7 @@ static DEVICE_ATTR(range, S_IRUGO | S_IWUSR, hdmi_range_show, hdmi_range_store);
 
 static int hdmi_panel_probe(struct omap_dss_device *dssdev)
 {
-	DSSDBG("ENTER hdmi_panel_probe\n");
+	pr_err("ENTER hdmi_panel_probe\n");
 
 	dssdev->panel.config = OMAP_DSS_LCD_TFT |
 			OMAP_DSS_LCD_IVS | OMAP_DSS_LCD_IHS;
@@ -331,7 +333,7 @@ err:
 	return r;
 }
 
-#if defined(CONFIG_OMAP4_DSS_HDMI_AUDIO)
+#if defined(CONFIG_OMAP4_DSS_HDMI_AUDIO) || defined(CONFIG_OMAP5_DSS_HDMI_AUDIO)
 static int hdmi_panel_audio_enable(struct omap_dss_device *dssdev, bool enable)
 {
 	unsigned long flags;
@@ -405,7 +407,7 @@ static struct omap_dss_driver hdmi_driver = {
 	.check_timings	= hdmi_check_timings,
 	.read_edid	= hdmi_read_edid,
 	.detect		= hdmi_detect,
-#if defined(CONFIG_OMAP4_DSS_HDMI_AUDIO)
+#if defined(CONFIG_OMAP4_DSS_HDMI_AUDIO) || defined(CONFIG_OMAP5_DSS_HDMI_AUDIO)
 	.audio_enable	= hdmi_panel_audio_enable,
 	.audio_start	= hdmi_panel_audio_start,
 	.audio_detect	= hdmi_panel_audio_detect,
@@ -422,7 +424,9 @@ int hdmi_panel_init(void)
 {
 	mutex_init(&hdmi.hdmi_lock);
 
-#if defined(CONFIG_OMAP4_DSS_HDMI_AUDIO)
+	pr_err("hdmi_panel_init **********************\n");
+
+#if defined(CONFIG_OMAP4_DSS_HDMI_AUDIO) || defined(CONFIG_OMAP5_DSS_HDMI_AUDIO)
 	spin_lock_init(&hdmi.hdmi_sp_lock);
 #endif
 

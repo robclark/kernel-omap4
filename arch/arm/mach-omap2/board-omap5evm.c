@@ -801,33 +801,6 @@ static struct twl6040_platform_data twl6040_data = {
 	.irq_base	= TWL6040_CODEC_IRQ_BASE,
 };
 
-static struct omap_abe_twl6040_data omap5sevm_abe_audio_data = {                    
-        /* Audio out */                                                         
-        .has_hs         = ABE_TWL6040_LEFT | ABE_TWL6040_RIGHT,                 
-        /* HandsFree through expasion connector */                              
-        .has_hf         = ABE_TWL6040_LEFT | ABE_TWL6040_RIGHT,                 
-        /* PandaBoard: FM TX, PandaBoardES: can be connected to audio out */    
-        .has_aux        = ABE_TWL6040_LEFT | ABE_TWL6040_RIGHT,                 
-        /* PandaBoard: FM RX, PandaBoardES: audio in */                         
-        .has_afm        = ABE_TWL6040_LEFT | ABE_TWL6040_RIGHT,                 
-        .has_abe        = 1,                                                    
-        /* No jack detection. */                                                
-        .jack_detection = 1,                                                    
-        /* MCLK input is 38.4MHz */                                             
-        .mclk_freq      = 19200000,                                             
-        .card_name      = "omap5sevm",
-	.has_hsmic	= 1,                                                                        
-	.has_dmic	= 0, // was  1
-}; 
-
-static struct platform_device omap5sevm_abe_audio = {                               
-        .name           = "omap-abe-twl6040",                                   
-        .id             = -1,                                                   
-        .dev = {                                                                
-                .platform_data = &omap5sevm_abe_audio_data,                         
-        },                                                                      
-};  
-
 static struct platform_device omap5evm_dmic_codec = {
 	.name	= "dmic-codec",
 	.id	= -1,
@@ -849,7 +822,7 @@ static struct omap_abe_twl6040_data omap5evm_abe_audio_data = {
 	.has_afm	= ABE_TWL6040_LEFT | ABE_TWL6040_RIGHT,
 	.has_hsmic	= 1,
 	.has_abe	= 1,
-	.has_dmic	= 1,
+	.has_dmic	= 0,
 	/* Jack detection. */
 	.jack_detection	= 1,
 	/* MCLK input is 19.2MHz */
@@ -1368,8 +1341,6 @@ static const char * const omap5evm_fixup_mac_device_paths[] = {
        "mmc2:0001:2",
 };
 
-static void __init omap54xx_common_init(void)
-
 static struct panel_lg4591_data dsi_panel;
 static struct omap_dss_board_info omap5evm_dss_data;
 
@@ -1453,14 +1424,41 @@ static struct omap_dss_device omap5evm_lcd_device = {
 	.channel		= OMAP_DSS_CHANNEL_LCD,
 };
 
+static void omap5evm_hdmi_init(void)
+{
+        int r;
+
+        r = gpio_request_one(HDMI_GPIO_HPD, GPIOF_DIR_IN,
+                "hdmi_gpio_hpd");
+        if (r)
+                pr_err("%s: Could not get HDMI\n", __func__);
+}
+
 static int omap5evm_panel_enable_hdmi(struct omap_dss_device *dssdev)
 {
-	return 0;
+        int r;
+        /* Requesting HDMI OE GPIO and enable it, at bootup */
+        r = gpio_request_one(HDMI_OE_GPIO,
+                                GPIOF_OUT_INIT_HIGH, "HDMI_OE");
+        if (r)
+                pr_err("Failed to get HDMI OE GPIO\n");
+
+        /* Requesting HDMI HPD_EN GPIO and enable it, at bootup */
+        r = gpio_request_one(HDMI_HPD_EN_GPIO,
+                        GPIOF_OUT_INIT_HIGH, "HDMI_HPD_EN");
+        if (r)
+                pr_err("Failed to get HDMI HPD EN GPIO\n");
+
+        return 0;
 }
 
 static void omap5evm_panel_disable_hdmi(struct omap_dss_device *dssdev)
 {
+        gpio_set_value_cansleep(HDMI_HPD_EN_GPIO, 0);
+        gpio_set_value_cansleep(HDMI_OE_GPIO, 0);
 
+        gpio_free(HDMI_HPD_EN_GPIO);
+        gpio_free(HDMI_OE_GPIO);
 }
 
 static struct omap_dss_hdmi_data sdp54xx_hdmi_data = {
@@ -1485,7 +1483,7 @@ static struct omap_dss_device *omap5evm_dss_devices[] = {
 static struct omap_dss_board_info omap5evm_dss_data = {
 	.num_devices	= ARRAY_SIZE(omap5evm_dss_devices),
 	.devices	= omap5evm_dss_devices,
-	.default_device	= &omap5evm_lcd_device,
+	.default_device	= &omap5evm_hdmi_device,
 };
 
 static void __init omap54xx_common_init(void)
@@ -1518,8 +1516,8 @@ static void __init omap54xx_common_init(void)
 	omap_hsmmc_init(mmc);
 	omap_ehci_ohci_init();
 
-	platform_add_devices(omap5evm_devices, ARRAY_SIZE(platform_add_devices));
-
+	platform_add_devices(omap5evm_devices, ARRAY_SIZE(omap5evm_devices));
+	omap5evm_hdmi_init();
 	omap5evm_display_init();
 }
 
