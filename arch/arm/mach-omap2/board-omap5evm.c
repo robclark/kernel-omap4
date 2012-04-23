@@ -828,6 +828,51 @@ static struct platform_device omap5sevm_abe_audio = {
         },                                                                      
 };  
 
+static struct platform_device omap5evm_dmic_codec = {
+	.name	= "dmic-codec",
+	.id	= -1,
+};
+
+static struct platform_device omap5evm_hdmi_audio_codec = {
+	.name	= "hdmi-audio-codec",
+	.id	= -1,
+};
+
+static struct omap_abe_twl6040_data omap5evm_abe_audio_data = {
+	/* Audio out */
+	.has_hs		= ABE_TWL6040_LEFT | ABE_TWL6040_RIGHT,
+	/* HandsFree through expasion connector */
+	.has_hf		= ABE_TWL6040_LEFT | ABE_TWL6040_RIGHT,
+	/* PandaBoard: FM TX, PandaBoardES: can be connected to audio out */
+	.has_aux	= ABE_TWL6040_LEFT | ABE_TWL6040_RIGHT,
+	/* PandaBoard: FM RX, PandaBoardES: audio in */
+	.has_afm	= ABE_TWL6040_LEFT | ABE_TWL6040_RIGHT,
+	.has_hsmic	= 1,
+	.has_abe	= 1,
+	.has_dmic	= 1,
+	/* Jack detection. */
+	.jack_detection	= 1,
+	/* MCLK input is 19.2MHz */
+	.mclk_freq	= 19200000,
+	.card_name = "OMAP5EVM",
+
+};
+
+static struct platform_device omap5evm_abe_audio = {
+	.name		= "omap-abe-twl6040",
+	.id		= -1,
+	.dev = {
+		.platform_data = &omap5evm_abe_audio_data,
+	},
+};
+
+static struct platform_device *omap5evm_devices[] __initdata = {
+	&omap5evm_dmic_codec,
+	&omap5evm_hdmi_audio_codec,
+	&omap5evm_abe_audio,
+	&leds_gpio,
+};
+
 static struct i2c_board_info __initdata omap5evm_i2c_1_boardinfo[] = {
 #ifdef CONFIG_OMAP5_SEVM_PALMAS
 	{
@@ -1471,9 +1516,9 @@ static void __init omap54xx_common_init(void)
 	omap_serial_board_init(NULL, 4);
 	omap_sdrc_init(NULL, NULL);
 	omap_hsmmc_init(mmc);
-	platform_device_register(&omap5sevm_abe_audio);
 	omap_ehci_ohci_init();
-	platform_device_register(&leds_gpio);
+
+	platform_add_devices(omap5evm_devices, ARRAY_SIZE(platform_add_devices));
 
 	omap5evm_display_init();
 }
