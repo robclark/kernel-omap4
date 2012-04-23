@@ -1013,6 +1013,18 @@ again: /* SMP systems could race device probes */
 		goto clean_cdev;
 	}
 
+#if defined(OMAPRPC_HIDEOUS_CLOCK_HACK_TO_BE_REMOVED_ASAP)
+    {
+        struct clk *iss_fck = clk_get(&rpdev->dev, "iss_fck");
+        struct clk *iss_ctrlclk = clk_get(&rpdev->dev, "iss_ctrlclk");
+        struct clk *fdif_fck = clk_get(&rpdev->dev, "fdif_fck");
+
+        clk_enable(iss_fck);
+        clk_enable(iss_ctrlclk);
+        clk_enable(fdif_fck);
+    }
+#endif
+
 serv_up:
 	rpcserv->rpdev = rpdev;
 	rpcserv->minor = minor;
@@ -1056,6 +1068,17 @@ static void __devexit omaprpc_remove(struct rpmsg_channel *rpdev)
 		return;
 	}
 
+#if defined(OMAPRPC_HIDEOUS_CLOCK_HACK_TO_BE_REMOVED_ASAP)
+	{
+		struct clk *iss_fck = clk_get(&rpdev->dev, "iss_fck");
+		struct clk *iss_ctrlclk = clk_get(&rpdev->dev, "iss_ctrlclk");
+		struct clk *fdif_fck = clk_get(&rpdev->dev, "fdif_fck");
+		
+		clk_disable(fdif_fck);
+		clk_disable(iss_ctrlclk);
+		clk_disable(iss_fck);
+	}
+#endif
 	OMAPRPC_INFO(rpcserv->dev,
 		"OMAPRPC: removing rpmsg omaprpc driver %u.%u\n",
 		major, rpcserv->minor);
