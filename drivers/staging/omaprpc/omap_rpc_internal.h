@@ -103,6 +103,11 @@ extern struct ion_device *omap_ion_device;
 #undef OMAPRPC_DEBUGGING
 #undef OMAPRPC_USE_HASH
 #undef OMAPRPC_PERF_MEASUREMENT
+#define OMAPRPC_HIDEOUS_CLOCK_HACK_TO_BE_REMOVED_ASAP
+
+#if defined(OMAPRPC_HIDEOUS_CLOCK_HACK_TO_BE_REMOVED_ASAP)
+#include <linux/clk.h>
+#endif
 
 #if defined(OMAPRPC_DEBUGGING)
 #define OMAPRPC_INFO(dev, fmt, ...)    dev_info(dev, fmt, ## __VA_ARGS__)
