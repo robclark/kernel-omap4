@@ -38,6 +38,8 @@
 #include <linux/i2c/smsc.h>
 #include <linux/wl12xx.h>
 
+#include <drm/drm_edid.h>
+
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -846,6 +848,30 @@ static struct platform_device *omap5evm_devices[] __initdata = {
 	&leds_gpio,
 };
 
+/*
+ * Display monitor features are burnt in their EEPROM as EDID data. The EEPROM
+ * is connected as I2C slave device, and can be accessed at address 0x50
+ */
+static struct i2c_board_info __initdata hdmi_i2c_eeprom[] = {
+        {
+                I2C_BOARD_INFO("eeprom", DDC_ADDR),
+        },
+};
+
+static struct i2c_gpio_platform_data i2c_gpio_pdata = {
+        .sda_pin                = 195,
+        .sda_is_open_drain      = 0,
+        .scl_pin                = 194,
+        .scl_is_open_drain      = 0,
+        .udelay                 = 2,            /* ~100 kHz */
+};
+
+static struct platform_device hdmi_edid_device = {
+        .name                   = "i2c-gpio",
+        .id                     = -1,
+        .dev.platform_data      = &i2c_gpio_pdata,
+};
+
 static struct i2c_board_info __initdata omap5evm_i2c_1_boardinfo[] = {
 #ifdef CONFIG_OMAP5_SEVM_PALMAS
 	{
@@ -1514,10 +1540,11 @@ static void __init omap54xx_common_init(void)
 	omap_serial_board_init(NULL, 4);
 	omap_sdrc_init(NULL, NULL);
 	omap_hsmmc_init(mmc);
+	i2c_register_board_info(0, hdmi_i2c_eeprom, ARRAY_SIZE(hdmi_i2c_eeprom));
+	platform_device_register(&hdmi_edid_device);
 	omap_ehci_ohci_init();
 
 	platform_add_devices(omap5evm_devices, ARRAY_SIZE(omap5evm_devices));
-	omap5evm_hdmi_init();
 	omap5evm_display_init();
 }
 
