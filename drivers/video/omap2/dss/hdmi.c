@@ -31,6 +31,7 @@
 #include <linux/string.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/regulator/consumer.h>
 #include <linux/clk.h>
 #include <video/omapdss.h>
 
@@ -62,6 +63,8 @@ static struct {
 	struct hdmi_ip_data ip_data;
 
 	struct clk *sys_clk;
+
+	struct regulator *vdds_hdmi;
 } hdmi;
 
 /*
@@ -324,6 +327,12 @@ static int hdmi_power_on(struct omap_dss_device *dssdev)
 	if (r)
 		return r;
 
+	if (cpu_is_omap54xx()) {
+		r = regulator_enable(hdmi.vdds_hdmi);
+		if (r)
+			goto err;
+	}
+
 	dss_mgr_disable(dssdev->manager);
 
 	p = &dssdev->panel.timings;
@@ -405,6 +414,10 @@ static void hdmi_power_off(struct omap_dss_device *dssdev)
 	hdmi.ip_data.ops->video_enable(&hdmi.ip_data, 0);
 	hdmi.ip_data.ops->phy_disable(&hdmi.ip_data);
 	hdmi.ip_data.ops->pll_disable(&hdmi.ip_data);
+
+	if (cpu_is_omap54xx())
+		regulator_disable(hdmi.vdds_hdmi);
+
 	hdmi_runtime_put();
 }
 
@@ -719,6 +732,7 @@ int hdmi_audio_config(struct snd_aes_iec958 *iec,
 static int omapdss_hdmihw_probe(struct platform_device *pdev)
 {
 	struct resource *hdmi_mem;
+	struct regulator *vdds_hdmi;
 	int r;
 
 	hdmi.pdata = pdev->dev.platform_data;
@@ -748,6 +762,16 @@ static int omapdss_hdmihw_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(&pdev->dev);
 
+	if (cpu_is_omap54xx()) {
+		/* Request for regulator supply required by HDMI PHY */
+		vdds_hdmi = regulator_get(&pdev->dev, "vdds_hdmi");
+		if (IS_ERR(vdds_hdmi)) {
+			DSSERR("can't get VDDS_HDMI regulator\n");
+			return PTR_ERR(vdds_hdmi);
+		}
+	hdmi.vdds_hdmi = vdds_hdmi;
+	}
+
 	hdmi.ip_data.core_sys_offset = dss_feat_get_hdmi_core_sys_offset();
 	hdmi.ip_data.core_av_offset = HDMI_CORE_AV;
 	hdmi.ip_data.pll_offset = HDMI_PLLCTRL;
@@ -765,6 +789,11 @@ static int omapdss_hdmihw_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 
 	hdmi_put_clocks();
+
+	if (cpu_is_omap54xx()) {
+		regulator_put(hdmi.vdds_hdmi);
+		hdmi.vdds_hdmi = NULL;
+	}
 
 	iounmap(hdmi.ip_data.base_wp);
 
