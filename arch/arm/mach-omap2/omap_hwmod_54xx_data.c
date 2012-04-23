@@ -1361,7 +1361,7 @@ static struct omap_hwmod_addr_space omap54xx_dss_dma_addrs[] = {
 static struct omap_hwmod_ocp_if omap54xx_l3_main_2__dss = {
 	.master		= &omap54xx_l3_main_2_hwmod,
 	.slave		= &omap54xx_dss_hwmod,
-	.clk		= "l3_div_ck",
+	.clk		= "dss_fck",
 	.addr		= omap54xx_dss_dma_addrs,
 	.user		= OCP_USER_SDMA,
 };
@@ -1406,7 +1406,6 @@ static struct omap_hwmod omap54xx_dss_hwmod = {
 		.omap4 = {
 			.clkctrl_offs = OMAP54XX_CM_DSS_DSS_CLKCTRL_OFFSET,
 			.context_offs = OMAP54XX_RM_DSS_DSS_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_SWCTRL,
 		},
 	},
 	.opt_clks	= dss_opt_clks,
@@ -1465,7 +1464,7 @@ static struct omap_hwmod_addr_space omap54xx_dss_dispc_dma_addrs[] = {
 static struct omap_hwmod_ocp_if omap54xx_l3_main_2__dss_dispc = {
 	.master		= &omap54xx_l3_main_2_hwmod,
 	.slave		= &omap54xx_dss_dispc_hwmod,
-	.clk		= "l3_div_ck",
+	.clk		= "dss_fck",
 	.addr		= omap54xx_dss_dispc_dma_addrs,
 	.user		= OCP_USER_SDMA,
 };
@@ -1563,7 +1562,7 @@ static struct omap_hwmod_addr_space omap54xx_dss_dsi1_a_dma_addrs[] = {
 static struct omap_hwmod_ocp_if omap54xx_l3_main_2__dss_dsi1_a = {
 	.master		= &omap54xx_l3_main_2_hwmod,
 	.slave		= &omap54xx_dss_dsi1_a_hwmod,
-	.clk		= "l3_div_ck",
+	.clk		= "dss_fck",
 	.addr		= omap54xx_dss_dsi1_a_dma_addrs,
 	.user		= OCP_USER_SDMA,
 };
@@ -1598,6 +1597,7 @@ static struct omap_hwmod omap54xx_dss_dsi1_a_hwmod = {
 	.clkdm_name	= "dss_clkdm",
 	.mpu_irqs	= omap54xx_dss_dsi1_a_irqs,
 	.sdma_reqs	= omap54xx_dss_dsi1_a_sdma_reqs,
+	.main_clk	= "dss_dss_clk",
 	.prcm = {
 		.omap4 = {
 			.clkctrl_offs = OMAP54XX_CM_DSS_DSS_CLKCTRL_OFFSET,
@@ -1633,7 +1633,7 @@ static struct omap_hwmod_addr_space omap54xx_dss_dsi1_c_dma_addrs[] = {
 static struct omap_hwmod_ocp_if omap54xx_l3_main_2__dss_dsi1_c = {
 	.master		= &omap54xx_l3_main_2_hwmod,
 	.slave		= &omap54xx_dss_dsi1_c_hwmod,
-	.clk		= "l3_div_ck",
+	.clk		= "dss_fck",
 	.addr		= omap54xx_dss_dsi1_c_dma_addrs,
 	.user		= OCP_USER_SDMA,
 };
@@ -1668,6 +1668,7 @@ static struct omap_hwmod omap54xx_dss_dsi1_c_hwmod = {
 	.clkdm_name	= "dss_clkdm",
 	.mpu_irqs	= omap54xx_dss_dsi1_c_irqs,
 	.sdma_reqs	= omap54xx_dss_dsi1_c_sdma_reqs,
+	.main_clk	= "dss_dss_clk",
 	.prcm = {
 		.omap4 = {
 			.clkctrl_offs = OMAP54XX_CM_DSS_DSS_CLKCTRL_OFFSET,
@@ -1723,7 +1724,7 @@ static struct omap_hwmod_addr_space omap54xx_dss_hdmi_dma_addrs[] = {
 static struct omap_hwmod_ocp_if omap54xx_l3_main_2__dss_hdmi = {
 	.master		= &omap54xx_l3_main_2_hwmod,
 	.slave		= &omap54xx_dss_hdmi_hwmod,
-	.clk		= "l3_div_ck",
+	.clk		= "dss_fck",
 	.addr		= omap54xx_dss_hdmi_dma_addrs,
 	.user		= OCP_USER_SDMA,
 };
@@ -1815,7 +1816,7 @@ static struct omap_hwmod_addr_space omap54xx_dss_rfbi_dma_addrs[] = {
 static struct omap_hwmod_ocp_if omap54xx_l3_main_2__dss_rfbi = {
 	.master		= &omap54xx_l3_main_2_hwmod,
 	.slave		= &omap54xx_dss_rfbi_hwmod,
-	.clk		= "l3_div_ck",
+	.clk		= "dss_fck",
 	.addr		= omap54xx_dss_rfbi_dma_addrs,
 	.user		= OCP_USER_SDMA,
 };
@@ -1853,6 +1854,7 @@ static struct omap_hwmod omap54xx_dss_rfbi_hwmod = {
 	.class		= &omap54xx_rfbi_hwmod_class,
 	.clkdm_name	= "dss_clkdm",
 	.sdma_reqs	= omap54xx_dss_rfbi_sdma_reqs,
+	.main_clk	= "dss_dss_clk",
 	.prcm = {
 		.omap4 = {
 			.clkctrl_offs = OMAP54XX_CM_DSS_DSS_CLKCTRL_OFFSET,
