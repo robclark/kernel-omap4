@@ -399,10 +399,28 @@ static int hdmi_power_on(struct omap_dss_device *dssdev)
 		goto err;
 	}
 
-	r = hdmi.ip_data.ops->phy_enable(&hdmi.ip_data);
-	if (r) {
-		DSSDBG("Failed to start PHY\n");
-		goto err;
+	msleep(1000);
+
+	r = 1;                                                                  
+        if (hdmi.ip_data.ops->detect)                                           
+                r = hdmi.ip_data.ops->detect(&hdmi.ip_data);                    
+
+	if (r == 1) {
+		/*
+		 * If TPD is enabled before power on First interrupt is missed
+		 * so check for current HPD state
+		 */
+		hdmi.hpd = 1;
+		hdmi.ip_data.ops->notify_hpd(&hdmi.ip_data, hdmi.hpd);
+	} else {
+		r = hdmi.ip_data.ops->phy_enable(&hdmi.ip_data);
+		if (r) {
+			DSSDBG("Failed to start PHY\n");
+#if 0
+			/* Ignore Phy transition error for now*/
+			goto err;
+#endif
+		}
 	}
 
 	hdmi.ip_data.ops->video_configure(&hdmi.ip_data);
