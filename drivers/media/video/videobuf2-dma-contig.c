@@ -161,7 +161,11 @@ static void vb2_dc_prepare(void *buf_priv)
 	if (!sgt)
 		return;
 
-	dma_sync_sg_for_device(buf->dev, sgt->sgl, sgt->nents, buf->dma_dir);
+	/* exporting device handles this in dmabuf case.. the backing
+	 * memory might not be something dma-mapping can cope with
+	 */
+	if (!buf->db_attach)
+		dma_sync_sg_for_device(buf->dev, sgt->sgl, sgt->nents, buf->dma_dir);
 }
 
 static void vb2_dc_finish(void *buf_priv)
@@ -172,7 +176,11 @@ static void vb2_dc_finish(void *buf_priv)
 	if (!sgt)
 		return;
 
-	dma_sync_sg_for_cpu(buf->dev, sgt->sgl, sgt->nents, buf->dma_dir);
+	/* exporting device handles this in dmabuf case.. the backing
+	 * memory might not be something dma-mapping can cope with
+	 */
+	if (!buf->db_attach)
+		dma_sync_sg_for_cpu(buf->dev, sgt->sgl, sgt->nents, buf->dma_dir);
 }
 
 /*********************************************/
