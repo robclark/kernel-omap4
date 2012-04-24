@@ -13,6 +13,7 @@
 
 #include <linux/delay.h>
 #include <linux/device.h>
+#include <plat/cpu.h>
 
 #include "../../../../arch/arm/mach-omap2/control.h"
 
