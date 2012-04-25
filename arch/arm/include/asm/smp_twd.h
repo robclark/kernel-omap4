@@ -20,9 +20,6 @@
 
 #include <linux/ioport.h>
 
-struct clock_event_device;
-struct resource;
-
 struct twd_local_timer {
 	struct resource	res[2];
 };
@@ -42,18 +39,6 @@ void twd_local_timer_of_register(void);
 #else
 static inline void twd_local_timer_of_register(void)
 {
-}
-#endif
-//int __cpuinit  twd_timer_setup(struct clock_event_device *);
-//void twd_timer_stop(struct clock_event_device *);
-struct resource;
-
-#ifdef CONFIG_HAVE_ARM_TWD
-int twd_timer_register(struct resource *res, int res_nr);
-#else
-static inline int twd_timer_register(struct resource *res, int res_nr)
-{
-	return 0;
 }
 #endif
 

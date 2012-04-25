@@ -20,12 +20,6 @@ struct local_timer_ops {
 };
 
 #ifdef CONFIG_LOCAL_TIMERS
-
-/*
- * Stop the local timer
- */
-void local_timer_stop(struct clock_event_device *);
-
 /*
  * Register a local timer driver
  */
