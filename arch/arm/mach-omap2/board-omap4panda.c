@@ -532,10 +532,11 @@ static int omap4_panda_panel_enable_hdmi(struct omap_dss_device *dssdev)
 
 	status = gpio_request_array(panda_hdmi_gpios,
 				    ARRAY_SIZE(panda_hdmi_gpios));
-	if (status)
-		pr_err("Cannot request HDMI GPIOs\n");
+//	if (status)
+//		pr_err("Cannot request HDMI GPIOs\n");
 
-	return status;
+//	return status;
+	return 0;
 }
 
 static void omap4_panda_panel_disable_hdmi(struct omap_dss_device *dssdev)
