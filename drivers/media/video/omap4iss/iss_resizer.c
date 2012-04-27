@@ -143,7 +143,8 @@ static void resizer_enable(struct iss_resizer_device *resizer, u8 enable)
  *
  * Sets the memory address where the output will be saved.
  */
-static void resizer_set_outaddr(struct iss_resizer_device *resizer, u32 addr)
+static void resizer_set_outaddr(struct iss_resizer_device *resizer,
+		u32 addr, u32 c_addr)
 {
 	struct iss_device *iss = to_iss_device(resizer);
 	struct v4l2_mbus_framefmt *informat, *outformat;
@@ -163,10 +164,14 @@ static void resizer_set_outaddr(struct iss_resizer_device *resizer, u32 addr)
 	writel(addr & 0xffff,
 		iss->regs[OMAP4_ISS_MEM_ISP_RESIZER] + RZA_SDR_Y_SAD_L);
 
-	/* Program UV buffer address... Hardcoded to be contiguous! */
+	/* Program UV buffer address */
 	if ((informat->code == V4L2_MBUS_FMT_UYVY8_1X16) &&
 	    (outformat->code == V4L2_MBUS_FMT_YUYV8_1_5X8)) {
-		u32 c_addr = addr + (resizer->video_out.bpl_value *
+		/* If a seperate UV ptr was not provided, then assume
+		 * single contiguous buffer:
+		 */
+		if (!c_addr)
+			c_addr = addr + (resizer->video_out.bpl_value *
 				     (outformat->height - 1));
 
 		/* Ensure Y_BAD_L[6:0] = C_BAD_L[6:0]*/
@@ -285,7 +290,7 @@ static void resizer_isr_buffer(struct iss_resizer_device *resizer)
 	if (buffer == NULL)
 		return;
 
-	resizer_set_outaddr(resizer, buffer->iss_addr);
+	resizer_set_outaddr(resizer, buffer->iss_addr, buffer->iss_addr_uv);
 
 	writel(readl(iss->regs[OMAP4_ISS_MEM_ISP_RESIZER] + RZA_EN) |
 		RSZ_EN_EN,
@@ -334,7 +339,7 @@ static int resizer_video_queue(struct iss_video *video, struct iss_buffer *buffe
 	if (!(resizer->output & RESIZER_OUTPUT_MEMORY))
 		return -ENODEV;
 
-	resizer_set_outaddr(resizer, buffer->iss_addr);
+	resizer_set_outaddr(resizer, buffer->iss_addr, buffer->iss_addr_uv);
 
 	/*
 	 * If streaming was enabled before there was a buffer queued

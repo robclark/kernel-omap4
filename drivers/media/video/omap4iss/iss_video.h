@@ -116,6 +116,7 @@ struct iss_buffer {
 	struct vb2_buffer	vb;
 	struct list_head	list;
 	dma_addr_t iss_addr;
+	dma_addr_t iss_addr_uv;
 };
 
 #define to_iss_buffer(buf)	container_of(buf, struct iss_buffer, buffer)

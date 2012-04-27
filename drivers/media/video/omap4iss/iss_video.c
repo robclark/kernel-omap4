@@ -31,6 +31,27 @@
  * Helper functions
  */
 
+static inline bool is_capture(struct iss_video *video)
+{
+	return (video->type == V4L2_BUF_TYPE_VIDEO_CAPTURE) ||
+			(video->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE);
+}
+
+static inline bool is_output(struct iss_video *video)
+{
+	return (video->type == V4L2_BUF_TYPE_VIDEO_OUTPUT) ||
+			(video->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE);
+}
+
+static inline bool check_type(struct iss_video *video,
+		enum v4l2_buf_type type)
+{
+	/* this is maybe evil.. I'm not sure if the relationship
+	 * between MPLANE and non-MPLANE types was intentional..
+	 */
+	return (video->type & ~8) == (type & ~8);
+}
+
 static struct iss_format_info formats[] = {
 	{ V4L2_MBUS_FMT_Y8_1X8, V4L2_MBUS_FMT_Y8_1X8,
 	  V4L2_MBUS_FMT_Y8_1X8, V4L2_MBUS_FMT_Y8_1X8,
@@ -222,7 +243,7 @@ iss_video_far_end(struct iss_video *video)
 			continue;
 
 		far_end = to_iss_video(media_entity_to_video_device(entity));
-		if (far_end->type != video->type)
+		if (!check_type(video, far_end->type))
 			break;
 
 		far_end = NULL;
@@ -293,14 +314,32 @@ static int iss_video_queue_setup(struct vb2_queue *vq, const struct v4l2_format 
 	struct iss_video_fh *vfh = vb2_get_drv_priv(vq);
 	struct iss_video *video = vfh->video;
 
-	/* Revisit multi-planar support for NV12 */
-	*num_planes = 1;
+	if (!fmt)
+		fmt = &vfh->format;
 
-	sizes[0] = vfh->format.fmt.pix.sizeimage;
-	if (sizes[0] == 0)
-		return -EINVAL;
+	if (V4L2_TYPE_IS_MULTIPLANAR(fmt->type) &&
+			(fmt->fmt.pix.pixelformat == V4L2_PIX_FMT_NV12)) {
+		*num_planes = 2;
 
-	alloc_ctxs[0] = video->alloc_ctx;
+		/* luma: */
+		sizes[0] = fmt->fmt.pix.bytesperline *
+				fmt->fmt.pix.height;
+		alloc_ctxs[0] = video->alloc_ctx;
+
+		/* chroma: */
+		sizes[1] = vfh->format.fmt.pix.bytesperline *
+				(vfh->format.fmt.pix.height + 1) / 2;
+		alloc_ctxs[1] = video->alloc_ctx;
+	} else {
+		*num_planes = 1;
+
+		sizes[0] = vfh->format.fmt.pix.sizeimage;
+		if (sizes[0] == 0)
+			return -EINVAL;
+
+		alloc_ctxs[0] = video->alloc_ctx;
+	}
+
 
 	*count = min(*count, (unsigned int)(video->capture_mem / PAGE_ALIGN(sizes[0])));
 
@@ -311,31 +350,62 @@ static void iss_video_buf_cleanup(struct vb2_buffer *vb)
 {
 	struct iss_buffer *buffer = container_of(vb, struct iss_buffer, vb);
 
-	if (buffer->iss_addr)
-		buffer->iss_addr = 0;
+	buffer->iss_addr = 0;
+	buffer->iss_addr_uv = 0;
+}
+
+static int iss_video_buf_prepare_plane(struct vb2_buffer *vb,
+		unsigned int plane_no, unsigned long size, dma_addr_t *addr)
+{
+	struct iss_video_fh *vfh = vb2_get_drv_priv(vb->vb2_queue);
+	struct iss_video *video = vfh->video;
+
+	if (vb2_plane_size(vb, plane_no) < size)
+		return -ENOBUFS;
+
+	*addr = vb2_dma_contig_plane_dma_addr(vb, plane_no);
+	if (!IS_ALIGNED(*addr, 32)) {
+		dev_dbg(video->iss->dev, "Buffer address must be "
+				"aligned to 32 bytes boundary.\n");
+		return -EINVAL;
+	}
+
+	vb2_set_plane_payload(vb, plane_no, size);
+
+	return 0;
 }
 
 static int iss_video_buf_prepare(struct vb2_buffer *vb)
 {
 	struct iss_video_fh *vfh = vb2_get_drv_priv(vb->vb2_queue);
 	struct iss_buffer *buffer = container_of(vb, struct iss_buffer, vb);
-	struct iss_video *video = vfh->video;
-	unsigned long size = vfh->format.fmt.pix.sizeimage;
-	dma_addr_t addr;
+	const struct v4l2_format *fmt = &vfh->format;
+	int ret;
 
-	if (vb2_plane_size(vb, 0) < size)
-		return -ENOBUFS;
+	if (V4L2_TYPE_IS_MULTIPLANAR(fmt->type) &&
+			(fmt->fmt.pix.pixelformat == V4L2_PIX_FMT_NV12)) {
+		unsigned long size;
 
-	addr = vb2_dma_contig_plane_dma_addr(vb, 0);
-	if (!IS_ALIGNED(addr, 32)) {
-		dev_dbg(video->iss->dev, "Buffer address must be "
-			"aligned to 32 bytes boundary.\n");
-		return -EINVAL;
+		/* luma: */
+		size = fmt->fmt.pix.bytesperline *
+				fmt->fmt.pix.height;
+		ret = iss_video_buf_prepare_plane(vb, 0, size,
+				&buffer->iss_addr);
+		if (ret)
+			return ret;
+
+		/* chroma: */
+		size = vfh->format.fmt.pix.bytesperline *
+				(vfh->format.fmt.pix.height + 1) / 2;
+		ret = iss_video_buf_prepare_plane(vb, 1, size,
+				&buffer->iss_addr_uv);
+	} else {
+		ret = iss_video_buf_prepare_plane(vb, 0,
+				vfh->format.fmt.pix.sizeimage, &buffer->iss_addr);
+		buffer->iss_addr_uv = 0;
 	}
 
-	vb2_set_plane_payload(vb, 0, size);
-	buffer->iss_addr = addr;
-	return 0;
+	return ret;
 }
 
 static void iss_video_buf_queue(struct vb2_buffer *vb)
@@ -356,7 +426,7 @@ static void iss_video_buf_queue(struct vb2_buffer *vb)
 		enum iss_pipeline_state state;
 		unsigned int start;
 
-		if (video->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		if (is_capture(video))
 			state = ISS_PIPELINE_QUEUE_OUTPUT;
 		else
 			state = ISS_PIPELINE_QUEUE_INPUT;
@@ -438,7 +508,7 @@ struct iss_buffer *omap4iss_video_buffer_next(struct iss_video *video)
 	spin_lock_irqsave(&video->qlock, flags);
 	if (list_empty(&video->dmaqueue)) {
 		spin_unlock_irqrestore(&video->qlock, flags);
-		if (video->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		if (is_capture(video))
 			state = ISS_PIPELINE_QUEUE_OUTPUT
 			      | ISS_PIPELINE_STREAM;
 		else
@@ -453,7 +523,7 @@ struct iss_buffer *omap4iss_video_buffer_next(struct iss_video *video)
 		return NULL;
 	}
 
-	if (video->type == V4L2_BUF_TYPE_VIDEO_CAPTURE && pipe->input != NULL) {
+	if (is_capture(video) && pipe->input != NULL) {
 		spin_lock_irqsave(&pipe->lock, flags);
 		pipe->state &= ~ISS_PIPELINE_STREAM;
 		spin_unlock_irqrestore(&pipe->lock, flags);
@@ -479,7 +549,7 @@ iss_video_querycap(struct file *file, void *fh, struct v4l2_capability *cap)
 	strlcpy(cap->card, video->video.name, sizeof(cap->card));
 	strlcpy(cap->bus_info, "media", sizeof(cap->bus_info));
 
-	if (video->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
+	if (is_capture(video))
 		cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
 	else
 		cap->capabilities = V4L2_CAP_VIDEO_OUTPUT | V4L2_CAP_STREAMING;
@@ -493,8 +563,13 @@ iss_video_get_format(struct file *file, void *fh, struct v4l2_format *format)
 	struct iss_video_fh *vfh = to_iss_video_fh(fh);
 	struct iss_video *video = video_drvdata(file);
 
-	if (format->type != video->type)
+	if (!check_type(video, format->type))
 		return -EINVAL;
+
+	/* user could be requesting multi-plane, so don't overwrite that
+	 * with our default:
+	 */
+	vfh->format.type = format->type;
 
 	mutex_lock(&video->mutex);
 	*format = vfh->format;
@@ -510,7 +585,7 @@ iss_video_set_format(struct file *file, void *fh, struct v4l2_format *format)
 	struct iss_video *video = video_drvdata(file);
 	struct v4l2_mbus_framefmt fmt;
 
-	if (format->type != video->type)
+	if (!check_type(video, format->type))
 		return -EINVAL;
 
 	mutex_lock(&video->mutex);
@@ -536,7 +611,7 @@ iss_video_try_format(struct file *file, void *fh, struct v4l2_format *format)
 	u32 pad;
 	int ret;
 
-	if (format->type != video->type)
+	if (!check_type(video, format->type))
 		return -EINVAL;
 
 	subdev = iss_video_remote_subdev(video, &pad);
@@ -631,8 +706,7 @@ iss_video_get_param(struct file *file, void *fh, struct v4l2_streamparm *a)
 	struct iss_video_fh *vfh = to_iss_video_fh(fh);
 	struct iss_video *video = video_drvdata(file);
 
-	if (video->type != V4L2_BUF_TYPE_VIDEO_OUTPUT ||
-	    video->type != a->type)
+	if (!is_output(video) || !check_type(video, a->type))
 		return -EINVAL;
 
 	memset(a, 0, sizeof(*a));
@@ -649,8 +723,7 @@ iss_video_set_param(struct file *file, void *fh, struct v4l2_streamparm *a)
 	struct iss_video_fh *vfh = to_iss_video_fh(fh);
 	struct iss_video *video = video_drvdata(file);
 
-	if (video->type != V4L2_BUF_TYPE_VIDEO_OUTPUT ||
-	    video->type != a->type)
+	if (!is_output(video) || !check_type(video, a->type))
 		return -EINVAL;
 
 	if (a->parm.output.timeperframe.denominator == 0)
@@ -665,6 +738,9 @@ static int
 iss_video_reqbufs(struct file *file, void *fh, struct v4l2_requestbuffers *rb)
 {
 	struct iss_video_fh *vfh = to_iss_video_fh(fh);
+
+	if (check_type(vfh->video, rb->type))
+		vfh->queue.type = rb->type;
 
 	return vb2_reqbufs(&vfh->queue, rb);
 }
@@ -735,10 +811,12 @@ iss_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	unsigned long flags;
 	int ret;
 
-	if (type != video->type)
+	if (!check_type(video, type))
 		return -EINVAL;
 
 	mutex_lock(&video->stream_lock);
+
+	vfh->queue.type = type;
 
 	if (video->streaming) {
 		mutex_unlock(&video->stream_lock);
@@ -776,7 +854,7 @@ iss_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	 */
 	far_end = iss_video_far_end(video);
 
-	if (video->type == V4L2_BUF_TYPE_VIDEO_CAPTURE) {
+	if (is_capture(video)) {
 		state = ISS_PIPELINE_STREAM_OUTPUT | ISS_PIPELINE_IDLE_OUTPUT;
 		pipe->input = far_end;
 		pipe->output = video;
@@ -800,7 +878,7 @@ iss_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	 * This is a soft limit that can be overridden if the hardware doesn't
 	 * support the request limit.
 	 */
-	if (video->type == V4L2_BUF_TYPE_VIDEO_OUTPUT)
+	if (is_output(video))
 		pipe->max_timeperframe = vfh->timeperframe;
 
 	video->queue = &vfh->queue;
@@ -855,7 +933,7 @@ iss_video_streamoff(struct file *file, void *fh, enum v4l2_buf_type type)
 	enum iss_pipeline_state state;
 	unsigned long flags;
 
-	if (type != video->type)
+	if (!check_type(video, type))
 		return -EINVAL;
 
 	mutex_lock(&video->stream_lock);
@@ -864,7 +942,7 @@ iss_video_streamoff(struct file *file, void *fh, enum v4l2_buf_type type)
 		goto done;
 
 	/* Update the pipeline state. */
-	if (video->type == V4L2_BUF_TYPE_VIDEO_CAPTURE)
+	if (is_capture(video))
 		state = ISS_PIPELINE_STREAM_OUTPUT
 		      | ISS_PIPELINE_QUEUE_OUTPUT;
 	else
@@ -913,11 +991,17 @@ iss_video_g_input(struct file *file, void *fh, unsigned int *input)
 static const struct v4l2_ioctl_ops iss_video_ioctl_ops = {
 	.vidioc_querycap		= iss_video_querycap,
 	.vidioc_g_fmt_vid_cap		= iss_video_get_format,
+	.vidioc_g_fmt_vid_cap_mplane	= iss_video_get_format,
 	.vidioc_s_fmt_vid_cap		= iss_video_set_format,
+	.vidioc_s_fmt_vid_cap_mplane	= iss_video_set_format,
 	.vidioc_try_fmt_vid_cap		= iss_video_try_format,
+	.vidioc_try_fmt_vid_cap_mplane	= iss_video_try_format,
 	.vidioc_g_fmt_vid_out		= iss_video_get_format,
+	.vidioc_g_fmt_vid_out_mplane	= iss_video_get_format,
 	.vidioc_s_fmt_vid_out		= iss_video_set_format,
+	.vidioc_s_fmt_vid_out_mplane	= iss_video_set_format,
 	.vidioc_try_fmt_vid_out		= iss_video_try_format,
+	.vidioc_try_fmt_vid_out_mplane	= iss_video_try_format,
 	.vidioc_cropcap			= iss_video_cropcap,
 	.vidioc_g_crop			= iss_video_get_crop,
 	.vidioc_s_crop			= iss_video_set_crop,
@@ -1062,10 +1146,12 @@ int omap4iss_video_init(struct iss_video *video, const char *name)
 
 	switch (video->type) {
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
+	case V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE:
 		direction = "output";
 		video->pad.flags = MEDIA_PAD_FL_SINK;
 		break;
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT:
+	case V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE:
 		direction = "input";
 		video->pad.flags = MEDIA_PAD_FL_SOURCE;
 		break;
