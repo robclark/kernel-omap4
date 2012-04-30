@@ -996,20 +996,12 @@ static void omap_init_gpu(void)
 {
 	struct omap_hwmod *oh;
 	struct platform_device *od;
-	int max_omap_drm_hwmod_name_len = 16;
-	char oh_name[max_omap_drm_hwmod_name_len];
-	int l;
 	struct gpu_platform_data *pdata;
+    const char *oh_name = "gpu";
 	char *name = "omapdrm_pvr";
-
-	l = snprintf(oh_name, max_omap_drm_hwmod_name_len,
-		     "gpu");
-	WARN(l >= max_omap_drm_hwmod_name_len,
-		"String buffer overflow in GPU device setup\n");
 
 	oh = omap_hwmod_lookup(oh_name);
 	if (!oh) {
-
 		pr_err("omap_init_gpu: Could not look up %s\n", oh_name);
 		return;
 	}
