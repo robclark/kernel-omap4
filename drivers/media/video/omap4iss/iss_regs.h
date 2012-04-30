@@ -256,6 +256,7 @@
 #define ISP5_SYSCONFIG_STANDBYMODE_SMART		(2 << 4)
 #define ISP5_SYSCONFIG_SOFTRESET			(1 << 1)
 
+#define ISP5_IRQSTATUS_RAW(i)				(0x0024 + (0x10 * (i)))
 #define ISP5_IRQSTATUS(i)				(0x0028 + (0x10 * (i)))
 #define ISP5_IRQENABLE_SET(i)				(0x002C + (0x10 * (i)))
 #define ISP5_IRQENABLE_CLR(i)				(0x0030 + (0x10 * (i)))

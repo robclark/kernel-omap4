@@ -504,6 +504,7 @@ struct iss_buffer *omap4iss_video_buffer_next(struct iss_video *video)
 		buf->vb.v4l2_buf.sequence = atomic_read(&pipe->frame_number);
 
 	vb2_buffer_done(&buf->vb, pipe->error ? VB2_BUF_STATE_ERROR : VB2_BUF_STATE_DONE);
+	pipe->error = false;
 
 	spin_lock_irqsave(&video->qlock, flags);
 	if (list_empty(&video->dmaqueue)) {
