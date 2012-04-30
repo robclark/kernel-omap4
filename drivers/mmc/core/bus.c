@@ -165,13 +165,13 @@ static int mmc_runtime_idle(struct device *dev)
 	return pm_runtime_suspend(dev);
 }
 
-#endif /* !CONFIG_PM_RUNTIME */
 
 static const struct dev_pm_ops mmc_bus_pm_ops = {
 	SET_RUNTIME_PM_OPS(mmc_runtime_suspend, mmc_runtime_resume,
 			mmc_runtime_idle)
 	SET_SYSTEM_SLEEP_PM_OPS(mmc_bus_suspend, mmc_bus_resume)
 };
+#endif
 
 static struct bus_type mmc_bus_type = {
 	.name		= "mmc",
@@ -180,7 +180,9 @@ static struct bus_type mmc_bus_type = {
 	.uevent		= mmc_bus_uevent,
 	.probe		= mmc_bus_probe,
 	.remove		= mmc_bus_remove,
+#ifdef CONFIG_PM_RUNTIME
 	.pm		= &mmc_bus_pm_ops,
+#endif
 };
 
 int mmc_register_bus(void)
