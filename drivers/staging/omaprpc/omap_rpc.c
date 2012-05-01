@@ -983,7 +983,6 @@ static void __devexit omaprpc_remove(struct rpmsg_channel *rpdev)
             clk_disable(fdif_fck);
             clk_disable(iss_ctrlclk);
             clk_disable(iss_fck);
-
         }
 #endif
 

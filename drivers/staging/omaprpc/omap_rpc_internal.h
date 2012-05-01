@@ -196,9 +196,14 @@ phys_addr_t rpmsg_local_to_remote_pa(uint32_t core, phys_addr_t pa);
 int omaprpc_xlate_buffers(struct omaprpc_instance_t *rpc, struct omaprpc_call_function_t *function, int direction);
 
 /*!
- *
+ * Converts a buffer to a remote core address.
  */
 phys_addr_t omaprpc_buffer_lookup(struct omaprpc_instance_t *rpc, uint32_t core, virt_addr_t uva, virt_addr_t buva, void *reserved);
+
+/*!
+ * Used to recalculate the offset of a buffer and handles cases where Tiler 2d regions are concerned.
+ */
+long omaprpc_recalc_off(phys_addr_t lpa, long uoff);
 
 
 #endif

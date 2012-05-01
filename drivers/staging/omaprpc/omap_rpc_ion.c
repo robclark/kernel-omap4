@@ -63,7 +63,9 @@ void omaprpc_unmap_parameter(struct omaprpc_instance_t *rpc, struct omaprpc_para
 phys_addr_t omaprpc_buffer_lookup(struct omaprpc_instance_t *rpc, uint32_t core, virt_addr_t uva, virt_addr_t buva, void *reserved)
 {
     phys_addr_t lpa = 0, rpa = 0;
-    long uoff = uva - buva;           /* User VA - Base User VA = User Offset */
+    /* User VA - Base User VA = User Offset assuming not tiler 2D*/
+    /* For Tiler2D offset is corrected later*/
+    long uoff = uva - buva;
 #if defined(OMAPRPC_USE_HASH)
     addr_record_t *ar = NULL;
 #endif
@@ -114,24 +116,26 @@ phys_addr_t omaprpc_buffer_lookup(struct omaprpc_instance_t *rpc, uint32_t core,
         if (!ion_phys(rpc->ion_client, handle, &paddr, &unused)) {
             lpa = (phys_addr_t)paddr;
             OMAPRPC_INFO(rpc->rpcserv->dev, "Handle %p is an ION Handle to ARM PA %p (Uoff=%ld)\n", reserved, (void *)lpa, uoff);
-            lpa+=uoff;
+            uoff = omaprpc_recalc_off(lpa, uoff);
+            lpa += uoff;
             goto to_va;
-        }
-#if defined(OMAPRPC_USE_PVR) // "GRALLOC" in Android
-        else
-        {
+        } else {
             /* is it an sgx buffer wrapping an ion handle? */
             struct ion_client *pvr_ion_client;
-            fd = (int)reserved;
             handle = PVRSRVExportFDToIONHandle(fd, &pvr_ion_client);
+            /* @TODO need to support 2 ion handles per 1 pvr handle (NV12 case) */
+            int num_handles = 1;
+            handle = NULL;
+            if (omap_ion_fd_to_handles((int)reserved, &pvr_ion_client, &handle, &num_handles) < 0) {
+                goto to_va;
+            }
             if (handle && !ion_phys(pvr_ion_client, handle, &paddr, &unused)) {
                 lpa = (phys_addr_t)paddr;
-                OMAPRPC_INFO(rpc->rpcserv->dev, "FD %d is an SGX Handle to ARM PA %p (Uoff=%ld)\n", (int)reserved, (void *)lpa, uoff);
+                OMAPRPC_INFO(rpc->rpcserv->dev, "FD %d is an PVR Handle to ARM PA %p (Uoff=%ld)\n", (int)reserved, (void *)lpa, uoff);
                 lpa+=uoff;
                 goto to_va;
             }
         }
-#endif
     }
 #endif
 
