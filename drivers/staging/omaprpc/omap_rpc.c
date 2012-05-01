@@ -41,11 +41,6 @@ static struct idr omaprpc_services = IDR_INIT(omaprpc_services); // DEFINE_IDR(o
 static spinlock_t omaprpc_services_lock = __SPIN_LOCK_UNLOCKED(omaprpc_services_lock); //DEFINE_SPINLOCK(omaprpc_services_lock);
 static struct list_head omaprpc_services_list = LIST_HEAD_INIT(omaprpc_services_list); //LIST_HEAD(omaprpc_services_list);
 
-#if defined(OMAPRPC_USE_HASH)
-static addr_htable_t omaprpc_aht = {0, 0, 8, NULL}; /* 2^8 sized hash table */
-static struct mutex aht_lock;
-#endif
-
 #if defined(OMAPRPC_PERF_MEASUREMENT)
 static struct timeval start_time;
 static struct timeval end_time;
@@ -1127,24 +1122,6 @@ static int __init omaprpc_init(void)
         goto unreg_region;
     }
 
-#if defined(OMAPRPC_USE_HASH)
-    /* Initialize the memory hash */
-    mutex_init(&aht_lock);
-    omaprpc_aht.lines = kmalloc((1<<omaprpc_aht.pow)*sizeof(struct list_head), GFP_KERNEL);
-    if (omaprpc_aht.lines == NULL)
-    {
-        pr_err("OMAPRPC: Failed to allocate Address Hash Table!\n");
-    }
-    else
-    {
-        uint32_t i;
-        for (i = 0; i < (1<<omaprpc_aht.pow); i++)
-        {
-            INIT_LIST_HEAD(&omaprpc_aht.lines[i]);
-        }
-    }
-#endif
-
     ret = register_rpmsg_driver(&omaprpc_driver);
     pr_err("OMAPRPC: Registration of OMAPRPC rpmsg service returned %d!\n", ret);
     return ret;
@@ -1166,12 +1143,6 @@ static void __exit omaprpc_fini(void)
         list_del(&rpcserv->list);
         kfree(rpcserv);
     }
-#if defined(OMAPRPC_USE_HASH)
-    /* destroy the hash memory */
-    kfree(omaprpc_aht.lines);
-    omaprpc_aht.lines = NULL;
-    mutex_destroy(&aht_lock);
-#endif
     class_destroy(omaprpc_class);
     unregister_chrdev_region(omaprpc_dev, OMAPRPC_CORE_REMOTE_MAX);
 }

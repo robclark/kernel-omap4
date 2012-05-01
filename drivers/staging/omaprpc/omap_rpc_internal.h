@@ -47,6 +47,7 @@
 #include <linux/skbuff.h>
 #include <linux/sched.h>
 #include <linux/completion.h>
+#include <linux/remoteproc.h>
 
 #if defined(CONFIG_RPMSG) || defined(CONFIG_RPMSG_MODULE)
 #include <linux/rpmsg.h>
@@ -101,7 +102,6 @@ extern struct ion_device *omap_ion_device;
 
 // Testing and debugging defines
 #undef OMAPRPC_DEBUGGING
-#undef OMAPRPC_USE_HASH
 #undef OMAPRPC_PERF_MEASUREMENT
 #define OMAPRPC_HIDEOUS_CLOCK_HACK_TO_BE_REMOVED_ASAP
 
@@ -180,15 +180,16 @@ typedef struct _dma_info_t {
 } dma_info_t;
 #endif
 
-#include "omap_rpc_htable.h"
-
-
 /*!
  * A Wrapper function to translate local physical addresses to the remote core
  * memory maps. Initialially we can only use an internal static table until
  * rproc support querying.
  */
+#if defined(OMAPRPC_USE_RPROC_LOOKUP)
+phys_addr_t rpmsg_local_to_remote_pa(struct omaprpc_instance_t *rpc, phys_addr_t pa);
+#else
 phys_addr_t rpmsg_local_to_remote_pa(uint32_t core, phys_addr_t pa);
+#endif
 
 /*!
  * This function translates all the pointers within the function call structure and the translation structures.
