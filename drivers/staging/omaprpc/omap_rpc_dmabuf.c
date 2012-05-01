@@ -123,7 +123,9 @@ void omaprpc_unpin_buffer(struct omaprpc_instance_t *rpc, void *reserved)
 phys_addr_t omaprpc_buffer_lookup(struct omaprpc_instance_t *rpc, uint32_t core, virt_addr_t uva, virt_addr_t buva, void *reserved)
 {
     phys_addr_t lpa = 0, rpa = 0;
-    long uoff = uva - buva;           /* User VA - Base User VA = User Offset */
+    /* User VA - Base User VA = User Offset assuming not tiler 2D*/
+    /* For Tiler2D offset is corrected later*/
+    long uoff = uva - buva;
 
     OMAPRPC_INFO(rpc->rpcserv->dev, "CORE=%u BUVA=%p UVA=%p Uoff=%ld [0x%016lx] Hdl=%p\n", core, (void *)buva, (void *)uva, uoff, (ulong)uoff, reserved);
 
@@ -141,6 +143,9 @@ phys_addr_t omaprpc_buffer_lookup(struct omaprpc_instance_t *rpc, uint32_t core,
             /* wasn't in the list, convert the pointer */
             lpa = omaprpc_pin_buffer(rpc, reserved);
         }
+
+        /* recalculate the offset in the user buffer (accounts for tiler 2D) */
+        uoff += omaprpc_recalc_off(lpa, uoff);
 
         /* offset the lpa by the offset in the user buffer */
         lpa += uoff;
