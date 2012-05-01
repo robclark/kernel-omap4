@@ -2662,6 +2662,11 @@ static struct omap_hwmod_addr_space omap44xx_iss_addrs[] = {
 		.flags		= ADDR_TYPE_RT
 	},
 	{
+		.pa_start	= 0x52002000,
+		.pa_end		= 0x520021FF,
+		.flags		= ADDR_TYPE_RT
+	},
+	{
 		.pa_start	= 0x52010000,
 		.pa_end		= 0x5201009F,
 		.flags		= ADDR_TYPE_RT
