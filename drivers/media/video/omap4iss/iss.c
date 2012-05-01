@@ -1308,6 +1308,11 @@ static int iss_probe(struct platform_device *pdev)
 			goto error_iss;
 	}
 
+	/* Configure BTE BW_LIMITER field to max recommended value (1 GB) */
+	writel((readl(iss->regs[OMAP4_ISS_MEM_BTE] + BTE_CTRL) & ~BTE_CTRL_BW_LIMITER_MASK) |
+		(18 << BTE_CTRL_BW_LIMITER_SHIFT),
+		iss->regs[OMAP4_ISS_MEM_BTE] + BTE_CTRL);
+
 	/* Perform ISP reset */
 	ret = omap4iss_subclk_enable(iss, OMAP4_ISS_SUBCLK_ISP);
 	if (ret < 0)

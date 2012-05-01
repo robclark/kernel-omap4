@@ -247,6 +247,11 @@
 #define CSI2_CTX_IRQ_FE					(1 << 1)
 #define CSI2_CTX_IRQ_FS					(1 << 0)
 
+/* ISS BTE */
+#define BTE_CTRL					(0x0030)
+#define BTE_CTRL_BW_LIMITER_MASK			(0x3FF << 22)
+#define BTE_CTRL_BW_LIMITER_SHIFT			22
+
 /* ISS ISP_SYS1 */
 #define ISP5_REVISION					(0x0000)
 #define ISP5_SYSCONFIG					(0x0010)
