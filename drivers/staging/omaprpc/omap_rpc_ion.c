@@ -49,7 +49,7 @@ uint8_t *omaprpc_map_parameter(struct omaprpc_instance_t *rpc, struct omaprpc_pa
     kva = &bkva[pri_offset];
 
     /* in ION case, secondary offset is ignored here because the entire region is mapped. */
-    OMAPRPC_INFO(rpc->rpcserv->dev, "Mapped UVA:%p to KVA:%p+OFF:%08x SIZE:%08x (MKVA:%p to END:%p)\n", (void *)param->data, (void *)kva, offset, param->size, (void *)bkva, (void *)&bkva[param->size]);
+    OMAPRPC_INFO(rpc->rpcserv->dev, "Mapped UVA:%p to KVA:%p+OFF:%08x SIZE:%08x (MKVA:%p to END:%p)\n", (void *)param->data, (void *)kva, pri_offset, param->size, (void *)bkva, (void *)&bkva[param->size]);
 
     return kva;
 
@@ -66,9 +66,6 @@ phys_addr_t omaprpc_buffer_lookup(struct omaprpc_instance_t *rpc, uint32_t core,
     /* User VA - Base User VA = User Offset assuming not tiler 2D*/
     /* For Tiler2D offset is corrected later*/
     long uoff = uva - buva;
-#if defined(OMAPRPC_USE_HASH)
-    addr_record_t *ar = NULL;
-#endif
 
     OMAPRPC_INFO(rpc->rpcserv->dev, "CORE=%u BUVA=%p UVA=%p Uoff=%ld [0x%016lx] Hdl=%p\n", core, (void *)buva, (void *)uva, uoff, (ulong)uoff, reserved);
 
@@ -78,31 +75,6 @@ phys_addr_t omaprpc_buffer_lookup(struct omaprpc_instance_t *rpc, uint32_t core,
         rpa = 0; // == NULL
         goto to_end;
     }
-
-#if defined(OMAPRPC_USE_HASH)
-    /* Allocate a node for the hash table */
-    ar = kmalloc(sizeof(addr_record_t), GFP_KERNEL);
-    if (ar) {
-        int ret = 0;
-        memset(ar, 0, sizeof(addr_record_t));
-        ar->handle = (long)reserved;
-        ar->uva    = uva;
-        ar->buva   = buva;
-        mutex_lock(&aht_lock);
-        /* lookup up the Handle/UVA in the table to see if we know it */
-        ret = htable_get(&omaprpc_aht, ar);
-        mutex_unlock(&aht_lock);
-        if (ret == 1)
-        {
-            OMAPRPC_INFO(rpc->rpcserv->dev, "Found old translation in htable!\n");
-            lpa = ar->lpa;
-            rpa = ar->rpa;
-            kfree(ar);
-            goto to_end;
-        }
-    }
-#endif
-
 
 #if defined(OMAPRPC_USE_ION)
     if (reserved)
@@ -120,9 +92,8 @@ phys_addr_t omaprpc_buffer_lookup(struct omaprpc_instance_t *rpc, uint32_t core,
             lpa += uoff;
             goto to_va;
         } else {
-            /* is it an sgx buffer wrapping an ion handle? */
+            /* is it an pvr buffer wrapping an ion handle? */
             struct ion_client *pvr_ion_client;
-            handle = PVRSRVExportFDToIONHandle(fd, &pvr_ion_client);
             /* @TODO need to support 2 ion handles per 1 pvr handle (NV12 case) */
             int num_handles = 1;
             handle = NULL;
@@ -132,33 +103,20 @@ phys_addr_t omaprpc_buffer_lookup(struct omaprpc_instance_t *rpc, uint32_t core,
             if (handle && !ion_phys(pvr_ion_client, handle, &paddr, &unused)) {
                 lpa = (phys_addr_t)paddr;
                 OMAPRPC_INFO(rpc->rpcserv->dev, "FD %d is an PVR Handle to ARM PA %p (Uoff=%ld)\n", (int)reserved, (void *)lpa, uoff);
-                lpa+=uoff;
+                uoff = omaprpc_recalc_off(lpa, uoff);
+                lpa += uoff;
                 goto to_va;
             }
         }
     }
 #endif
 
-#if defined(OMAPRPC_USE_TILER)
     /* Ask the TILER to convert from virtual to physical */
     lpa = (phys_addr_t)tiler_virt2phys(uva);
 to_va:
-#endif
 
     /* convert the local physical address to remote physical address */
     rpa = rpmsg_local_to_remote_pa(rpc, lpa);
-#if defined(OMAPRPC_USE_HASH)
-    if (ar)
-    {
-        ar->handle = (long)reserved;
-        ar->uva = uva;
-        ar->lpa = lpa;
-        ar->rpa = rpa;
-        mutex_lock(&aht_lock);
-        htable_set(&omaprpc_aht, ar);
-        mutex_unlock(&aht_lock);
-    }
-#endif
 to_end:
     OMAPRPC_INFO(rpc->rpcserv->dev, "ARM VA %p == ARM PA %p => REMOTE[%u] PA %p (RESV %p)\n", (void *)uva, (void *)lpa, core, (void *)rpa, reserved);
     return rpa;
@@ -243,7 +201,7 @@ restart:
                 /* calc the new RPA (remote physical address) */
                 rpa = omaprpc_buffer_lookup(rpc, rpc->core, uva, buva, reserved);
                 /* save the old value */
-                function->translations[idx].reserved = (void *)uva;
+                function->translations[idx].reserved = uva;
                 /* replace with new RPA */
                 *(phys_addr_t *)kva = rpa;
 
