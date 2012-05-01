@@ -709,11 +709,11 @@ static int ov5640_s_stream(struct v4l2_subdev *sd, int enable)
 		if ((i == OV5640_SIZE_QVGA) ||
 		    (i == OV5640_SIZE_VGA) ||
 		    (i == OV5640_SIZE_720P)) {
-			ret = ov5640_reg_set(client, 0x5001, 0x20);
-			if (ret)
-				return ret;
 			ret = ov5640_reg_write(client, 0x3108,
 					(i == OV5640_SIZE_720P) ? 0x1 : 0);
+			if (ret)
+				return ret;
+			ret = ov5640_reg_set(client, 0x5001, 0x20);
 		} else {
 			ret = ov5640_reg_clr(client, 0x5001, 0x20);
 			if (ret)
