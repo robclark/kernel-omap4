@@ -56,6 +56,7 @@ struct drm_fb_helper_funcs {
 
 	int (*fb_probe)(struct drm_fb_helper *helper,
 			struct drm_fb_helper_surface_size *sizes);
+	int (*restore_fbdev_mode)(struct drm_fb_helper *helper);
 };
 
 struct drm_fb_helper_connector {

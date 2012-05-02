@@ -249,7 +249,10 @@ static bool drm_fb_helper_force_kernel_mode(void)
 		if (helper->dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 			continue;
 
-		ret = drm_fb_helper_restore_fbdev_mode(helper);
+		if (helper->funcs->restore_fbdev_mode)
+			ret = helper->funcs->restore_fbdev_mode(helper);
+		else
+			ret = drm_fb_helper_restore_fbdev_mode(helper);
 		if (ret)
 			error = true;
 	}
