@@ -442,9 +442,7 @@ static int __cpuidle_register_device(struct cpuidle_device *dev)
 	return 0;
 
 err_coupled:
-	cpuidle_remove_sysfs(sys_dev);
 	wait_for_completion(&dev->kobj_unregister);
-err_sysfs:
 	list_del(&dev->device_list);
 	per_cpu(cpuidle_devices, dev->cpu) = NULL;
 	module_put(cpuidle_driver->owner);
