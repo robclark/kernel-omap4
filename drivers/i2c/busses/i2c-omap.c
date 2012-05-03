@@ -309,8 +309,6 @@ static int omap_i2c_unidle(struct omap_i2c_dev *dev)
 	struct omap_i2c_bus_platform_data *pdata;
 	int ret = 0;
 
-	WARN_ON(!dev->idle);
-
 	pdev = to_platform_device(dev->dev);
 	pdata = pdev->dev.platform_data;
 
