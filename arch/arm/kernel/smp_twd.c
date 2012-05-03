@@ -367,7 +367,6 @@ out:
 	WARN(err, "twd_local_timer_of_register failed (%d)\n", err);
 }
 #endif
-static struct clock_event_device __percpu *twd_clock_event;
 static int twd_ppi;
 
 static void __cpuinit twd_setup(void *data)
