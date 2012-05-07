@@ -290,6 +290,7 @@ int ti_hdmi_4xxx_phy_enable(struct hdmi_ip_data *ip_data)
 	unsigned long pclk = ip_data->cfg.timings.pixel_clock;
 	u16 freqout = 1;
 
+	pr_debug("%s\n", __func__);
 	r = hdmi_set_phy_pwr(ip_data, HDMI_PHYPWRCMD_LDOON);
 
 	/*
@@ -334,19 +335,24 @@ int ti_hdmi_4xxx_phy_enable(struct hdmi_ip_data *ip_data)
 	/* Write to phy address 3 to change the polarity control */
 	REG_FLD_MOD(phy_base, HDMI_TXPHY_PAD_CFG_CTRL, 0x1, 27, 27);
 
-	r = request_threaded_irq(gpio_to_irq(ip_data->hpd_gpio),
+	r = hdmi_set_phy_pwr(ip_data, HDMI_PHYPWRCMD_LDOON);
+
+	ip_data->irq = gpio_to_irq(ip_data->hpd_gpio);
+	r = request_threaded_irq(ip_data->irq,
 			NULL, hpd_irq_handler,
 			IRQF_DISABLED | IRQF_TRIGGER_RISING |
 			IRQF_TRIGGER_FALLING, "hpd", ip_data);
 	if (r) {
 		DSSERR("HPD IRQ request failed\n");
-		hdmi_set_phy_pwr(ip_data, HDMI_PHYPWRCMD_OFF);
-		return r;
+		ip_data->irq = NO_IRQ;
+//		hdmi_set_phy_pwr(ip_data, HDMI_PHYPWRCMD_OFF);
+//		return r;
 	}
 
 	r = hdmi_check_hpd_state(ip_data);
 	if (r) {
 		free_irq(gpio_to_irq(ip_data->hpd_gpio), ip_data);
+		ip_data->irq = NO_IRQ;
 		hdmi_set_phy_pwr(ip_data, HDMI_PHYPWRCMD_OFF);
 		return r;
 	}
@@ -360,7 +366,11 @@ int ti_hdmi_4xxx_phy_enable(struct hdmi_ip_data *ip_data)
 
 void ti_hdmi_4xxx_phy_disable(struct hdmi_ip_data *ip_data)
 {
-	free_irq(gpio_to_irq(ip_data->hpd_gpio), ip_data);
+	pr_debug("%s\n", __func__);
+	if (ip_data->irq != NO_IRQ) {
+		free_irq(ip_data->irq, ip_data);
+		ip_data->irq = NO_IRQ;
+	}
 
 	hdmi_set_phy_pwr(ip_data, HDMI_PHYPWRCMD_OFF);
 	ip_data->phy_tx_enabled = false;
