@@ -50,6 +50,7 @@
 
 static struct omap_rproc_timers_info ipu_timers[] = {
 	{ .id = 3 },
+	{ .id = 4 },
 };
 
 static struct omap_rproc_timers_info dsp_timers[] = {
