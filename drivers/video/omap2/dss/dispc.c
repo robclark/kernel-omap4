@@ -808,6 +808,18 @@ static void dispc_ovl_set_color_mode(enum omap_plane plane,
 	REG_FLD_MOD(DISPC_OVL_ATTRIBUTES(plane), m, 4, 1);
 }
 
+static void dispc_ovl_configure_burst_type(enum omap_plane plane,
+		enum omap_dss_rotation_type rotation_type)
+{
+	if (dss_has_feature(FEAT_BURST_2D) == 0)
+		return;
+
+	if (rotation_type == OMAP_DSS_ROT_TILER)
+		REG_FLD_MOD(DISPC_OVL_ATTRIBUTES(plane), 1, 29, 29);
+	else
+		REG_FLD_MOD(DISPC_OVL_ATTRIBUTES(plane), 0, 29, 29);
+}
+
 void dispc_ovl_set_channel_out(enum omap_plane plane, enum omap_channel channel)
 {
 	int shift;
@@ -1649,6 +1661,45 @@ static void calc_dma_rotation_offset(u8 rotation, bool mirror,
 	}
 }
 
+static void calc_tiler_rotation_offset(u16 screen_width, u16 width,
+		enum omap_color_mode color_mode, bool fieldmode,
+		unsigned int field_offset, unsigned *offset0, unsigned *offset1,
+		s32 *row_inc, s32 *pix_inc, int x_predecim, int y_predecim)
+{
+	u8 ps;
+
+	switch (color_mode) {
+	case OMAP_DSS_COLOR_CLUT1:
+	case OMAP_DSS_COLOR_CLUT2:
+	case OMAP_DSS_COLOR_CLUT4:
+	case OMAP_DSS_COLOR_CLUT8:
+		BUG();
+		return;
+	default:
+		ps = color_mode_to_bpp(color_mode) / 8;
+		break;
+	}
+
+	DSSDBG("scrw %d, width %d\n", screen_width, width);
+
+	/*
+	 * field 0 = even field = bottom field
+	 * field 1 = odd field = top field
+	 */
+	*offset1 = 0;
+	if (field_offset)
+		*offset0 = *offset1 + field_offset * screen_width * ps;
+	else
+		*offset0 = *offset1;
+	*row_inc = pixinc(1 + (y_predecim * screen_width - width * x_predecim) +
+			(fieldmode ? screen_width : 0), ps);
+	if (color_mode == OMAP_DSS_COLOR_YUV2 ||
+			color_mode == OMAP_DSS_COLOR_UYVY)
+		*pix_inc = pixinc(x_predecim, 2 * ps);
+	else
+		*pix_inc = pixinc(x_predecim, ps);
+}
+
 static unsigned long calc_fclk_five_taps(enum omap_channel channel, u16 width,
 		u16 height, u16 out_width, u16 out_height,
 		enum omap_color_mode color_mode)
@@ -1878,7 +1929,12 @@ int dispc_ovl_setup(enum omap_plane plane, struct omap_overlay_info *oi,
 	if (fieldmode)
 		field_offset = 1;
 
-	if (oi->rotation_type == OMAP_DSS_ROT_DMA)
+	if (oi->rotation_type == OMAP_DSS_ROT_TILER)
+		calc_tiler_rotation_offset(oi->screen_width, oi->width,
+				oi->color_mode, fieldmode, field_offset,
+				&offset0, &offset1, &row_inc, &pix_inc,
+				1, 1);
+	else if (oi->rotation_type == OMAP_DSS_ROT_DMA)
 		calc_dma_rotation_offset(oi->rotation, oi->mirror,
 				oi->screen_width, oi->width, frame_height,
 				oi->color_mode, fieldmode, field_offset,
@@ -1893,6 +1949,8 @@ int dispc_ovl_setup(enum omap_plane plane, struct omap_overlay_info *oi,
 			offset0, offset1, row_inc, pix_inc);
 
 	dispc_ovl_set_color_mode(plane, oi->color_mode);
+
+	dispc_ovl_configure_burst_type(plane, oi->rotation_type);
 
 	dispc_ovl_set_ba0(plane, oi->paddr + offset0);
 	dispc_ovl_set_ba1(plane, oi->paddr + offset1);
