@@ -129,6 +129,19 @@ static const struct hdmi_config s3d_timings[] = {
 { {1920, 2205, 148500, 44, 638, 148, 5, 4, 36, 1, 1, 0}, {32, HDMI_HDMI} },
 };
 
+static const int code_vesa[85] = {
+	-1, -1, -1, -1, 15, -1, -1, -1, -1, 16,
+	-1, -1, -1, -1, 17, -1, 23, -1, -1, -1,
+	-1, -1, 29, 18, -1, -1, -1, 32, 19, -1,
+	-1, -1, 21, -1, -1, 22, -1, -1, -1, 20,
+	-1, 30, 24, -1, -1, -1, -1, 25, -1, -1,
+	-1, -1, -1, -1, -1, -1, -1, 31, 26, -1,
+	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+	-1, 27, 28, -1, 33};
+
+static int __hdmi_get_current_hpd(void);
+
 static int hdmi_runtime_get(void)
 {
 	int r;
@@ -393,23 +406,16 @@ static int hdmi_power_on(struct omap_dss_device *dssdev)
 
 	hdmi.ip_data.ops->video_enable(&hdmi.ip_data, 0);
 
-	/* config the PLL and PHY hdmi_set_pll_pwrfirst */
+	/* config the PLL and PHY hdmi_set_pll_pwr first */
 	r = hdmi.ip_data.ops->pll_enable(&hdmi.ip_data);
 	if (r) {
 		DSSDBG("Failed to lock PLL\n");
 		goto err;
 	}
 
-	r = hdmi.ip_data.ops->phy_enable(&hdmi.ip_data);
-	if (r) {
-		DSSDBG("Failed to start PHY\n");
-#if 0
-		/* Ignore Phy transition error for now*/
-		goto err;
-#endif
-	}
+	hdmi.ip_data.ops->phy_enable(&hdmi.ip_data);
 
-	msleep(1000);
+	hdmi.hpd = __hdmi_get_current_hpd();
 
 	hdmi.ip_data.ops->video_configure(&hdmi.ip_data);
 
@@ -668,6 +674,18 @@ void hdmi_dump_regs(struct seq_file *s)
 	mutex_unlock(&hdmi.lock);
 }
 
+static int __hdmi_get_current_hpd(void)
+{
+	int r = 1;
+
+        if (hdmi.ip_data.ops->detect)
+                r = hdmi.ip_data.ops->detect(&hdmi.ip_data);
+
+	pr_debug("__hdmi_get_current_hpd: says %d\n", r);
+
+	return r == 1;
+}
+
 int omapdss_hdmi_read_edid(u8 *buf, int len)
 {
 	int r;
@@ -689,19 +707,19 @@ bool omapdss_hdmi_detect(void)
 {
 	int r;
 
+//	pr_info("omapdss_hdmi_detect\n");
+
 	mutex_lock(&hdmi.lock);
 
 	r = hdmi_runtime_get();
 	BUG_ON(r);
 
-	r = 1;
-	if (hdmi.ip_data.ops->detect)
-		r = hdmi.ip_data.ops->detect(&hdmi.ip_data);
+	r = __hdmi_get_current_hpd();
 
 	hdmi_runtime_put();
 	mutex_unlock(&hdmi.lock);
 
-	return r == 1;
+	return r;
 }
 
 int omapdss_hdmi_display_enable(struct omap_dss_device *dssdev)
