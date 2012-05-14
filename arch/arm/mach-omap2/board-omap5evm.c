@@ -1242,7 +1242,6 @@ static void __init omap54xx_common_init(void)
 
 	omap_serial_board_init(NULL, 2);
 	omap_serial_board_init(NULL, 4);
-	omap_serial_init();
 	omap_sdrc_init(NULL, NULL);
 	omap_hsmmc_init(mmc);
 	omap_ehci_ohci_init();
