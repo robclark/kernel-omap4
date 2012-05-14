@@ -169,6 +169,7 @@ enum omap_dss_overlay_managers {
 enum omap_dss_rotation_type {
 	OMAP_DSS_ROT_DMA = 0,
 	OMAP_DSS_ROT_VRFB = 1,
+	OMAP_DSS_ROT_TILER = 2,
 };
 
 /* clockwise rotation angle */
@@ -412,7 +413,7 @@ struct omap_overlay_info {
 	u16 width;
 	u16 height;
 	enum omap_color_mode color_mode;
-	u8 rotation;
+	enum omap_dss_rotation_angle rotation;
 	enum omap_dss_rotation_type rotation_type;
 	bool mirror;
 

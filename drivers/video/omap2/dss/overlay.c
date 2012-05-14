@@ -628,6 +628,13 @@ int dss_ovl_simple_check(struct omap_overlay *ovl,
 		return -EINVAL;
 	}
 
+	if (((info->rotation_type == OMAP_DSS_ROT_TILER) && !cpu_is_omap44xx()) ||
+		((info->rotation_type == OMAP_DSS_ROT_VRFB) && !cpu_is_omap34xx())) {
+		DSSERR("check_overlay: invalid rotation type: %d\n",
+				info->rotation_type);
+		return -EINVAL;
+	}
+
 	return 0;
 }
 

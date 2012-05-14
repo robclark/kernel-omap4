@@ -808,6 +808,14 @@ static void dispc_ovl_set_color_mode(enum omap_plane plane,
 	REG_FLD_MOD(DISPC_OVL_ATTRIBUTES(plane), m, 4, 1);
 }
 
+static void dispc_ovl_set_burst_type(enum omap_plane plane, u8 burst_type)
+{
+	/* note: for DISPC_WB_ATTRIBUTES, it is bit 8, all others
+	 * are bit 29.. so update this when writeback support is added
+	 */
+	REG_FLD_MOD(DISPC_OVL_ATTRIBUTES(plane), burst_type, 29, 29);
+}
+
 void dispc_ovl_set_channel_out(enum omap_plane plane, enum omap_channel channel)
 {
 	int shift;
@@ -1051,6 +1059,11 @@ void dispc_ovl_set_fifo_threshold(enum omap_plane plane, u32 low, u32 high)
 	dispc_write_reg(DISPC_OVL_FIFO_THRESHOLD(plane),
 			FLD_VAL(high, hi_start, hi_end) |
 			FLD_VAL(low, lo_start, lo_end));
+
+	if (dss_has_feature(FEAT_PRELOAD)) {
+		/* might as well set it to be the same high ..*/
+		dispc_write_reg(DISPC_OVL_PRELOAD(plane), min(high, 0xfff));
+	}
 }
 
 void dispc_enable_fifomerge(bool enable)
@@ -1818,6 +1831,9 @@ int dispc_ovl_setup(enum omap_plane plane, struct omap_overlay_info *oi,
 	unsigned int field_offset = 0;
 	u16 outw, outh;
 	enum omap_channel channel;
+	enum omap_dss_rotation_angle rotation = oi->rotation;
+	enum omap_dss_rotation_type rotation_type = oi->rotation_type;
+	u8 burst_type = 0;
 
 	channel = dispc_ovl_get_channel_out(plane);
 
@@ -1880,13 +1896,25 @@ int dispc_ovl_setup(enum omap_plane plane, struct omap_overlay_info *oi,
 	if (fieldmode)
 		field_offset = 1;
 
-	if (oi->rotation_type == OMAP_DSS_ROT_DMA)
-		calc_dma_rotation_offset(oi->rotation, oi->mirror,
+	if (oi->rotation_type == OMAP_DSS_ROT_TILER) {
+		/*
+		 * rotation handled externally.. in fact enabling DSS's DMA
+		 * rotation causes badness.  So from DSS point of view, this
+		 * is the same as 0-degree DMA rotation, with the exception
+		 * of setting the burst-type to 2d
+		 */
+		rotation = OMAP_DSS_ROT_0;
+		rotation_type = OMAP_DSS_ROT_DMA;
+		burst_type = 1;
+	}
+
+	if (rotation_type == OMAP_DSS_ROT_DMA)
+		calc_dma_rotation_offset(rotation, oi->mirror,
 				oi->screen_width, oi->width, frame_height,
 				oi->color_mode, fieldmode, field_offset,
 				&offset0, &offset1, &row_inc, &pix_inc);
 	else
-		calc_vrfb_rotation_offset(oi->rotation, oi->mirror,
+		calc_vrfb_rotation_offset(rotation, oi->mirror,
 				oi->screen_width, oi->width, frame_height,
 				oi->color_mode, fieldmode, field_offset,
 				&offset0, &offset1, &row_inc, &pix_inc);
@@ -1895,6 +1923,9 @@ int dispc_ovl_setup(enum omap_plane plane, struct omap_overlay_info *oi,
 			offset0, offset1, row_inc, pix_inc);
 
 	dispc_ovl_set_color_mode(plane, oi->color_mode);
+
+	if (cpu_is_omap44xx())
+		dispc_ovl_set_burst_type(plane, burst_type);
 
 	dispc_ovl_set_ba0(plane, oi->paddr + offset0);
 	dispc_ovl_set_ba1(plane, oi->paddr + offset1);
@@ -1919,12 +1950,12 @@ int dispc_ovl_setup(enum omap_plane plane, struct omap_overlay_info *oi,
 		dispc_ovl_set_scaling(plane, oi->width, oi->height,
 				   outw, outh,
 				   ilace, five_taps, fieldmode,
-				   oi->color_mode, oi->rotation);
+				   oi->color_mode, rotation);
 		dispc_ovl_set_vid_size(plane, outw, outh);
 		dispc_ovl_set_vid_color_conv(plane, cconv);
 	}
 
-	dispc_ovl_set_rotation_attrs(plane, oi->rotation, oi->mirror,
+	dispc_ovl_set_rotation_attrs(plane, rotation, oi->mirror,
 			oi->color_mode);
 
 	dispc_ovl_set_zorder(plane, oi->zorder);
