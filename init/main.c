@@ -650,7 +650,7 @@ static void __init do_ctors(void)
 #endif
 }
 
-bool initcall_debug = 1;
+bool initcall_debug;
 core_param(initcall_debug, initcall_debug, bool, 0644);
 
 static char msgbuf[64];
