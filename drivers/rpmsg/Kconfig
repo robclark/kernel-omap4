@@ -7,6 +7,14 @@ config RPMSG
 	select VIRTIO_RING
 	depends on EXPERIMENTAL
 
+config RPMSG_RESMGR_FWK
+	tristate
+	depends on RPMSG
+	---help---
+	  Add Framework base on RPMSG to request and release resources
+	  from a remote Processor.
+	  Say either Y or M. You know you want to.
+
 config RPMSG_SERVER_SAMPLE
 	tristate "An rpmsg server sample"
 	depends on RPMSG
