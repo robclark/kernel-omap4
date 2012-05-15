@@ -15,6 +15,15 @@ config RPMSG_RESMGR_FWK
 	  from a remote Processor.
 	  Say either Y or M. You know you want to.
 
+config RPMSG_RESMGR
+	tristate "Resource Manager based on RPMSG"
+	depends on RPMSG
+	select RPMSG_RESMGR_FWK
+	---help---
+	  Add Framework base on RPMSG to request and release resources
+	  from a remote Processor.
+	  Say either Y or M. You know you want to.
+
 config RPMSG_SERVER_SAMPLE
 	tristate "An rpmsg server sample"
 	depends on RPMSG
