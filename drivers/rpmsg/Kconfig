@@ -24,6 +24,16 @@ config RPMSG_RESMGR
 	  from a remote Processor.
 	  Say either Y or M. You know you want to.
 
+config OMAP_RPMSG_RESMGR
+	tristate "OMAP rpmsg resource manager support"
+	depends on ARCH_OMAP4 || ARCH_OMAP5
+	depends on RPMSG
+	select RPMSG_RESMGR
+	---help---
+	  OMAP Framework request and release OMAP resources
+	  from a remote Processor.
+	  Say either Y or M. You know you want to.
+
 config RPMSG_SERVER_SAMPLE
 	tristate "An rpmsg server sample"
 	depends on RPMSG
