@@ -1450,7 +1450,7 @@ MACHINE_START(OMAP5_SEVM, "OMAP5430 evm board")
 	.atag_offset	= 0x100,
 	.reserve	= omap_5430evm_reserve,
 	.map_io		= omap_5430evm_map_io,
-	.init_early	= omap_5430evm_init_early,
+	.init_early	= omap54xx_init_early,
 	.init_irq	= gic_init_irq,
 	.handle_irq     = gic_handle_irq,
 	.init_machine	= omap_54xx_init,
