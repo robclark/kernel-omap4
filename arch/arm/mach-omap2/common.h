@@ -86,6 +86,13 @@ static inline void omap44xx_map_common_io(void)
 }
 #endif
 
+#ifdef CONFIG_ARCH_OMAP5
+extern void omap54xx_map_common_io(void);
+#else
+static inline void omap54xx_map_common_io(void)
+{
+}
+#endif
 extern void omap2_init_common_infrastructure(void);
 extern int omap_register_mac_device_fixup_paths(const char * const *paths,
 								    int count); 
