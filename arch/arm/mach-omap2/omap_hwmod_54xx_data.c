@@ -3359,9 +3359,15 @@ static struct omap_hwmod_irq_info omap54xx_iva_irqs[] = {
 };
 
 static struct omap_hwmod_rst_info omap54xx_iva_resets[] = {
-	{ .name = "rst_seq1", .rst_shift = 0 },
-	{ .name = "rst_seq2", .rst_shift = 1 },
-	{ .name = "rst_logic", .rst_shift = 2 },
+	{ .name = "logic", .rst_shift = 2 },
+};
+
+static struct omap_hwmod_rst_info omap54xx_iva_seq0_resets[] = {
+	{ .name = "seq0", .rst_shift = 0 },
+};
+
+static struct omap_hwmod_rst_info omap54xx_iva_seq1_resets[] = {
+	{ .name = "seq1", .rst_shift = 1 },
 };
 
 /* iva -> sl2if */
