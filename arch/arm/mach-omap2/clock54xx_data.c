@@ -1781,11 +1781,6 @@ static struct clk sl2if_ick = {
 	.recalc		= &followparent_recalc,
 };
 
-static const struct clksel hsi_fclk_div[] = {
-	{ .parent = &dpll_per_m2x2_ck, .rates = div2_1to2_rates },
-	{ .parent = NULL },
-};
-
 static struct clk dss_48mhz_clk = {
 	.name		= "dss_48mhz_clk",
 	.parent		= &func_48m_fclk,
