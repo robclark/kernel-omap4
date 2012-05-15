@@ -38,15 +38,12 @@
 #include "prm2xxx_3xxx.h"
 #include "prm44xx.h"
 
-static struct omap_device_pm_latency *pm_lats;
-
 /*
  * omap_pm_suspend: points to a function that does the SoC-specific
  * suspend work
  */
 int (*omap_pm_suspend)(void);
 
-static int __init _init_omap_device(char *name);
 static struct device *mpu_dev;
 static struct device *iva_dev;
 static struct device *l3_dev;
@@ -106,7 +103,17 @@ void omap_pm_get_oscillator(u32 *tstart, u32 *tshut)
 	*tshut = oscillator.shutdown_time;
 }
 
-static int _init_omap_device(char *name)
+static struct omap_device_pm_latency iva_seq_pm_lats[] = {
+	{
+		/* iva seqs need to be put under hard reset */
+		.deactivate_func = omap_device_shutdown_hwmods,
+		.activate_func = omap_device_enable_hwmods,
+		.flags = OMAP_DEVICE_LATENCY_AUTO_ADJUST,
+	},
+};
+
+static int __init _init_omap_device_lats(char *name,
+		struct omap_device_pm_latency *pm_lats, int pm_lats_cnt)
 {
 	struct omap_hwmod *oh;
 	struct platform_device *pdev;
@@ -116,12 +123,18 @@ static int _init_omap_device(char *name)
 		 __func__, name))
 		return -ENODEV;
 
-	pdev = omap_device_build(oh->name, 0, oh, NULL, 0, pm_lats, 0, false);
+	pdev = omap_device_build(oh->name, 0, oh, NULL, 0, pm_lats,
+				pm_lats_cnt, false);
 	if (WARN(IS_ERR(pdev), "%s: could not build omap_device for %s\n",
 		 __func__, name))
 		return -ENODEV;
 
 	return 0;
+}
+
+static int __init _init_omap_device(char *name)
+{
+	return _init_omap_device_lats(name, NULL, 0);
 }
 
 /*
@@ -138,6 +151,10 @@ static void __init omap2_init_processor_devices(void)
 #ifndef CONFIG_OMAP_PM_STANDALONE
 		_init_omap_device("dsp");
 		_init_omap_device("iva");
+		_init_omap_device_lats("iva_seq0", iva_seq_pm_lats,
+						ARRAY_SIZE(iva_seq_pm_lats));
+		_init_omap_device_lats("iva_seq1", iva_seq_pm_lats,
+						ARRAY_SIZE(iva_seq_pm_lats));
 #endif
 	} else {
 		_init_omap_device("l3_main");
