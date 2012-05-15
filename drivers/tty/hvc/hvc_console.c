@@ -40,6 +40,7 @@
 #include <linux/freezer.h>
 #include <linux/slab.h>
 #include <linux/serial_core.h>
+#include <linux/dma-mapping.h>
 
 #include <asm/uaccess.h>
 
@@ -242,7 +243,10 @@ static void destroy_hvc_struct(struct kref *kref)
 
 	spin_unlock(&hvc_structs_lock);
 
-	kfree(hp);
+	dev_info(hp->dev, "%s: dma freed va %p dma %x size %x\n", __func__,
+			hp, hp->dma, hp->size);
+
+	dma_free_coherent(hp->dev, hp->size, hp, hp->dma);
 }
 
 /*
@@ -819,10 +823,12 @@ static const struct tty_operations hvc_ops = {
 
 struct hvc_struct *hvc_alloc(uint32_t vtermno, int data,
 			     const struct hv_ops *ops,
-			     int outbuf_size)
+			     int outbuf_size, struct device *dev)
 {
 	struct hvc_struct *hp;
 	int i;
+	dma_addr_t dma;
+	size_t size = ALIGN(sizeof(*hp), sizeof(long)) + outbuf_size;
 
 	/* We wait until a driver actually comes along */
 	if (!hvc_driver) {
@@ -831,11 +837,20 @@ struct hvc_struct *hvc_alloc(uint32_t vtermno, int data,
 			return ERR_PTR(err);
 	}
 
-	hp = kzalloc(ALIGN(sizeof(*hp), sizeof(long)) + outbuf_size,
-			GFP_KERNEL);
+	/*
+	 * Until we have iommu-able dma_map_sg, just use our CMA region
+	 * which is already mapped
+	 */
+	hp = dma_alloc_coherent(dev->parent, size, &dma, GFP_KERNEL);
 	if (!hp)
 		return ERR_PTR(-ENOMEM);
 
+	dev_info(dev, "%s: dma allocated va %p dma %x size %x\n", __func__,
+		hp, dma, ALIGN(sizeof(*hp), sizeof(long)) + outbuf_size);
+
+	hp->dev = dev->parent;
+	hp->dma = dma;
+	hp->size = size;
 	hp->vtermno = vtermno;
 	hp->data = data;
 	hp->ops = ops;
@@ -923,7 +938,7 @@ static int hvc_init(void)
 	drv->minor_start = HVC_MINOR;
 	drv->type = TTY_DRIVER_TYPE_SYSTEM;
 	drv->init_termios = tty_std_termios;
-	drv->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_RESET_TERMIOS;
+	drv->flags = TTY_DRIVER_REAL_RAW;// | TTY_DRIVER_RESET_TERMIOS;
 	tty_set_operations(drv, &hvc_ops);
 
 	/* Always start the kthread because there can be hotplug vty adapters

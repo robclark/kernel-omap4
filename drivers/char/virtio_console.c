@@ -36,6 +36,7 @@
 #include <linux/workqueue.h>
 #include <linux/module.h>
 #include "../tty/hvc/hvc_console.h"
+#include <linux/dma-mapping.h>
 
 /*
  * This is a global struct for storing common data for all the devices
@@ -109,6 +110,11 @@ struct port_buffer {
 	size_t len;
 	/* offset in the buf from which to consume data */
 	size_t offset;
+
+	/* dma address */
+	dma_addr_t dma;
+	/* device owning this dma region */
+	struct device *dev;
 };
 
 /*
@@ -336,20 +342,33 @@ static inline bool use_multiport(struct ports_device *portdev)
 
 static void free_buf(struct port_buffer *buf)
 {
-	kfree(buf->buf);
+	dev_info(buf->dev, "%s: dma freed va %p dma %x size %x\n", __func__,
+			buf->buf, buf->dma, buf->size);
+	dma_free_coherent(buf->dev, buf->size, buf->buf, buf->dma);
 	kfree(buf);
 }
 
-static struct port_buffer *alloc_buf(size_t buf_size)
+static struct port_buffer *alloc_buf(struct device *dev, size_t buf_size)
 {
 	struct port_buffer *buf;
+	dma_addr_t dma;
 
 	buf = kmalloc(sizeof(*buf), GFP_KERNEL);
 	if (!buf)
 		goto fail;
-	buf->buf = kzalloc(buf_size, GFP_KERNEL);
+	/*
+	 * Until we have iommu-able dma_map_sg, just use our CMA region
+	 * which is already mapped
+	 */
+	buf->buf = dma_alloc_coherent(dev->parent, buf_size, &dma, GFP_KERNEL);
 	if (!buf->buf)
 		goto free_buf;
+
+	dev_info(dev, "%s: dma allocated va %p dma %x size %x\n", __func__,
+			buf->buf, dma, buf_size);
+
+	buf->dma = dma;
+	buf->dev = dev->parent;
 	buf->len = 0;
 	buf->offset = 0;
 	buf->size = buf_size;
@@ -372,6 +391,8 @@ static struct port_buffer *get_inbuf(struct port *port)
 
 	buf = virtqueue_get_buf(port->in_vq, &len);
 	if (buf) {
+	//print_hex_dump(KERN_INFO, "get_inbuf: ", DUMP_PREFIX_NONE, 16, 1,
+	//				buf->buf, len, true);
 		buf->len = len;
 		buf->offset = 0;
 		port->stats.bytes_received += len;
@@ -485,7 +506,6 @@ static void reclaim_consumed_buffers(struct port *port)
 		return;
 	}
 	while ((buf = virtqueue_get_buf(port->out_vq, &len))) {
-		kfree(buf);
 		port->outvq_full = false;
 	}
 }
@@ -500,6 +520,9 @@ static ssize_t send_buf(struct port *port, void *in_buf, size_t in_count,
 	unsigned int len;
 
 	out_vq = port->out_vq;
+
+	//print_hex_dump(KERN_INFO, "send_buf: ", DUMP_PREFIX_NONE, 16, 1,
+	//				in_buf, in_count, true);
 
 	spin_lock_irqsave(&port->outvq_lock, flags);
 
@@ -559,6 +582,7 @@ static ssize_t fill_readbuf(struct port *port, char *out_buf, size_t out_count,
 
 	buf = port->inbuf;
 	out_count = min(out_count, buf->len - buf->offset);
+
 
 	if (to_user) {
 		ssize_t ret;
@@ -989,7 +1013,7 @@ int init_port_console(struct port *port)
 	 */
 	port->cons.vtermno = pdrvdata.next_vtermno;
 
-	port->cons.hvc = hvc_alloc(port->cons.vtermno, 0, &hv_ops, PAGE_SIZE);
+	port->cons.hvc = hvc_alloc(port->cons.vtermno, 0, &hv_ops, PAGE_SIZE, &port->portdev->vdev->dev);
 	if (IS_ERR(port->cons.hvc)) {
 		ret = PTR_ERR(port->cons.hvc);
 		dev_err(port->dev,
@@ -1102,7 +1126,7 @@ static unsigned int fill_queue(struct virtqueue *vq, spinlock_t *lock)
 
 	nr_added_bufs = 0;
 	do {
-		buf = alloc_buf(PAGE_SIZE);
+		buf = alloc_buf(&vq->vdev->dev, PAGE_SIZE);
 		if (!buf)
 			break;
 
@@ -1115,7 +1139,7 @@ static unsigned int fill_queue(struct virtqueue *vq, spinlock_t *lock)
 		}
 		nr_added_bufs++;
 		spin_unlock_irq(lock);
-	} while (ret > 0);
+	} while (ret > 0 && nr_added_bufs < 30);
 
 	return nr_added_bufs;
 }
