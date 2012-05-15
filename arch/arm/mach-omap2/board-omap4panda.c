@@ -46,6 +46,7 @@
 #include "common.h"
 #include <plat/usb.h>
 #include <plat/mmc.h>
+#include <plat/remoteproc.h>
 #include <video/omap-panel-dvi.h>
 
 #include "hsmmc.h"
@@ -668,10 +669,21 @@ static void __init omap4_panda_map_io(void)
         omap44xx_map_common_io();
 }
 
+static const char *omap4_panda_match[] = {
+	"ti,omap4-panda",
+	NULL,
+};
+
+static void __init omap4_panda_reserve(void)
+{
+	omap_rproc_reserve_cma(RPROC_CMA_OMAP4);
+	omap_reserve();
+}
+
 MACHINE_START(OMAP4_PANDA, "OMAP4 Panda board")
 	/* Maintainer: David Anders - Texas Instruments Inc */
 	.atag_offset	= 0x100,
-	.reserve	= omap_reserve,
+	.reserve	= omap4_panda_reserve,
 	.map_io		= omap4_panda_map_io,
 	.init_early	= omap4430_init_early,
 	.init_irq	= gic_init_irq,
