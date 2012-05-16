@@ -6558,6 +6558,8 @@ static __initdata struct omap_hwmod *omap54xx_hwmods[] = {
 #ifndef CONFIG_OMAP_PM_STANDALONE
 	/* iva class */
 	&omap54xx_iva_hwmod,
+	&omap54xx_iva_seq0_hwmod,
+	&omap54xx_iva_seq1_hwmod,
 #endif
 	/* kbd class */
 	&omap54xx_kbd_hwmod,
