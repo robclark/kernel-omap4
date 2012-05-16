@@ -4507,3 +4507,165 @@ int drm_format_vert_chroma_subsampling(uint32_t format)
 	}
 }
 EXPORT_SYMBOL(drm_format_vert_chroma_subsampling);
+
+int drm_mode_atomic_ioctl(struct drm_device *dev,
+			  void *data, struct drm_file *file_priv)
+{
+	struct drm_mode_atomic *arg = data;
+	uint32_t __user *objs_ptr = (uint32_t __user *)(unsigned long)(arg->objs_ptr);
+	uint32_t __user *count_props_ptr = (uint32_t __user *)(unsigned long)(arg->count_props_ptr);
+	uint32_t __user *props_ptr = (uint32_t __user *)(unsigned long)(arg->props_ptr);
+	uint64_t __user *prop_values_ptr = (uint64_t __user *)(unsigned long)(arg->prop_values_ptr);
+	uint64_t __user *blob_values_ptr = (uint64_t __user *)(unsigned long)(arg->blob_values_ptr);
+	unsigned int copied_objs = 0;
+	unsigned int copied_props = 0;
+	unsigned int copied_blobs = 0;
+	void *state;
+	int ret = 0;
+	unsigned int i, j;
+
+	if (!dev_supports_atomic(dev))
+		return -ENOSYS;
+
+	if (arg->flags & ~(DRM_MODE_ATOMIC_TEST_ONLY |
+			DRM_MODE_ATOMIC_EVENT | DRM_MODE_ATOMIC_NONBLOCK))
+		return -EINVAL;
+
+	/* can't test and expect an event at the same time. */
+	if ((arg->flags & DRM_MODE_ATOMIC_TEST_ONLY) &&
+			(arg->flags & DRM_MODE_ATOMIC_EVENT))
+		return -EINVAL;
+
+	mutex_lock(&dev->mode_config.mutex);
+
+	state = dev->driver->atomic_begin(dev, arg->flags);
+	if (IS_ERR(state)) {
+		ret = PTR_ERR(state);
+		goto unlock;
+	}
+
+	for (i = 0; i < arg->count_objs; i++) {
+		uint32_t obj_id, count_props;
+		struct drm_mode_object *obj;
+
+		if (get_user(obj_id, objs_ptr + copied_objs)) {
+			ret = -EFAULT;
+			goto out;
+		}
+
+		obj = drm_mode_object_find(dev, obj_id, DRM_MODE_OBJECT_ANY);
+		if (!obj || !obj->properties) {
+			ret = -ENOENT;
+			goto out;
+		}
+
+		if (arg->flags & DRM_MODE_ATOMIC_EVENT) {
+			// XXX create atomic event instead..
+			struct drm_pending_vblank_event *e =
+				create_vblank_event(dev, file_priv, arg->user_data);
+			if (!e) {
+				ret = -ENOMEM;
+				goto out;
+			}
+			ret = dev->driver->atomic_set_event(dev, state, obj, &e->base);
+			if (ret) {
+				destroy_vblank_event(dev, file_priv, e);
+				goto out;
+			}
+		}
+
+		if (get_user(count_props, count_props_ptr + copied_objs)) {
+			ret = -EFAULT;
+			goto out;
+		}
+
+		copied_objs++;
+
+		for (j = 0; j < count_props; j++) {
+			uint32_t prop_id;
+			uint64_t prop_value;
+			struct drm_mode_object *prop_obj;
+			struct drm_property *prop;
+			void *blob_data = NULL;
+
+			if (get_user(prop_id, props_ptr + copied_props)) {
+				ret = -EFAULT;
+				goto out;
+			}
+
+			if (!object_has_prop(obj, prop_id)) {
+				ret = -EINVAL;
+				goto out;
+			}
+
+			prop_obj = drm_mode_object_find(dev, prop_id,
+					DRM_MODE_OBJECT_PROPERTY);
+			if (!prop_obj) {
+				ret = -ENOENT;
+				goto out;
+			}
+			prop = obj_to_property(prop_obj);
+
+			if (get_user(prop_value, prop_values_ptr + copied_props)) {
+				ret = -EFAULT;
+				goto out;
+			}
+
+			if (!drm_property_change_is_valid(prop, prop_value)) {
+				ret = -EINVAL;
+				goto out;
+			}
+
+			if ((prop->flags & DRM_MODE_PROP_BLOB) && prop_value) {
+				uint64_t blob_ptr;
+
+				if (get_user(blob_ptr, blob_values_ptr + copied_blobs)) {
+					ret = -EFAULT;
+					goto out;
+				}
+
+				blob_data = kmalloc(prop_value, GFP_KERNEL);
+				if (!blob_data) {
+					ret = -ENOMEM;
+					goto out;
+				}
+
+				if (copy_from_user(blob_data, (void __user *)(unsigned long)blob_ptr, prop_value)) {
+					kfree(blob_data);
+					ret = -EFAULT;
+					goto out;
+				}
+			}
+
+			/* User space sends the blob pointer even if we
+			 * don't use it (length==0).
+			 */
+			if (prop->flags & DRM_MODE_PROP_BLOB)
+				copied_blobs++;
+
+			/* The driver will be in charge of blob_data from now on. */
+			ret = drm_mode_set_obj_prop(obj, state, prop,
+					prop_value, blob_data);
+			if (ret)
+				goto out;
+
+			copied_props++;
+		}
+	}
+
+	ret = dev->driver->atomic_check(dev, state);
+	if (ret)
+		goto out;
+
+	if (arg->flags & DRM_MODE_ATOMIC_TEST_ONLY)
+		goto out;
+
+	ret = dev->driver->atomic_commit(dev, state);
+
+ out:
+	dev->driver->atomic_end(dev, state);
+ unlock:
+	mutex_unlock(&dev->mode_config.mutex);
+
+	return ret;
+}
