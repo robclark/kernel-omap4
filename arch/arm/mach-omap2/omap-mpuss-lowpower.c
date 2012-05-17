@@ -542,7 +542,7 @@ static void enable_mercury_retention_mode(void)
 int __init omap_mpuss_init(void)
 {
 	struct omap4_cpu_pm_info *pm_info;
-	u32 cpu_wakeup_addr;
+	u32 cpu_wakeup_addr = 0;
 
 	if (omap_rev() == OMAP4430_REV_ES1_0) {
 		WARN(1, "Power Management not supported on OMAP4430 ES1.0\n");

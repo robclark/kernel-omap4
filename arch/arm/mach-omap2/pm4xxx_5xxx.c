@@ -416,6 +416,7 @@ static inline u8 get_achievable_state(u8 available_states, u8 req_min_state,
 	return PWRDM_POWER_ON;
 }
 
+#if 0
 /*
  * Enable hardware supervised mode for all clockdomains if it's
  * supported. Initiate sleep transition for other clockdomains, if
@@ -430,7 +431,7 @@ static int __init clkdms_setup(struct clockdomain *clkdm, void *unused)
 		clkdm_sleep(clkdm);
 	return 0;
 }
-
+#endif
 
 void omap4_pm_off_mode_enable(int enable)
 {

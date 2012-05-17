@@ -29,8 +29,6 @@
 
 #include "dss.h"
 
-#define DEBUG 1
-
 static struct {
 	struct omap_dss_device *dssdev;
 	struct mutex hdmi_lock;

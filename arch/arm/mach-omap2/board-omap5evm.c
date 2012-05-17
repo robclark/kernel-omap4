@@ -891,7 +891,7 @@ static struct i2c_board_info __initdata omap5evm_i2c_1_boardinfo[] = {
 
 };
 
-
+#if 0
 static struct qtm_touch_keyarray_cfg omap5evm_key_array_data[] = {
 	{
 		.ctrl = 0,
@@ -1099,6 +1099,7 @@ static struct i2c_board_info __initdata omap5evm_i2c_4_boardinfo[] = {
 		.irq = OMAP_GPIO_IRQ(OMAP5_TOUCH_IRQ_1),
 	},
 };
+#endif
 
 /*
  * I2C GPIO Expander - TCA6424
@@ -1192,6 +1193,7 @@ static struct omap2_hsmmc_info mmc[] = {
 	{}	/* Terminator */
 };
 
+#ifdef CONFIG_WL12XX_PLATFORM_DATA
 static struct regulator_consumer_supply omap5_sdp5430_vmmc3_supply[] = {
 	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.2"),
 };
@@ -1261,6 +1263,7 @@ static void omap5_sdp5430_wifi_init(void)
 
 	platform_device_register(&omap_vwlan_device);
 }
+#endif
 
 /* USBB3 to SMSC LAN9730 */
 #define GPIO_ETH_NRESET_SEVM	172

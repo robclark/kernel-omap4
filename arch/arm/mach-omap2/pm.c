@@ -465,7 +465,7 @@ static int omap2_dev_pm_qos_handler(struct notifier_block *nb,
 
 	// !!! says incompatible pointer type?
 	/* Find the associated omap_device for dev */
-	od = container_of(p_dev, struct omap_device, pdev);
+	od = to_omap_device(p_dev);
 
 	/* Find the primary omap_hwmod for dev */
 	oh = od->hwmods[0];

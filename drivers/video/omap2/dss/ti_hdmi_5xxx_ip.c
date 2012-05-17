@@ -171,7 +171,7 @@ static inline void hdmi_core_ddc_req_addr(struct hdmi_ip_data *ip_data,
 	else
 		REG_FLD_MOD(core_sys_base, HDMI_CORE_I2CM_OPERATION, 1, 0, 0);
 }
-
+#if 0
 static void hdmi_core_ddc_init(struct hdmi_ip_data *ip_data)
 {
 	void __iomem *core_sys_base = hdmi_core_sys_base(ip_data);
@@ -237,11 +237,12 @@ static int hdmi_core_ddc_edid(struct hdmi_ip_data *ip_data,
 	return 0;
 
 }
+#endif
 
 int ti_hdmi_5xxx_read_edid(struct hdmi_ip_data *ip_data,
 				u8 *edid, int len)
 {
-	int r, l;
+	int r;
 
 	if (len < 128)
 		return -EINVAL;
