@@ -1,3 +1,14 @@
+linux-ti-omap4 (3.4.0-1483.4) precise; urgency=low
+
+  [ Xavier Boudet ]
+
+  * UBUNTU: version 3.4.0-1483.4
+  * Add DVP patches series
+  * Fix Config: disable CPU_FREQ_GOV_INTERACTIVE
+  * Enable OMAP_RPMSG_RESMGR
+
+ -- Xavier Boudet <x-boudet@ti.com>  Wed, 23 May 2012 16:56:04 +0200
+
 linux-ti-omap4 (3.4.0-1483.3) precise; urgency=low
 
   [ Xavier Boudet ]
