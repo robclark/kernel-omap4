@@ -288,6 +288,7 @@ static int abe_probe(struct snd_soc_platform *platform)
 	/* aess_clk has to be enabled to access hal register.
 	 * Disable the clk after it has been used.
 	 */
+	pm_runtime_disable(abe->dev);
 	pm_runtime_get_sync(abe->dev);
 
 	abe->aess = omap_abe_port_mgr_get();
