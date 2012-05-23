@@ -51,6 +51,7 @@ struct drm_object_property_values;
 #define DRM_MODE_OBJECT_BLOB 0xbbbbbbbb
 #define DRM_MODE_OBJECT_PLANE 0xeeeeeeee
 #define DRM_MODE_OBJECT_BRIDGE 0xbdbdbdbd
+#define DRM_MODE_OBJECT_ANY 0
 
 struct drm_mode_object {
 	uint32_t id;
