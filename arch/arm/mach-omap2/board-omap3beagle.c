@@ -1080,6 +1080,14 @@ static void __init omap3_beagle_init(void)
 		omap3beagle_tsc2007_init();
 	}
 
+	if (!strcmp(expansionboard_name, "spidev"))
+	{
+		printk(KERN_INFO "Beagle expansionboard: registering spidev\n");
+		omap3_beagle_config_mcspi3_mux();
+		omap3_beagle_config_mcspi4_mux();
+		spi_register_board_info(beagle_mcspi_board_info, ARRAY_SIZE(beagle_mcspi_board_info));
+	}
+
 	usb_musb_init(NULL);
 	usbhs_init(&usbhs_bdata);
 	omap_nand_flash_init(NAND_BUSWIDTH_16, omap3beagle_nand_partitions,
