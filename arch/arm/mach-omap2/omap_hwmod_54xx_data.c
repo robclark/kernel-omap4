@@ -469,10 +469,6 @@ static struct omap_hwmod_class omap54xx_ctrl_module_hwmod_class = {
 	.sysc	= &omap54xx_ctrl_module_sysc,
 };
 
-static struct omap_hwmod_class omap54xx_ctrl_module_hwmod_class = {
-	.name	= "ctrl_module",
-};
-
 /* ctrl_module_core */
 static struct omap_hwmod_irq_info omap54xx_ctrl_module_core_irqs[] = {
 	{ .name = "sec_evts", .irq = 8 + OMAP54XX_IRQ_GIC_START },
@@ -5798,7 +5794,7 @@ static struct omap_hwmod_ocp_if *omap54xx_hwmod_ocp_ifs[] __initdata = {
 	&omap54xx_gpu__l3_main_2,
 	&omap54xx_hsi__l3_main_2,
 	&omap54xx_ipu__l3_main_2,
-	&omap54xx_iss__l3_main_2,
+	//&omap54xx_iss__l3_main_2,
 	&omap54xx_iva__l3_main_2,
 	&omap54xx_l3_main_1__l3_main_2,
 	&omap54xx_l4_cfg__l3_main_2,
@@ -5859,7 +5855,7 @@ static struct omap_hwmod_ocp_if *omap54xx_hwmod_ocp_ifs[] __initdata = {
 	&omap54xx_l4_per__i2c4,
 	&omap54xx_l4_per__i2c5,
 	&omap54xx_l3_main_2__ipu,
-	&omap54xx_l3_main_2__iss,
+	//&omap54xx_l3_main_2__iss,
 	&omap54xx_iva__sl2if,
 	&omap54xx_l3_main_2__iva,
 	&omap54xx_l4_wkup__kbd,
@@ -5917,6 +5913,7 @@ static struct omap_hwmod_ocp_if *omap54xx_hwmod_ocp_ifs[] __initdata = {
 
 int __init omap54xx_hwmod_init(void)
 {
+	omap_hwmod_init();
 	return omap_hwmod_register_links(omap54xx_hwmod_ocp_ifs);
 }
 
