@@ -389,6 +389,7 @@ static int _resume_kick(int id, void *p, void *rproc)
 
 static int omap_rproc_resume(struct rproc *rproc)
 {
+
 	struct device *dev = rproc->dev.parent;
 	struct platform_device *pdev = to_platform_device(dev);
 	struct omap_rproc_pdata *pdata = dev->platform_data;
@@ -417,8 +418,10 @@ static struct rproc_ops omap_rproc_ops = {
 	.start		= omap_rproc_start,
 	.stop		= omap_rproc_stop,
 	.kick		= omap_rproc_kick,
+#if 0
 	.suspend	= omap_rproc_suspend,
 	.resume		= omap_rproc_resume,
+#endif
 	.set_latency	= omap_rproc_set_latency,
 	.set_bandwidth	= omap_rproc_set_bandwidth,
 	.set_frequency	= omap_rproc_set_frequency,
