@@ -219,7 +219,7 @@ static int __devinit twl4030_vibra_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
@@ -230,8 +230,7 @@ static int __devinit twl4030_vibra_probe(struct platform_device *pdev)
 	info->input_dev = input_allocate_device();
 	if (info->input_dev == NULL) {
 		dev_err(&pdev->dev, "couldn't allocate input device\n");
-		ret = -ENOMEM;
-		goto err_kzalloc;
+		return -ENOMEM;
 	}
 
 	input_set_drvdata(info->input_dev, info);
@@ -264,8 +263,6 @@ err_iff:
 	input_ff_destroy(info->input_dev);
 err_ialloc:
 	input_free_device(info->input_dev);
-err_kzalloc:
-	kfree(info);
 	return ret;
 }
 
@@ -275,7 +272,6 @@ static int __devexit twl4030_vibra_remove(struct platform_device *pdev)
 
 	/* this also free ff-memless and calls close if needed */
 	input_unregister_device(info->input_dev);
-	kfree(info);
 	platform_set_drvdata(pdev, NULL);
 
 	return 0;
