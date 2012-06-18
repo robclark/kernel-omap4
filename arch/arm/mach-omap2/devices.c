@@ -677,7 +677,6 @@ static int __init omap2_init_devices(void)
 	 * please keep these calls, and their implementations above,
 	 * in alphabetical order so they're easier to sort through.
 	 */
-	omap_init_aess();
 	omap_init_audio();
 	omap_init_camera();
 	omap_init_hdmi_audio();
@@ -685,6 +684,7 @@ static int __init omap2_init_devices(void)
 	omap_init_mbox();
 	/* If dtb is there, the devices will be created dynamically */
 	if (!of_have_populated_dt()) {
+		omap_init_aess();
 		omap_init_dmic();
 		omap_init_mcpdm();
 		omap_init_mcspi();
