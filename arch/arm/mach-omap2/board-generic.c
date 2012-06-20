@@ -21,6 +21,7 @@
 
 #include "common.h"
 #include "common-board-devices.h"
+#include "mux.h"
 
 #if !(defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3))
 #define intc_of_init	NULL
@@ -35,8 +36,26 @@ static struct of_device_id omap_dt_match_table[] __initdata = {
 	{ }
 };
 
+#ifdef CONFIG_OMAP_MUX
+static struct omap_board_mux board_mux[] __initdata = {
+	OMAP4_MUX(USBB2_ULPITLL_CLK, OMAP_MUX_MODE4 | OMAP_PIN_OUTPUT),
+	{ .reg_offset = OMAP_MUX_TERMINATOR },
+};
+
+#else
+#define board_mux	NULL
+#endif
+
 static void __init omap_generic_init(void)
 {
+	if (cpu_is_omap44xx()) {
+		int package = OMAP_PACKAGE_CBS;
+
+		if (omap_rev() == OMAP4430_REV_ES1_0)
+			package = OMAP_PACKAGE_CBL;
+		omap4_mux_init(board_mux, NULL, package);
+	}
+
 	omap_sdrc_init(NULL, NULL);
 
 	of_platform_populate(NULL, omap_dt_match_table, NULL, NULL);
