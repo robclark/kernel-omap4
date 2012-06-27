@@ -132,6 +132,11 @@ static struct platform_device panda_hdmi_audio_codec = {
 	.id	= -1,
 };
 
+static struct platform_device panda_spdif_dit_codec = {
+	.name           = "spdif-dit",
+	.id             = -1,
+};
+
 static struct platform_device btwilink_device = {
 	.name	= "btwilink",
 	.id	= -1,
@@ -142,6 +147,7 @@ static struct platform_device *panda_devices[] __initdata = {
 	&wl1271_device,
 	&panda_abe_audio,
 	&panda_hdmi_audio_codec,
+	&panda_spdif_dit_codec,
 	&btwilink_device,
 };
 
