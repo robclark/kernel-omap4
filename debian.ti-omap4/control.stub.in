@@ -3,10 +3,10 @@ Section: devel
 Priority: optional
 Maintainer: Ubuntu Kernel Team <kernel-team@lists.ubuntu.com>
 Standards-Version: 3.8.4.0
-Build-Depends: debhelper (>= 5), cpio, module-init-tools, kernel-wedge (>= 2.24ubuntu1), makedumpfile [amd64 i386], device-tree-compiler [powerpc], libelf-dev, binutils-dev, rsync, libdw-dev
+Build-Depends: debhelper (>= 5), cpio, module-init-tools, kernel-wedge (>= 2.24ubuntu1), makedumpfile [amd64 i386], device-tree-compiler [powerpc], libelf-dev, libnewt-dev, binutils-dev, rsync, libdw-dev, dpkg (>= 1.16.0~ubuntu4), util-linux, pkg-config, flex, bison, libgtk2.0-dev | gtk2-devel
 Build-Depends-Indep: xmlto, docbook-utils, ghostscript, transfig, bzip2, sharutils, asciidoc
 Build-Conflicts: findutils (= 4.4.1-1ubuntu1)
-Vcs-Git: http://kernel.ubuntu.com/git-repos/ubuntu/ubuntu-maverick.git
+Vcs-Git: http://kernel.ubuntu.com/git-repos/ubuntu/ubuntu-precise.git
 
 #Package: SRCPKGNAME-source-PKGVER
 #Architecture: all
