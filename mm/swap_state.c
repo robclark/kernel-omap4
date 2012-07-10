@@ -297,7 +297,20 @@ struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
 		 * Get a new page to read into from swap.
 		 */
 		if (!new_page) {
+#if 0
+			/* this gets called also in the try_to_unuse()/swapoff path..
+			 * probably there we don't have a really good clue about who
+			 * owns the pages for the buffers getting swapped in.. although
+			 * perhaps it is ok to read data into random pages and copy
+			 * them later.. see shmem_should_replace_page() /
+			 * shmem_replace_page()
+			 */
+			// XXX except that shmem_alloc_page() is static in
+			// shmem.c...
+			new_page = shmem_alloc_page(gfp, info, index);
+#else
 			new_page = alloc_page_vma(gfp_mask, vma, addr);
+#endif
 			if (!new_page)
 				break;		/* Out of memory */
 		}

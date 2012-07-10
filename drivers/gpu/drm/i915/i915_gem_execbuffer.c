@@ -33,6 +33,7 @@
 #include "i915_trace.h"
 #include "intel_drv.h"
 #include <linux/dma_remapping.h>
+#include <linux/dma-buf-mgr.h>
 
 struct change_domains {
 	uint32_t invalidate_domains;
@@ -556,13 +557,39 @@ err_unpin:
 static int
 i915_gem_execbuffer_reserve(struct intel_ring_buffer *ring,
 			    struct drm_file *file,
-			    struct list_head *objects)
+			    struct list_head *objects,
+			    struct list_head *prime_val)
 {
 	drm_i915_private_t *dev_priv = ring->dev->dev_private;
 	struct drm_i915_gem_object *obj;
 	int ret, retry;
 	bool has_fenced_gpu_access = INTEL_INFO(ring->dev)->gen < 4;
 	struct list_head ordered_objects;
+
+	list_for_each_entry(obj, objects, exec_list) {
+		struct dmabufmgr_validate *val;
+
+		if (!(obj->base.import_attach ||
+		      obj->base.export_dma_buf))
+			continue;
+
+		val = kzalloc(sizeof(*val), GFP_KERNEL);
+		if (!val)
+			return -ENOMEM;
+
+		if (obj->base.export_dma_buf)
+			val->bo = obj->base.export_dma_buf;
+		else
+			val->bo = obj->base.import_attach->dmabuf;
+		val->priv = obj;
+		list_add_tail(&val->head, prime_val);
+	}
+
+	if (!list_empty(prime_val)) {
+		ret = dmabufmgr_eu_reserve_buffers(prime_val);
+		if (ret)
+			return ret;
+	}
 
 	INIT_LIST_HEAD(&ordered_objects);
 	while (!list_empty(objects)) {
@@ -712,6 +739,7 @@ i915_gem_execbuffer_relocate_slow(struct drm_device *dev,
 				  struct drm_file *file,
 				  struct intel_ring_buffer *ring,
 				  struct list_head *objects,
+				  struct list_head *prime_val,
 				  struct eb_objects *eb,
 				  struct drm_i915_gem_exec_object2 *exec,
 				  int count)
@@ -722,6 +750,16 @@ i915_gem_execbuffer_relocate_slow(struct drm_device *dev,
 	int i, total, ret;
 
 	/* We may process another execbuffer during the unlock... */
+
+	if (!list_empty(prime_val))
+		dmabufmgr_eu_backoff_reservation(prime_val);
+	while (!list_empty(prime_val)) {
+		struct dmabufmgr_validate *val;
+		val = list_first_entry(prime_val, typeof(*val), head);
+		list_del(&val->head);
+		kfree(val);
+	}
+
 	while (!list_empty(objects)) {
 		obj = list_first_entry(objects,
 				       struct drm_i915_gem_object,
@@ -786,7 +824,7 @@ i915_gem_execbuffer_relocate_slow(struct drm_device *dev,
 		eb_add_object(eb, obj);
 	}
 
-	ret = i915_gem_execbuffer_reserve(ring, file, objects);
+	ret = i915_gem_execbuffer_reserve(ring, file, objects, prime_val);
 	if (ret)
 		goto err;
 
@@ -871,10 +909,10 @@ i915_gem_execbuffer_wait_for_flips(struct intel_ring_buffer *ring, u32 flips)
 	return 0;
 }
 
-
 static int
 i915_gem_execbuffer_move_to_gpu(struct intel_ring_buffer *ring,
-				struct list_head *objects)
+				struct list_head *objects,
+				struct list_head *prime_val)
 {
 	struct drm_i915_gem_object *obj;
 	struct change_domains cd;
@@ -955,7 +993,6 @@ i915_gem_execbuffer_move_to_active(struct list_head *objects,
 	list_for_each_entry(obj, objects, exec_list) {
 		  u32 old_read = obj->base.read_domains;
 		  u32 old_write = obj->base.write_domain;
-
 
 		obj->base.read_domains = obj->base.pending_read_domains;
 		obj->base.write_domain = obj->base.pending_write_domain;
@@ -1040,6 +1077,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct list_head objects;
+	struct list_head prime_val;
 	struct eb_objects *eb;
 	struct drm_i915_gem_object *batch_obj;
 	struct drm_clip_rect *cliprects = NULL;
@@ -1162,6 +1200,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 
 	/* Look up object handles */
 	INIT_LIST_HEAD(&objects);
+	INIT_LIST_HEAD(&prime_val);
 	for (i = 0; i < args->buffer_count; i++) {
 		struct drm_i915_gem_object *obj;
 
@@ -1193,8 +1232,14 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 			       struct drm_i915_gem_object,
 			       exec_list);
 
+	if (batch_obj->base.export_dma_buf || batch_obj->base.import_attach) {
+		DRM_DEBUG("Batch buffer should really not be prime..\n");
+		ret = -EINVAL;
+		goto err;
+	}
+
 	/* Move the objects en-masse into the GTT, evicting if necessary. */
-	ret = i915_gem_execbuffer_reserve(ring, file, &objects);
+	ret = i915_gem_execbuffer_reserve(ring, file, &objects, &prime_val);
 	if (ret)
 		goto err;
 
@@ -1203,8 +1248,9 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	if (ret) {
 		if (ret == -EFAULT) {
 			ret = i915_gem_execbuffer_relocate_slow(dev, file, ring,
-								&objects, eb,
-								exec,
+								&objects,
+								&prime_val,
+								eb, exec,
 								args->buffer_count);
 			BUG_ON(!mutex_is_locked(&dev->struct_mutex));
 		}
@@ -1220,7 +1266,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	}
 	batch_obj->base.pending_read_domains |= I915_GEM_DOMAIN_COMMAND;
 
-	ret = i915_gem_execbuffer_move_to_gpu(ring, &objects);
+	ret = i915_gem_execbuffer_move_to_gpu(ring, &objects, &prime_val);
 	if (ret)
 		goto err;
 
@@ -1244,7 +1290,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	    mode != dev_priv->relative_constants_mode) {
 		ret = intel_ring_begin(ring, 4);
 		if (ret)
-				goto err;
+			goto err;
 
 		intel_ring_emit(ring, MI_NOOP);
 		intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
@@ -1260,6 +1306,10 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		if (ret)
 			goto err;
 	}
+
+	ret = dmabufmgr_eu_wait_completed_cpu(&prime_val, true, true);
+	if (ret)
+		goto err;
 
 	trace_i915_gem_ring_dispatch(ring, seqno);
 
@@ -1285,8 +1335,25 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 
 	i915_gem_execbuffer_move_to_active(&objects, ring, seqno);
 	i915_gem_execbuffer_retire_commands(dev, file, ring);
+	if (!list_empty(&prime_val)) {
+		BUG_ON(!ring->sync_buf);
+		WARN_ON_ONCE(seqno == ring->outstanding_lazy_request);
+
+		dmabufmgr_eu_fence_buffer_objects(ring->sync_buf,
+						  ring->sync_seqno_ofs,
+						  seqno, &prime_val);
+	}
+	goto out;
 
 err:
+	dmabufmgr_eu_backoff_reservation(&prime_val);
+out:
+	while (!list_empty(&prime_val)) {
+		struct dmabufmgr_validate *val;
+		val = list_first_entry(&prime_val, typeof(*val), head);
+		list_del(&val->head);
+		kfree(val);
+	}
 	eb_destroy(eb);
 	while (!list_empty(&objects)) {
 		struct drm_i915_gem_object *obj;

@@ -66,12 +66,25 @@ static void i915_gem_unmap_dma_buf(struct dma_buf_attachment *attachment,
 static void i915_gem_dmabuf_release(struct dma_buf *dma_buf)
 {
 	struct drm_i915_gem_object *obj = dma_buf->priv;
+	struct drm_device *dev = obj->base.dev;
+
+	mutex_lock(&dev->struct_mutex);
 
 	if (obj->base.export_dma_buf == dma_buf) {
-		/* drop the reference on the export fd holds */
 		obj->base.export_dma_buf = NULL;
-		drm_gem_object_unreference_unlocked(&obj->base);
+	} else {
+		drm_i915_private_t *dev_priv = dev->dev_private;
+		struct intel_ring_buffer *ring;
+		int i;
+
+		for_each_ring(ring, dev_priv, i)
+			WARN_ON(ring->sync_buf == dma_buf);
 	}
+
+	/* drop the reference on the export fd holds */
+	drm_gem_object_unreference(&obj->base);
+
+	mutex_unlock(&dev->struct_mutex);
 }
 
 static void *i915_gem_dmabuf_vmap(struct dma_buf *dma_buf)
@@ -129,21 +142,25 @@ static void i915_gem_dmabuf_vunmap(struct dma_buf *dma_buf, void *vaddr)
 
 static void *i915_gem_dmabuf_kmap_atomic(struct dma_buf *dma_buf, unsigned long page_num)
 {
-	return NULL;
+	struct drm_i915_gem_object *obj = dma_buf->priv;
+	return kmap_atomic(obj->pages[page_num]);
 }
 
 static void i915_gem_dmabuf_kunmap_atomic(struct dma_buf *dma_buf, unsigned long page_num, void *addr)
 {
-
+	kunmap_atomic(addr);
 }
+
 static void *i915_gem_dmabuf_kmap(struct dma_buf *dma_buf, unsigned long page_num)
 {
-	return NULL;
+	struct drm_i915_gem_object *obj = dma_buf->priv;
+	return kmap(obj->pages[page_num]);
 }
 
 static void i915_gem_dmabuf_kunmap(struct dma_buf *dma_buf, unsigned long page_num, void *addr)
 {
-
+	struct drm_i915_gem_object *obj = dma_buf->priv;
+	kunmap(obj->pages[page_num]);
 }
 
 static int i915_gem_dmabuf_mmap(struct dma_buf *dma_buf, struct vm_area_struct *vma)

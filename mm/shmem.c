@@ -958,6 +958,8 @@ static inline struct page *shmem_swapin(swp_entry_t swap, gfp_t gfp,
 static inline struct page *shmem_alloc_page(gfp_t gfp,
 			struct shmem_inode_info *info, pgoff_t index)
 {
+	// XXX ideally we'd always come thru here, but it isn't the
+	// case on swapin..
 	return alloc_page(gfp);
 }
 #endif /* CONFIG_NUMA */
