@@ -35,6 +35,7 @@
 #define DISPC_GLOBAL_ALPHA		0x0074
 #define DISPC_CONTROL2			0x0238
 #define DISPC_CONFIG2			0x0620
+#define DISPC_GLOBAL_BUFFER		0x0800
 #define DISPC_DIVISOR			0x0804
 #define DISPC_CONTROL3                  0x0848
 #define DISPC_CONFIG3                   0x084C
