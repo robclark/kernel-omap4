@@ -2241,6 +2241,11 @@ int dispc_ovl_enable(enum omap_plane plane, bool enable)
 {
 	DSSDBG("dispc_enable_plane %d, %d\n", plane, enable);
 
+	if (cpu_is_omap44xx()) {
+		// XXX quick hack.. give WB buffers to gfx:
+		dispc_write_reg(DISPC_GLOBAL_BUFFER, 0x006D2240);
+	}
+
 	REG_FLD_MOD(DISPC_OVL_ATTRIBUTES(plane), enable ? 1 : 0, 0, 0);
 
 	return 0;
