@@ -1443,15 +1443,15 @@ nouveau_bo_vma_find(struct nouveau_bo *nvbo, struct nouveau_vm *vm)
 }
 
 int
-nouveau_bo_vma_add(struct nouveau_bo *nvbo, struct nouveau_vm *vm,
-		   struct nouveau_vma *vma)
+nouveau_bo_vma_add_access(struct nouveau_bo *nvbo, struct nouveau_vm *vm,
+			  struct nouveau_vma *vma, u32 access)
 {
 	const u32 size = nvbo->bo.mem.num_pages << PAGE_SHIFT;
 	struct nouveau_mem *node = nvbo->bo.mem.mm_node;
 	int ret;
 
 	ret = nouveau_vm_get(vm, size, nvbo->page_shift,
-			     NV_MEM_ACCESS_RW, vma);
+			     access, vma);
 	if (ret)
 		return ret;
 

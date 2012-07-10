@@ -1350,8 +1350,10 @@ extern int nouveau_bo_validate(struct nouveau_bo *, bool interruptible,
 
 extern struct nouveau_vma *
 nouveau_bo_vma_find(struct nouveau_bo *, struct nouveau_vm *);
-extern int  nouveau_bo_vma_add(struct nouveau_bo *, struct nouveau_vm *,
-			       struct nouveau_vma *);
+#define nouveau_bo_vma_add(nvbo, vm, vma) \
+	nouveau_bo_vma_add_access((nvbo), (vm), (vma), NV_MEM_ACCESS_RW)
+extern int nouveau_bo_vma_add_access(struct nouveau_bo *, struct nouveau_vm *,
+				     struct nouveau_vma *, u32 access);
 extern void nouveau_bo_vma_del(struct nouveau_bo *, struct nouveau_vma *);
 
 /* nouveau_gem.c */
