@@ -74,6 +74,7 @@ enum {
 	NvEvoSema0	= 0x80000010,
 	NvEvoSema1	= 0x80000011,
 	NvNotify1       = 0x80000012,
+	NvSemaPrime	= 0x8000001f,
 
 	/* G80+ display objects */
 	NvEvoVRAM	= 0x01000000,

@@ -466,7 +466,7 @@ nouveau_page_flip_emit(struct nouveau_channel *chan,
 	}
 	FIRE_RING (chan);
 
-	ret = nouveau_fence_new(chan, pfence);
+	ret = nouveau_fence_new(chan, pfence, false);
 	if (ret)
 		goto fail;
 

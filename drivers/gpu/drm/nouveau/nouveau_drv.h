@@ -126,6 +126,11 @@ struct nouveau_bo {
 
 	struct ttm_bo_kmap_obj dma_buf_vmap;
 	int vmapping_count;
+
+	/* fence related stuff */
+	struct nouveau_bo *sync_bo;
+	struct list_head prime_chan_entries;
+	struct dma_buf_attachment *fence_import_attach;
 };
 
 #define nouveau_bo_tile_layout(nvbo)				\

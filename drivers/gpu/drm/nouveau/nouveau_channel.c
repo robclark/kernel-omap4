@@ -362,7 +362,7 @@ nouveau_channel_idle(struct nouveau_channel *chan)
 	struct nouveau_fence *fence = NULL;
 	int ret;
 
-	ret = nouveau_fence_new(chan, &fence);
+	ret = nouveau_fence_new(chan, &fence, false);
 	if (!ret) {
 		ret = nouveau_fence_wait(fence, false, false);
 		nouveau_fence_unref(&fence);

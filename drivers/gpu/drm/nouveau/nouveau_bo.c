@@ -52,6 +52,9 @@ nouveau_bo_del_ttm(struct ttm_buffer_object *bo)
 		DRM_ERROR("bo %p still attached to GEM object\n", bo);
 
 	nv10_mem_put_tile_region(dev, nvbo->tile, NULL);
+
+	if (nvbo->fence_import_attach)
+		nouveau_fence_prime_del_bo(nvbo);
 	kfree(nvbo);
 }
 
@@ -109,6 +112,7 @@ nouveau_bo_new(struct drm_device *dev, int size, int align,
 	INIT_LIST_HEAD(&nvbo->head);
 	INIT_LIST_HEAD(&nvbo->entry);
 	INIT_LIST_HEAD(&nvbo->vma_list);
+	INIT_LIST_HEAD(&nvbo->prime_chan_entries);
 	nvbo->tile_mode = tile_mode;
 	nvbo->tile_flags = tile_flags;
 	nvbo->bo.bdev = &dev_priv->ttm.bdev;
@@ -480,7 +484,7 @@ nouveau_bo_move_accel_cleanup(struct nouveau_channel *chan,
 	struct nouveau_fence *fence = NULL;
 	int ret;
 
-	ret = nouveau_fence_new(chan, &fence);
+	ret = nouveau_fence_new(chan, &fence, false);
 	if (ret)
 		return ret;
 

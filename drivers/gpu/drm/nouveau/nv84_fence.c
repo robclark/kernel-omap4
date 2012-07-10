@@ -39,7 +39,7 @@ struct nv84_fence_priv {
 };
 
 static int
-nv84_fence_emit(struct nouveau_fence *fence)
+nv84_fence_emit(struct nouveau_fence *fence, bool prime)
 {
 	struct nouveau_channel *chan = fence->channel;
 	int ret = RING_SPACE(chan, 7);
@@ -86,7 +86,7 @@ static void
 nv84_fence_context_del(struct nouveau_channel *chan, int engine)
 {
 	struct nv84_fence_chan *fctx = chan->engctx[engine];
-	nouveau_fence_context_del(&fctx->base);
+	nouveau_fence_context_del(chan->dev, &fctx->base);
 	chan->engctx[engine] = NULL;
 	kfree(fctx);
 }

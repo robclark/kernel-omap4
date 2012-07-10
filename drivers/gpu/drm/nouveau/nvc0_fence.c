@@ -40,7 +40,7 @@ struct nvc0_fence_chan {
 };
 
 static int
-nvc0_fence_emit(struct nouveau_fence *fence)
+nvc0_fence_emit(struct nouveau_fence *fence, bool prime)
 {
 	struct nouveau_channel *chan = fence->channel;
 	struct nvc0_fence_chan *fctx = chan->engctx[NVOBJ_ENGINE_FENCE];
@@ -96,7 +96,7 @@ nvc0_fence_context_del(struct nouveau_channel *chan, int engine)
 	struct nvc0_fence_chan *fctx = chan->engctx[engine];
 
 	nouveau_bo_vma_del(priv->bo, &fctx->vma);
-	nouveau_fence_context_del(&fctx->base);
+	nouveau_fence_context_del(chan->dev, &fctx->base);
 	chan->engctx[engine] = NULL;
 	kfree(fctx);
 }

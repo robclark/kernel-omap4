@@ -248,6 +248,8 @@ int nouveau_prime_import_bo(struct drm_device *dev,
 
 	if (gem)
 		(*pnvbo)->gem->import_attach = attach;
+	else
+		(*pnvbo)->fence_import_attach = attach;
 	BUG_ON(attach->priv);
 	attach->priv = *pnvbo;
 	return 0;

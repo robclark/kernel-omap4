@@ -55,8 +55,10 @@ nouveau_gem_object_del(struct drm_gem_object *gem)
 		nouveau_bo_unpin(nvbo);
 	}
 
-	if (gem->import_attach)
+	if (gem->import_attach) {
+		nouveau_fence_prime_del_bo(nvbo);
 		drm_prime_gem_destroy(gem, nvbo->bo.sg);
+	}
 
 	ttm_bo_unref(&bo);
 
@@ -779,7 +781,7 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 		}
 	}
 
-	ret = nouveau_fence_new(chan, &fence);
+	ret = nouveau_fence_new(chan, &fence, false);
 	if (ret) {
 		NV_ERROR(dev, "error fencing pushbuf: %d\n", ret);
 		WIND_RING(chan);
