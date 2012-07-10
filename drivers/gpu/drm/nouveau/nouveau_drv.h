@@ -1374,11 +1374,15 @@ extern int nouveau_gem_ioctl_cpu_fini(struct drm_device *, void *,
 extern int nouveau_gem_ioctl_info(struct drm_device *, void *,
 				  struct drm_file *);
 
+extern int nouveau_gem_prime_export_bo(struct nouveau_bo *nvbo, int flags,
+				       u32 size, struct dma_buf **ret);
 extern struct dma_buf *nouveau_gem_prime_export(struct drm_device *dev,
 				struct drm_gem_object *obj, int flags);
 extern struct drm_gem_object *nouveau_gem_prime_import(struct drm_device *dev,
 				struct dma_buf *dma_buf);
-
+extern int nouveau_prime_import_bo(struct drm_device *dev,
+				   struct dma_buf *dma_buf,
+				   struct nouveau_bo **pnvbo, bool gem);
 /* nouveau_display.c */
 int nouveau_display_create(struct drm_device *dev);
 void nouveau_display_destroy(struct drm_device *dev);
