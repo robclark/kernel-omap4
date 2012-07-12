@@ -568,6 +568,7 @@ struct device_dma_parameters {
 	 * sg limitations.
 	 */
 	unsigned int max_segment_size;
+	unsigned int max_segment_count;    /* zero for unlimited */
 	unsigned long segment_boundary_mask;
 };
 
