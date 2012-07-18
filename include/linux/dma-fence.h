@@ -24,7 +24,7 @@
 #include <linux/list.h>
 #include <linux/wait.h>
 #include <linux/list.h>
-#include <linux/dma-buf.h>
+#include <linux/kref.h>
 
 struct dma_fence;
 struct dma_fence_ops;

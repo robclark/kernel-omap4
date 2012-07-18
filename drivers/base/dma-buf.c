@@ -27,12 +27,17 @@
 #include <linux/dma-buf.h>
 #include <linux/anon_inodes.h>
 #include <linux/export.h>
+#include <linux/sched.h>
+
+atomic_t dma_buf_reserve_counter = ATOMIC_INIT(1);
+DEFINE_SPINLOCK(dma_buf_reserve_lock);
 
 static inline int is_dma_buf_file(struct file *);
 
 static int dma_buf_release(struct inode *inode, struct file *file)
 {
 	struct dma_buf *dmabuf;
+	int i;
 
 	if (!is_dma_buf_file(file))
 		return -EINVAL;
@@ -40,6 +45,15 @@ static int dma_buf_release(struct inode *inode, struct file *file)
 	dmabuf = file->private_data;
 
 	dmabuf->ops->release(dmabuf);
+
+	BUG_ON(waitqueue_active(&dmabuf->event_queue));
+	BUG_ON(atomic_read(&dmabuf->reserved));
+
+	if (dmabuf->fence_excl)
+		dma_fence_put(dmabuf->fence_excl);
+	for (i = 0; i < dmabuf->fence_shared_count; ++i)
+		dma_fence_put(dmabuf->fence_shared[i]);
+
 	kfree(dmabuf);
 	return 0;
 }
@@ -119,6 +133,7 @@ struct dma_buf *dma_buf_export(void *priv, const struct dma_buf_ops *ops,
 
 	mutex_init(&dmabuf->lock);
 	INIT_LIST_HEAD(&dmabuf->attachments);
+	init_waitqueue_head(&dmabuf->event_queue);
 
 	return dmabuf;
 }
@@ -566,3 +581,101 @@ void dma_buf_vunmap(struct dma_buf *dmabuf, void *vaddr)
 		dmabuf->ops->vunmap(dmabuf, vaddr);
 }
 EXPORT_SYMBOL_GPL(dma_buf_vunmap);
+
+int
+dma_buf_reserve_locked(struct dma_buf *dmabuf, bool interruptible,
+		       bool no_wait, bool use_sequence, u32 sequence)
+{
+	int ret;
+
+	while (unlikely(atomic_cmpxchg(&dmabuf->reserved, 0, 1) != 0)) {
+		/**
+		 * Deadlock avoidance for multi-dmabuf reserving.
+		 */
+		if (use_sequence && dmabuf->seq_valid) {
+			/**
+			 * We've already reserved this one.
+			 */
+			if (unlikely(sequence == dmabuf->val_seq))
+				return -EDEADLK;
+			/**
+			 * Already reserved by a thread that will not back
+			 * off for us. We need to back off.
+			 */
+			if (unlikely(sequence - dmabuf->val_seq < (1 << 31)))
+				return -EAGAIN;
+		}
+
+		if (no_wait)
+			return -EBUSY;
+
+		spin_unlock(&dma_buf_reserve_lock);
+		ret = dma_buf_wait_unreserved(dmabuf, interruptible);
+		spin_lock(&dma_buf_reserve_lock);
+
+		if (unlikely(ret))
+			return ret;
+	}
+
+	if (use_sequence) {
+		/**
+		 * Wake up waiters that may need to recheck for deadlock,
+		 * if we decreased the sequence number.
+		 */
+		if (unlikely((dmabuf->val_seq - sequence < (1 << 31))
+			     || !dmabuf->seq_valid))
+			wake_up_all(&dmabuf->event_queue);
+
+		dmabuf->val_seq = sequence;
+		dmabuf->seq_valid = true;
+	} else {
+		dmabuf->seq_valid = false;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(dma_buf_reserve_locked);
+
+int
+dma_buf_reserve(struct dma_buf *dmabuf, bool interruptible, bool no_wait,
+		bool use_sequence, u32 sequence)
+{
+	int ret;
+
+	spin_lock(&dma_buf_reserve_lock);
+	ret = dma_buf_reserve_locked(dmabuf, interruptible, no_wait,
+				     use_sequence, sequence);
+	spin_unlock(&dma_buf_reserve_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(dma_buf_reserve);
+
+int
+dma_buf_wait_unreserved(struct dma_buf *dmabuf, bool interruptible)
+{
+	if (interruptible) {
+		return wait_event_interruptible(dmabuf->event_queue,
+				atomic_read(&dmabuf->reserved) == 0);
+	} else {
+		wait_event(dmabuf->event_queue,
+			   atomic_read(&dmabuf->reserved) == 0);
+		return 0;
+	}
+}
+EXPORT_SYMBOL_GPL(dma_buf_wait_unreserved);
+
+void dma_buf_unreserve_locked(struct dma_buf *dmabuf)
+{
+	atomic_set(&dmabuf->reserved, 0);
+	wake_up_all(&dmabuf->event_queue);
+}
+EXPORT_SYMBOL_GPL(dma_buf_unreserve_locked);
+
+void dma_buf_unreserve(struct dma_buf *dmabuf)
+{
+	spin_lock(&dma_buf_reserve_lock);
+	dma_buf_unreserve_locked(dmabuf);
+	spin_unlock(&dma_buf_reserve_lock);
+}
+EXPORT_SYMBOL_GPL(dma_buf_unreserve);

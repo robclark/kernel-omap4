@@ -20,6 +20,7 @@
 #include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/export.h>
+#include <linux/dma-buf.h>
 #include <linux/dma-fence.h>
 
 

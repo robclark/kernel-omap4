@@ -35,6 +35,13 @@ struct device;
 struct dma_buf;
 struct dma_buf_attachment;
 
+#include <linux/dma-fence.h>
+
+extern atomic_t dma_buf_reserve_counter;
+extern spinlock_t dma_buf_reserve_lock;
+
+#define DMA_BUF_MAX_SHARED_FENCE 8
+
 /**
  * struct dma_buf_ops - operations possible on struct dma_buf
  * @attach: [optional] allows different devices to 'attach' themselves to the
@@ -113,6 +120,8 @@ struct dma_buf_ops {
  * @attachments: list of dma_buf_attachment that denotes all devices attached.
  * @ops: dma_buf_ops associated with this buffer object.
  * @priv: exporter specific private data for this buffer object.
+ * @bufmgr_entry: used by dmabufmgr
+ * @bufdev: used by dmabufmgr
  */
 struct dma_buf {
 	size_t size;
@@ -122,6 +131,18 @@ struct dma_buf {
 	/* mutex to serialize list manipulation and attach/detach */
 	struct mutex lock;
 	void *priv;
+
+	/** event queue for waking up when this dmabuf becomes unreserved */
+	wait_queue_head_t event_queue;
+
+	atomic_t reserved;
+
+	/** These require dma_buf_reserve to be called before modification */
+	bool seq_valid;
+	u32 val_seq;
+	struct dma_fence *fence_excl;
+	struct dma_fence *fence_shared[DMA_BUF_MAX_SHARED_FENCE];
+	u32 fence_shared_count;
 };
 
 /**
@@ -188,6 +209,14 @@ int dma_buf_mmap(struct dma_buf *, struct vm_area_struct *,
 		 unsigned long);
 void *dma_buf_vmap(struct dma_buf *);
 void dma_buf_vunmap(struct dma_buf *, void *vaddr);
+int dma_buf_reserve_locked(struct dma_buf *, bool intr, bool no_wait,
+			   bool use_seq, u32 seq);
+int dma_buf_reserve(struct dma_buf *, bool intr, bool no_wait,
+		    bool use_seq, u32 seq);
+int dma_buf_wait_unreserved(struct dma_buf *, bool interruptible);
+void dma_buf_unreserve_locked(struct dma_buf *);
+void dma_buf_unreserve(struct dma_buf *);
+
 #else
 
 static inline struct dma_buf_attachment *dma_buf_attach(struct dma_buf *dmabuf,
@@ -300,6 +329,8 @@ static inline void *dma_buf_vmap(struct dma_buf *dmabuf)
 static inline void dma_buf_vunmap(struct dma_buf *dmabuf, void *vaddr)
 {
 }
+
+// TODO
 #endif /* CONFIG_DMA_SHARED_BUFFER */
 
 #endif /* __DMA_BUF_H__ */
