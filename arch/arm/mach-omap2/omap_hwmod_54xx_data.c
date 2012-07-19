@@ -29,10 +29,10 @@
 #include <plat/mmc.h>
 #include <plat/dmtimer.h>
 #include <plat/common.h>
+#include <linux/power/smartreflex.h>
 
 #include "omap_hwmod_common_data.h"
 
-#include "smartreflex.h"
 #include "cm1_54xx.h"
 #include "cm2_54xx.h"
 #include "prm54xx.h"
