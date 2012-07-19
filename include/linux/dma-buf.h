@@ -167,6 +167,10 @@ int dma_buf_fd(struct dma_buf *dmabuf, int flags);
 struct dma_buf *dma_buf_get(int fd);
 void dma_buf_put(struct dma_buf *dmabuf);
 
+unsigned int dma_buf_max_seg_size(struct dma_buf *dmabuf);
+unsigned int dma_buf_max_seg_count(struct dma_buf *dmabuf);
+unsigned int dma_buf_get_seg_boundary(struct dma_buf *dmabuf);
+
 struct sg_table *dma_buf_map_attachment(struct dma_buf_attachment *,
 					enum dma_data_direction);
 void dma_buf_unmap_attachment(struct dma_buf_attachment *, struct sg_table *,
@@ -218,6 +222,21 @@ static inline struct dma_buf *dma_buf_get(int fd)
 static inline void dma_buf_put(struct dma_buf *dmabuf)
 {
 	return;
+}
+
+static inline unsigned int dma_buf_max_seg_size(struct dma_buf *dmabuf)
+{
+	return 0;
+}
+
+static inline unsigned int dma_buf_max_seg_count(struct dma_buf *dmabuf)
+{
+	return 0;
+}
+
+static inline unsigned int dma_buf_get_seg_boundary(struct dma_buf *dmabuf)
+{
+	return 0;
 }
 
 static inline struct sg_table *dma_buf_map_attachment(

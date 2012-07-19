@@ -192,6 +192,69 @@ void dma_buf_put(struct dma_buf *dmabuf)
 EXPORT_SYMBOL_GPL(dma_buf_put);
 
 /**
+ * dma_buf_max_seg_size - helper for exporters to get the minimum of
+ * all attached device's max segment size
+ */
+unsigned int dma_buf_max_seg_size(struct dma_buf *dmabuf)
+{
+	struct dma_buf_attachment *attach;
+	unsigned int max = (unsigned int)-1;
+
+	if (WARN_ON(!dmabuf))
+		return 0;
+
+	mutex_lock(&dmabuf->lock);
+	list_for_each_entry(attach, &dmabuf->attachments, node)
+		max = min(max, dma_get_max_seg_size(attach->dev));
+	mutex_unlock(&dmabuf->lock);
+
+	return max;
+}
+EXPORT_SYMBOL_GPL(dma_buf_max_seg_size);
+
+/**
+ * dma_buf_max_seg_count - helper for exporters to get the minimum of
+ * all attached device's max segment count
+ */
+unsigned int dma_buf_max_seg_count(struct dma_buf *dmabuf)
+{
+	struct dma_buf_attachment *attach;
+	unsigned int max = (unsigned int)-1;
+
+	if (WARN_ON(!dmabuf))
+		return 0;
+
+	mutex_lock(&dmabuf->lock);
+	list_for_each_entry(attach, &dmabuf->attachments, node)
+		max = min(max, dma_get_max_seg_count(attach->dev));
+	mutex_unlock(&dmabuf->lock);
+
+	return max;
+}
+EXPORT_SYMBOL_GPL(dma_buf_max_seg_count);
+
+/**
+ * dma_buf_get_seg_boundary - helper for exporters to get the most
+ * restrictive segment alignment of all the attached devices
+ */
+unsigned int dma_buf_get_seg_boundary(struct dma_buf *dmabuf)
+{
+	struct dma_buf_attachment *attach;
+	unsigned int mask = (unsigned int)-1;
+
+	if (WARN_ON(!dmabuf))
+		return 0;
+
+	mutex_lock(&dmabuf->lock);
+	list_for_each_entry(attach, &dmabuf->attachments, node)
+		mask &= dma_get_seg_boundary(attach->dev);
+	mutex_unlock(&dmabuf->lock);
+
+	return mask;
+}
+EXPORT_SYMBOL_GPL(dma_buf_get_seg_boundary);
+
+/**
  * dma_buf_attach - Add the device to dma_buf's attachments list; optionally,
  * calls attach() of dma_buf_ops to allow device-specific attach functionality
  * @dmabuf:	[in]	buffer to attach device to.
