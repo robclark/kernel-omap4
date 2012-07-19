@@ -4165,6 +4165,7 @@ static struct omap_hwmod_ocp_if omap54xx_l4_cfg__dma_system = {
 
 static struct omap_hwmod_addr_space omap54xx_dmic_addrs[] = {
 	{
+		.name		= "mpu",
 		.pa_start	= 0x4012e000,
 		.pa_end		= 0x4012e07f,
 		.flags		= ADDR_TYPE_RT
@@ -4179,6 +4180,25 @@ static struct omap_hwmod_ocp_if omap54xx_l4_abe__dmic = {
 	.clk		= "abe_iclk",
 	.addr		= omap54xx_dmic_addrs,
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+};
+
+static struct omap_hwmod_addr_space omap54xx_dmic_dma_addrs[] = {
+	{
+		.name		= "dma",
+		.pa_start	= 0x4902e000,
+		.pa_end		= 0x4902e07f,
+		.flags		= ADDR_TYPE_RT
+	},
+	{ }
+};
+
+/* l4_abe -> dmic (dma) */
+static struct omap_hwmod_ocp_if omap54xx_l4_abe__dmic_dma = {
+	.master		= &omap54xx_l4_abe_hwmod,
+	.slave		= &omap54xx_dmic_hwmod,
+	.clk		= "abe_iclk",
+	.addr		= omap54xx_dmic_dma_addrs,
+	.user		= OCP_USER_SDMA,
 };
 
 /* dsp -> sl2if */
@@ -5823,6 +5843,7 @@ static struct omap_hwmod_ocp_if *omap54xx_hwmod_ocp_ifs[] __initdata = {
 	&omap54xx_l3_main_3__debugss,
 	&omap54xx_l4_cfg__dma_system,
 	&omap54xx_l4_abe__dmic,
+	&omap54xx_l4_abe__dmic_dma,
 	&omap54xx_dsp__sl2if,
 	&omap54xx_dsp__iva,
 	&omap54xx_l4_cfg__dsp,
