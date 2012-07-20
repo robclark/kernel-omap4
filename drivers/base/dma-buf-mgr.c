@@ -154,68 +154,11 @@ retry_this_bo:
 EXPORT_SYMBOL_GPL(dmabufmgr_reserve_buffers);
 
 static int
-dmabufmgr_wait_single(struct dmabufmgr_validate *val, bool intr, bool lazy, unsigned long timeout)
+dmabufmgr_wait_single(struct dmabufmgr_validate *val, bool intr, bool lazy,
+		unsigned long timeout)
 {
 	int ret = 0;
-#if 0
-	uint32_t *map, *seq, ofs;
-	unsigned long sleep_time = NSEC_PER_MSEC / 1000;
-	size_t start;
 
-	if (!val->num_fences)
-		return 0;
-
-	start = val->sync_ofs & PAGE_MASK;
-	ofs = val->sync_ofs & ~PAGE_MASK;
-
-	ret = dma_buf_begin_cpu_access(val->sync_buf, start,
-				       start + PAGE_SIZE,
-				       DMA_FROM_DEVICE);
-	if (ret)
-		return ret;
-
-	map = dma_buf_kmap(val->sync_buf, val->sync_ofs >> PAGE_SHIFT);
-	seq = &map[ofs/4];
-
-	while (1) {
-		val->retval = *seq;
-		if (val->retval - val->sync_val < 0x80000000U)
-			break;
-
-		if (time_after_eq(jiffies, timeout)) {
-			ret = -EBUSY;
-			break;
-		}
-
-		set_current_state(intr ? TASK_INTERRUPTIBLE : TASK_UNINTERRUPTIBLE);
-
-		if (lazy) {
-			ktime_t t = ktime_set(0, sleep_time);
-			schedule_hrtimeout(&t, HRTIMER_MODE_REL);
-			if (sleep_time < NSEC_PER_MSEC)
-				sleep_time *= 2;
-		} else
-			cpu_relax();
-
-		if (intr && signal_pending(current)) {
-			ret = -ERESTARTSYS;
-			break;
-		}
-	}
-
-	set_current_state(TASK_RUNNING);
-
-	dma_buf_kunmap(val->sync_buf, val->sync_ofs >> PAGE_SHIFT, map);
-	dma_buf_end_cpu_access(val->sync_buf, start,
-			       start + PAGE_SIZE,
-			       DMA_FROM_DEVICE);
-
-	val->waited = !ret;
-	if (!ret) {
-		dma_buf_put(val->sync_buf);
-		val->sync_buf = NULL;
-	}
-#endif
 	return ret;
 }
 
