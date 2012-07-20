@@ -569,18 +569,14 @@ i915_gem_execbuffer_reserve(struct intel_ring_buffer *ring,
 	list_for_each_entry(obj, objects, exec_list) {
 		struct dmabufmgr_validate *val;
 
-		if (!(obj->base.import_attach ||
-		      obj->base.export_dma_buf))
+		if (!drm_gem_get_dmabuf(&obj->base))
 			continue;
 
 		val = kzalloc(sizeof(*val), GFP_KERNEL);
 		if (!val)
 			return -ENOMEM;
 
-		if (obj->base.export_dma_buf)
-			val->bo = obj->base.export_dma_buf;
-		else
-			val->bo = obj->base.import_attach->dmabuf;
+		val->bo = drm_gem_get_dmabuf(&obj->base);
 		val->priv = obj;
 		list_add_tail(&val->head, prime_val);
 	}
@@ -1232,7 +1228,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 			       struct drm_i915_gem_object,
 			       exec_list);
 
-	if (batch_obj->base.export_dma_buf || batch_obj->base.import_attach) {
+	if (drm_gem_get_dmabuf(&batch_obj->base)) {
 		DRM_DEBUG("Batch buffer should really not be prime..\n");
 		ret = -EINVAL;
 		goto err;

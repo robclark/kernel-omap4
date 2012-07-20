@@ -52,6 +52,7 @@
 #include <linux/pci.h>
 #include <linux/jiffies.h>
 #include <linux/dma-mapping.h>
+#include <linux/dma-buf.h>
 #include <linux/mm.h>
 #include <linux/cdev.h>
 #include <linux/mutex.h>
@@ -675,6 +676,17 @@ struct drm_gem_object {
 	/* dma buf attachment backing this object */
 	struct dma_buf_attachment *import_attach;
 };
+
+/**
+ * drm_gem_get_dmabuf - A helper to get associated dmabuf without caring if
+ * the gem bo is the exporter or importer
+ */
+static inline struct dma_buf *drm_gem_get_dmabuf(struct drm_gem_object *obj)
+{
+	if (obj->import_attach)
+		return obj->import_attach->dmabuf;
+	return obj->export_dma_buf;
+}
 
 #include "drm_crtc.h"
 

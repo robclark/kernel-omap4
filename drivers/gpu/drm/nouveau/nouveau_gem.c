@@ -371,7 +371,7 @@ retry:
 			return -ENOENT;
 		}
 		nvbo = gem->driver_private;
-		is_prime = gem->export_dma_buf || gem->import_attach;
+		is_prime = drm_gem_get_dmabuf(gem);
 
 		if (nvbo->reserved_by && nvbo->reserved_by == file_priv) {
 			NV_ERROR(dev, "multiple instances of buffer %d on "
@@ -386,11 +386,7 @@ retry:
 		else {
 			validate = kzalloc(sizeof(*validate), GFP_KERNEL);
 			if (validate) {
-				if (gem->import_attach)
-					validate->bo =
-						gem->import_attach->dmabuf;
-				else
-					validate->bo = gem->export_dma_buf;
+				validate->bo = drm_gem_get_dmabuf(gem);
 				validate->priv = nvbo;
 			} else
 				ret = -ENOMEM;
