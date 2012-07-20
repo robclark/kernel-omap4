@@ -158,6 +158,24 @@ dmabufmgr_wait_single(struct dmabufmgr_validate *val, bool intr, bool lazy,
 		unsigned long timeout)
 {
 	int ret = 0;
+	unsigned long sleep_time = NSEC_PER_MSEC / 1000;
+	int i;
+
+	for (i = 0; i < val->num_fences && !ret; i++) {
+
+		if (time_after_eq(jiffies, timeout)) {
+			ret = -EBUSY;
+			break;
+		}
+
+		ret = dma_fence_wait(val->fences[i], intr, jiffies - timeout);
+
+		/* if fence has already passed, continue on.. */
+		if (ret == -ENOENT) {
+			ret = 0;
+			continue;
+		}
+	}
 
 	return ret;
 }
