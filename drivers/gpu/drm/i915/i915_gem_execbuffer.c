@@ -34,6 +34,7 @@
 #include "intel_drv.h"
 #include <linux/dma_remapping.h>
 #include <linux/dma-buf-mgr.h>
+#include <linux/dma-bikeshed-fence.h>
 
 struct change_domains {
 	uint32_t invalidate_domains;
@@ -582,7 +583,7 @@ i915_gem_execbuffer_reserve(struct intel_ring_buffer *ring,
 	}
 
 	if (!list_empty(prime_val)) {
-		ret = dmabufmgr_eu_reserve_buffers(prime_val);
+		ret = dmabufmgr_reserve_buffers(prime_val);
 		if (ret)
 			return ret;
 	}
@@ -748,7 +749,7 @@ i915_gem_execbuffer_relocate_slow(struct drm_device *dev,
 	/* We may process another execbuffer during the unlock... */
 
 	if (!list_empty(prime_val))
-		dmabufmgr_eu_backoff_reservation(prime_val);
+		dmabufmgr_backoff_reservation(prime_val);
 	while (!list_empty(prime_val)) {
 		struct dmabufmgr_validate *val;
 		val = list_first_entry(prime_val, typeof(*val), head);
@@ -1065,6 +1066,12 @@ i915_reset_gen7_sol_offsets(struct drm_device *dev,
 	return 0;
 }
 
+static int i915_enable_signaling(struct dma_bikeshed_fence *fence)
+{
+	/* do something here to trigger an irq that will call dma_fence_signal() */
+	return 0;
+}
+
 static int
 i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		       struct drm_file *file,
@@ -1303,7 +1310,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 			goto err;
 	}
 
-	ret = dmabufmgr_eu_wait_completed_cpu(&prime_val, true, true);
+	ret = dmabufmgr_wait_completed_cpu(&prime_val, true, true);
 	if (ret)
 		goto err;
 
@@ -1332,17 +1339,22 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	i915_gem_execbuffer_move_to_active(&objects, ring, seqno);
 	i915_gem_execbuffer_retire_commands(dev, file, ring);
 	if (!list_empty(&prime_val)) {
-		BUG_ON(!ring->sync_buf);
+		struct dma_bikeshed_fence *fence;
+
 		WARN_ON_ONCE(seqno == ring->outstanding_lazy_request);
 
-		dmabufmgr_eu_fence_buffer_objects(ring->sync_buf,
-						  ring->sync_seqno_ofs,
-						  seqno, &prime_val);
+		fence = dma_bikeshed_fence_create(ring->sync_buf,
+				ring->sync_seqno_ofs, seqno,
+				i915_enable_signaling);
+
+		dmabufmgr_fence_buffer_objects(&fence->base, &prime_val);
+
+		dma_fence_put(&fence->base);
 	}
 	goto out;
 
 err:
-	dmabufmgr_eu_backoff_reservation(&prime_val);
+	dmabufmgr_backoff_reservation(&prime_val);
 out:
 	while (!list_empty(&prime_val)) {
 		struct dmabufmgr_validate *val;
