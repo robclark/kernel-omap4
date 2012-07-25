@@ -224,10 +224,6 @@ struct hdmi_ip_data {
 	void __iomem	*base_pllctrl;
 	void __iomem	*base_txphyctrl;
 	void __iomem	*base_core;
-	unsigned long	core_sys_offset;
-	unsigned long	core_av_offset;
-	unsigned long	pll_offset;
-	unsigned long	phy_offset;
 	const struct ti_hdmi_ip_ops *ops;
 	struct hdmi_config cfg;
 	struct hdmi_pll_info pll_data;
