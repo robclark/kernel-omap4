@@ -4315,7 +4315,7 @@ static struct omap_hwmod_addr_space omap54xx_dss_hdmi_addrs[] = {
 		.pa_end		= 0x5804033f,
 	},
 	{
-		.name		= "dwc_hdmi_tx",
+		.name		= "hdmi_core",
 		.pa_start	= 0x58060000,
 		.pa_end		= 0x58078fff,
 	},
