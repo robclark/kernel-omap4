@@ -35,6 +35,9 @@
 #include "ti_hdmi_5xxx_ip.h"
 #include "dss.h"
 
+/* define here the required offset inside the core address space */
+#define HDMI_CORE_SYS 0
+
 static const struct csc_table csc_table_deepcolor[4] = {
 	/* HDMI_DEEP_COLOR_24BIT */
 	[0] = { 7036, 0, 0, 32,
@@ -68,7 +71,7 @@ static inline u32 hdmi_read_reg(void __iomem *base_addr,
 
 static inline void __iomem *hdmi_core_sys_base(struct hdmi_ip_data *ip_data)
 {
-	return ip_data->base_wp + ip_data->core_sys_offset;
+	return ip_data->base_core + HDMI_CORE_SYS;
 }
 
 static inline int hdmi_wait_for_bit_change(void __iomem *base_addr,
