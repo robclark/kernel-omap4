@@ -221,6 +221,9 @@ struct hdmi_core_infoframe_avi {
 
 struct hdmi_ip_data {
 	void __iomem	*base_wp;	/* HDMI wrapper */
+	void __iomem	*base_pllctrl;
+	void __iomem	*base_txphyctrl;
+	void __iomem	*base_core;
 	unsigned long	core_sys_offset;
 	unsigned long	core_av_offset;
 	unsigned long	pll_offset;
