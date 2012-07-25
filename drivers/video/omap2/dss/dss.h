@@ -134,7 +134,7 @@ struct dispc_clock_info {
 struct dsi_clock_info {
 	/* rates that we get with dividers below */
 	unsigned long fint;
-	unsigned long clkinxddr;
+	unsigned long clkin4ddr;
 	unsigned long clkin;
 	unsigned long dsi_pll_hsdiv_dispc_clk;	/* OMAP3: DSI1_PLL_CLK
 						 * OMAP4: PLLx_CLK1 */
@@ -445,7 +445,7 @@ static inline unsigned long venc_get_pixel_clock(void)
 #endif
 
 /* HDMI */
-#if defined(CONFIG_OMAP4_DSS_HDMI) || defined(CONFIG_OMAP5_DSS_HDMI)
+#ifdef CONFIG_OMAP4_DSS_HDMI
 int hdmi_init_platform_driver(void) __init;
 void hdmi_uninit_platform_driver(void) __exit;
 unsigned long hdmi_get_pixel_clock(void);
@@ -463,13 +463,6 @@ int omapdss_hdmi_display_check_timing(struct omap_dss_device *dssdev,
 					struct omap_video_timings *timings);
 int omapdss_hdmi_read_edid(u8 *buf, int len);
 bool omapdss_hdmi_detect(void);
-int omapdss_hdmi_get_range(void);
-int omapdss_hdmi_set_range(int range);
-int omapdss_hdmi_get_deepcolor(void);
-int omapdss_hdmi_set_deepcolor(struct omap_dss_device *dssdev, int val,
-		bool hdmi_restart);
-int omapdss_hdmi_display_3d_enable(struct omap_dss_device *dssdev,
-					struct s3d_disp_info *info, int code);
 int hdmi_panel_init(void);
 void hdmi_panel_exit(void);
 #ifdef CONFIG_OMAP4_DSS_HDMI_AUDIO

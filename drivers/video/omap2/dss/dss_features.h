@@ -20,7 +20,7 @@
 #ifndef __OMAP2_DSS_FEATURES_H
 #define __OMAP2_DSS_FEATURES_H
 
-#if defined(CONFIG_OMAP4_DSS_HDMI) || defined(CONFIG_OMAP5_DSS_HDMI)
+#if defined(CONFIG_OMAP4_DSS_HDMI)
 #include "ti_hdmi.h"
 #endif
 
@@ -63,8 +63,6 @@ enum dss_feat_id {
 	/* An unknown HW bug causing the normal FIFO thresholds not to work */
 	FEAT_OMAP3_DSI_FIFO_BUG,
 	FEAT_BURST_2D,
-	FEAT_DSI_PLL_SELFREQDCO,
-	FEAT_DSI_PLL_REFSEL,
 };
 
 /* DSS register field id */
@@ -96,7 +94,6 @@ enum dss_range_param {
 	FEAT_PARAM_LINEWIDTH,
 	FEAT_PARAM_MGR_WIDTH,
 	FEAT_PARAM_MGR_HEIGHT,
-	FEAT_PARAM_HDMI_MAXPCLK,
 };
 
 /* DSS Feature Functions */
@@ -115,14 +112,11 @@ u32 dss_feat_get_buffer_size_unit(void);	/* in bytes */
 u32 dss_feat_get_burst_size_unit(void);		/* in bytes */
 
 bool dss_feat_rotation_type_supported(enum omap_dss_rotation_type rot_type);
-int dss_feat_get_dsi_ddr_div(void);
-
-unsigned long dss_feat_get_hdmi_core_sys_offset(void);
 
 bool dss_has_feature(enum dss_feat_id id);
 void dss_feat_get_reg_field(enum dss_feat_reg_field id, u8 *start, u8 *end);
 void dss_features_init(void);
-#if defined(CONFIG_OMAP4_DSS_HDMI) || defined(CONFIG_OMAP5_DSS_HDMI)
+#if defined(CONFIG_OMAP4_DSS_HDMI)
 void dss_init_hdmi_ip_ops(struct hdmi_ip_data *ip_data);
 #endif
 #endif

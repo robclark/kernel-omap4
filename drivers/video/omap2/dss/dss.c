@@ -437,9 +437,6 @@ int dss_calc_clock_rates(struct dss_clock_info *cinfo)
 		if (cpu_is_omap3630() || cpu_is_omap44xx())
 			fck_div_max = 32;
 
-		if (cpu_is_omap54xx())
-			fck_div_max = 64;
-
 		if (cinfo->fck_div > fck_div_max || cinfo->fck_div == 0)
 			return -EINVAL;
 
@@ -486,7 +483,7 @@ int dss_get_clock_div(struct dss_clock_info *cinfo)
 
 		prate = clk_get_rate(clk_get_parent(dss.dpll4_m4_ck));
 
-		if (cpu_is_omap3630() || cpu_is_omap44xx() || cpu_is_omap54xx())
+		if (cpu_is_omap3630() || cpu_is_omap44xx())
 			cinfo->fck_div = prate / (cinfo->fck);
 		else
 			cinfo->fck_div = prate / (cinfo->fck / 2);
@@ -567,13 +564,10 @@ retry:
 		if (cpu_is_omap3630() || cpu_is_omap44xx())
 			fck_div_max = 32;
 
-		if (cpu_is_omap54xx())
-			fck_div_max = 64;
-
 		for (fck_div = fck_div_max; fck_div > 0; --fck_div) {
 			struct dispc_clock_info cur_dispc;
 
-			if (fck_div_max == 32 || fck_div_max == 64)
+			if (fck_div_max == 32)
 				fck = prate / fck_div;
 			else
 				fck = prate / fck_div * 2;
@@ -695,13 +689,6 @@ static int dss_get_clocks(void)
 			r = PTR_ERR(clk);
 			goto err;
 		}
-	} else if (cpu_is_omap54xx()) {
-		clk = clk_get(NULL, "dpll_per_h12x2_ck");
-		if (IS_ERR(clk)) {
-			DSSERR("Failed to get dpll_per_h12x2_ck\n");
-			r = PTR_ERR(clk);
-			goto err;
-		}
 	} else { /* omap24xx */
 		clk = NULL;
 	}
@@ -732,9 +719,6 @@ static int dss_runtime_get(void)
 
 	DSSDBG("dss_runtime_get\n");
 
-	if (!pm_runtime_enabled(&dss.pdev->dev))
-		return 0;
-
 	r = pm_runtime_get_sync(&dss.pdev->dev);
 	WARN_ON(r < 0);
 	return r < 0 ? r : 0;
@@ -746,11 +730,8 @@ static void dss_runtime_put(void)
 
 	DSSDBG("dss_runtime_put\n");
 
-	if (!pm_runtime_enabled(&dss.pdev->dev))
-		return;
-
 	r = pm_runtime_put_sync(&dss.pdev->dev);
-	WARN_ON(r < 0 && r != -EBUSY);
+	WARN_ON(r < 0 && r != -ENOSYS && r != -EBUSY);
 }
 
 /* DEBUGFS */

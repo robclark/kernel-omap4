@@ -42,7 +42,6 @@
 #define HDMI_WP_AUDIO_CFG2			0x84
 #define HDMI_WP_AUDIO_CTRL			0x88
 #define HDMI_WP_AUDIO_DATA			0x8C
-#define HDMI_WP_IRQSTATUS_CORE                  0x1
 
 /* HDMI IP Core System */
 
@@ -174,7 +173,6 @@
 #define HDMI_TXPHY_DIGITAL_CTRL			0x4
 #define HDMI_TXPHY_POWER_CTRL			0x8
 #define HDMI_TXPHY_PAD_CFG_CTRL			0xC
-#define HDMI_TXPHY_BIST_CONTROL			0x1C
 
 #define REG_FLD_MOD(base, idx, val, start, end) \
 	hdmi_write_reg(base, idx, FLD_MOD(hdmi_read_reg(base, idx),\
@@ -435,17 +433,4 @@ struct hdmi_core_audio_config {
 	bool					en_spdif;
 };
 
-void hdmi_wp_video_config_timing(struct hdmi_ip_data *ip_data,
-				struct omap_video_timings *timings);
-void hdmi_wp_video_config_interface(struct hdmi_ip_data *ip_data);
-void hdmi_wp_video_config_format(struct hdmi_ip_data *ip_data,
-				struct hdmi_video_format *video_fmt);
-void hdmi_wp_video_init_format(struct hdmi_video_format *video_fmt,
-				struct omap_video_timings *timings,
-				struct hdmi_config *param);
-void hdmi_wp_init(struct omap_video_timings *timings,
-			struct hdmi_video_format *video_fmt,
-			struct hdmi_irq_vector *irq_enable);
-void hdmi_wp_irq_enable(struct hdmi_ip_data *ip_data,
-			struct hdmi_irq_vector *irq_enable);
 #endif

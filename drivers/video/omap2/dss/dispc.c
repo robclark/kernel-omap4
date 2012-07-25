@@ -372,9 +372,6 @@ int dispc_runtime_get(void)
 
 	DSSDBG("dispc_runtime_get\n");
 
-	if (!pm_runtime_enabled(&dispc.pdev->dev))
-		return 0;
-
 	r = pm_runtime_get_sync(&dispc.pdev->dev);
 	WARN_ON(r < 0);
 	return r < 0 ? r : 0;
@@ -386,11 +383,8 @@ void dispc_runtime_put(void)
 
 	DSSDBG("dispc_runtime_put\n");
 
-	if (!pm_runtime_enabled(&dispc.pdev->dev))
-		return;
-
 	r = pm_runtime_put_sync(&dispc.pdev->dev);
-	WARN_ON(r < 0);
+	WARN_ON(r < 0 && r != -ENOSYS);
 }
 
 static inline bool dispc_mgr_is_lcd(enum omap_channel channel)
@@ -985,8 +979,6 @@ static void dispc_mgr_set_size(enum omap_channel channel, u16 width,
 {
 	u32 val;
 
-	BUG_ON(width > dss_feat_get_param_max(FEAT_PARAM_MGR_WIDTH) ||
-		height > dss_feat_get_param_max(FEAT_PARAM_MGR_HEIGHT));
 	val = FLD_VAL(height - 1, 26, 16) | FLD_VAL(width - 1, 10, 0);
 	dispc_write_reg(DISPC_SIZE_MGR(channel), val);
 }
@@ -1041,11 +1033,6 @@ void dispc_ovl_set_fifo_threshold(enum omap_plane plane, u32 low, u32 high)
 	dispc_write_reg(DISPC_OVL_FIFO_THRESHOLD(plane),
 			FLD_VAL(high, hi_start, hi_end) |
 			FLD_VAL(low, lo_start, lo_end));
-
-	if (dss_has_feature(FEAT_PRELOAD)) {
-		/* might as well set it to be the same high ..*/
-		dispc_write_reg(DISPC_OVL_PRELOAD(plane), min((u32)high, (u32)0xfff));
-	}
 }
 
 void dispc_enable_fifomerge(bool enable)
@@ -2254,8 +2241,10 @@ int dispc_ovl_enable(enum omap_plane plane, bool enable)
 {
 	DSSDBG("dispc_enable_plane %d, %d\n", plane, enable);
 
-	// XXX quick hack.. give WB buffers to gfx:
-	dispc_write_reg(DISPC_GLOBAL_BUFFER, 0x006D2240);
+	if (cpu_is_omap44xx()) {
+		// XXX quick hack.. give WB buffers to gfx:
+		dispc_write_reg(DISPC_GLOBAL_BUFFER, 0x006D2240);
+	}
 
 	REG_FLD_MOD(DISPC_OVL_ATTRIBUTES(plane), enable ? 1 : 0, 0, 0);
 
@@ -2710,9 +2699,8 @@ void dispc_mgr_set_timings(enum omap_channel channel,
 
 		source = dss_get_hdmi_venc_clk_source();
 
-// Hack!
-//		if (source == DSS_VENC_TV_CLK)
-//			t.y_res /= 2;
+		if (source == DSS_VENC_TV_CLK)
+			t.y_res /= 2;
 	}
 
 	dispc_mgr_set_size(channel, t.x_res, t.y_res);
