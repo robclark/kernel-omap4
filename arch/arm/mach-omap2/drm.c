@@ -52,8 +52,16 @@ static int __init omap_init_drm(void)
 			oh->name);
 	}
 
-	return platform_device_register(&omap_drm_device);
+	/* lookup and populate DSS information: */
+	oh = omap_hwmod_lookup("dss_dispc");
+	pdev = omap_device_build("omapdrm", -1, oh, NULL, 0, NULL, 0,
+			false);
+	WARN(IS_ERR(pdev), "Could not build omap_device for omapdrm\n");
 
+	if (!pdev)
+		return -EINVAL;
+
+	return 0;
 }
 
 arch_initcall(omap_init_drm);
