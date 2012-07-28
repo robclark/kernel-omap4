@@ -370,6 +370,8 @@ int dispc_init_platform_driver(void) __init;
 void dispc_uninit_platform_driver(void) __exit;
 void dispc_dump_clocks(struct seq_file *s);
 void dispc_irq_handler(void);
+u32 dispc_read_irqs(void);
+void dispc_clear_irqs(u32 mask);
 
 int dispc_runtime_get(void);
 void dispc_runtime_put(void);

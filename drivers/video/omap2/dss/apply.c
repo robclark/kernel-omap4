@@ -699,6 +699,8 @@ static void dss_write_regs(void)
 
 static void dss_set_go_bits(void)
 {
+	dump_stack();
+#if 0
 	const int num_mgrs = omap_dss_get_num_overlay_managers();
 	int i;
 
@@ -722,7 +724,7 @@ static void dss_set_go_bits(void)
 
 		dispc_mgr_go(mgr->id);
 	}
-
+#endif
 }
 
 static void mgr_clear_shadow_dirty(struct omap_overlay_manager *mgr)
