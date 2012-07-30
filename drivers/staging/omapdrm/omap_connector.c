@@ -31,6 +31,7 @@
 struct omap_connector {
 	struct drm_connector base;
 	struct omap_dss_device *dssdev;
+	struct drm_encoder *encoder;
 };
 
 static inline void copy_timings_omap_to_drm(struct drm_display_mode *mode,
@@ -114,7 +115,7 @@ static void omap_connector_dpms(struct drm_connector *connector, int mode)
 		drm_helper_connector_dpms(connector, mode);
 }
 
-enum drm_connector_status omap_connector_detect(
+static enum drm_connector_status omap_connector_detect(
 		struct drm_connector *connector, bool force)
 {
 	struct omap_connector *omap_connector = to_omap_connector(connector);
@@ -242,32 +243,8 @@ static int omap_connector_mode_valid(struct drm_connector *connector,
 struct drm_encoder *omap_connector_attached_encoder(
 		struct drm_connector *connector)
 {
-	int i;
 	struct omap_connector *omap_connector = to_omap_connector(connector);
-
-	for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++) {
-		struct drm_mode_object *obj;
-
-		if (connector->encoder_ids[i] == 0)
-			break;
-
-		obj = drm_mode_object_find(connector->dev,
-				connector->encoder_ids[i],
-				DRM_MODE_OBJECT_ENCODER);
-
-		if (obj) {
-			struct drm_encoder *encoder = obj_to_encoder(obj);
-			struct omap_overlay_manager *mgr =
-					omap_encoder_get_manager(encoder);
-			DBG("%s: found %s", omap_connector->dssdev->name,
-					mgr->name);
-			return encoder;
-		}
-	}
-
-	DBG("%s: no encoder", omap_connector->dssdev->name);
-
-	return NULL;
+	return omap_connector->encoder;
 }
 
 static const struct drm_connector_funcs omap_connector_funcs = {
@@ -284,16 +261,17 @@ static const struct drm_connector_helper_funcs omap_connector_helper_funcs = {
 };
 
 /* called from encoder when mode is set, to propagate settings to the dssdev */
-void omap_connector_mode_set(struct drm_connector *connector,
-		struct drm_display_mode *mode)
+int omap_connector_mode_set(struct drm_connector *connector,
+		struct drm_display_mode *mode,
+		struct omap_video_timings *timings)
 {
 	struct drm_device *dev = connector->dev;
 	struct omap_connector *omap_connector = to_omap_connector(connector);
 	struct omap_dss_device *dssdev = omap_connector->dssdev;
 	struct omap_dss_driver *dssdrv = dssdev->driver;
-	struct omap_video_timings timings;
+	int ret;
 
-	copy_timings_drm_to_omap(&timings, mode);
+	copy_timings_drm_to_omap(timings, mode);
 
 	DBG("%s: set mode: %d:\"%s\" %d %d %d %d %d %d %d %d %d %d 0x%x 0x%x",
 			omap_connector->dssdev->name,
@@ -303,12 +281,18 @@ void omap_connector_mode_set(struct drm_connector *connector,
 			mode->vdisplay, mode->vsync_start,
 			mode->vsync_end, mode->vtotal, mode->type, mode->flags);
 
-	if (dssdrv->check_timings(dssdev, &timings)) {
-		dev_err(dev->dev, "could not set timings\n");
-		return;
+	if (connector->encoder && connector->encoder->crtc)
+		dssdev->manager_id = omap_crtc_channel(connector->encoder->crtc);
+
+	ret = dssdrv->check_timings(dssdev, timings);
+	if (ret) {
+		dev_err(dev->dev, "could not set timings: %d\n", ret);
+		return ret;
 	}
 
-	dssdrv->set_timings(dssdev, &timings);
+	dssdrv->set_timings(dssdev, timings);
+
+	return 0;
 }
 
 /* flush an area of the framebuffer (in case of manual update display that
@@ -325,7 +309,8 @@ void omap_connector_flush(struct drm_connector *connector,
 
 /* initialize connector */
 struct drm_connector *omap_connector_init(struct drm_device *dev,
-		int connector_type, struct omap_dss_device *dssdev)
+		int connector_type, struct omap_dss_device *dssdev,
+		struct drm_encoder *encoder)
 {
 	struct drm_connector *connector = NULL;
 	struct omap_connector *omap_connector;
@@ -341,6 +326,8 @@ struct drm_connector *omap_connector_init(struct drm_device *dev,
 	}
 
 	omap_connector->dssdev = dssdev;
+	omap_connector->encoder = encoder;
+
 	connector = &omap_connector->base;
 
 	drm_connector_init(dev, connector, &omap_connector_funcs,

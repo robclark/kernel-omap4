@@ -28,6 +28,43 @@
 #include <plat/drm.h>
 #include "omap_drm.h"
 
+/* APIs we need from dispc.. TODO omapdss should export these */
+void dispc_clear_irqs(u32 mask);
+u32 dispc_read_irqs(void);
+void dispc_set_irqs(u32 mask);
+u32 dispc_error_irqs(void);
+int dispc_runtime_get(void);
+int dispc_runtime_put(void);
+
+void dispc_mgr_enable(enum omap_channel channel, bool enable);
+void dispc_mgr_setup(enum omap_channel channel,
+		struct omap_overlay_manager_info *info);
+void dispc_mgr_set_timings(enum omap_channel channel,
+		struct omap_video_timings *timings);
+bool dispc_mgr_go(enum omap_channel channel);
+bool dispc_mgr_go_busy(enum omap_channel channel);
+u32 dispc_mgr_get_vsync_irq(enum omap_channel channel);
+u32 dispc_mgr_get_framedone_irq(enum omap_channel channel);
+
+int dispc_ovl_enable(enum omap_plane plane, bool enable);
+void dispc_ovl_set_channel_out(enum omap_plane plane,
+		enum omap_channel channel);
+int dispc_ovl_setup(enum omap_plane plane, struct omap_overlay_info *oi,
+		bool ilace, bool replication,
+		const struct omap_video_timings *mgr_timings);
+
+int dss_feat_get_num_mgrs(void);
+int dss_feat_get_num_ovls(void);
+enum omap_display_type dss_feat_get_supported_displays(enum omap_channel channel);
+enum omap_color_mode dss_feat_get_supported_color_modes(enum omap_plane plane);
+
+void dispc_dump_regs(struct seq_file *s);
+void dispc_dump_clocks(struct seq_file *s);
+void dss_dump_clocks(struct seq_file *s);
+void dss_dump_regs(struct seq_file *s);
+void hdmi_dump_regs(struct seq_file *s);
+
+
 #define DBG(fmt, ...) DRM_DEBUG(fmt"\n", ##__VA_ARGS__)
 #define VERB(fmt, ...) if (0) DRM_DEBUG(fmt, ##__VA_ARGS__) /* verbose debug */
 
@@ -38,6 +75,43 @@
  * data..
  */
 #define MAX_MAPPERS 2
+
+/* parameters which describe (unrotated) coordinates of scanout within a fb: */
+struct omap_drm_window {
+	uint32_t rotation;
+	int32_t  crtc_x, crtc_y;		/* signed because can be offscreen */
+	uint32_t crtc_w, crtc_h;
+	uint32_t src_x, src_y;
+	uint32_t src_w, src_h;
+};
+
+/* Once GO bit is set, we can't make further updates to shadowed registers
+ * until the GO bit is cleared.  So various parts in the kms code that need
+ * to update shadowed registers queue up a pair of callbacks, pre_apply
+ * which is called before setting GO bit, and post_apply that is called
+ * after GO bit is cleared.  The encoder manages the queuing, and everyone
+ * else goes thru omap_encoder_apply() using these callbacks so that the
+ * code which has to deal w/ GO bit state is centralized.
+ */
+struct omap_drm_apply {
+	struct list_head pending_node, queued_node;
+	bool queued;
+	void (*pre_apply)(struct omap_drm_apply *apply);
+	void (*post_apply)(struct omap_drm_apply *apply);
+};
+
+/* For transiently registering for different DSS irqs that various parts
+ * of the KMS code need during setup/configuration.  We these are not
+ * necessarily the same as what drm_vblank_get/put() are requesting, and
+ * the hysteresis in drm_vblank_put() is not necessarily desirable for
+ * internal housekeeping related irq usage.
+ */
+struct omap_drm_irq {
+	struct list_head node;
+	uint32_t irqmask;
+	bool registered;
+	void (*irq)(struct omap_drm_irq *irq, uint32_t irqstatus);
+};
 
 struct omap_drm_private {
 	unsigned int num_crtcs;
@@ -56,12 +130,18 @@ struct omap_drm_private {
 
 	struct workqueue_struct *wq;
 
+	/* list of GEM objects: */
 	struct list_head obj_list;
 
 	bool has_dmm;
 
 	/* properties: */
 	struct drm_property *rotation_prop;
+
+	/* irq handling: */
+	struct list_head irq_list;    /* list of omap_drm_irq */
+	uint32_t vblank_mask;         /* irq bits set for userspace vblank */
+	struct omap_drm_irq error_handler;
 };
 
 /* this should probably be in drm-core to standardize amongst drivers */
@@ -72,15 +152,6 @@ struct omap_drm_private {
 #define DRM_REFLECT_X	4
 #define DRM_REFLECT_Y	5
 
-/* parameters which describe (unrotated) coordinates of scanout within a fb: */
-struct omap_drm_window {
-	uint32_t rotation;
-	int32_t  crtc_x, crtc_y;		/* signed because can be offscreen */
-	uint32_t crtc_w, crtc_h;
-	uint32_t src_x, src_y;
-	uint32_t src_w, src_h;
-};
-
 #ifdef CONFIG_DEBUG_FS
 int omap_debugfs_init(struct drm_minor *minor);
 void omap_debugfs_cleanup(struct drm_minor *minor);
@@ -89,42 +160,50 @@ void omap_gem_describe(struct drm_gem_object *obj, struct seq_file *m);
 void omap_gem_describe_objects(struct list_head *list, struct seq_file *m);
 #endif
 
+int omap_irq_enable_vblank(struct drm_device *dev, int crtc);
+void omap_irq_disable_vblank(struct drm_device *dev, int crtc);
+irqreturn_t omap_irq_handler(DRM_IRQ_ARGS);
+void omap_irq_preinstall(struct drm_device *dev);
+int omap_irq_postinstall(struct drm_device *dev);
+void omap_irq_uninstall(struct drm_device *dev);
+void omap_irq_register(struct drm_device *dev, struct omap_drm_irq *irq);
+void omap_irq_unregister(struct drm_device *dev, struct omap_drm_irq *irq);
+
 struct drm_fb_helper *omap_fbdev_init(struct drm_device *dev);
 void omap_fbdev_free(struct drm_device *dev);
 
+const struct omap_video_timings *omap_crtc_timings(struct drm_crtc *crtc);
+enum omap_channel omap_crtc_channel(struct drm_crtc *crtc);
+int omap_crtc_apply(struct drm_crtc *crtc,
+		struct omap_drm_apply *apply);
 struct drm_crtc *omap_crtc_init(struct drm_device *dev,
-		struct omap_overlay *ovl, int id);
+		struct drm_plane *plane, enum omap_channel channel, int id);
 
 struct drm_plane *omap_plane_init(struct drm_device *dev,
-		struct omap_overlay *ovl, unsigned int possible_crtcs,
-		bool priv);
+		int plane_id, bool private_plane);
 int omap_plane_dpms(struct drm_plane *plane, int mode);
 int omap_plane_mode_set(struct drm_plane *plane,
 		struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		int crtc_x, int crtc_y,
 		unsigned int crtc_w, unsigned int crtc_h,
 		uint32_t src_x, uint32_t src_y,
-		uint32_t src_w, uint32_t src_h);
-void omap_plane_on_endwin(struct drm_plane *plane,
+		uint32_t src_w, uint32_t src_h,
 		void (*fxn)(void *), void *arg);
 void omap_plane_install_properties(struct drm_plane *plane,
 		struct drm_mode_object *obj);
 int omap_plane_set_property(struct drm_plane *plane,
 		struct drm_property *property, uint64_t val);
 
-struct drm_encoder *omap_encoder_init(struct drm_device *dev,
-		struct omap_overlay_manager *mgr);
-struct omap_overlay_manager *omap_encoder_get_manager(
-		struct drm_encoder *encoder);
+struct drm_encoder *omap_encoder_init(struct drm_device *dev);
 struct drm_encoder *omap_connector_attached_encoder(
 		struct drm_connector *connector);
-enum drm_connector_status omap_connector_detect(
-		struct drm_connector *connector, bool force);
 
 struct drm_connector *omap_connector_init(struct drm_device *dev,
-		int connector_type, struct omap_dss_device *dssdev);
-void omap_connector_mode_set(struct drm_connector *connector,
-		struct drm_display_mode *mode);
+		int connector_type, struct omap_dss_device *dssdev,
+		struct drm_encoder *encoder);
+int omap_connector_mode_set(struct drm_connector *connector,
+		struct drm_display_mode *mode,
+		struct omap_video_timings *timings);
 void omap_connector_flush(struct drm_connector *connector,
 		int x, int y, int w, int h);
 
@@ -202,6 +281,27 @@ static inline int align_pitch(int pitch, int width, int bpp)
 	 * restrictive stride requirement..
 	 */
 	return ALIGN(pitch, 8 * bytespp);
+}
+
+static inline enum omap_channel pipe2chan(int pipe)
+{
+	int num_mgrs = dss_feat_get_num_mgrs();
+
+	/*
+	 * We usually don't want to create a CRTC for each manager,
+	 * at least not until we have a way to expose private planes
+	 * to userspace.  Otherwise there would not be enough video
+	 * pipes left for drm planes.  The higher #'d managers tend
+	 * to have more features so start in reverse order.
+	 */
+	return num_mgrs - pipe - 1;
+}
+
+/* map crtc to vblank mask */
+static inline uint32_t pipe2vbl(int crtc)
+{
+	enum omap_channel channel = pipe2chan(crtc);
+	return dispc_mgr_get_vsync_irq(channel);
 }
 
 /* should these be made into common util helpers?
