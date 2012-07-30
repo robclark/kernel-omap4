@@ -221,6 +221,7 @@ struct drm_display_info {
 };
 
 struct drm_framebuffer_funcs {
+	/* note: use drm_framebuffer_unreference() */
 	void (*destroy)(struct drm_framebuffer *framebuffer);
 	int (*create_handle)(struct drm_framebuffer *fb,
 			     struct drm_file *file_priv,
@@ -245,6 +246,7 @@ struct drm_framebuffer_funcs {
 
 struct drm_framebuffer {
 	struct drm_device *dev;
+	struct kref refcount;
 	struct list_head head;
 	struct drm_mode_object base;
 	const struct drm_framebuffer_funcs *funcs;
@@ -937,6 +939,8 @@ extern void drm_framebuffer_set_object(struct drm_device *dev,
 extern int drm_framebuffer_init(struct drm_device *dev,
 				struct drm_framebuffer *fb,
 				const struct drm_framebuffer_funcs *funcs);
+void drm_framebuffer_unreference(struct drm_framebuffer *fb);
+void drm_framebuffer_reference(struct drm_framebuffer *fb);
 extern void drm_framebuffer_cleanup(struct drm_framebuffer *fb);
 extern int drmfb_probe(struct drm_device *dev, struct drm_crtc *crtc);
 extern int drmfb_remove(struct drm_device *dev, struct drm_framebuffer *fb);
