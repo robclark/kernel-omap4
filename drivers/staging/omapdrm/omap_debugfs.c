@@ -25,6 +25,14 @@
 
 #ifdef CONFIG_DEBUG_FS
 
+static int dss_show(struct seq_file *m, void *arg)
+{
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	void (*fxn)(struct seq_file *s) = node->info_ent->data;
+	fxn(m);
+	return 0;
+}
+
 static int gem_show(struct seq_file *m, void *arg)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
@@ -88,6 +96,16 @@ static int fb_show(struct seq_file *m, void *arg)
 
 /* list of debufs files that are applicable to all devices */
 static struct drm_info_list omap_debugfs_list[] = {
+	{"dispc_regs",   dss_show, 0, dispc_dump_regs},
+	{"dispc_clocks", dss_show, 0, dispc_dump_clocks},
+	{"dss_clocks",   dss_show, 0, dss_dump_clocks},
+	{"dss_regs",     dss_show, 0, dss_dump_regs},
+#ifdef CONFIG_OMAP2_DSS_DSI
+	{"dsi_clocks",   dss_show, 0, dsi_dump_clocks},
+#endif
+#ifdef CONFIG_OMAP4_DSS_HDMI
+	{"hdmi_regs",    dss_show, 0, hdmi_dump_regs},
+#endif
 	{"gem", gem_show, 0},
 	{"mm", mm_show, 0},
 	{"fb", fb_show, 0},
