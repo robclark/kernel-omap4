@@ -419,7 +419,7 @@ static int omap_modeset_init(struct drm_device *dev)
 
 	dev->mode_config.funcs = &omap_mode_config_funcs;
 
-	return 0;
+	return drm_irq_install(dev);
 }
 
 static void omap_modeset_free(struct drm_device *dev)
@@ -756,7 +756,9 @@ static void dev_lastclose(struct drm_device *dev)
 				priv->rotation_prop, 0);
 	}
 
+	mutex_lock(&dev->mode_config.mutex);
 	ret = drm_fb_helper_restore_fbdev_mode(priv->fbdev);
+	mutex_unlock(&dev->mode_config.mutex);
 	if (ret)
 		DBG("failed to restore crtc mode");
 }
@@ -778,60 +780,6 @@ static void dev_preclose(struct drm_device *dev, struct drm_file *file)
 static void dev_postclose(struct drm_device *dev, struct drm_file *file)
 {
 	DBG("postclose: dev=%p, file=%p", dev, file);
-}
-
-/**
- * enable_vblank - enable vblank interrupt events
- * @dev: DRM device
- * @crtc: which irq to enable
- *
- * Enable vblank interrupts for @crtc.  If the device doesn't have
- * a hardware vblank counter, this routine should be a no-op, since
- * interrupts will have to stay on to keep the count accurate.
- *
- * RETURNS
- * Zero on success, appropriate errno if the given @crtc's vblank
- * interrupt cannot be enabled.
- */
-static int dev_enable_vblank(struct drm_device *dev, int crtc)
-{
-	DBG("enable_vblank: dev=%p, crtc=%d", dev, crtc);
-	return 0;
-}
-
-/**
- * disable_vblank - disable vblank interrupt events
- * @dev: DRM device
- * @crtc: which irq to enable
- *
- * Disable vblank interrupts for @crtc.  If the device doesn't have
- * a hardware vblank counter, this routine should be a no-op, since
- * interrupts will have to stay on to keep the count accurate.
- */
-static void dev_disable_vblank(struct drm_device *dev, int crtc)
-{
-	DBG("disable_vblank: dev=%p, crtc=%d", dev, crtc);
-}
-
-static irqreturn_t dev_irq_handler(DRM_IRQ_ARGS)
-{
-	return IRQ_HANDLED;
-}
-
-static void dev_irq_preinstall(struct drm_device *dev)
-{
-	DBG("irq_preinstall: dev=%p", dev);
-}
-
-static int dev_irq_postinstall(struct drm_device *dev)
-{
-	DBG("irq_postinstall: dev=%p", dev);
-	return 0;
-}
-
-static void dev_irq_uninstall(struct drm_device *dev)
-{
-	DBG("irq_uninstall: dev=%p", dev);
 }
 
 static const struct vm_operations_struct omap_gem_vm_ops = {
@@ -863,12 +811,12 @@ static struct drm_driver omap_drm_driver = {
 		.preclose = dev_preclose,
 		.postclose = dev_postclose,
 		.get_vblank_counter = drm_vblank_count,
-		.enable_vblank = dev_enable_vblank,
-		.disable_vblank = dev_disable_vblank,
-		.irq_preinstall = dev_irq_preinstall,
-		.irq_postinstall = dev_irq_postinstall,
-		.irq_uninstall = dev_irq_uninstall,
-		.irq_handler = dev_irq_handler,
+		.enable_vblank = omap_irq_enable_vblank,
+		.disable_vblank = omap_irq_disable_vblank,
+		.irq_preinstall = omap_irq_preinstall,
+		.irq_postinstall = omap_irq_postinstall,
+		.irq_uninstall = omap_irq_uninstall,
+		.irq_handler = omap_irq_handler,
 		.reclaim_buffers = drm_core_reclaim_buffers,
 #ifdef CONFIG_DEBUG_FS
 		.debugfs_init = omap_debugfs_init,

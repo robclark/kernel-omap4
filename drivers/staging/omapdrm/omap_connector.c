@@ -284,16 +284,17 @@ static const struct drm_connector_helper_funcs omap_connector_helper_funcs = {
 };
 
 /* called from encoder when mode is set, to propagate settings to the dssdev */
-void omap_connector_mode_set(struct drm_connector *connector,
-		struct drm_display_mode *mode)
+int omap_connector_mode_set(struct drm_connector *connector,
+		struct drm_display_mode *mode,
+		struct omap_video_timings *timings)
 {
 	struct drm_device *dev = connector->dev;
 	struct omap_connector *omap_connector = to_omap_connector(connector);
 	struct omap_dss_device *dssdev = omap_connector->dssdev;
 	struct omap_dss_driver *dssdrv = dssdev->driver;
-	struct omap_video_timings timings;
+	int ret;
 
-	copy_timings_drm_to_omap(&timings, mode);
+	copy_timings_drm_to_omap(timings, mode);
 
 	DBG("%s: set mode: %d:\"%s\" %d %d %d %d %d %d %d %d %d %d 0x%x 0x%x",
 			omap_connector->dssdev->name,
@@ -303,12 +304,15 @@ void omap_connector_mode_set(struct drm_connector *connector,
 			mode->vdisplay, mode->vsync_start,
 			mode->vsync_end, mode->vtotal, mode->type, mode->flags);
 
-	if (dssdrv->check_timings(dssdev, &timings)) {
-		dev_err(dev->dev, "could not set timings\n");
-		return;
+	ret = dssdrv->check_timings(dssdev, timings);
+	if (ret) {
+		dev_err(dev->dev, "could not set timings: %d\n", ret);
+		return ret;
 	}
 
-	dssdrv->set_timings(dssdev, &timings);
+	dssdrv->set_timings(dssdev, timings);
+
+	return 0;
 }
 
 /* flush an area of the framebuffer (in case of manual update display that

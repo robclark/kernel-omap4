@@ -28,6 +28,31 @@
 #include <plat/drm.h>
 #include "omap_drm.h"
 
+/* APIs we need from dispc.. TODO omapdss should export these */
+void dispc_clear_irqs(u32 mask);
+u32 dispc_read_irqs(void);
+void dispc_set_irqs(u32 mask);
+u32 dispc_error_irqs(void);
+int dispc_runtime_get(void);
+int dispc_runtime_put(void);
+
+void dispc_mgr_enable(enum omap_channel channel, bool enable);
+void dispc_mgr_setup(enum omap_channel channel,
+		struct omap_overlay_manager_info *info);
+void dispc_mgr_set_timings(enum omap_channel channel,
+		struct omap_video_timings *timings);
+void dispc_mgr_go(enum omap_channel channel);
+bool dispc_mgr_go_busy(enum omap_channel channel);
+u32 dispc_mgr_get_vsync_irq(enum omap_channel channel);
+
+int dispc_ovl_enable(enum omap_plane plane, bool enable);
+void dispc_ovl_set_channel_out(enum omap_plane plane,
+		enum omap_channel channel);
+int dispc_ovl_setup(enum omap_plane plane, struct omap_overlay_info *oi,
+		bool ilace, bool replication,
+		const struct omap_video_timings *mgr_timings);
+
+
 #define DBG(fmt, ...) DRM_DEBUG(fmt"\n", ##__VA_ARGS__)
 #define VERB(fmt, ...) if (0) DRM_DEBUG(fmt, ##__VA_ARGS__) /* verbose debug */
 
@@ -81,6 +106,21 @@ struct omap_drm_window {
 	uint32_t src_w, src_h;
 };
 
+/* Once GO bit is set, we can't make further updates to shadowed registers
+ * until the GO bit is cleared.  So various parts in the kms code that need
+ * to update shadowed registers queue up a pair of callbacks, pre_apply
+ * which is called before setting GO bit, and post_apply that is called
+ * after GO bit is cleared.  The encoder manages the queuing, and everyone
+ * else goes thru omap_encoder_apply() using these callbacks so that the
+ * code which has to deal w/ GO bit state is centralized.
+ */
+struct omap_drm_apply {
+	struct list_head pending_node, queued_node;
+	bool queued;
+	void (*pre_apply)(struct omap_drm_apply *apply);
+	void (*post_apply)(struct omap_drm_apply *apply);
+};
+
 #ifdef CONFIG_DEBUG_FS
 int omap_debugfs_init(struct drm_minor *minor);
 void omap_debugfs_cleanup(struct drm_minor *minor);
@@ -89,9 +129,19 @@ void omap_gem_describe(struct drm_gem_object *obj, struct seq_file *m);
 void omap_gem_describe_objects(struct list_head *list, struct seq_file *m);
 #endif
 
+int omap_irq_enable_vblank(struct drm_device *dev, int crtc);
+void omap_irq_disable_vblank(struct drm_device *dev, int crtc);
+irqreturn_t omap_irq_handler(DRM_IRQ_ARGS);
+void omap_irq_preinstall(struct drm_device *dev);
+int omap_irq_postinstall(struct drm_device *dev);
+void omap_irq_uninstall(struct drm_device *dev);
+void omap_irq_enable(uint32_t mask);
+void omap_irq_disable(uint32_t mask);
+
 struct drm_fb_helper *omap_fbdev_init(struct drm_device *dev);
 void omap_fbdev_free(struct drm_device *dev);
 
+struct drm_encoder *omap_crtc_attached_encoder(struct drm_crtc *crtc);
 struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 		struct omap_overlay *ovl, int id);
 
@@ -104,8 +154,7 @@ int omap_plane_mode_set(struct drm_plane *plane,
 		int crtc_x, int crtc_y,
 		unsigned int crtc_w, unsigned int crtc_h,
 		uint32_t src_x, uint32_t src_y,
-		uint32_t src_w, uint32_t src_h);
-void omap_plane_on_endwin(struct drm_plane *plane,
+		uint32_t src_w, uint32_t src_h,
 		void (*fxn)(void *), void *arg);
 void omap_plane_install_properties(struct drm_plane *plane,
 		struct drm_mode_object *obj);
@@ -116,6 +165,12 @@ struct drm_encoder *omap_encoder_init(struct drm_device *dev,
 		struct omap_overlay_manager *mgr);
 struct omap_overlay_manager *omap_encoder_get_manager(
 		struct drm_encoder *encoder);
+const struct omap_video_timings *omap_encoder_timings(
+		struct drm_encoder *encoder);
+enum omap_channel omap_encoder_channel(struct drm_encoder *encoder);
+void omap_encoder_vblank(struct drm_encoder *encoder, uint32_t irqstatus);
+int omap_encoder_apply(struct drm_encoder *encoder,
+		struct omap_drm_apply *apply);
 struct drm_encoder *omap_connector_attached_encoder(
 		struct drm_connector *connector);
 enum drm_connector_status omap_connector_detect(
@@ -123,8 +178,9 @@ enum drm_connector_status omap_connector_detect(
 
 struct drm_connector *omap_connector_init(struct drm_device *dev,
 		int connector_type, struct omap_dss_device *dssdev);
-void omap_connector_mode_set(struct drm_connector *connector,
-		struct drm_display_mode *mode);
+int omap_connector_mode_set(struct drm_connector *connector,
+		struct drm_display_mode *mode,
+		struct omap_video_timings *timings);
 void omap_connector_flush(struct drm_connector *connector,
 		int x, int y, int w, int h);
 

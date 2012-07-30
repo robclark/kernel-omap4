@@ -33,7 +33,13 @@ struct omap_crtc {
 
 	/* if there is a pending flip, these will be non-null: */
 	struct drm_pending_vblank_event *event;
-	struct drm_framebuffer *old_fb;
+
+	/* for handling page flips without caring about what
+	 * the callback is called from.  Possibly we should just
+	 * make omap_gem always call the cb from the worker so
+	 * we don't have to care about this..
+	 */
+	struct work_struct work;
 };
 
 static void omap_crtc_destroy(struct drm_crtc *crtc)
@@ -78,7 +84,8 @@ static int omap_crtc_mode_set(struct drm_crtc *crtc,
 	return omap_plane_mode_set(plane, crtc, crtc->fb,
 			0, 0, mode->hdisplay, mode->vdisplay,
 			x << 16, y << 16,
-			mode->hdisplay << 16, mode->vdisplay << 16);
+			mode->hdisplay << 16, mode->vdisplay << 16,
+			NULL, NULL);
 }
 
 static void omap_crtc_prepare(struct drm_crtc *crtc)
@@ -102,10 +109,11 @@ static int omap_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 	struct drm_plane *plane = omap_crtc->plane;
 	struct drm_display_mode *mode = &crtc->mode;
 
-	return plane->funcs->update_plane(plane, crtc, crtc->fb,
+	return omap_plane_mode_set(plane, crtc, crtc->fb,
 			0, 0, mode->hdisplay, mode->vdisplay,
 			x << 16, y << 16,
-			mode->hdisplay << 16, mode->vdisplay << 16);
+			mode->hdisplay << 16, mode->vdisplay << 16,
+			NULL, NULL);
 }
 
 static void omap_crtc_load_lut(struct drm_crtc *crtc)
@@ -150,21 +158,31 @@ static void vblank_cb(void *arg)
 	}
 }
 
+static void page_flip_worker(struct work_struct *work)
+{
+	struct omap_crtc *omap_crtc =
+			container_of(work, struct omap_crtc, work);
+	struct drm_crtc *crtc = &omap_crtc->base;
+	struct drm_device *dev = crtc->dev;
+	struct drm_display_mode *mode = &crtc->mode;
+
+	mutex_lock(&dev->mode_config.mutex);
+	omap_plane_mode_set(omap_crtc->plane, crtc, crtc->fb,
+			0, 0, mode->hdisplay, mode->vdisplay,
+			crtc->x << 16, crtc->y << 16,
+			mode->hdisplay << 16, mode->vdisplay << 16,
+			vblank_cb, crtc);
+	mutex_unlock(&dev->mode_config.mutex);
+}
+
 static void page_flip_cb(void *arg)
 {
 	struct drm_crtc *crtc = arg;
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
-	struct drm_framebuffer *old_fb = omap_crtc->old_fb;
+	struct omap_drm_private *priv = crtc->dev->dev_private;
 
-	omap_crtc->old_fb = NULL;
-
-	omap_crtc_mode_set_base(crtc, crtc->x, crtc->y, old_fb);
-
-	/* really we'd like to setup the callback atomically w/ setting the
-	 * new scanout buffer to avoid getting stuck waiting an extra vblank
-	 * cycle.. for now go for correctness and later figure out speed..
-	 */
-	omap_plane_on_endwin(omap_crtc->plane, vblank_cb, crtc);
+	/* avoid assumptions about what ctxt we are called from: */
+	queue_work(priv->wq, &omap_crtc->work);
 }
 
 static int omap_crtc_page_flip_locked(struct drm_crtc *crtc,
@@ -181,7 +199,6 @@ static int omap_crtc_page_flip_locked(struct drm_crtc *crtc,
 		return -EINVAL;
 	}
 
-	omap_crtc->old_fb = crtc->fb;
 	omap_crtc->event = event;
 	crtc->fb = fb;
 
@@ -222,6 +239,18 @@ static const struct drm_crtc_helper_funcs omap_crtc_helper_funcs = {
 	.load_lut = omap_crtc_load_lut,
 };
 
+struct drm_encoder *omap_crtc_attached_encoder(struct drm_crtc *crtc)
+{
+	struct omap_drm_private *priv = crtc->dev->dev_private;
+	int i;
+
+	for (i = 0; i < priv->num_encoders; i++)
+		if (priv->encoders[i]->crtc == crtc)
+			return priv->encoders[i];
+
+	return NULL;
+}
+
 /* initialize crtc */
 struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 		struct omap_overlay *ovl, int id)
@@ -237,6 +266,8 @@ struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 	}
 
 	crtc = &omap_crtc->base;
+
+	INIT_WORK(&omap_crtc->work, page_flip_worker);
 
 	omap_crtc->plane = omap_plane_init(dev, ovl, (1 << id), true);
 	omap_crtc->plane->crtc = crtc;
