@@ -6830,7 +6830,7 @@ bool intel_get_load_detect_pipe(struct intel_encoder *intel_encoder,
 	if (!drm_crtc_helper_set_mode(crtc, mode, 0, 0, old_fb)) {
 		DRM_DEBUG_KMS("failed to set mode on load-detect pipe\n");
 		if (old->release_fb)
-			old->release_fb->funcs->destroy(old->release_fb);
+			drm_framebuffer_unreference(old->release_fb);
 		crtc->fb = old_fb;
 		return false;
 	}
@@ -6860,7 +6860,7 @@ void intel_release_load_detect_pipe(struct intel_encoder *intel_encoder,
 		drm_helper_disable_unused_functions(dev);
 
 		if (old->release_fb)
-			old->release_fb->funcs->destroy(old->release_fb);
+			drm_framebuffer_unreference(old->release_fb);
 
 		return;
 	}

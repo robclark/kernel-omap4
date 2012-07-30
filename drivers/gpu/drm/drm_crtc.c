@@ -292,6 +292,8 @@ int drm_framebuffer_init(struct drm_device *dev, struct drm_framebuffer *fb,
 {
 	int ret;
 
+	kref_init(&fb->refcount);
+
 	ret = drm_mode_object_get(dev, &fb->base, DRM_MODE_OBJECT_FB);
 	if (ret)
 		return ret;
@@ -304,6 +306,36 @@ int drm_framebuffer_init(struct drm_device *dev, struct drm_framebuffer *fb,
 	return 0;
 }
 EXPORT_SYMBOL(drm_framebuffer_init);
+
+static void drm_framebuffer_free(struct kref *kref)
+{
+	struct drm_framebuffer *fb =
+			container_of(kref, struct drm_framebuffer, refcount);
+	fb->funcs->destroy(fb);
+}
+
+/**
+ * drm_framebuffer_unreference - unref a framebuffer
+ *
+ * LOCKING:
+ * Caller must hold mode config lock.
+ */
+void drm_framebuffer_unreference(struct drm_framebuffer *fb)
+{
+	struct drm_device *dev = fb->dev;
+	WARN_ON(!mutex_is_locked(&dev->mode_config.mutex));
+	kref_put(&fb->refcount, drm_framebuffer_free);
+}
+EXPORT_SYMBOL(drm_framebuffer_unreference);
+
+/**
+ * drm_framebuffer_reference - incr the fb refcnt
+ */
+void drm_framebuffer_reference(struct drm_framebuffer *fb)
+{
+	kref_get(&fb->refcount);
+}
+EXPORT_SYMBOL(drm_framebuffer_reference);
 
 /**
  * drm_framebuffer_cleanup - remove a framebuffer object
@@ -1031,7 +1063,7 @@ void drm_mode_config_cleanup(struct drm_device *dev)
 	}
 
 	list_for_each_entry_safe(fb, fbt, &dev->mode_config.fb_list, head) {
-		fb->funcs->destroy(fb);
+		drm_framebuffer_unreference(fb);
 	}
 
 	list_for_each_entry_safe(crtc, ct, &dev->mode_config.crtc_list, head) {
@@ -2316,7 +2348,7 @@ int drm_mode_rmfb(struct drm_device *dev,
 	/* TODO unhock the destructor from the buffer object */
 
 	list_del(&fb->filp_head);
-	fb->funcs->destroy(fb);
+	drm_framebuffer_unreference(fb);
 
 out:
 	mutex_unlock(&dev->mode_config.mutex);
@@ -2467,7 +2499,7 @@ void drm_fb_release(struct drm_file *priv)
 	mutex_lock(&dev->mode_config.mutex);
 	list_for_each_entry_safe(fb, tfb, &priv->fbs, filp_head) {
 		list_del(&fb->filp_head);
-		fb->funcs->destroy(fb);
+		drm_framebuffer_unreference(fb);
 	}
 	mutex_unlock(&dev->mode_config.mutex);
 }
