@@ -420,7 +420,7 @@ static int hdmi_core_ddc_edid(struct hdmi_ip_data *ip_data,
 		/* IN_PROG */
 		if (REG_GET(base, HDMI_CORE_DDC_STATUS, 4, 4) == 0) {
 			DSSERR("operation stopped when reading edid\n");
-			return -EIO;
+			return -EPIPE;
 		}
 
 		t = 0;
@@ -452,7 +452,9 @@ int ti_hdmi_4xxx_read_edid(struct hdmi_ip_data *ip_data,
 				u8 *edid, int len)
 {
 	int r, l;
+	int retry = 10;
 
+again:
 	if (len < 128)
 		return -EINVAL;
 
@@ -461,6 +463,8 @@ int ti_hdmi_4xxx_read_edid(struct hdmi_ip_data *ip_data,
 		return r;
 
 	r = hdmi_core_ddc_edid(ip_data, edid, 0);
+	if ((r == -EPIPE) && (--retry > 0))
+		goto again;
 	if (r)
 		return r;
 
@@ -468,6 +472,8 @@ int ti_hdmi_4xxx_read_edid(struct hdmi_ip_data *ip_data,
 
 	if (len >= 128 * 2 && edid[0x7e] > 0) {
 		r = hdmi_core_ddc_edid(ip_data, edid + 0x80, 1);
+		if ((r == -EPIPE) && (--retry > 0))
+			goto again;
 		if (r)
 			return r;
 		l += 128;
