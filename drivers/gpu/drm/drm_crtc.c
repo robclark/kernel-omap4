@@ -323,6 +323,7 @@ static void drm_framebuffer_free(struct kref *kref)
 void drm_framebuffer_unreference(struct drm_framebuffer *fb)
 {
 	struct drm_device *dev = fb->dev;
+	DRM_DEBUG("FB ID: %d\n", fb->base.id);
 	WARN_ON(!mutex_is_locked(&dev->mode_config.mutex));
 	kref_put(&fb->refcount, drm_framebuffer_free);
 }
@@ -333,6 +334,7 @@ EXPORT_SYMBOL(drm_framebuffer_unreference);
  */
 void drm_framebuffer_reference(struct drm_framebuffer *fb)
 {
+	DRM_DEBUG("FB ID: %d\n", fb->base.id);
 	kref_get(&fb->refcount);
 }
 EXPORT_SYMBOL(drm_framebuffer_reference);

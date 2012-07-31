@@ -222,12 +222,42 @@ int drm_fb_helper_debug_leave(struct fb_info *info)
 }
 EXPORT_SYMBOL(drm_fb_helper_debug_leave);
 
+/* disable planes attached to a crtc */
+static void disable_planes(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_plane *plane;
+
+	list_for_each_entry(plane, &dev->mode_config.plane_list, head) {
+		if (plane->crtc == crtc) {
+			int ret = plane->funcs->disable_plane(plane);
+			if (ret)
+				DRM_ERROR("failed to disable plane with busy fb\n");
+			/* disconnect the plane from the fb and crtc: */
+			plane->fb = NULL;
+			plane->crtc = NULL;
+		}
+	}
+}
+
 bool drm_fb_helper_restore_fbdev_mode(struct drm_fb_helper *fb_helper)
 {
 	bool error = false;
 	int i, ret;
 	for (i = 0; i < fb_helper->crtc_count; i++) {
 		struct drm_mode_set *mode_set = &fb_helper->crtc_info[i].mode_set;
+		struct drm_crtc *crtc = mode_set->crtc;
+
+		/* fbdev doesn't know about planes.. so any planes left
+		 * should be disabled.  We shouldn't rely on destroying
+		 * the fb to trigger this, since the driver might be
+		 * keeping a ref to the fb in the plane, so lets just go
+		 * ahead and disable all the planes on the crtc's used
+		 * by the fbdev helper now.
+		 */
+		if (crtc)
+			disable_planes(crtc);
+
 		ret = drm_crtc_helper_set_config(mode_set);
 		if (ret)
 			error = true;
