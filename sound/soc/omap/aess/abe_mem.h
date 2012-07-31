@@ -159,6 +159,7 @@ struct omap_aess_addr {
 
 #define OMAP_AESS_CMEM__ID	7
 
+#ifdef __KERNEL__
 
 /* Distinction between Read and Write from/to ABE memory
  * is useful for simulation tool */
@@ -209,5 +210,5 @@ static inline void *omap_aess_reset_mem(struct omap_aess *abe,
 	return memset(abe->io_base[addr.bank] + addr.offset, 0, addr.bytes);
 }
 
-
+#endif /* __KERNEL__ */
 #endif /*_ABE_MEM_H_*/
