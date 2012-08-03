@@ -83,7 +83,7 @@ static int dpi_set_dsi_clk(struct omap_dss_device *dssdev, bool is_tft,
 
 	dss_select_dispc_clk_source(dssdev->clocks.dispc.dispc_fclk_src);
 
-	r = dispc_mgr_set_clock_div(dssdev->manager->id, &dispc_cinfo);
+	r = dispc_mgr_set_clock_div(omap_dss_device_channel(dssdev), &dispc_cinfo);
 	if (r) {
 		dss_select_dispc_clk_source(OMAP_DSS_CLK_SRC_FCK);
 		return r;
@@ -112,7 +112,7 @@ static int dpi_set_dispc_clk(struct omap_dss_device *dssdev, bool is_tft,
 	if (r)
 		return r;
 
-	r = dispc_mgr_set_clock_div(dssdev->manager->id, &dispc_cinfo);
+	r = dispc_mgr_set_clock_div(omap_dss_device_channel(dssdev), &dispc_cinfo);
 	if (r)
 		return r;
 
@@ -132,7 +132,7 @@ static int dpi_set_mode(struct omap_dss_device *dssdev)
 	bool is_tft;
 	int r = 0;
 
-	dispc_mgr_set_pol_freq(dssdev->manager->id, dssdev->panel.config,
+	dispc_mgr_set_pol_freq(omap_dss_device_channel(dssdev), dssdev->panel.config,
 			dssdev->panel.acbi, dssdev->panel.acb);
 
 	is_tft = (dssdev->panel.config & OMAP_DSS_LCD_TFT) != 0;
@@ -156,7 +156,9 @@ static int dpi_set_mode(struct omap_dss_device *dssdev)
 		t->pixel_clock = pck;
 	}
 
+#ifdef CONFIG_OMAP2_DSS_HL
 	dss_mgr_set_timings(dssdev->manager, t);
+#endif
 
 	return 0;
 }
@@ -168,11 +170,11 @@ static void dpi_basic_init(struct omap_dss_device *dssdev)
 	is_tft = (dssdev->panel.config & OMAP_DSS_LCD_TFT) != 0;
 
 	dispc_mgr_set_io_pad_mode(DSS_IO_PAD_MODE_BYPASS);
-	dispc_mgr_enable_stallmode(dssdev->manager->id, false);
+	dispc_mgr_enable_stallmode(omap_dss_device_channel(dssdev), false);
 
-	dispc_mgr_set_lcd_display_type(dssdev->manager->id, is_tft ?
-			OMAP_DSS_LCD_DISPLAY_TFT : OMAP_DSS_LCD_DISPLAY_STN);
-	dispc_mgr_set_tft_data_lines(dssdev->manager->id,
+	dispc_mgr_set_lcd_display_type(omap_dss_device_channel(dssdev),
+			is_tft ? OMAP_DSS_LCD_DISPLAY_TFT : OMAP_DSS_LCD_DISPLAY_STN);
+	dispc_mgr_set_tft_data_lines(omap_dss_device_channel(dssdev),
 			dssdev->phy.dpi.data_lines);
 }
 
@@ -185,7 +187,7 @@ int omapdss_dpi_display_enable(struct omap_dss_device *dssdev)
 		return -ENODEV;
 	}
 
-	if (dssdev->manager == NULL) {
+	if (omap_dss_device_channel(dssdev) == OMAP_DSS_CHANNEL_INVALID) {
 		DSSERR("failed to enable display: no manager\n");
 		return -ENODEV;
 	}
@@ -224,13 +226,17 @@ int omapdss_dpi_display_enable(struct omap_dss_device *dssdev)
 
 	mdelay(2);
 
+#ifdef CONFIG_OMAP2_DSS_HL
 	r = dss_mgr_enable(dssdev->manager);
 	if (r)
 		goto err_mgr_enable;
+#endif
 
 	return 0;
 
+#ifdef CONFIG_OMAP2_DSS_HL
 err_mgr_enable:
+#endif
 err_set_mode:
 	if (dpi_use_dsi_pll(dssdev))
 		dsi_pll_uninit(dpi.dsidev, true);
@@ -251,7 +257,9 @@ EXPORT_SYMBOL(omapdss_dpi_display_enable);
 
 void omapdss_dpi_display_disable(struct omap_dss_device *dssdev)
 {
+#ifdef CONFIG_OMAP2_DSS_HL
 	dss_mgr_disable(dssdev->manager);
+#endif
 
 	if (dpi_use_dsi_pll(dssdev)) {
 		dss_select_dispc_clk_source(OMAP_DSS_CLK_SRC_FCK);
@@ -284,7 +292,9 @@ void dpi_set_timings(struct omap_dss_device *dssdev,
 
 		dispc_runtime_put();
 	} else {
+#ifdef CONFIG_OMAP2_DSS_HL
 		dss_mgr_set_timings(dssdev->manager, timings);
+#endif
 	}
 }
 EXPORT_SYMBOL(dpi_set_timings);
@@ -299,8 +309,10 @@ int dpi_check_timings(struct omap_dss_device *dssdev,
 	unsigned long pck;
 	struct dispc_clock_info dispc_cinfo;
 
+#ifdef CONFIG_OMAP2_DSS_HL
 	if (dss_mgr_check_timings(dssdev->manager, timings))
 		return -EINVAL;
+#endif
 
 	if (timings->pixel_clock == 0)
 		return -EINVAL;

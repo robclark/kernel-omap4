@@ -296,7 +296,9 @@ static int hdmi_power_on(struct omap_dss_device *dssdev)
 	if (r)
 		return r;
 
+#ifdef CONFIG_OMAP2_DSS_HL
 	dss_mgr_disable(dssdev->manager);
+#endif
 
 	p = &dssdev->panel.timings;
 
@@ -350,20 +352,26 @@ static int hdmi_power_on(struct omap_dss_device *dssdev)
 	dispc_enable_gamma_table(0);
 
 	/* tv size */
+#ifdef CONFIG_OMAP2_DSS_HL
 	dss_mgr_set_timings(dssdev->manager, &dssdev->panel.timings);
+#endif
 
 	r = hdmi.ip_data.ops->video_enable(&hdmi.ip_data);
 	if (r)
 		goto err_vid_enable;
 
+#ifdef CONFIG_OMAP2_DSS_HL
 	r = dss_mgr_enable(dssdev->manager);
 	if (r)
 		goto err_mgr_enable;
+#endif
 
 	return 0;
 
+#ifdef CONFIG_OMAP2_DSS_HL
 err_mgr_enable:
 	hdmi.ip_data.ops->video_disable(&hdmi.ip_data);
+#endif
 err_vid_enable:
 	hdmi.ip_data.ops->phy_disable(&hdmi.ip_data);
 	hdmi.ip_data.ops->pll_disable(&hdmi.ip_data);
@@ -374,7 +382,9 @@ err:
 
 static void hdmi_power_off(struct omap_dss_device *dssdev)
 {
+#ifdef CONFIG_OMAP2_DSS_HL
 	dss_mgr_disable(dssdev->manager);
+#endif
 
 	hdmi.ip_data.ops->video_disable(&hdmi.ip_data);
 	hdmi.ip_data.ops->phy_disable(&hdmi.ip_data);
@@ -413,11 +423,13 @@ void omapdss_hdmi_display_set_timing(struct omap_dss_device *dssdev)
 		if (r)
 			DSSERR("failed to power on device\n");
 	} else {
+#ifdef CONFIG_OMAP2_DSS_HL
 		dss_mgr_set_timings(dssdev->manager, &dssdev->panel.timings);
+#endif
 	}
 }
 
-static void hdmi_dump_regs(struct seq_file *s)
+void hdmi_dump_regs(struct seq_file *s)
 {
 	mutex_lock(&hdmi.lock);
 
@@ -432,6 +444,7 @@ static void hdmi_dump_regs(struct seq_file *s)
 	hdmi_runtime_put();
 	mutex_unlock(&hdmi.lock);
 }
+EXPORT_SYMBOL_GPL(hdmi_dump_regs);
 
 int omapdss_hdmi_read_edid(u8 *buf, int len)
 {
@@ -476,11 +489,13 @@ int omapdss_hdmi_display_enable(struct omap_dss_device *dssdev)
 
 	mutex_lock(&hdmi.lock);
 
+#ifdef CONFIG_OMAP2_DSS_HL
 	if (dssdev->manager == NULL) {
 		DSSERR("failed to enable display: no manager\n");
 		r = -ENODEV;
 		goto err0;
 	}
+#endif
 
 	hdmi.ip_data.hpd_gpio = priv->hpd_gpio;
 

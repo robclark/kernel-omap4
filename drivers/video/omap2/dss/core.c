@@ -45,7 +45,9 @@ static struct {
 	struct regulator *vdds_dsi_reg;
 	struct regulator *vdds_sdi_reg;
 
+#ifdef CONFIG_OMAP2_DSS_HL
 	const char *default_display_name;
+#endif
 } core;
 
 static char *def_disp_name;
@@ -132,7 +134,7 @@ int dss_set_min_bus_tput(struct device *dev, unsigned long tput)
 		return 0;
 }
 
-#if defined(CONFIG_DEBUG_FS) && defined(CONFIG_OMAP2_DSS_DEBUG_SUPPORT)
+#if defined(CONFIG_DEBUG_FS) && defined(CONFIG_OMAP2_DSS_DEBUG_SUPPORT) && defined(CONFIG_OMAP2_DSS_HL)
 static int dss_debug_show(struct seq_file *s, void *unused)
 {
 	void (*func)(struct seq_file *) = s->private;
@@ -233,6 +235,7 @@ static int __init omap_dss_probe(struct platform_device *pdev)
 
 	dss_features_init();
 
+#ifdef CONFIG_OMAP2_DSS_HL
 	dss_apply_init();
 
 	dss_init_overlay_managers(pdev);
@@ -246,6 +249,7 @@ static int __init omap_dss_probe(struct platform_device *pdev)
 		core.default_display_name = def_disp_name;
 	else if (pdata->default_device)
 		core.default_display_name = pdata->default_device->name;
+#endif
 
 	register_pm_notifier(&omap_dss_pm_notif_block);
 
@@ -262,8 +266,10 @@ static int omap_dss_remove(struct platform_device *pdev)
 
 	dss_uninitialize_debugfs();
 
+#ifdef CONFIG_OMAP2_DSS_HL
 	dss_uninit_overlays(pdev);
 	dss_uninit_overlay_managers(pdev);
+#endif
 
 	return 0;
 }
@@ -347,7 +353,9 @@ static int dss_driver_probe(struct device *dev)
 	int r;
 	struct omap_dss_driver *dssdrv = to_dss_driver(dev->driver);
 	struct omap_dss_device *dssdev = to_dss_device(dev);
+#ifdef CONFIG_OMAP2_DSS_HL
 	bool force;
+#endif
 
 	DSSDBG("driver_probe: dev %s/%s, drv %s\n",
 				dev_name(dev), dssdev->driver_name,
@@ -355,9 +363,11 @@ static int dss_driver_probe(struct device *dev)
 
 	dss_init_device(core.pdev, dssdev);
 
+#ifdef CONFIG_OMAP2_DSS_HL
 	force = core.default_display_name &&
 		strcmp(core.default_display_name, dssdev->name) == 0;
 	dss_recheck_connections(dssdev, force);
+#endif
 
 	r = dssdrv->probe(dssdev);
 
@@ -456,6 +466,9 @@ int omap_dss_register_device(struct omap_dss_device *dssdev,
 	WARN_ON(!dssdev->driver_name);
 
 	reset_device(&dssdev->dev, 1);
+#ifndef CONFIG_OMAP2_DSS_HL
+	dssdev->manager_id = OMAP_DSS_CHANNEL_INVALID;
+#endif
 	dssdev->dev.bus = &dss_bus_type;
 	dssdev->dev.parent = parent;
 	dssdev->dev.release = omap_dss_dev_release;
