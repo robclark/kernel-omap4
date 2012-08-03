@@ -54,7 +54,9 @@
 #define DISPC_IRQ_SYNC_LOST3		(1 << 29)
 
 struct omap_dss_device;
+#ifdef CONFIG_OMAP2_DSS_HL
 struct omap_overlay_manager;
+#endif
 struct snd_aes_iec958;
 struct snd_cea_861_aud_if;
 
@@ -80,6 +82,7 @@ enum omap_channel {
 	OMAP_DSS_CHANNEL_DIGIT	= 1,
 	OMAP_DSS_CHANNEL_LCD2	= 2,
 	OMAP_DSS_CHANNEL_LCD3	= 3,
+	OMAP_DSS_CHANNEL_INVALID = -1,
 };
 
 enum omap_color_mode {
@@ -386,6 +389,7 @@ struct omap_overlay_info {
 	u8 zorder;
 };
 
+#ifdef CONFIG_OMAP2_DSS_HL
 struct omap_overlay {
 	struct kobject kobj;
 	struct list_head list;
@@ -425,6 +429,7 @@ struct omap_overlay {
 
 	int (*wait_for_go)(struct omap_overlay *ovl);
 };
+#endif
 
 struct omap_overlay_manager_info {
 	u32 default_color;
@@ -439,6 +444,7 @@ struct omap_overlay_manager_info {
 	struct omap_dss_cpr_coefs cpr_coefs;
 };
 
+#ifdef CONFIG_OMAP2_DSS_HL
 struct omap_overlay_manager {
 	struct kobject kobj;
 
@@ -476,6 +482,7 @@ struct omap_overlay_manager {
 	int (*wait_for_go)(struct omap_overlay_manager *mgr);
 	int (*wait_for_vsync)(struct omap_overlay_manager *mgr);
 };
+#endif
 
 /* 22 pins means 1 clk lane and 10 data lanes */
 #define OMAP_DSS_MAX_DSI_PINS 22
@@ -590,7 +597,11 @@ struct omap_dss_device {
 
 	enum omap_display_caps caps;
 
+#ifdef CONFIG_OMAP2_DSS_HL
 	struct omap_overlay_manager *manager;
+#else
+	enum omap_channel manager_id;
+#endif
 
 	enum omap_dss_display_state state;
 
@@ -602,6 +613,18 @@ struct omap_dss_device {
 	int (*set_backlight)(struct omap_dss_device *dssdev, int level);
 	int (*get_backlight)(struct omap_dss_device *dssdev);
 };
+
+static inline enum omap_channel
+omap_dss_device_channel(struct omap_dss_device *dssdev)
+{
+#ifdef CONFIG_OMAP2_DSS_HL
+	if (!dssdev->manager)
+		return OMAP_DSS_CHANNEL_INVALID;
+	return dssdev->manager->id;
+#else
+	return dssdev->manager_id;
+#endif
+}
 
 struct omap_dss_hdmi_data
 {

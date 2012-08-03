@@ -219,7 +219,6 @@ static int hdmi_panel_audio_config(struct omap_dss_device *dssdev,
 static int hdmi_panel_enable(struct omap_dss_device *dssdev)
 {
 	int r = 0;
-	DSSDBG("ENTER hdmi_panel_enable\n");
 
 	mutex_lock(&hdmi.lock);
 
@@ -326,8 +325,6 @@ static void hdmi_get_timings(struct omap_dss_device *dssdev,
 static void hdmi_set_timings(struct omap_dss_device *dssdev,
 			struct omap_video_timings *timings)
 {
-	DSSDBG("hdmi_set_timings\n");
-
 	mutex_lock(&hdmi.lock);
 
 	/*
@@ -346,8 +343,6 @@ static int hdmi_check_timings(struct omap_dss_device *dssdev,
 			struct omap_video_timings *timings)
 {
 	int r = 0;
-
-	DSSDBG("hdmi_check_timings\n");
 
 	mutex_lock(&hdmi.lock);
 

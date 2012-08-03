@@ -400,6 +400,8 @@ int dispc_init_platform_driver(void) __init;
 void dispc_uninit_platform_driver(void) __exit;
 void dispc_dump_clocks(struct seq_file *s);
 void dispc_irq_handler(void);
+u32 dispc_read_irqs(void);
+void dispc_clear_irqs(u32 mask);
 
 int dispc_runtime_get(void);
 void dispc_runtime_put(void);
@@ -427,8 +429,13 @@ void dispc_ovl_set_fifo_threshold(enum omap_plane plane, u32 low, u32 high);
 void dispc_ovl_compute_fifo_thresholds(enum omap_plane plane,
 		u32 *fifo_low, u32 *fifo_high, bool use_fifomerge,
 		bool manual_update);
-int dispc_ovl_setup(enum omap_plane plane, struct omap_overlay_info *oi,
-		bool replication, const struct omap_video_timings *mgr_timings);
+int dispc_ovl_check(enum omap_plane plane, enum omap_channel channel,
+		struct omap_overlay_info *oi, bool replication,
+		const struct omap_video_timings *mgr_timings,
+		int *x_predecim, int *y_predecim);
+int dispc_ovl_setup(enum omap_plane plane, enum omap_channel channel,
+		struct omap_overlay_info *oi, bool replication,
+		const struct omap_video_timings *mgr_timings);
 int dispc_ovl_enable(enum omap_plane plane, bool enable);
 void dispc_ovl_set_channel_out(enum omap_plane plane,
 		enum omap_channel channel);
@@ -437,7 +444,7 @@ void dispc_mgr_enable_fifohandcheck(enum omap_channel channel, bool enable);
 u32 dispc_mgr_get_vsync_irq(enum omap_channel channel);
 u32 dispc_mgr_get_framedone_irq(enum omap_channel channel);
 bool dispc_mgr_go_busy(enum omap_channel channel);
-void dispc_mgr_go(enum omap_channel channel);
+bool dispc_mgr_go(enum omap_channel channel);
 bool dispc_mgr_is_enabled(enum omap_channel channel);
 void dispc_mgr_enable(enum omap_channel channel, bool enable);
 bool dispc_mgr_is_channel_enabled(enum omap_channel channel);

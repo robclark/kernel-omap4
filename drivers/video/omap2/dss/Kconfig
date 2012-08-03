@@ -6,6 +6,13 @@ menuconfig OMAP2_DSS
 
 if OMAP2_DSS
 
+config OMAP2_DSS_HL
+	bool
+	default n
+	help
+	  Enable high-level omapdss interface.  Clients of omapdss should
+	  select this if required.
+
 config OMAP2_VRAM_SIZE
 	int "VRAM size (MB)"
 	range 0 32
