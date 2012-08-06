@@ -62,6 +62,7 @@ const char *dss_get_default_display_name(void)
 {
 	return core.default_display_name;
 }
+EXPORT_SYMBOL(dss_get_default_display_name);
 
 /* REGULATORS */
 
