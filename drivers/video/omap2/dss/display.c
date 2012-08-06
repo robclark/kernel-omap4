@@ -328,8 +328,7 @@ EXPORT_SYMBOL(omapdss_default_get_timings);
 static int dss_init_connections(struct omap_dss_device *dssdev, bool force)
 {
 	struct omap_dss_output *out;
-	struct omap_overlay_manager *mgr;
-	int i, r;
+	int r;
 
 	out = omapdss_get_output_from_dssdev(dssdev);
 
@@ -342,51 +341,13 @@ static int dss_init_connections(struct omap_dss_device *dssdev, bool force)
 		return r;
 	}
 
-	mgr = omap_dss_get_overlay_manager(dssdev->channel);
-
-	if (mgr->output && !force)
-		return 0;
-
-	if (mgr->output)
-		mgr->unset_output(mgr);
-
-	r = mgr->set_output(mgr, out);
-	if (r) {
-		DSSERR("failed to connect manager to output of new device\n");
-
-		/* remove the output-device connection we just made */
-		omapdss_output_unset_device(out);
-		return r;
-	}
-
-	for (i = 0; i < omap_dss_get_num_overlays(); ++i) {
-		struct omap_overlay *ovl = omap_dss_get_overlay(i);
-
-		if (!ovl->manager || force) {
-			if (ovl->manager)
-				ovl->unset_manager(ovl);
-
-			r = ovl->set_manager(ovl, mgr);
-			if (r) {
-				DSSERR("failed to set initial overlay\n");
-				return r;
-			}
-		}
-	}
-
 	return 0;
 }
 
 static void dss_uninit_connections(struct omap_dss_device *dssdev)
 {
-	if (dssdev->output) {
-		struct omap_overlay_manager *mgr = dssdev->output->manager;
-
-		if (mgr)
-			mgr->unset_output(mgr);
-
+	if (dssdev->output)
 		omapdss_output_unset_device(dssdev->output);
-	}
 }
 
 int dss_init_device(struct platform_device *pdev,
