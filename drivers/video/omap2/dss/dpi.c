@@ -214,6 +214,8 @@ int omapdss_dpi_display_enable(struct omap_dss_device *dssdev)
 	if (r)
 		goto err_src_sel;
 
+	dispc_disable_sidle();
+
 	if (dpi_use_dsi_pll(dssdev)) {
 		r = dsi_runtime_get(dpi.dsidev);
 		if (r)
@@ -276,6 +278,8 @@ void omapdss_dpi_display_disable(struct omap_dss_device *dssdev)
 		dsi_pll_uninit(dpi.dsidev, true);
 		dsi_runtime_put(dpi.dsidev);
 	}
+
+	dispc_enable_sidle();
 
 	dispc_runtime_put();
 
