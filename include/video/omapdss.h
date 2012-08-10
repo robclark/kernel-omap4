@@ -460,6 +460,9 @@ struct omap_overlay {
 	/* dynamic fields */
 	struct omap_overlay_manager *manager;
 
+	/* not touched by omapdss */
+	void *user_data;
+
 	/*
 	 * The following functions do not block:
 	 *
@@ -515,6 +518,9 @@ struct omap_overlay_manager {
 
 	/* dynamic fields */
 	struct omap_dss_output *output;
+
+	/* not touched by omapdss */
+	void *user_data;
 
 	/*
 	 * The following functions do not block:
