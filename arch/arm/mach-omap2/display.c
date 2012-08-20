@@ -571,6 +571,41 @@ int omap_dss_reset(struct omap_hwmod *oh)
 	return r;
 }
 
+/* HDMI pinmuxing HACK function */
+static __init void hdmi_hack_init_of(void)
+{
+	int ls_oe_gpio, ct_cp_hpd_gpio, hpd_gpio;
+	enum omap_hdmi_flags flags;
+
+	if (of_machine_is_compatible("ti,omap4-sdp")) {
+		ls_oe_gpio = 41;
+		ct_cp_hpd_gpio = 60;
+		hpd_gpio = 63;
+
+		if (cpu_is_omap446x() || omap_rev() > OMAP4430_REV_ES2_2)
+			flags = OMAP_HDMI_SDA_SCL_EXTERNAL_PULLUP;
+		else
+			flags = 0;
+	} else if (of_machine_is_compatible("ti,omap4-panda")) {
+		ls_oe_gpio = 41;
+		ct_cp_hpd_gpio = 60;
+		hpd_gpio = 63;
+
+		if (cpu_is_omap446x() || omap_rev() > OMAP4430_REV_ES2_2)
+			flags = OMAP_HDMI_SDA_SCL_EXTERNAL_PULLUP;
+		else
+			flags = 0;
+	} else {
+		return;
+	}
+
+	omap_hdmi_init(flags);
+
+	omap_mux_init_gpio(ls_oe_gpio, OMAP_PIN_OUTPUT);
+	omap_mux_init_gpio(ct_cp_hpd_gpio, OMAP_PIN_OUTPUT);
+	omap_mux_init_gpio(hpd_gpio, OMAP_PIN_INPUT_PULLDOWN);
+}
+
 int __init omapdss_init_of(void)
 {
 	int r;
@@ -607,6 +642,8 @@ int __init omapdss_init_of(void)
 		pr_err("Unable to register omapdss device\n");
 		return r;
 	}
+
+	hdmi_hack_init_of();
 
 	return 0;
 }
