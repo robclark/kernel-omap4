@@ -63,6 +63,7 @@
 /*
  *	BASIC TYPES
  */
+#if 0
 #define MAX_UINT8	((((1L <<  7) - 1) << 1) + 1)
 #define MAX_UINT16	((((1L << 15) - 1) << 1) + 1)
 #define MAX_UINT32	((((1L << 31) - 1) << 1) + 1)
@@ -72,7 +73,12 @@
 #define u16 unsigned short
 #define s32 int
 #define u32 unsigned int
-
+#else
+#define MAX_UINT8	((((1L <<  7) - 1) << 1) + 1)
+#define MAX_UINT16	((((1L << 15) - 1) << 1) + 1)
+#define MAX_UINT32	((((1L << 31) - 1) << 1) + 1)
+#include <linux/types.h>
+#endif
 /* subroutine types */
 typedef void (*abe_subroutine0) (void);
 typedef void (*abe_subroutine1) (u32);
@@ -422,8 +428,8 @@ struct omap_aess_dma_offset {
  */
 
 struct omap_aess_task {
-	int frame;
-	int slot;
+	u32 frame;
+	u32 slot;
 	u16 task;
 };
 
