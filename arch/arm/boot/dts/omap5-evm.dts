@@ -248,6 +248,21 @@
 	};
 };
 
+&hdmi {
+	tpd12s015 {
+		compatible = "ti,tpd12s015";
+
+		gpios = <&tca 0 0>,	/* TCA6424A P01, CT_CP_HDP */
+			<&tca 1 0>,	/* TCA6424A P00, LS_OE*/
+			<&gpio7 1 0>;	/* 193, HPD */
+
+		hdmi-monitor {
+			compatible = "ti,hdmi_panel";
+		};
+
+	};
+};
+
 &mcbsp3 {
 	status = "disabled";
 };
