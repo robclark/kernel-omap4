@@ -269,14 +269,14 @@ static void hdmi_core_init(struct hdmi_core_vid_config *video_cfg,
 
 	/* video core */
 	video_cfg->data_enable_pol = 1; /* It is always 1*/
-	video_cfg->v_fc_config.timings.hsync_pol = cfg->timings.hsync_pol;
+	video_cfg->v_fc_config.timings.hsync_level = cfg->timings.hsync_level;
 	video_cfg->v_fc_config.timings.x_res = cfg->timings.x_res;
 	video_cfg->v_fc_config.timings.hsw = cfg->timings.hsw;
 	video_cfg->v_fc_config.timings.hbp = cfg->timings.hbp;
 	video_cfg->v_fc_config.timings.hfp = cfg->timings.hfp;
 	video_cfg->hblank = cfg->timings.hfp +
 				cfg->timings.hbp + cfg->timings.hsw;
-	video_cfg->v_fc_config.timings.vsync_pol = cfg->timings.vsync_pol;
+	video_cfg->v_fc_config.timings.vsync_level = cfg->timings.vsync_level;
 	video_cfg->v_fc_config.timings.y_res = cfg->timings.y_res;
 	video_cfg->v_fc_config.timings.vsw = cfg->timings.vsw;
 	video_cfg->v_fc_config.timings.vfp = cfg->timings.vfp;
@@ -349,13 +349,19 @@ static void hdmi_core_video_config(struct hdmi_ip_data *ip_data,
 				struct hdmi_core_vid_config *cfg)
 {
 	unsigned char r = 0;
+	bool vsync_pol, hsync_pol;
 	void __iomem *core_sys_base = hdmi_core_sys_base(ip_data);
+
+	vsync_pol = cfg->v_fc_config.timings.vsync_level
+		== OMAPDSS_SIG_ACTIVE_HIGH;
+	hsync_pol = cfg->v_fc_config.timings.hsync_level
+		== OMAPDSS_SIG_ACTIVE_HIGH;
 
 	/* Set hsync, vsync and data-enable polarity  */
 	r = hdmi_read_reg(core_sys_base, HDMI_CORE_FC_INVIDCONF);
 
-	r = FLD_MOD(r, cfg->v_fc_config.timings.vsync_pol, 6, 6);
-	r = FLD_MOD(r, cfg->v_fc_config.timings.hsync_pol, 5, 5);
+	r = FLD_MOD(r, vsync_pol, 6, 6);
+	r = FLD_MOD(r, hsync_pol, 5, 5);
 	r = FLD_MOD(r, cfg->data_enable_pol, 4, 4);
 	r = FLD_MOD(r, cfg->vblank_osc, 1, 1);
 	r = FLD_MOD(r, cfg->v_fc_config.timings.interlace, 0, 0);
