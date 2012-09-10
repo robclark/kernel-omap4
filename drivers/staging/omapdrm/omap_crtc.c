@@ -327,7 +327,7 @@ static int omap_crtc_page_flip_locked(struct drm_crtc *crtc,
 	return 0;
 }
 
-static int omap_crtc_set_property(struct drm_crtc *crtc,
+static int omap_crtc_set_property(struct drm_crtc *crtc, void *state,
 		struct drm_property *property, uint64_t val)
 {
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
@@ -338,7 +338,7 @@ static int omap_crtc_set_property(struct drm_crtc *crtc,
 				!!(val & ((1LL << DRM_ROTATE_90) | (1LL << DRM_ROTATE_270)));
 	}
 
-	return omap_plane_set_property(omap_crtc->plane, property, val);
+	return omap_plane_set_property(omap_crtc->plane, state, property, val);
 }
 
 static const struct drm_crtc_funcs omap_crtc_funcs = {
