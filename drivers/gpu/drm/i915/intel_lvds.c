@@ -554,8 +554,10 @@ static void intel_lvds_destroy(struct drm_connector *connector)
 }
 
 static int intel_lvds_set_property(struct drm_connector *connector,
+				   void *state,
 				   struct drm_property *property,
-				   uint64_t value)
+				   uint64_t value,
+				   void *blob_data)
 {
 	struct intel_lvds *intel_lvds = intel_attached_lvds(connector);
 	struct drm_device *dev = connector->dev;

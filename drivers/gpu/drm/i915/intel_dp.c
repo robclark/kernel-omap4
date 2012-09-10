@@ -2318,8 +2318,10 @@ intel_dp_detect_audio(struct drm_connector *connector)
 
 static int
 intel_dp_set_property(struct drm_connector *connector,
+		      void *state,
 		      struct drm_property *property,
-		      uint64_t val)
+		      uint64_t val,
+		      void *blob_data)
 {
 	struct drm_i915_private *dev_priv = connector->dev->dev_private;
 	struct intel_dp *intel_dp = intel_attached_dp(connector);

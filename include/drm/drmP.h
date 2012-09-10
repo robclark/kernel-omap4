@@ -941,6 +941,65 @@ struct drm_driver {
 			    struct drm_device *dev,
 			    uint32_t handle);
 
+	/*
+	 * Atomic functions:
+	 */
+
+	/**
+	 * Begin a sequence of atomic property sets.  Returns a driver
+	 * private state object that is passed back into the various
+	 * object's set_property() fxns, and into the remainder of the
+	 * atomic funcs.  The state object should accumulate the changes
+	 * from one o more set_property()'s.  At the end, the state can
+	 * be checked, and optionally committed.
+	 *
+	 * \param dev dev DRM device handle.
+	 * \param flags the modifier flags that userspace has requested
+	 * \returns a driver private state object, which is passed
+	 *   back in to the various other atomic fxns, or error (such
+	 *   as -EBUSY if there is still a pending async update)
+	 */
+	void *(*atomic_begin)(struct drm_device *dev, uint32_t flags);
+
+	/**
+	 * Set pending event for an update on the specified object.  The
+	 * event is to be sent back to userspace after the update completes.
+	 *
+	 * \param dev dev DRM device handle.
+	 * \param state the driver private state object
+	 * \param obj the object to set the event on
+	 * \param event the event to send back
+	 */
+	int (*atomic_set_event)(struct drm_device *dev,
+			void *state, struct drm_mode_object *obj,
+			struct drm_pending_event *event);
+
+	/**
+	 * Check the state object to see if the requested state is
+	 * physically possible.
+	 *
+	 * \param dev dev DRM device handle.
+	 * \param state the driver private state object
+	 */
+	int (*atomic_check)(struct drm_device *dev, void *state);
+
+	/**
+	 * Commit the state.  This will only be called if atomic_check()
+	 * succeeds.
+	 *
+	 * \param dev dev DRM device handle.
+	 * \param state the driver private state object
+	 */
+	int (*atomic_commit)(struct drm_device *dev, void *state);
+
+	/**
+	 * Release resources associated with the state object.
+	 *
+	 * \param dev dev DRM device handle.
+	 * \param state the driver private state object
+	 */
+	void (*atomic_end)(struct drm_device *dev, void *state);
+
 	/* Driver private ops for this object */
 	const struct vm_operations_struct *gem_vm_ops;
 
