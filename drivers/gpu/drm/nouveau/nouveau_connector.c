@@ -426,7 +426,7 @@ nouveau_connector_force(struct drm_connector *connector)
 
 static int
 nouveau_connector_set_property(struct drm_connector *connector,
-			       struct drm_property *property, uint64_t value)
+		void *state, struct drm_property *property, uint64_t value)
 {
 	struct nouveau_display *disp = nouveau_display(connector->dev);
 	struct nouveau_connector *nv_connector = nouveau_connector(connector);

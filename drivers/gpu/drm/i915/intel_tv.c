@@ -1437,7 +1437,8 @@ intel_tv_destroy(struct drm_connector *connector)
 
 
 static int
-intel_tv_set_property(struct drm_connector *connector, struct drm_property *property,
+intel_tv_set_property(struct drm_connector *connector, void *state,
+		      struct drm_property *property,
 		      uint64_t val)
 {
 	struct drm_device *dev = connector->dev;
