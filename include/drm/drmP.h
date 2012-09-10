@@ -933,6 +933,58 @@ struct drm_driver {
 			    struct drm_device *dev,
 			    uint32_t handle);
 
+	/*
+	 * Atomic functions:
+	 */
+
+	/**
+	 * Begin a sequence of atomic property sets.  Returns a driver
+	 * private state object that is passed back into the various
+	 * object's set_property() fxns, and into the remainder of the
+	 * atomic funcs.  The state object should accumulate the changes
+	 * from one o more set_property()'s.  At the end, the state can
+	 * be checked, and optionally committed.
+	 *
+	 * \param dev dev DRM device handle.
+	 * \param crtc for asynchronous page-flip operations, the crtc
+	 *   that is being updated.  (The driver should return -EBUSY if
+	 *   a page-flip is still pending.)  Otherwise, NULL.
+	 * \returns a driver private state object, which is passed
+	 *   back in to the various other atomic fxns
+	 */
+	void *(*atomic_begin)(struct drm_device *dev, struct drm_crtc *crtc);
+
+	/**
+	 * Check the state object to see if the requested state is
+	 * physically possible.
+	 *
+	 * \param dev dev DRM device handle.
+	 * \param state the driver private state object
+	 */
+	int (*atomic_check)(struct drm_device *dev, void *state);
+
+	/**
+	 * Commit the state.  This will only be called if atomic_check()
+	 * succeeds.
+	 *
+	 * \param dev dev DRM device handle.
+	 * \param state the driver private state object
+	 * \param event for asynchronous page-flip operations, the
+	 *   userspace has requested an event to be sent when the
+	 *   page-flip completes, or NULL.  Will always be NULL for
+	 *   non-page-flip operations
+	 */
+	int (*atomic_commit)(struct drm_device *dev, void *state,
+			struct drm_pending_vblank_event *event);
+
+	/**
+	 * Release resources associated with the state object.
+	 *
+	 * \param dev dev DRM device handle.
+	 * \param state the driver private state object
+	 */
+	void (*atomic_end)(struct drm_device *dev, void *state);
+
 	/* Driver private ops for this object */
 	const struct vm_operations_struct *gem_vm_ops;
 
