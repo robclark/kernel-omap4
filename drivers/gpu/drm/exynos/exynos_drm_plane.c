@@ -233,6 +233,7 @@ static void exynos_plane_destroy(struct drm_plane *plane)
 }
 
 static int exynos_plane_set_property(struct drm_plane *plane,
+				     void *state,
 				     struct drm_property *property,
 				     uint64_t val)
 {

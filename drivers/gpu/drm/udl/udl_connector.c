@@ -97,7 +97,8 @@ struct drm_encoder *udl_best_single_encoder(struct drm_connector *connector)
 	return encoder;
 }
 
-int udl_connector_set_property(struct drm_connector *connector, struct drm_property *property,
+int udl_connector_set_property(struct drm_connector *connector, void *state,
+			       struct drm_property *property,
 			       uint64_t val)
 {
 	return 0;

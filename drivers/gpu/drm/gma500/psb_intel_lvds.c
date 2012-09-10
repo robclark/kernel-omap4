@@ -576,6 +576,7 @@ void psb_intel_lvds_destroy(struct drm_connector *connector)
 }
 
 int psb_intel_lvds_set_property(struct drm_connector *connector,
+				       void *state,
 				       struct drm_property *property,
 				       uint64_t value)
 {

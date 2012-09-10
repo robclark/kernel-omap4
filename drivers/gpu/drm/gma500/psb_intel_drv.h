@@ -275,6 +275,7 @@ extern bool psb_intel_lvds_mode_fixup(struct drm_encoder *encoder,
 extern int psb_intel_lvds_mode_valid(struct drm_connector *connector,
 				     struct drm_display_mode *mode);
 extern int psb_intel_lvds_set_property(struct drm_connector *connector,
+					void *state,
 					struct drm_property *property,
 					uint64_t value);
 extern void psb_intel_lvds_destroy(struct drm_connector *connector);

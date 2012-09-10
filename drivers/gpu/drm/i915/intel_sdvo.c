@@ -1818,6 +1818,7 @@ static bool intel_sdvo_detect_hdmi_audio(struct drm_connector *connector)
 
 static int
 intel_sdvo_set_property(struct drm_connector *connector,
+			void *state,
 			struct drm_property *property,
 			uint64_t val)
 {

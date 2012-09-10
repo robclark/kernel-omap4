@@ -635,6 +635,7 @@ static int intel_crt_get_modes(struct drm_connector *connector)
 }
 
 static int intel_crt_set_property(struct drm_connector *connector,
+				  void *state,
 				  struct drm_property *property,
 				  uint64_t value)
 {
