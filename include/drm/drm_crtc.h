@@ -358,19 +358,6 @@ struct drm_crtc_funcs {
 
 	int (*set_config)(struct drm_mode_set *set);
 
-	/*
-	 * Flip to the given framebuffer.  This implements the page
-	 * flip ioctl described in drm_mode.h, specifically, the
-	 * implementation must return immediately and block all
-	 * rendering to the current fb until the flip has completed.
-	 * If userspace set the event flag in the ioctl, the event
-	 * argument will point to an event to send back when the flip
-	 * completes, otherwise it will be NULL.
-	 */
-	int (*page_flip)(struct drm_crtc *crtc,
-			 struct drm_framebuffer *fb,
-			 struct drm_pending_vblank_event *event);
-
 	int (*set_property)(struct drm_crtc *crtc, void *state,
 			    struct drm_property *property, uint64_t val);
 };

@@ -386,9 +386,7 @@ void drm_framebuffer_remove(struct drm_framebuffer *fb)
 	struct drm_mode_config *config = &dev->mode_config;
 	struct drm_crtc *crtc;
 	struct drm_plane *plane;
-	struct drm_mode_set set;
 	void *state;
-	int ret;
 
 	state = dev->driver->atomic_begin(dev, NULL);
 	if (IS_ERR(state)) {
@@ -400,12 +398,7 @@ void drm_framebuffer_remove(struct drm_framebuffer *fb)
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		if (crtc->fb == fb) {
 			/* should turn off the crtc */
-			memset(&set, 0, sizeof(struct drm_mode_set));
-			set.crtc = crtc;
-			set.fb = NULL;
-			ret = crtc->funcs->set_config(&set);
-			if (ret)
-				DRM_ERROR("failed to reset crtc %p when fb was deleted\n", crtc);
+			drm_mode_crtc_set_obj_prop(crtc, state, config->prop_fb_id, 0);
 		}
 	}
 
@@ -448,6 +441,7 @@ EXPORT_SYMBOL(drm_framebuffer_remove);
 int drm_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
 		   const struct drm_crtc_funcs *funcs)
 {
+	struct drm_mode_config *config = &dev->mode_config;
 	int ret;
 
 	crtc->dev = dev;
@@ -465,6 +459,10 @@ int drm_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
 
 	list_add_tail(&crtc->head, &dev->mode_config.crtc_list);
 	dev->mode_config.num_crtc++;
+
+	drm_object_attach_property(&crtc->base, config->prop_fb_id, 0);
+	drm_object_attach_property(&crtc->base, config->prop_crtc_x, 0);
+	drm_object_attach_property(&crtc->base, config->prop_crtc_y, 0);
 
  out:
 	mutex_unlock(&dev->mode_config.mutex);
@@ -3773,12 +3771,12 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 			     void *data, struct drm_file *file_priv)
 {
 	struct drm_mode_crtc_page_flip *page_flip = data;
+	struct drm_mode_config *config = &dev->mode_config;
 	struct drm_mode_object *obj;
 	struct drm_crtc *crtc;
-	struct drm_framebuffer *fb;
 	struct drm_pending_vblank_event *e = NULL;
 	unsigned long flags;
-	int hdisplay, vdisplay;
+	void *state;
 	int ret = -EINVAL;
 
 	if (page_flip->flags & ~DRM_MODE_PAGE_FLIP_FLAGS ||
@@ -3786,10 +3784,21 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 		return -EINVAL;
 
 	mutex_lock(&dev->mode_config.mutex);
-	obj = drm_mode_object_find(dev, page_flip->crtc_id, DRM_MODE_OBJECT_CRTC);
-	if (!obj)
-		goto out;
+
+	obj = drm_mode_object_find(dev, page_flip->crtc_id,
+			DRM_MODE_OBJECT_CRTC);
+	if (!obj) {
+		DRM_DEBUG_KMS("Unknown CRTC ID %d\n", page_flip->crtc_id);
+		ret = -ENOENT;
+		goto out_unlock;
+	}
 	crtc = obj_to_crtc(obj);
+
+	state = dev->driver->atomic_begin(dev, crtc);
+	if (IS_ERR(state)) {
+		ret = PTR_ERR(state);
+		goto out_unlock;
+	}
 
 	if (crtc->fb == NULL) {
 		/* The framebuffer is currently unbound, presumably
@@ -3797,31 +3806,6 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 		 * yet discovered.
 		 */
 		ret = -EBUSY;
-		goto out;
-	}
-
-	if (crtc->funcs->page_flip == NULL)
-		goto out;
-
-	obj = drm_mode_object_find(dev, page_flip->fb_id, DRM_MODE_OBJECT_FB);
-	if (!obj)
-		goto out;
-	fb = obj_to_fb(obj);
-
-	hdisplay = crtc->mode.hdisplay;
-	vdisplay = crtc->mode.vdisplay;
-
-	if (crtc->invert_dimensions)
-		swap(hdisplay, vdisplay);
-
-	if (hdisplay > fb->width ||
-	    vdisplay > fb->height ||
-	    crtc->x > fb->width - hdisplay ||
-	    crtc->y > fb->height - vdisplay) {
-		DRM_DEBUG_KMS("Invalid fb size %ux%u for CRTC viewport %ux%u+%d+%d%s.\n",
-			      fb->width, fb->height, hdisplay, vdisplay, crtc->x, crtc->y,
-			      crtc->invert_dimensions ? " (inverted)" : "");
-		ret = -ENOSPC;
 		goto out;
 	}
 
@@ -3852,7 +3836,12 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 			(void (*) (struct drm_pending_event *)) kfree;
 	}
 
-	ret = crtc->funcs->page_flip(crtc, fb, e);
+	ret = drm_mode_set_obj_prop(obj, state,
+			config->prop_fb_id, page_flip->fb_id);
+	if (ret)
+		goto out;
+
+	ret = dev->driver->atomic_commit(dev, state, e);
 	if (ret) {
 		if (page_flip->flags & DRM_MODE_PAGE_FLIP_EVENT) {
 			spin_lock_irqsave(&dev->event_lock, flags);
@@ -3863,6 +3852,8 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 	}
 
 out:
+	dev->driver->atomic_end(dev, state);
+out_unlock:
 	mutex_unlock(&dev->mode_config.mutex);
 	return ret;
 }
