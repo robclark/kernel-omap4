@@ -634,13 +634,6 @@ struct drm_connector {
  * @set_property: called when a property is changed
  */
 struct drm_plane_funcs {
-	int (*update_plane)(struct drm_plane *plane,
-			    struct drm_crtc *crtc, struct drm_framebuffer *fb,
-			    int crtc_x, int crtc_y,
-			    unsigned int crtc_w, unsigned int crtc_h,
-			    uint32_t src_x, uint32_t src_y,
-			    uint32_t src_w, uint32_t src_h);
-	int (*disable_plane)(struct drm_plane *plane);
 	void (*destroy)(struct drm_plane *plane);
 
 	int (*set_property)(struct drm_plane *plane, void *state,
@@ -810,8 +803,20 @@ struct drm_mode_config {
 	bool poll_enabled;
 	struct delayed_work output_poll_work;
 
-	/* pointers to standard properties */
+	/* just so blob properties can always be in a list: */
 	struct list_head property_blob_list;
+
+	/* pointers to standard properties */
+	struct drm_property *prop_src_x;
+	struct drm_property *prop_src_y;
+	struct drm_property *prop_src_w;
+	struct drm_property *prop_src_h;
+	struct drm_property *prop_crtc_x;
+	struct drm_property *prop_crtc_y;
+	struct drm_property *prop_crtc_w;
+	struct drm_property *prop_crtc_h;
+	struct drm_property *prop_fb_id;
+	struct drm_property *prop_crtc_id;
 	struct drm_property *edid_property;
 	struct drm_property *dpms_property;
 
@@ -947,6 +952,17 @@ extern int drm_object_property_set_value(struct drm_mode_object *obj,
 extern int drm_object_property_get_value(struct drm_mode_object *obj,
 					 struct drm_property *property,
 					 uint64_t *value);
+
+int drm_mode_connector_set_obj_prop(struct drm_connector *connector,
+					   void *state, struct drm_property *property,
+					   uint64_t value);
+int drm_mode_crtc_set_obj_prop(struct drm_crtc *crtc,
+				      void *state, struct drm_property *property,
+				      uint64_t value);
+int drm_mode_plane_set_obj_prop(struct drm_plane *plane,
+				      void *state, struct drm_property *property,
+				      uint64_t value);
+
 extern int drm_framebuffer_init(struct drm_device *dev,
 				struct drm_framebuffer *fb,
 				const struct drm_framebuffer_funcs *funcs);
