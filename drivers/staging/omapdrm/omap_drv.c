@@ -526,8 +526,9 @@ static void dev_lastclose(struct drm_device *dev)
 	 * default state on lastclose?
 	 */
 	for (i = 0; i < priv->num_planes; i++) {
-		drm_object_property_set_value(&priv->planes[i]->base,
-				priv->rotation_prop, 0);
+		struct drm_plane *plane = priv->planes[i];
+		drm_object_property_set_value(&plane->base,
+				&plane->propvals, priv->rotation_prop, 0);
 	}
 
 	mutex_lock(&dev->mode_config.mutex);
