@@ -411,7 +411,10 @@ struct drm_mode_crtc_lut {
 };
 
 #define DRM_MODE_PAGE_FLIP_EVENT 0x01
+#define DRM_MODE_TEST_ONLY       0x02
 #define DRM_MODE_PAGE_FLIP_FLAGS DRM_MODE_PAGE_FLIP_EVENT
+#define DRM_MODE_ATOMIC_PAGE_FLIP_FLAGS \
+	(DRM_MODE_PAGE_FLIP_EVENT | DRM_MODE_TEST_ONLY)
 
 /*
  * Request a page flip on the specified crtc.
@@ -441,6 +444,41 @@ struct drm_mode_crtc_page_flip {
 	__u32 flags;
 	__u32 reserved;
 	__u64 user_data;
+};
+
+/*
+ * Request a page flip on the crtc specified by 'crtc_id' plus zero or
+ * more planes attached to this crtc.
+ *
+ * This ioctl will ask KMS to schedule a page flip for the specified
+ * crtc.  Once any pending rendering targeting the specified fb(s) (as
+ * of ioctl time) has completed, the crtc and zero or more planes will
+ * be reprogrammed to display the new fb(s) after the next vertical
+ * refresh.  The ioctl returns immediately, but subsequent rendering
+ * to the current fb will block in the execbuffer ioctl until the page
+ * flip happens.  If a page flip is already pending as the ioctl is
+ * called, EBUSY will be returned.
+ *
+ * The ioctl supports the following flags:
+ *  + DRM_MODE_PAGE_FLIP_EVENT, which will request that drm sends back
+ *    a vblank event (see drm.h: struct drm_event_vblank) when the page
+ *    flip is done.  The user_data field passed in with this ioctl will
+ *    be returned as the user_data field in the vblank event struct.
+ *  + DRM_MODE_TEST_ONLY, don't actually apply the changes (or generate
+ *    a vblank event) but just test the configuration to see if it is
+ *    possible.
+ *
+ * The reserved field must be zero until we figure out something clever
+ * to use it for.
+ */
+
+struct drm_mode_crtc_atomic_page_flip {
+	uint32_t crtc_id;
+	uint32_t flags;
+	uint64_t user_data;
+	uint32_t reserved;
+	uint32_t count_props;
+	uint64_t props_ptr;  /* ptr to array of drm_mode_obj_set_property */
 };
 
 /* create a dumb scanout buffer */
