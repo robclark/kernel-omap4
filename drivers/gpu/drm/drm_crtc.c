@@ -38,6 +38,14 @@
 #include "drm_edid.h"
 #include "drm_fourcc.h"
 
+static int drm_mode_set_obj_prop(struct drm_mode_object *obj,
+		void *state, struct drm_property *property, uint64_t value);
+
+static inline bool dev_supports_atomic(struct drm_device *dev)
+{
+	return !!dev->driver->atomic_begin;
+}
+
 /* Avoid boilerplate.  I'm tired of typing. */
 #define DRM_ENUM_NAME_FN(fnname, list)				\
 	char *fnname(int val)					\
@@ -376,8 +384,10 @@ EXPORT_SYMBOL(drm_framebuffer_cleanup);
  *
  * Scans all the CRTCs and planes in @dev's mode_config.  If they're
  * using @fb, removes it, setting it to NULL.
+ *
+ * Legacy version.. remove when all drivers converted to 'atomic' API
  */
-void drm_framebuffer_remove(struct drm_framebuffer *fb)
+static void drm_framebuffer_remove_legacy(struct drm_framebuffer *fb)
 {
 	struct drm_device *dev = fb->dev;
 	struct drm_crtc *crtc;
@@ -409,6 +419,71 @@ void drm_framebuffer_remove(struct drm_framebuffer *fb)
 			plane->crtc = NULL;
 		}
 	}
+
+	list_del(&fb->filp_head);
+
+	drm_framebuffer_unreference(fb);
+}
+
+/**
+ * drm_framebuffer_remove - remove and unreference a framebuffer object
+ * @fb: framebuffer to remove
+ *
+ * LOCKING:
+ * Caller must hold mode config lock.
+ *
+ * Scans all the CRTCs and planes in @dev's mode_config.  If they're
+ * using @fb, removes it, setting it to NULL.
+ */
+void drm_framebuffer_remove(struct drm_framebuffer *fb)
+{
+	struct drm_device *dev = fb->dev;
+	struct drm_mode_config *config = &dev->mode_config;
+	struct drm_crtc *crtc;
+	struct drm_plane *plane;
+	struct drm_mode_set set;
+	void *state;
+	int ret;
+
+	if (!dev_supports_atomic(dev)) {
+		drm_framebuffer_remove_legacy(fb);
+		return;
+	}
+
+	state = dev->driver->atomic_begin(dev, NULL);
+	if (IS_ERR(state)) {
+		DRM_ERROR("failed to disable crtc and/or plane when fb was deleted\n");
+		return;
+	}
+
+	/* remove from any CRTC */
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
+		if (crtc->fb == fb) {
+			/* should turn off the crtc */
+			memset(&set, 0, sizeof(struct drm_mode_set));
+			set.crtc = crtc;
+			set.fb = NULL;
+			ret = crtc->funcs->set_config(&set);
+			if (ret)
+				DRM_ERROR("failed to reset crtc %p when fb was deleted\n", crtc);
+		}
+	}
+
+	list_for_each_entry(plane, &dev->mode_config.plane_list, head) {
+		if (plane->fb == fb) {
+			/* should turn off the crtc */
+			drm_mode_plane_set_obj_prop(plane, state, config->prop_crtc_id, 0);
+			drm_mode_plane_set_obj_prop(plane, state, config->prop_fb_id, 0);
+		}
+	}
+
+	/* just disabling stuff shouldn't fail, hopefully: */
+	if(dev->driver->atomic_check(dev, state))
+		DRM_ERROR("failed to disable crtc and/or plane when fb was deleted\n");
+	else
+		dev->driver->atomic_commit(dev, state, NULL);
+
+	dev->driver->atomic_end(dev, state);
 
 	list_del(&fb->filp_head);
 
@@ -663,6 +738,7 @@ int drm_plane_init(struct drm_device *dev, struct drm_plane *plane,
 		   const uint32_t *formats, uint32_t format_count,
 		   bool priv)
 {
+	struct drm_mode_config *config = &dev->mode_config;
 	int ret;
 
 	mutex_lock(&dev->mode_config.mutex);
@@ -698,6 +774,20 @@ int drm_plane_init(struct drm_device *dev, struct drm_plane *plane,
 	} else {
 		INIT_LIST_HEAD(&plane->head);
 	}
+
+	if (!dev_supports_atomic(dev))
+		goto out;
+
+	drm_object_attach_property(&plane->base, config->prop_fb_id, 0);
+	drm_object_attach_property(&plane->base, config->prop_crtc_id, 0);
+	drm_object_attach_property(&plane->base, config->prop_crtc_x, 0);
+	drm_object_attach_property(&plane->base, config->prop_crtc_y, 0);
+	drm_object_attach_property(&plane->base, config->prop_crtc_w, 0);
+	drm_object_attach_property(&plane->base, config->prop_crtc_h, 0);
+	drm_object_attach_property(&plane->base, config->prop_src_x, 0);
+	drm_object_attach_property(&plane->base, config->prop_src_y, 0);
+	drm_object_attach_property(&plane->base, config->prop_src_w, 0);
+	drm_object_attach_property(&plane->base, config->prop_src_h, 0);
 
  out:
 	mutex_unlock(&dev->mode_config.mutex);
@@ -772,23 +862,91 @@ void drm_mode_destroy(struct drm_device *dev, struct drm_display_mode *mode)
 }
 EXPORT_SYMBOL(drm_mode_destroy);
 
-static int drm_mode_create_standard_connector_properties(struct drm_device *dev)
+static int drm_mode_create_standard_properties(struct drm_device *dev)
 {
-	struct drm_property *edid;
-	struct drm_property *dpms;
+	struct drm_property *prop;
 
 	/*
 	 * Standard properties (apply to all connectors)
 	 */
-	edid = drm_property_create(dev, DRM_MODE_PROP_BLOB |
+	prop = drm_property_create(dev, DRM_MODE_PROP_BLOB |
 				   DRM_MODE_PROP_IMMUTABLE,
 				   "EDID", 0);
-	dev->mode_config.edid_property = edid;
+	if (!prop)
+		return -ENOMEM;
+	dev->mode_config.edid_property = prop;
 
-	dpms = drm_property_create_enum(dev, 0,
+	prop = drm_property_create_enum(dev, 0,
 				   "DPMS", drm_dpms_enum_list,
 				   ARRAY_SIZE(drm_dpms_enum_list));
-	dev->mode_config.dpms_property = dpms;
+	if (!prop)
+		return -ENOMEM;
+	dev->mode_config.dpms_property = prop;
+
+
+	/* TODO we need the driver to control which of these are dynamic
+	 * and which are not..  or maybe we should just set all to zero
+	 * and let the individual drivers frob the prop->flags for the
+	 * properties they can support dynamic changes on..
+	 */
+
+	prop = drm_property_create_range(dev, DRM_MODE_PROP_DYNAMIC,
+			"src_x", 0, UINT_MAX);
+	if (!prop)
+		return -ENOMEM;
+	dev->mode_config.prop_src_x = prop;
+
+	prop = drm_property_create_range(dev, DRM_MODE_PROP_DYNAMIC,
+			"src_y", 0, UINT_MAX);
+	if (!prop)
+		return -ENOMEM;
+	dev->mode_config.prop_src_y = prop;
+
+	prop = drm_property_create_range(dev, 0, "src_w", 0, UINT_MAX);
+	if (!prop)
+		return -ENOMEM;
+	dev->mode_config.prop_src_w = prop;
+
+	prop = drm_property_create_range(dev, 0, "src_h", 0, UINT_MAX);
+	if (!prop)
+		return -ENOMEM;
+	dev->mode_config.prop_src_h = prop;
+
+	prop = drm_property_create_range(dev,
+			DRM_MODE_PROP_DYNAMIC | DRM_MODE_PROP_SIGNED,
+			"crtc_x", I642U64(INT_MIN), I642U64(INT_MAX));
+	if (!prop)
+		return -ENOMEM;
+	dev->mode_config.prop_crtc_x = prop;
+
+	prop = drm_property_create_range(dev,
+			DRM_MODE_PROP_DYNAMIC | DRM_MODE_PROP_SIGNED,
+			"crtc_y", I642U64(INT_MIN), I642U64(INT_MAX));
+	if (!prop)
+		return -ENOMEM;
+	dev->mode_config.prop_crtc_y = prop;
+
+	prop = drm_property_create_range(dev, 0, "crtc_w", 0, INT_MAX);
+	if (!prop)
+		return -ENOMEM;
+	dev->mode_config.prop_crtc_w = prop;
+
+	prop = drm_property_create_range(dev, 0, "crtc_h", 0, INT_MAX);
+	if (!prop)
+		return -ENOMEM;
+	dev->mode_config.prop_crtc_h = prop;
+
+	prop = drm_property_create_object(dev, DRM_MODE_PROP_DYNAMIC,
+			"fb", DRM_MODE_OBJECT_FB);
+	if (!prop)
+		return -ENOMEM;
+	dev->mode_config.prop_fb_id = prop;
+
+	prop = drm_property_create_object(dev, 0,
+			"crtc", DRM_MODE_OBJECT_CRTC);
+	if (!prop)
+		return -ENOMEM;
+	dev->mode_config.prop_crtc_id = prop;
 
 	return 0;
 }
@@ -1003,7 +1161,7 @@ void drm_mode_config_init(struct drm_device *dev)
 	idr_init(&dev->mode_config.crtc_idr);
 
 	mutex_lock(&dev->mode_config.mutex);
-	drm_mode_create_standard_connector_properties(dev);
+	drm_mode_create_standard_properties(dev);
 	mutex_unlock(&dev->mode_config.mutex);
 
 	/* Just to be sure */
@@ -1745,8 +1903,10 @@ out:
  *
  * Set plane info, including placement, fb, scaling, and other factors.
  * Or pass a NULL fb to disable.
+ *
+ * Legacy version.. remove when all drivers converted to 'atomic' API
  */
-int drm_mode_setplane(struct drm_device *dev, void *data,
+static int drm_mode_setplane_legacy(struct drm_device *dev, void *data,
 			struct drm_file *file_priv)
 {
 	struct drm_mode_set_plane *plane_req = data;
@@ -1860,6 +2020,95 @@ int drm_mode_setplane(struct drm_device *dev, void *data,
 	}
 
 out:
+	mutex_unlock(&dev->mode_config.mutex);
+
+	return ret;
+}
+
+/**
+ * drm_mode_setplane - set up or tear down an plane
+ * @dev: DRM device
+ * @data: ioctl data*
+ * @file_prive: DRM file info
+ *
+ * LOCKING:
+ * Takes mode config lock.
+ *
+ * Set plane info, including placement, fb, scaling, and other factors.
+ * Or pass a NULL fb to disable.
+ */
+int drm_mode_setplane(struct drm_device *dev, void *data,
+			struct drm_file *file_priv)
+{
+	struct drm_mode_set_plane *plane_req = data;
+	struct drm_mode_config *config = &dev->mode_config;
+	struct drm_mode_object *obj;
+	void *state;
+	int ret = 0;
+
+	if (!dev_supports_atomic(dev))
+		return drm_mode_setplane_legacy(dev, data, file_priv);
+
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EINVAL;
+
+	mutex_lock(&dev->mode_config.mutex);
+
+	obj = drm_mode_object_find(dev, plane_req->crtc_id,
+				   DRM_MODE_OBJECT_CRTC);
+	if (!obj) {
+		DRM_DEBUG_KMS("Unknown CRTC ID %d\n",
+			      plane_req->crtc_id);
+		ret = -ENOENT;
+		goto out_unlock;
+	}
+
+	state = dev->driver->atomic_begin(dev, obj_to_crtc(obj));
+	if (IS_ERR(state)) {
+		ret = PTR_ERR(state);
+		goto out_unlock;
+	}
+
+	obj = drm_mode_object_find(dev, plane_req->plane_id,
+				   DRM_MODE_OBJECT_PLANE);
+	if (!obj) {
+		DRM_DEBUG_KMS("Unknown plane ID %d\n",
+			      plane_req->plane_id);
+		ret = -ENOENT;
+		goto out;
+	}
+
+	ret =
+		drm_mode_set_obj_prop(obj, state,
+				config->prop_crtc_id, plane_req->crtc_id) ||
+		drm_mode_set_obj_prop(obj, state,
+				config->prop_fb_id, plane_req->fb_id) ||
+		drm_mode_set_obj_prop(obj, state,
+				config->prop_crtc_x, I642U64(plane_req->crtc_x)) ||
+		drm_mode_set_obj_prop(obj, state,
+				config->prop_crtc_y, I642U64(plane_req->crtc_y)) ||
+		drm_mode_set_obj_prop(obj, state,
+				config->prop_crtc_w, plane_req->crtc_w) ||
+		drm_mode_set_obj_prop(obj, state,
+				config->prop_crtc_h, plane_req->crtc_h) ||
+		drm_mode_set_obj_prop(obj, state,
+				config->prop_src_w, plane_req->src_w) ||
+		drm_mode_set_obj_prop(obj, state,
+				config->prop_src_h, plane_req->src_h) ||
+		drm_mode_set_obj_prop(obj, state,
+				config->prop_src_x, plane_req->src_x) ||
+		drm_mode_set_obj_prop(obj, state,
+				config->prop_src_y, plane_req->src_y) ||
+		dev->driver->atomic_check(dev, state);
+
+	if (ret)
+		goto out;
+
+	ret = dev->driver->atomic_commit(dev, state, NULL);
+
+out:
+	dev->driver->atomic_end(dev, state);
+out_unlock:
 	mutex_unlock(&dev->mode_config.mutex);
 
 	return ret;
@@ -3245,7 +3494,7 @@ int drm_mode_connector_property_set_ioctl(struct drm_device *dev,
 	return drm_mode_obj_set_property_ioctl(dev, &obj_set_prop, file_priv);
 }
 
-static int drm_mode_connector_set_obj_prop(struct drm_connector *connector,
+int drm_mode_connector_set_obj_prop(struct drm_connector *connector,
 					   void *state, struct drm_property *property,
 					   uint64_t value)
 {
@@ -3266,8 +3515,9 @@ static int drm_mode_connector_set_obj_prop(struct drm_connector *connector,
 
 	return ret;
 }
+EXPORT_SYMBOL(drm_mode_connector_set_obj_prop);
 
-static int drm_mode_crtc_set_obj_prop(struct drm_crtc *crtc,
+int drm_mode_crtc_set_obj_prop(struct drm_crtc *crtc,
 				      void *state, struct drm_property *property,
 				      uint64_t value)
 {
@@ -3281,8 +3531,9 @@ static int drm_mode_crtc_set_obj_prop(struct drm_crtc *crtc,
 
 	return ret;
 }
+EXPORT_SYMBOL(drm_mode_crtc_set_obj_prop);
 
-static int drm_mode_plane_set_obj_prop(struct drm_plane *plane,
+int drm_mode_plane_set_obj_prop(struct drm_plane *plane,
 				      void *state, struct drm_property *property,
 				      uint64_t value)
 {
@@ -3296,6 +3547,7 @@ static int drm_mode_plane_set_obj_prop(struct drm_plane *plane,
 
 	return ret;
 }
+EXPORT_SYMBOL(drm_mode_plane_set_obj_prop);
 
 static int drm_mode_set_obj_prop(struct drm_mode_object *obj,
 		void *state, struct drm_property *property, uint64_t value)
