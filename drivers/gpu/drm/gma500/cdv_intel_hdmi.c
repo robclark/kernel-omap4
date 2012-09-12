@@ -193,6 +193,7 @@ static int cdv_hdmi_set_property(struct drm_connector *connector,
 			return 0;
 
 		if (drm_object_property_set_value(&connector->base,
+							&connector->propvals,
 							property, value))
 			return -1;
 
