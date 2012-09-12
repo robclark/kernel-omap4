@@ -37,7 +37,7 @@ struct drm_device;
 struct drm_mode_set;
 struct drm_framebuffer;
 struct drm_object_properties;
-
+struct drm_object_property_values;
 
 #define DRM_MODE_OBJECT_CRTC 0xcccccccc
 #define DRM_MODE_OBJECT_CONNECTOR 0xc0c0c0c0
@@ -52,12 +52,16 @@ struct drm_mode_object {
 	uint32_t id;
 	uint32_t type;
 	struct drm_object_properties *properties;
+	struct drm_object_property_values *propvals;
 };
 
 #define DRM_OBJECT_MAX_PROPERTY 24
 struct drm_object_properties {
 	int count;
 	uint32_t ids[DRM_OBJECT_MAX_PROPERTY];
+};
+
+struct drm_object_property_values {
 	uint64_t values[DRM_OBJECT_MAX_PROPERTY];
 };
 
@@ -430,6 +434,7 @@ struct drm_crtc {
 	void *helper_private;
 
 	struct drm_object_properties properties;
+	struct drm_object_property_values propvals;
 };
 
 
@@ -596,6 +601,7 @@ struct drm_connector {
 	struct list_head user_modes;
 	struct drm_property_blob *edid_blob_ptr;
 	struct drm_object_properties properties;
+	struct drm_object_property_values propvals;
 
 	uint8_t polled; /* DRM_CONNECTOR_POLL_* */
 
@@ -681,6 +687,7 @@ struct drm_plane {
 	void *helper_private;
 
 	struct drm_object_properties properties;
+	struct drm_object_property_values propvals;
 };
 
 /**
@@ -928,6 +935,7 @@ extern void drm_mode_connector_list_update(struct drm_connector *connector);
 extern int drm_mode_connector_update_edid_property(struct drm_connector *connector,
 						struct edid *edid);
 extern int drm_object_property_set_value(struct drm_mode_object *obj,
+					 struct drm_object_property_values *propvals,
 					 struct drm_property *property,
 					 uint64_t val);
 extern int drm_object_property_get_value(struct drm_mode_object *obj,
