@@ -1292,7 +1292,8 @@ static void intel_tv_find_better_format(struct drm_connector *connector)
 
 	intel_tv->tv_format = tv_mode->name;
 	drm_object_property_set_value(&connector->base,
-		connector->dev->mode_config.tv_mode_property, i);
+		&connector->propvals,
+		connector->dev->mode_config.tv_mode_property, i, NULL);
 }
 
 /**
@@ -1450,7 +1451,8 @@ intel_tv_set_property(struct drm_connector *connector, void *state,
 	int ret = 0;
 	bool changed = false;
 
-	ret = drm_object_property_set_value(&connector->base, property, val);
+	ret = drm_object_property_set_value(&connector->base,
+			 &connector->propvals, property, val, blob_data);
 	if (ret < 0)
 		goto out;
 
