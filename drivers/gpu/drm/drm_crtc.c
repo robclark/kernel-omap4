@@ -4219,6 +4219,81 @@ out_unlock:
 	return ret;
 }
 
+int drm_mode_atomic_page_flip_ioctl(struct drm_device *dev,
+			     void *data, struct drm_file *file_priv)
+{
+	struct drm_mode_crtc_atomic_page_flip *page_flip = data;
+	struct drm_mode_obj_set_property __user *props =
+			(struct drm_mode_obj_set_property __user *)
+			(unsigned long)page_flip->props_ptr;
+	struct drm_pending_vblank_event *e = NULL;
+	struct drm_mode_object *obj;
+	void *state;
+	int i, ret;
+
+	if (page_flip->flags & ~DRM_MODE_ATOMIC_PAGE_FLIP_FLAGS ||
+	    page_flip->reserved != 0)
+		return -EINVAL;
+
+	if (!drm_core_check_feature(dev, DRIVER_MODESET) ||
+			!dev_supports_atomic(dev))
+		return -EINVAL;
+
+	mutex_lock(&dev->mode_config.mutex);
+
+	obj = drm_mode_object_find(dev, page_flip->crtc_id,
+			DRM_MODE_OBJECT_CRTC);
+	if (!obj) {
+		DRM_DEBUG_KMS("Unknown CRTC ID %d\n", page_flip->crtc_id);
+		ret = -ENOENT;
+		goto out_unlock;
+	}
+
+	state = dev->driver->atomic_begin(dev, obj_to_crtc(obj));
+	if (IS_ERR(state)) {
+		ret = PTR_ERR(state);
+		goto out_unlock;
+	}
+
+	if (page_flip->flags & DRM_MODE_PAGE_FLIP_EVENT) {
+		e = create_vblank_event(dev, file_priv, page_flip->user_data);
+		if (!e) {
+			ret = -ENOMEM;
+			goto out;
+		}
+	}
+
+	for (i = 0; i < page_flip->count_props; i++) {
+		struct drm_mode_obj_set_property prop;
+		if (copy_from_user(&prop, &props[i], sizeof(prop))) {
+			ret = -EFAULT;
+			goto out;
+		}
+
+		ret = drm_mode_set_obj_prop_id(dev, state,
+				prop.obj_id, prop.obj_type,
+				prop.prop_id, prop.value);
+		if (ret)
+			goto out;
+	}
+
+	ret = dev->driver->atomic_check(dev, state);
+	if (ret)
+		goto out;
+
+	if (!(page_flip->flags & DRM_MODE_TEST_ONLY))
+		ret = dev->driver->atomic_commit(dev, state, e);
+
+	if (ret && e)
+		destroy_vblank_event(dev, file_priv, e);
+
+out:
+	dev->driver->atomic_end(dev, state);
+out_unlock:
+	mutex_unlock(&dev->mode_config.mutex);
+	return ret;
+}
+
 void drm_mode_config_reset(struct drm_device *dev)
 {
 	struct drm_crtc *crtc;

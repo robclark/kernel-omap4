@@ -1129,6 +1129,8 @@ extern bool drm_detect_hdmi_monitor(struct edid *edid);
 extern bool drm_detect_monitor_audio(struct edid *edid);
 extern int drm_mode_page_flip_ioctl(struct drm_device *dev,
 				    void *data, struct drm_file *file_priv);
+extern int drm_mode_atomic_page_flip_ioctl(struct drm_device *dev,
+			     void *data, struct drm_file *file_priv);
 extern struct drm_display_mode *drm_cvt_mode(struct drm_device *dev,
 				int hdisplay, int vdisplay, int vrefresh,
 				bool reduced, bool interlaced, bool margins);
