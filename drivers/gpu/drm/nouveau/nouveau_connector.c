@@ -222,6 +222,7 @@ nouveau_connector_set_encoder(struct drm_connector *connector,
 
 	if (nv_connector->type == DCB_CONNECTOR_DVI_I) {
 		drm_object_property_set_value(&connector->base,
+			&connector->propvals,
 			dev->mode_config.dvi_i_subconnector_property,
 			nv_encoder->dcb->type == DCB_OUTPUT_TMDS ?
 			DRM_MODE_SUBCONNECTOR_DVID :

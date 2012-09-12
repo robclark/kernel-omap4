@@ -1696,7 +1696,8 @@ psb_intel_sdvo_set_property(struct drm_connector *connector,
 	uint8_t cmd;
 	int ret;
 
-	ret = drm_object_property_set_value(&connector->base, property, val);
+	ret = drm_object_property_set_value(&connector->base,
+			&connector->propvals, property, val);
 	if (ret)
 		return ret;
 
@@ -1752,6 +1753,7 @@ psb_intel_sdvo_set_property(struct drm_connector *connector,
 		temp_value = val;
 		if (psb_intel_sdvo_connector->left == property) {
 			drm_object_property_set_value(&connector->base,
+							 &connector->propvals,
 							 psb_intel_sdvo_connector->right, val);
 			if (psb_intel_sdvo_connector->left_margin == temp_value)
 				return 0;
@@ -1764,6 +1766,7 @@ psb_intel_sdvo_set_property(struct drm_connector *connector,
 			goto set_value;
 		} else if (psb_intel_sdvo_connector->right == property) {
 			drm_object_property_set_value(&connector->base,
+							 &connector->propvals,
 							 psb_intel_sdvo_connector->left, val);
 			if (psb_intel_sdvo_connector->right_margin == temp_value)
 				return 0;
@@ -1776,6 +1779,7 @@ psb_intel_sdvo_set_property(struct drm_connector *connector,
 			goto set_value;
 		} else if (psb_intel_sdvo_connector->top == property) {
 			drm_object_property_set_value(&connector->base,
+							 &connector->propvals,
 							 psb_intel_sdvo_connector->bottom, val);
 			if (psb_intel_sdvo_connector->top_margin == temp_value)
 				return 0;
@@ -1788,6 +1792,7 @@ psb_intel_sdvo_set_property(struct drm_connector *connector,
 			goto set_value;
 		} else if (psb_intel_sdvo_connector->bottom == property) {
 			drm_object_property_set_value(&connector->base,
+							 &connector->propvals,
 							 psb_intel_sdvo_connector->top, val);
 			if (psb_intel_sdvo_connector->bottom_margin == temp_value)
 				return 0;

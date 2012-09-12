@@ -490,6 +490,7 @@ static int cdv_intel_lvds_set_property(struct drm_connector *connector,
 			return 0;
 
 		if (drm_object_property_set_value(&connector->base,
+							&connector->propvals,
 							property,
 							value))
 			return -1;
@@ -505,6 +506,7 @@ static int cdv_intel_lvds_set_property(struct drm_connector *connector,
 		}
 	} else if (!strcmp(property->name, "backlight") && encoder) {
 		if (drm_object_property_set_value(&connector->base,
+							&connector->propvals,
 							property,
 							value))
 			return -1;
