@@ -2756,6 +2756,8 @@ struct drm_property *drm_property_create(struct drm_device *dev, int flags,
 	if (!property)
 		return NULL;
 
+	property->dev = dev;
+
 	if (num_values) {
 		property->values = kzalloc(sizeof(uint64_t)*num_values, GFP_KERNEL);
 		if (!property->values)
@@ -2858,6 +2860,23 @@ struct drm_property *drm_property_create_range(struct drm_device *dev, int flags
 	return property;
 }
 EXPORT_SYMBOL(drm_property_create_range);
+
+struct drm_property *drm_property_create_object(struct drm_device *dev,
+					 int flags, const char *name, uint32_t type)
+{
+	struct drm_property *property;
+
+	flags |= DRM_MODE_PROP_OBJECT;
+
+	property = drm_property_create(dev, flags, name, 1);
+	if (!property)
+		return NULL;
+
+	property->values[0] = type;
+
+	return property;
+}
+EXPORT_SYMBOL(drm_property_create_object);
 
 int drm_property_add_enum(struct drm_property *property, int index,
 			  uint64_t value, const char *name)
@@ -3203,6 +3222,11 @@ static bool drm_property_change_is_valid(struct drm_property *property,
 		for (i = 0; i < property->num_values; i++)
 			valid_mask |= (1ULL << property->values[i]);
 		return !(value & ~valid_mask);
+	} else if (property->flags & DRM_MODE_PROP_OBJECT) {
+		/* a zero value for an object property translates to null: */
+		if (value)
+			return true;
+		return drm_property_get_obj(property, value) != NULL;
 	} else {
 		int i;
 		for (i = 0; i < property->num_values; i++)
@@ -3243,7 +3267,7 @@ static int drm_mode_connector_set_obj_prop(struct drm_connector *connector,
 
 	/* store the property value if successful */
 	if (!ret)
-		drm_connector_property_set_value(connector, property, value);
+		drm_object_property_set_value(&connector->base, property, value);
 	return ret;
 }
 
@@ -3275,9 +3299,8 @@ static int drm_mode_plane_set_obj_prop(struct drm_plane *plane,
 	return ret;
 }
 
-static int drm_mode_set_obj_prop(struct drm_device *dev,
-		struct drm_mode_object *obj, void *state,
-		struct drm_property *property, uint64_t value)
+static int drm_mode_set_obj_prop(struct drm_mode_object *obj,
+		void *state, struct drm_property *property, uint64_t value)
 {
 	if (drm_property_change_is_valid(property, value)) {
 		switch (obj->type) {
@@ -3291,6 +3314,8 @@ static int drm_mode_set_obj_prop(struct drm_device *dev,
 			return drm_mode_plane_set_obj_prop(obj_to_plane(obj),
 					state, property, value);
 		}
+	} else {
+		DRM_DEBUG("invalid value: %s = %llx\n", property->name, value);
 	}
 
 	return -EINVAL;
@@ -3325,7 +3350,7 @@ static int drm_mode_set_obj_prop_id(struct drm_device *dev, void *state,
 		return -EINVAL;
 	property = obj_to_property(prop_obj);
 
-	return drm_mode_set_obj_prop(dev, arg_obj, state, property, value);
+	return drm_mode_set_obj_prop(arg_obj, state, property, value);
 }
 
 int drm_mode_obj_get_properties_ioctl(struct drm_device *dev, void *data,
