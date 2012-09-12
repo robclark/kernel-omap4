@@ -3825,6 +3825,51 @@ out:
 	return ret;
 }
 
+static struct drm_pending_vblank_event *create_vblank_event(
+		struct drm_device *dev, struct drm_file *file_priv, uint64_t user_data)
+{
+	struct drm_pending_vblank_event *e = NULL;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev->event_lock, flags);
+	if (file_priv->event_space < sizeof e->event) {
+		spin_unlock_irqrestore(&dev->event_lock, flags);
+		goto out;
+	}
+	file_priv->event_space -= sizeof e->event;
+	spin_unlock_irqrestore(&dev->event_lock, flags);
+
+	e = kzalloc(sizeof *e, GFP_KERNEL);
+	if (e == NULL) {
+		spin_lock_irqsave(&dev->event_lock, flags);
+		file_priv->event_space += sizeof e->event;
+		spin_unlock_irqrestore(&dev->event_lock, flags);
+		goto out;
+	}
+
+	e->event.base.type = DRM_EVENT_FLIP_COMPLETE;
+	e->event.base.length = sizeof e->event;
+	e->event.user_data = user_data;
+	e->base.event = &e->event.base;
+	e->base.file_priv = file_priv;
+	e->base.destroy =
+		(void (*) (struct drm_pending_event *)) kfree;
+
+out:
+	return e;
+}
+
+static void destroy_vblank_event(struct drm_device *dev,
+		struct drm_file *file_priv, struct drm_pending_vblank_event *e)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev->event_lock, flags);
+	file_priv->event_space += sizeof e->event;
+	spin_unlock_irqrestore(&dev->event_lock, flags);
+	kfree(e);
+}
+
 int drm_mode_page_flip_ioctl(struct drm_device *dev,
 			     void *data, struct drm_file *file_priv)
 {
@@ -3833,7 +3878,6 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 	struct drm_mode_object *obj;
 	struct drm_crtc *crtc;
 	struct drm_pending_vblank_event *e = NULL;
-	unsigned long flags;
 	void *state;
 	int ret = -EINVAL;
 
@@ -3868,30 +3912,11 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 	}
 
 	if (page_flip->flags & DRM_MODE_PAGE_FLIP_EVENT) {
-		ret = -ENOMEM;
-		spin_lock_irqsave(&dev->event_lock, flags);
-		if (file_priv->event_space < sizeof e->event) {
-			spin_unlock_irqrestore(&dev->event_lock, flags);
+		e = create_vblank_event(dev, file_priv, page_flip->user_data);
+		if (!e) {
+			ret = -ENOMEM;
 			goto out;
 		}
-		file_priv->event_space -= sizeof e->event;
-		spin_unlock_irqrestore(&dev->event_lock, flags);
-
-		e = kzalloc(sizeof *e, GFP_KERNEL);
-		if (e == NULL) {
-			spin_lock_irqsave(&dev->event_lock, flags);
-			file_priv->event_space += sizeof e->event;
-			spin_unlock_irqrestore(&dev->event_lock, flags);
-			goto out;
-		}
-
-		e->event.base.type = DRM_EVENT_FLIP_COMPLETE;
-		e->event.base.length = sizeof e->event;
-		e->event.user_data = page_flip->user_data;
-		e->base.event = &e->event.base;
-		e->base.file_priv = file_priv;
-		e->base.destroy =
-			(void (*) (struct drm_pending_event *)) kfree;
 	}
 
 	ret = drm_mode_set_obj_prop(obj, state,
@@ -3900,14 +3925,88 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 		goto out;
 
 	ret = dev->driver->atomic_commit(dev, state, e);
-	if (ret) {
-		if (page_flip->flags & DRM_MODE_PAGE_FLIP_EVENT) {
-			spin_lock_irqsave(&dev->event_lock, flags);
-			file_priv->event_space += sizeof e->event;
-			spin_unlock_irqrestore(&dev->event_lock, flags);
-			kfree(e);
+	if (ret && e)
+		destroy_vblank_event(dev, file_priv, e);
+
+out:
+	dev->driver->atomic_end(dev, state);
+out_unlock:
+	mutex_unlock(&dev->mode_config.mutex);
+	return ret;
+}
+
+int drm_mode_atomic_page_flip_ioctl(struct drm_device *dev,
+			     void *data, struct drm_file *file_priv)
+{
+	struct drm_mode_crtc_atomic_page_flip *page_flip = data;
+	struct drm_mode_obj_set_property __user *props =
+			(struct drm_mode_obj_set_property __user *)
+			(unsigned long)page_flip->props_ptr;
+	struct drm_pending_vblank_event *e = NULL;
+	struct drm_mode_object *obj;
+	void *state;
+	int i, ret;
+
+	if (page_flip->flags & ~DRM_MODE_ATOMIC_PAGE_FLIP_FLAGS ||
+	    page_flip->reserved != 0)
+		return -EINVAL;
+
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EINVAL;
+
+	mutex_lock(&dev->mode_config.mutex);
+
+	obj = drm_mode_object_find(dev, page_flip->crtc_id,
+			DRM_MODE_OBJECT_CRTC);
+	if (!obj) {
+		DRM_DEBUG_KMS("Unknown CRTC ID %d\n", page_flip->crtc_id);
+		ret = -ENOENT;
+		goto out_unlock;
+	}
+
+	state = dev->driver->atomic_begin(dev, obj_to_crtc(obj));
+	if (IS_ERR(state)) {
+		ret = PTR_ERR(state);
+		goto out_unlock;
+	}
+
+	if (page_flip->flags & DRM_MODE_PAGE_FLIP_EVENT) {
+		e = create_vblank_event(dev, file_priv, page_flip->user_data);
+		if (!e) {
+			ret = -ENOMEM;
+			goto out;
 		}
 	}
+
+	for (i = 0; i < page_flip->count_props; i++) {
+		struct drm_mode_obj_set_property prop;
+		if (copy_from_user(&prop, &props[i], sizeof(prop))) {
+			ret = -EFAULT;
+			goto out;
+		}
+
+		/* TODO should we enforce that none of the
+		 * properties target objects in chain with
+		 * other crtcs?  Or just let the driver deal
+		 * with it?
+		 */
+
+		ret = drm_mode_set_obj_prop_id(dev, state,
+				prop.obj_id, prop.obj_type,
+				prop.prop_id, prop.value);
+		if (ret)
+			goto out;
+	}
+
+	ret = dev->driver->atomic_check(dev, state);
+	if (ret)
+		goto out;
+
+	if (!(page_flip->flags & DRM_MODE_TEST_ONLY))
+		ret = dev->driver->atomic_commit(dev, state, e);
+
+	if (ret && e)
+		destroy_vblank_event(dev, file_priv, e);
 
 out:
 	dev->driver->atomic_end(dev, state);
