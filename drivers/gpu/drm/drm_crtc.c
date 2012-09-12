@@ -441,9 +441,7 @@ void drm_framebuffer_remove(struct drm_framebuffer *fb)
 	struct drm_mode_config *config = &dev->mode_config;
 	struct drm_crtc *crtc;
 	struct drm_plane *plane;
-	struct drm_mode_set set;
 	void *state;
-	int ret;
 
 	if (!dev_supports_atomic(dev)) {
 		drm_framebuffer_remove_legacy(fb);
@@ -460,12 +458,7 @@ void drm_framebuffer_remove(struct drm_framebuffer *fb)
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		if (crtc->fb == fb) {
 			/* should turn off the crtc */
-			memset(&set, 0, sizeof(struct drm_mode_set));
-			set.crtc = crtc;
-			set.fb = NULL;
-			ret = crtc->funcs->set_config(&set);
-			if (ret)
-				DRM_ERROR("failed to reset crtc %p when fb was deleted\n", crtc);
+			drm_mode_crtc_set_obj_prop(crtc, state, config->prop_fb_id, 0);
 		}
 	}
 
@@ -508,6 +501,7 @@ EXPORT_SYMBOL(drm_framebuffer_remove);
 int drm_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
 		   const struct drm_crtc_funcs *funcs)
 {
+	struct drm_mode_config *config = &dev->mode_config;
 	int ret;
 
 	crtc->dev = dev;
@@ -525,6 +519,13 @@ int drm_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
 
 	list_add_tail(&crtc->head, &dev->mode_config.crtc_list);
 	dev->mode_config.num_crtc++;
+
+	if (!dev_supports_atomic(dev))
+		goto out;
+
+	drm_object_attach_property(&crtc->base, config->prop_fb_id, 0);
+	drm_object_attach_property(&crtc->base, config->prop_crtc_x, 0);
+	drm_object_attach_property(&crtc->base, config->prop_crtc_y, 0);
 
  out:
 	mutex_unlock(&dev->mode_config.mutex);
@@ -3960,7 +3961,53 @@ out:
 	return ret;
 }
 
-int drm_mode_page_flip_ioctl(struct drm_device *dev,
+static struct drm_pending_vblank_event *create_vblank_event(
+		struct drm_device *dev, struct drm_file *file_priv, uint64_t user_data)
+{
+	struct drm_pending_vblank_event *e = NULL;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev->event_lock, flags);
+	if (file_priv->event_space < sizeof e->event) {
+		spin_unlock_irqrestore(&dev->event_lock, flags);
+		goto out;
+	}
+	file_priv->event_space -= sizeof e->event;
+	spin_unlock_irqrestore(&dev->event_lock, flags);
+
+	e = kzalloc(sizeof *e, GFP_KERNEL);
+	if (e == NULL) {
+		spin_lock_irqsave(&dev->event_lock, flags);
+		file_priv->event_space += sizeof e->event;
+		spin_unlock_irqrestore(&dev->event_lock, flags);
+		goto out;
+	}
+
+	e->event.base.type = DRM_EVENT_FLIP_COMPLETE;
+	e->event.base.length = sizeof e->event;
+	e->event.user_data = user_data;
+	e->base.event = &e->event.base;
+	e->base.file_priv = file_priv;
+	e->base.destroy =
+		(void (*) (struct drm_pending_event *)) kfree;
+
+out:
+	return e;
+}
+
+static void destroy_vblank_event(struct drm_device *dev,
+		struct drm_file *file_priv, struct drm_pending_vblank_event *e)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev->event_lock, flags);
+	file_priv->event_space += sizeof e->event;
+	spin_unlock_irqrestore(&dev->event_lock, flags);
+	kfree(e);
+}
+
+/* Legacy version.. remove when all drivers converted to 'atomic' API */
+static int drm_mode_page_flip_ioctl_legacy(struct drm_device *dev,
 			     void *data, struct drm_file *file_priv)
 {
 	struct drm_mode_crtc_page_flip *page_flip = data;
@@ -3968,7 +4015,6 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 	struct drm_crtc *crtc;
 	struct drm_framebuffer *fb;
 	struct drm_pending_vblank_event *e = NULL;
-	unsigned long flags;
 	int hdisplay, vdisplay;
 	int ret = -EINVAL;
 
@@ -4017,43 +4063,90 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 	}
 
 	if (page_flip->flags & DRM_MODE_PAGE_FLIP_EVENT) {
-		ret = -ENOMEM;
-		spin_lock_irqsave(&dev->event_lock, flags);
-		if (file_priv->event_space < sizeof e->event) {
-			spin_unlock_irqrestore(&dev->event_lock, flags);
+		e = create_vblank_event(dev, file_priv, page_flip->user_data);
+		if (!e) {
+			ret = -ENOMEM;
 			goto out;
 		}
-		file_priv->event_space -= sizeof e->event;
-		spin_unlock_irqrestore(&dev->event_lock, flags);
-
-		e = kzalloc(sizeof *e, GFP_KERNEL);
-		if (e == NULL) {
-			spin_lock_irqsave(&dev->event_lock, flags);
-			file_priv->event_space += sizeof e->event;
-			spin_unlock_irqrestore(&dev->event_lock, flags);
-			goto out;
-		}
-
-		e->event.base.type = DRM_EVENT_FLIP_COMPLETE;
-		e->event.base.length = sizeof e->event;
-		e->event.user_data = page_flip->user_data;
-		e->base.event = &e->event.base;
-		e->base.file_priv = file_priv;
-		e->base.destroy =
-			(void (*) (struct drm_pending_event *)) kfree;
 	}
 
 	ret = crtc->funcs->page_flip(crtc, fb, e);
-	if (ret) {
-		if (page_flip->flags & DRM_MODE_PAGE_FLIP_EVENT) {
-			spin_lock_irqsave(&dev->event_lock, flags);
-			file_priv->event_space += sizeof e->event;
-			spin_unlock_irqrestore(&dev->event_lock, flags);
-			kfree(e);
+	if (ret && e)
+		destroy_vblank_event(dev, file_priv, e);
+
+out:
+	mutex_unlock(&dev->mode_config.mutex);
+	return ret;
+}
+
+int drm_mode_page_flip_ioctl(struct drm_device *dev,
+			     void *data, struct drm_file *file_priv)
+{
+	struct drm_mode_crtc_page_flip *page_flip = data;
+	struct drm_mode_config *config = &dev->mode_config;
+	struct drm_mode_object *obj;
+	struct drm_crtc *crtc;
+	struct drm_pending_vblank_event *e = NULL;
+	void *state;
+	int ret = -EINVAL;
+
+	if (!dev_supports_atomic(dev))
+		return drm_mode_page_flip_ioctl_legacy(dev, data, file_priv);
+
+	if (page_flip->flags & ~DRM_MODE_PAGE_FLIP_FLAGS ||
+	    page_flip->reserved != 0)
+		return -EINVAL;
+
+	mutex_lock(&dev->mode_config.mutex);
+
+	obj = drm_mode_object_find(dev, page_flip->crtc_id,
+			DRM_MODE_OBJECT_CRTC);
+	if (!obj) {
+		DRM_DEBUG_KMS("Unknown CRTC ID %d\n", page_flip->crtc_id);
+		ret = -ENOENT;
+		goto out_unlock;
+	}
+	crtc = obj_to_crtc(obj);
+
+	state = dev->driver->atomic_begin(dev, crtc);
+	if (IS_ERR(state)) {
+		ret = PTR_ERR(state);
+		goto out_unlock;
+	}
+
+	if (crtc->fb == NULL) {
+		/* The framebuffer is currently unbound, presumably
+		 * due to a hotplug event, that userspace has not
+		 * yet discovered.
+		 */
+		ret = -EBUSY;
+		goto out;
+	}
+
+	if (page_flip->flags & DRM_MODE_PAGE_FLIP_EVENT) {
+		e = create_vblank_event(dev, file_priv, page_flip->user_data);
+		if (!e) {
+			ret = -ENOMEM;
+			goto out;
 		}
 	}
 
+	ret = drm_mode_set_obj_prop(obj, state,
+			config->prop_fb_id, page_flip->fb_id);
+	if (ret)
+		goto out;
+
+	ret = dev->driver->atomic_check(dev, state);
+	if (ret)
+		goto out;
+
+	ret = dev->driver->atomic_commit(dev, state, e);
+	if (ret && e)
+		destroy_vblank_event(dev, file_priv, e);
+
 out:
+	dev->driver->atomic_end(dev, state);
+out_unlock:
 	mutex_unlock(&dev->mode_config.mutex);
 	return ret;
 }
