@@ -446,6 +446,7 @@ int drm_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
 		goto out;
 
 	crtc->base.properties = &crtc->properties;
+	crtc->base.propvals = &crtc->propvals;
 
 	list_add_tail(&crtc->head, &dev->mode_config.crtc_list);
 	dev->mode_config.num_crtc++;
@@ -547,6 +548,7 @@ int drm_connector_init(struct drm_device *dev,
 		goto out;
 
 	connector->base.properties = &connector->properties;
+	connector->base.propvals = &connector->propvals;
 	connector->dev = dev;
 	connector->funcs = funcs;
 	connector->connector_type = connector_type;
@@ -670,6 +672,7 @@ int drm_plane_init(struct drm_device *dev, struct drm_plane *plane,
 		goto out;
 
 	plane->base.properties = &plane->properties;
+	plane->base.propvals = &plane->propvals;
 	plane->dev = dev;
 	plane->funcs = funcs;
 	plane->format_types = kmalloc(sizeof(uint32_t) * format_count,
@@ -1549,7 +1552,7 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 				goto out;
 			}
 
-			if (put_user(connector->properties.values[i],
+			if (put_user(connector->propvals.values[i],
 				     prop_values + copied)) {
 				ret = -EFAULT;
 				goto out;
@@ -2944,7 +2947,8 @@ EXPORT_SYMBOL(drm_connector_attach_property);
 int drm_connector_property_set_value(struct drm_connector *connector,
 				  struct drm_property *property, uint64_t value)
 {
-	return drm_object_property_set_value(&connector->base, property, value);
+	return drm_object_property_set_value(&connector->base,
+			&connector->propvals, property, value);
 }
 EXPORT_SYMBOL(drm_connector_property_set_value);
 
@@ -2970,19 +2974,20 @@ void drm_object_attach_property(struct drm_mode_object *obj,
 	}
 
 	obj->properties->ids[count] = property->base.id;
-	obj->properties->values[count] = init_val;
+	obj->propvals->values[count] = init_val;
 	obj->properties->count++;
 }
 EXPORT_SYMBOL(drm_object_attach_property);
 
 int drm_object_property_set_value(struct drm_mode_object *obj,
+				  struct drm_object_property_values *propvals,
 				  struct drm_property *property, uint64_t val)
 {
 	int i;
 
 	for (i = 0; i < obj->properties->count; i++) {
 		if (obj->properties->ids[i] == property->base.id) {
-			obj->properties->values[i] = val;
+			propvals->values[i] = val;
 			return 0;
 		}
 	}
@@ -2998,7 +3003,7 @@ int drm_object_property_get_value(struct drm_mode_object *obj,
 
 	for (i = 0; i < obj->properties->count; i++) {
 		if (obj->properties->ids[i] == property->base.id) {
-			*val = obj->properties->values[i];
+			*val = obj->propvals->values[i];
 			return 0;
 		}
 	}
@@ -3273,7 +3278,9 @@ static int drm_mode_connector_set_obj_prop(struct drm_connector *connector,
 
 	/* store the property value if successful */
 	if (!ret)
-		drm_object_property_set_value(&connector->base, property, value);
+		drm_object_property_set_value(&connector->base,
+				&connector->propvals, property, value);
+
 	return ret;
 }
 
@@ -3286,7 +3293,8 @@ static int drm_mode_crtc_set_obj_prop(struct drm_crtc *crtc,
 	if (crtc->funcs->set_property)
 		ret = crtc->funcs->set_property(crtc, state, property, value);
 	if (!ret)
-		drm_object_property_set_value(&crtc->base, property, value);
+		drm_object_property_set_value(&crtc->base, &crtc->propvals,
+				property, value);
 
 	return ret;
 }
@@ -3300,7 +3308,8 @@ static int drm_mode_plane_set_obj_prop(struct drm_plane *plane,
 	if (plane->funcs->set_property)
 		ret = plane->funcs->set_property(plane, state, property, value);
 	if (!ret)
-		drm_object_property_set_value(&plane->base, property, value);
+		drm_object_property_set_value(&plane->base, &plane->propvals,
+				property, value);
 
 	return ret;
 }
@@ -3401,7 +3410,7 @@ int drm_mode_obj_get_properties_ioctl(struct drm_device *dev, void *data,
 				ret = -EFAULT;
 				goto out;
 			}
-			if (put_user(obj->properties->values[i],
+			if (put_user(obj->propvals->values[i],
 				     prop_values_ptr + copied)) {
 				ret = -EFAULT;
 				goto out;
