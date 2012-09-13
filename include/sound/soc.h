@@ -291,6 +291,10 @@
 #define SND_SOC_COMP_ORDER_LATE		1
 #define SND_SOC_COMP_ORDER_LAST		2
 
+#define snd_soc_get_enum_text(soc_enum, idx) \
+       (soc_enum->texts ? soc_enum->texts[idx] : soc_enum->dtexts[idx])
+
+
 /*
  * Bias levels
  *
@@ -1089,6 +1093,10 @@ struct soc_enum {
 	unsigned int mask;
 	const char * const *texts;
 	const unsigned int *values;
+	/* dynamic enum controls */
+	char **dtexts;
+	unsigned int *dvalues;
+
 	void *dapm;
 };
 
