@@ -410,7 +410,7 @@ void drm_framebuffer_remove(struct drm_framebuffer *fb)
 	}
 
 	list_for_each_entry(plane, &dev->mode_config.plane_list, head) {
-		if (plane->fb == fb) {
+		if (plane->state->fb == fb) {
 			/* should turn off the crtc */
 			drm_mode_plane_set_obj_prop(plane, state, config->prop_crtc_id, 0);
 			drm_mode_plane_set_obj_prop(plane, state, config->prop_fb_id, 0);
@@ -688,7 +688,7 @@ int drm_plane_init(struct drm_device *dev, struct drm_plane *plane,
 		goto out;
 
 	plane->base.properties = &plane->properties;
-	plane->base.propvals = &plane->propvals;
+	plane->base.propvals = &plane->state->propvals;
 	plane->dev = dev;
 	plane->funcs = funcs;
 	plane->format_types = kmalloc(sizeof(uint32_t) * format_count,
@@ -748,6 +748,110 @@ void drm_plane_cleanup(struct drm_plane *plane)
 	mutex_unlock(&dev->mode_config.mutex);
 }
 EXPORT_SYMBOL(drm_plane_cleanup);
+
+int drm_plane_check_state(struct drm_plane *plane,
+		struct drm_plane_state *state)
+{
+	unsigned int fb_width, fb_height;
+	struct drm_framebuffer *fb = state->fb;
+	int i;
+
+	/* disabling the plane is allowed: */
+	if (!fb)
+		return 0;
+
+	fb_width = fb->width << 16;
+	fb_height = fb->height << 16;
+
+	/* Check whether this plane supports the fb pixel format. */
+	for (i = 0; i < plane->format_count; i++)
+		if (fb->pixel_format == plane->format_types[i])
+			break;
+	if (i == plane->format_count) {
+		DRM_DEBUG_KMS("Invalid pixel format 0x%08x\n", fb->pixel_format);
+		return -EINVAL;
+	}
+
+	/* Make sure source coordinates are inside the fb. */
+	if (state->src_w > fb_width ||
+			state->src_x > fb_width - state->src_w ||
+			state->src_h > fb_height ||
+			state->src_y > fb_height - state->src_h) {
+		DRM_DEBUG_KMS("Invalid source coordinates "
+			      "%u.%06ux%u.%06u+%u.%06u+%u.%06u\n",
+			      state->src_w >> 16,
+			      ((state->src_w & 0xffff) * 15625) >> 10,
+			      state->src_h >> 16,
+			      ((state->src_h & 0xffff) * 15625) >> 10,
+			      state->src_x >> 16,
+			      ((state->src_x & 0xffff) * 15625) >> 10,
+			      state->src_y >> 16,
+			      ((state->src_y & 0xffff) * 15625) >> 10);
+		return -ENOSPC;
+	}
+
+	/* Give drivers some help against integer overflows */
+	if (state->crtc_w > INT_MAX ||
+			state->crtc_x > INT_MAX - (int32_t) state->crtc_w ||
+			state->crtc_h > INT_MAX ||
+			state->crtc_y > INT_MAX - (int32_t) state->crtc_h) {
+		DRM_DEBUG_KMS("Invalid CRTC coordinates %ux%u+%d+%d\n",
+			      state->crtc_w, state->crtc_h,
+			      state->crtc_x, state->crtc_y);
+		return -ERANGE;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_plane_check_state);
+
+void drm_plane_commit_state(struct drm_plane *plane,
+		struct drm_plane_state *state)
+{
+	plane->state = state;
+	plane->base.propvals = &state->propvals;
+}
+EXPORT_SYMBOL(drm_plane_commit_state);
+
+int drm_plane_set_property(struct drm_plane *plane,
+		struct drm_plane_state *state,
+		struct drm_property *property, uint64_t value)
+{
+	struct drm_device *dev = plane->dev;
+	struct drm_mode_config *config = &dev->mode_config;
+
+	drm_object_property_set_value(&plane->base,
+			&state->propvals, property, value);
+
+	if (property == config->prop_fb_id) {
+		struct drm_mode_object *obj = drm_property_get_obj(property, value);
+		state->fb = obj ? obj_to_fb(obj) : NULL;
+	} else if (property == config->prop_crtc_id) {
+		struct drm_mode_object *obj = drm_property_get_obj(property, value);
+		state->crtc = obj ? obj_to_crtc(obj) : NULL;
+	} else if (property == config->prop_crtc_x) {
+		state->crtc_x = U642I64(value);
+	} else if (property == config->prop_crtc_y) {
+		state->crtc_y = U642I64(value);
+	} else if (property == config->prop_crtc_w) {
+		state->crtc_w = value;
+	} else if (property == config->prop_crtc_h) {
+		state->crtc_h = value;
+	} else if (property == config->prop_src_x) {
+		state->src_x = value;
+	} else if (property == config->prop_src_y) {
+		state->src_y = value;
+	} else if (property == config->prop_src_w) {
+		state->src_w = value;
+	} else if (property == config->prop_src_h) {
+		state->src_h = value;
+	} else {
+		return -EINVAL;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_plane_set_property);
 
 /**
  * drm_mode_create - create a new display mode
@@ -1794,13 +1898,13 @@ int drm_mode_getplane(struct drm_device *dev, void *data,
 	}
 	plane = obj_to_plane(obj);
 
-	if (plane->crtc)
-		plane_resp->crtc_id = plane->crtc->base.id;
+	if (plane->state->crtc)
+		plane_resp->crtc_id = plane->state->crtc->base.id;
 	else
 		plane_resp->crtc_id = 0;
 
-	if (plane->fb)
-		plane_resp->fb_id = plane->fb->base.id;
+	if (plane->state->fb)
+		plane_resp->fb_id = plane->state->fb->base.id;
 	else
 		plane_resp->fb_id = 0;
 
@@ -3359,9 +3463,6 @@ int drm_mode_plane_set_obj_prop(struct drm_plane *plane,
 
 	if (plane->funcs->set_property)
 		ret = plane->funcs->set_property(plane, state, property, value);
-	if (!ret)
-		drm_object_property_set_value(&plane->base, &plane->propvals,
-				property, value);
 
 	return ret;
 }

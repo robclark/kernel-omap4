@@ -641,6 +641,37 @@ struct drm_plane_funcs {
 };
 
 /**
+ * drm_plane_state - mutable plane state
+ * @crtc: currently bound CRTC
+ * @fb: currently bound fb
+ * @crtc_x: left position of visible portion of plane on crtc
+ * @crtc_y: upper position of visible portion of plane on crtc
+ * @crtc_w: width of visible portion of plane on crtc
+ * @crtc_h: height of visible portion of plane on crtc
+ * @src_x: left position of visible portion of plane within
+ *   plane (in 16.16)
+ * @src_y: upper position of visible portion of plane within
+ *   plane (in 16.16)
+ * @src_w: width of visible portion of plane (in 16.16)
+ * @src_h: height of visible portion of plane (in 16.16)
+ * @propvals: property values
+ */
+struct drm_plane_state {
+	struct drm_crtc *crtc;
+	struct drm_framebuffer *fb;
+
+	/* Signed dest location allows it to be partially off screen */
+	int32_t crtc_x, crtc_y;
+	uint32_t crtc_w, crtc_h;
+
+	/* Source values are 16.16 fixed point */
+	uint32_t src_x, src_y;
+	uint32_t src_h, src_w;
+
+	struct drm_object_property_values propvals;
+};
+
+/**
  * drm_plane - central DRM plane control structure
  * @dev: DRM device this plane belongs to
  * @head: for list management
@@ -648,11 +679,9 @@ struct drm_plane_funcs {
  * @possible_crtcs: pipes this plane can be bound to
  * @format_types: array of formats supported by this plane
  * @format_count: number of formats supported
- * @crtc: currently bound CRTC
- * @fb: currently bound fb
+ * @state: the mutable state
  * @gamma_size: size of gamma table
  * @gamma_store: gamma correction table
- * @enabled: enabled flag
  * @funcs: helper functions
  * @helper_private: storage for drver layer
  * @properties: property tracking for this plane
@@ -667,20 +696,20 @@ struct drm_plane {
 	uint32_t *format_types;
 	uint32_t format_count;
 
-	struct drm_crtc *crtc;
-	struct drm_framebuffer *fb;
+	/*
+	 * State that can be updated from userspace, and atomically
+	 * commited or rolled back:
+	 */
+	struct drm_plane_state *state;
 
 	/* CRTC gamma size for reporting to userspace */
 	uint32_t gamma_size;
 	uint16_t *gamma_store;
 
-	bool enabled;
-
 	const struct drm_plane_funcs *funcs;
 	void *helper_private;
 
 	struct drm_object_properties properties;
-	struct drm_object_property_values propvals;
 };
 
 /**
@@ -888,6 +917,13 @@ extern int drm_plane_init(struct drm_device *dev,
 			  const uint32_t *formats, uint32_t format_count,
 			  bool priv);
 extern void drm_plane_cleanup(struct drm_plane *plane);
+extern int drm_plane_check_state(struct drm_plane *plane,
+		struct drm_plane_state *state);
+extern void drm_plane_commit_state(struct drm_plane *plane,
+		struct drm_plane_state *state);
+extern int drm_plane_set_property(struct drm_plane *plane,
+		struct drm_plane_state *state,
+		struct drm_property *property, uint64_t value);
 
 extern void drm_encoder_cleanup(struct drm_encoder *encoder);
 
