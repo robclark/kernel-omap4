@@ -3210,9 +3210,15 @@ EXPORT_SYMBOL(drm_mode_connector_update_edid_property);
 static bool drm_property_change_is_valid(struct drm_property *property,
 					 uint64_t value)
 {
-	if (property->flags & DRM_MODE_PROP_IMMUTABLE)
+	if (property->flags & DRM_MODE_PROP_IMMUTABLE) {
 		return false;
-	if (property->flags & DRM_MODE_PROP_RANGE) {
+	} else if (property->flags & (DRM_MODE_PROP_RANGE|DRM_MODE_PROP_SIGNED)) {
+		int64_t svalue = U642I64(value);
+		if (svalue < U642I64(property->values[0]) ||
+				svalue > U642I64(property->values[1]))
+			return false;
+		return true;
+	} else if (property->flags & DRM_MODE_PROP_RANGE) {
 		if (value < property->values[0] || value > property->values[1])
 			return false;
 		return true;
