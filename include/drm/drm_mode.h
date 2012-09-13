@@ -241,6 +241,8 @@ struct drm_mode_get_connector {
  * be changed dynamically, assuming the pixel format does not change.
  */
 #define DRM_MODE_PROP_DYNAMIC	(1<<24)
+/* Indicates that numeric property values are signed rather than unsigned: */
+#define DRM_MODE_PROP_SIGNED   (1<<25)
 
 struct drm_mode_property_enum {
 	__u64 value;
