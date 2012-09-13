@@ -205,6 +205,14 @@
 	};
 };
 
+&i2c5 {
+	tca: tca@22 {
+		reg = <0x22>;
+	};
+};
+
+/include/ "tca6424a.dtsi"
+
 &keypad {
 	keypad,num-rows = <8>;
 	keypad,num-columns = <8>;
