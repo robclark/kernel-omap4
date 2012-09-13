@@ -363,18 +363,43 @@ struct drm_crtc_funcs {
 };
 
 /**
- * drm_crtc - central CRTC control structure
- * @dev: parent DRM device
- * @head: list management
- * @base: base KMS object for ID tracking etc.
- * @enabled: is this CRTC enabled?
- * @mode: current mode timings
- * @hwmode: mode timings as programmed to hw regs
+ * drm_crtc_state - mutable crtc state
+ * @fb: the framebuffer that the CRTC is currently bound to
  * @invert_dimensions: for purposes of error checking crtc vs fb sizes,
  *    invert the width/height of the crtc.  This is used if the driver
  *    is performing 90 or 270 degree rotated scanout
  * @x: x position on screen
  * @y: y position on screen
+ * @propvals: property values
+ */
+struct drm_crtc_state {
+	/*
+	 * NOTE: more should move from 'struct drm_crtc' into here as
+	 * part of the atomic-modeset support:
+	 *   + enabled
+	 *   + mode
+	 *   + hwmode
+	 *   + framedur_ns
+	 *   + linedur_ns
+	 *   + pixeldur_ns
+	 *
+	 * For now, I'm just moving what is needed for atomic-pageflip
+	 */
+	struct drm_framebuffer *fb;
+	bool invert_dimensions;
+	int x, y;
+	struct drm_object_property_values propvals;
+};
+
+/**
+ * drm_crtc - central CRTC control structure
+ * @dev: parent DRM device
+ * @head: list management
+ * @base: base KMS object for ID tracking etc.
+ * @state: the mutable state
+ * @enabled: is this CRTC enabled?
+ * @mode: current mode timings
+ * @hwmode: mode timings as programmed to hw regs
  * @funcs: CRTC control functions
  * @gamma_size: size of gamma ramp
  * @gamma_store: gamma ramp values
@@ -393,8 +418,7 @@ struct drm_crtc {
 
 	struct drm_mode_object base;
 
-	/* framebuffer the connector is currently bound to */
-	struct drm_framebuffer *fb;
+	struct drm_crtc_state *state;
 
 	bool enabled;
 
@@ -406,9 +430,6 @@ struct drm_crtc {
 	 */
 	struct drm_display_mode hwmode;
 
-	bool invert_dimensions;
-
-	int x, y;
 	const struct drm_crtc_funcs *funcs;
 
 	/* CRTC gamma size for reporting to userspace */
@@ -422,7 +443,6 @@ struct drm_crtc {
 	void *helper_private;
 
 	struct drm_object_properties properties;
-	struct drm_object_property_values propvals;
 };
 
 
@@ -882,6 +902,13 @@ extern int drm_crtc_init(struct drm_device *dev,
 			 struct drm_crtc *crtc,
 			 const struct drm_crtc_funcs *funcs);
 extern void drm_crtc_cleanup(struct drm_crtc *crtc);
+extern int drm_crtc_check_state(struct drm_crtc *crtc,
+		struct drm_crtc_state *state);
+extern void drm_crtc_commit_state(struct drm_crtc *crtc,
+		struct drm_crtc_state *state);
+extern int drm_crtc_set_property(struct drm_crtc *crtc,
+		struct drm_crtc_state *state,
+		struct drm_property *property, uint64_t value);
 
 extern int drm_connector_init(struct drm_device *dev,
 			      struct drm_connector *connector,

@@ -396,7 +396,7 @@ void drm_framebuffer_remove(struct drm_framebuffer *fb)
 
 	/* remove from any CRTC */
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		if (crtc->fb == fb) {
+		if (crtc->state->fb == fb) {
 			/* should turn off the crtc */
 			drm_mode_crtc_set_obj_prop(crtc, state, config->prop_fb_id, 0);
 		}
@@ -446,7 +446,7 @@ int drm_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
 
 	crtc->dev = dev;
 	crtc->funcs = funcs;
-	crtc->invert_dimensions = false;
+	crtc->state->invert_dimensions = false;
 
 	mutex_lock(&dev->mode_config.mutex);
 
@@ -455,7 +455,7 @@ int drm_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
 		goto out;
 
 	crtc->base.properties = &crtc->properties;
-	crtc->base.propvals = &crtc->propvals;
+	crtc->base.propvals = &crtc->state->propvals;
 
 	list_add_tail(&crtc->head, &dev->mode_config.crtc_list);
 	dev->mode_config.num_crtc++;
@@ -495,6 +495,67 @@ void drm_crtc_cleanup(struct drm_crtc *crtc)
 	dev->mode_config.num_crtc--;
 }
 EXPORT_SYMBOL(drm_crtc_cleanup);
+
+int drm_crtc_check_state(struct drm_crtc *crtc,
+		struct drm_crtc_state *state)
+{
+	struct drm_framebuffer *fb = state->fb;
+	int hdisplay, vdisplay;
+
+	/* disabling the crtc is allowed: */
+	if (!fb)
+		return 0;
+
+	hdisplay = crtc->mode.hdisplay;
+	vdisplay = crtc->mode.vdisplay;
+
+	if (state->invert_dimensions)
+		swap(hdisplay, vdisplay);
+
+	if (hdisplay > fb->width ||
+	    vdisplay > fb->height ||
+	    state->x > fb->width - hdisplay ||
+	    state->y > fb->height - vdisplay) {
+		DRM_DEBUG_KMS("Invalid fb size %ux%u for CRTC viewport %ux%u+%d+%d%s.\n",
+			      fb->width, fb->height, hdisplay, vdisplay,
+			      state->x, state->y,
+			      state->invert_dimensions ? " (inverted)" : "");
+		return -ENOSPC;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_crtc_check_state);
+
+void drm_crtc_commit_state(struct drm_crtc *crtc,
+		struct drm_crtc_state *state)
+{
+	crtc->state = state;
+	crtc->base.propvals = &state->propvals;
+}
+EXPORT_SYMBOL(drm_crtc_commit_state);
+
+int drm_crtc_set_property(struct drm_crtc *crtc,
+		struct drm_crtc_state *state,
+		struct drm_property *property, uint64_t value)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_mode_config *config = &dev->mode_config;
+
+	if (property == config->prop_fb_id) {
+		struct drm_mode_object *obj = drm_property_get_obj(property, value);
+		state->fb = obj ? obj_to_fb(obj) : NULL;
+	} else if (property == config->prop_crtc_x) {
+		state->x = *(int *)&value;
+	} else if (property == config->prop_crtc_y) {
+		state->y = *(int32_t *)&value;
+	} else {
+		return -EINVAL;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_crtc_set_property);
 
 /**
  * drm_mode_probed_add - add a mode to a connector's probed mode list
@@ -1614,11 +1675,11 @@ int drm_mode_getcrtc(struct drm_device *dev,
 	}
 	crtc = obj_to_crtc(obj);
 
-	crtc_resp->x = crtc->x;
-	crtc_resp->y = crtc->y;
+	crtc_resp->x = crtc->state->x;
+	crtc_resp->y = crtc->state->y;
 	crtc_resp->gamma_size = crtc->gamma_size;
-	if (crtc->fb)
-		crtc_resp->fb_id = crtc->fb->base.id;
+	if (crtc->state->fb)
+		crtc_resp->fb_id = crtc->state->fb->base.id;
 	else
 		crtc_resp->fb_id = 0;
 
@@ -2072,12 +2133,12 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 		/* If we have a mode we need a framebuffer. */
 		/* If we pass -1, set the mode with the currently bound fb */
 		if (crtc_req->fb_id == -1) {
-			if (!crtc->fb) {
+			if (!crtc->state->fb) {
 				DRM_DEBUG_KMS("CRTC doesn't have current FB\n");
 				ret = -EINVAL;
 				goto out;
 			}
-			fb = crtc->fb;
+			fb = crtc->state->fb;
 		} else {
 			obj = drm_mode_object_find(dev, crtc_req->fb_id,
 						   DRM_MODE_OBJECT_FB);
@@ -2107,7 +2168,7 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 		hdisplay = mode->hdisplay;
 		vdisplay = mode->vdisplay;
 
-		if (crtc->invert_dimensions)
+		if (crtc->state->invert_dimensions)
 			swap(hdisplay, vdisplay);
 
 		if (hdisplay > fb->width ||
@@ -2117,7 +2178,7 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 			DRM_DEBUG_KMS("Invalid fb size %ux%u for CRTC viewport %ux%u+%d+%d%s.\n",
 				      fb->width, fb->height,
 				      hdisplay, vdisplay, crtc_req->x, crtc_req->y,
-				      crtc->invert_dimensions ? " (inverted)" : "");
+				      crtc->state->invert_dimensions ? " (inverted)" : "");
 			ret = -ENOSPC;
 			goto out;
 		}
@@ -3445,9 +3506,6 @@ int drm_mode_crtc_set_obj_prop(struct drm_crtc *crtc,
 
 	if (crtc->funcs->set_property)
 		ret = crtc->funcs->set_property(crtc, state, property, value);
-	if (!ret)
-		drm_object_property_set_value(&crtc->base, &crtc->propvals,
-				property, value);
 
 	return ret;
 }
@@ -3800,7 +3858,7 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 		goto out_unlock;
 	}
 
-	if (crtc->fb == NULL) {
+	if (crtc->state->fb == NULL) {
 		/* The framebuffer is currently unbound, presumably
 		 * due to a hotplug event, that userspace has not
 		 * yet discovered.
