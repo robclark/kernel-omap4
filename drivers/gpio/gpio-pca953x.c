@@ -751,9 +751,16 @@ static int pca953x_remove(struct i2c_client *client)
 	return 0;
 }
 
+static const struct of_device_id pca953x_gpio_match[] = {
+	{ .compatible = "ti,tca6424a-gpio", },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, pca953x_gpio_match);
+
 static struct i2c_driver pca953x_driver = {
 	.driver = {
 		.name	= "pca953x",
+		.of_match_table = of_match_ptr(pca953x_gpio_match),
 	},
 	.probe		= pca953x_probe,
 	.remove		= pca953x_remove,
