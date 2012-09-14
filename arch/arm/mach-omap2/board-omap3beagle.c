@@ -957,7 +957,8 @@ static int __init beagle_opp_init(void)
 	}
 
 	/* Custom OPP enabled for all xM versions */
-	if (cpu_is_omap3630()) {
+	//if (cpu_is_omap3630()) {
+	if (0) {
 		struct device *mpu_dev, *iva_dev;
 
 		mpu_dev = get_cpu_device(0);
