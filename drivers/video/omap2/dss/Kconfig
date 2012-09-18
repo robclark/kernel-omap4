@@ -80,6 +80,10 @@ config OMAP5_DSS_HDMI
 	bool "OMAP5 HDMI support"
 	depends on SOC_OMAP5
 	default y
+	select PINCTRL_SINGLE
+	select GPIO_PCA953X
+	select MFD_PALMAS
+	select REGULATOR_PALMAS
 	help
 	    HDMI Interface.This add the High Deinition Multimedia Interface.
 	    See http://wwww.hdmi.org/ for HDMI specification.
