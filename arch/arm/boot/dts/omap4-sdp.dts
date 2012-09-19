@@ -222,6 +222,14 @@
 			0xbc 0x100	/* abe_mcbsp2_fsx.abe_mcbsp2_fsx INPUT | MODE0 */
 		>;
 	};
+
+	sound_hdmi {
+		compatible = "ti,omap-hdmi-audio";
+		ti,model = "OMAP4HDMI";
+
+		ti,hdmi_audio = <&hdmi>;
+		ti,level_shifter = <&tpd12s015>;
+	};
 };
 
 &i2c1 {
@@ -471,7 +479,7 @@
 };
 
 &hdmi {
-	tpd12s015 {
+	tpd12s015: tpd12s015{
 		compatible = "ti,tpd12s015";
 
 		gpios = <&gpio2 28 0>,	/* 60, CT CP HPD */
