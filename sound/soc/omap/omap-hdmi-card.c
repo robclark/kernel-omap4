@@ -22,6 +22,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/of.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
 #include <asm/mach-types.h>
@@ -48,17 +49,61 @@ static struct snd_soc_card snd_soc_omap_hdmi = {
 static __devinit int omap_hdmi_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = &snd_soc_omap_hdmi;
+	struct device_node *node = pdev->dev.of_node;
+	struct platform_device *dai_dev, *codec_dev;
 	int ret;
 
+	dai_dev = ERR_PTR(-EINVAL);
+	codec_dev = ERR_PTR(-EINVAL);
+
 	card->dev = &pdev->dev;
+
+	/* for DT boot */
+	if (node) {
+		struct device_node *dev_node;
+
+		if (snd_soc_of_parse_card_name(card, "ti,model")) {
+			dev_err(&pdev->dev, "Card name is not provided\n");
+			return -ENODEV;
+		}
+
+		printk(KERN_ERR "card name is %s", card->name);
+
+		dev_node = of_parse_phandle(node, "ti,hdmi_audio", 0);
+		if (!dev_node) {
+			dev_err(&pdev->dev, "hdmi node is not provided\n");
+			return -EINVAL;
+		}
+
+		omap_hdmi_dai.cpu_dai_name = NULL;
+		omap_hdmi_dai.cpu_of_node = dev_node;
+
+		dev_node = of_parse_phandle(node, "ti,level_shifter", 0);
+		if (!dev_node) {
+			dev_err(&pdev->dev, "level shifter node is not provided\n");
+			return -EINVAL;
+		}
+		codec_dev = platform_device_register_simple("hdmi-audio-codec",
+							    -1, NULL, 0);
+		if (IS_ERR(codec_dev)) {
+			dev_err(&pdev->dev,
+				"Cannot instantiate hdmi-audio-codec\n");
+		return PTR_ERR(codec_dev);
+		}
+	}
 
 	ret = snd_soc_register_card(card);
 	if (ret) {
 		dev_err(&pdev->dev, "snd_soc_register_card failed (%d)\n", ret);
 		card->dev = NULL;
-		return ret;
+		goto err_register_card;
 	}
+
 	return 0;
+
+err_register_card:
+	platform_device_unregister(codec_dev);
+	return ret;
 }
 
 static int __devexit omap_hdmi_remove(struct platform_device *pdev)
@@ -70,10 +115,17 @@ static int __devexit omap_hdmi_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id omap_hdmi_of_match[] = {
+	{.compatible = "ti,omap-hdmi-audio", },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, omap_hdmi_of_match);
+
 static struct platform_driver omap_hdmi_driver = {
 	.driver = {
 		.name = DRV_NAME,
 		.owner = THIS_MODULE,
+		.of_match_table = omap_hdmi_of_match,
 	},
 	.probe = omap_hdmi_probe,
 	.remove = __devexit_p(omap_hdmi_remove),
