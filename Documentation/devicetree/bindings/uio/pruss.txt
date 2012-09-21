@@ -1,0 +1,17 @@
+TI PRUSS device
+
+Required properties:
+- compatible :
+  - "ti,pruss-v1" for AM18xx/OMAP-L138/DA850
+  - "ti,pruss-v2" for AM33xx.
+- ti,pintc-offset : Offset of the PINTC from the PRUSS address base
+- ti,hwmods: Name of the hwmod associated to the PRUSS
+
+Example:
+
+pruss: pruss@4a300000 {
+	compatible = "ti,pruss-v2";
+	ti,hwmods = "pruss";
+	reg = <0x4a300000 0x080000>;
+	ti,pintc-offset = <0x20000>;
+};
