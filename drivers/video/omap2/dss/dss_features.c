@@ -828,18 +828,19 @@ static const struct ti_hdmi_ip_ops omap4_hdmi_functions = {
 
 /* HDMI OMAP5 Functions*/
 static const struct ti_hdmi_ip_ops omap5_hdmi_functions = {
-
+#if defined(CONFIG_OMAP5_DSS_HDMI)
 	.video_configure	=	ti_hdmi_5xxx_basic_configure,
+	.read_edid		=	ti_hdmi_5xxx_read_edid,
+	.irq_process		=	ti_hdmi_5xxx_irq_process,
+	.configure_range	=	ti_hdmi_5xxx_configure_range,
+#endif
 	.phy_enable		=	ti_hdmi_4xxx_phy_enable,
 	.phy_disable		=	ti_hdmi_4xxx_phy_disable,
-	.read_edid		=	ti_hdmi_5xxx_read_edid,
 	.pll_enable		=	ti_hdmi_4xxx_pll_enable,
 	.pll_disable		=	ti_hdmi_4xxx_pll_disable,
 	.video_enable		=	ti_hdmi_4xxx_wp_video_start,
 	.video_disable		=	ti_hdmi_4xxx_wp_video_stop,
 	.irq_handler		=	ti_hdmi_4xxx_irq_handler,
-	.irq_process		=	ti_hdmi_5xxx_irq_process,
-	.configure_range	=	ti_hdmi_5xxx_configure_range,
 #if defined(CONFIG_OMAP5_DSS_HDMI_AUDIO)
 	.audio_enable		=	ti_hdmi_5xxx_wp_audio_enable,
 	.audio_disable		=	ti_hdmi_5xxx_wp_audio_disable,
