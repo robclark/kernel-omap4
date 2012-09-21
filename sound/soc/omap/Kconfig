@@ -123,8 +123,8 @@ config SND_OMAP_SOC_OMAP_HDMI
 	depends on SND_OMAP_SOC && (OMAP4_DSS_HDMI || OMAP5_DSS_HDMI) && OMAP2_DSS
 	select SND_OMAP_SOC_HDMI
 	select SND_SOC_OMAP_HDMI_CODEC
-	select OMAP4_DSS_HDMI_AUDIO
-	select OMAP5_DSS_HDMI_AUDIO
+	select OMAP4_DSS_HDMI_AUDIO if OMAP4_DSS_HDMI
+	select OMAP5_DSS_HDMI_AUDIO if OMAP5_DSS_HDMI
 	help
 	  Say Y if you want to add support for SoC HDMI audio on Texas Instruments
 	  OMAP chips
