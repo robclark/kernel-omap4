@@ -86,14 +86,11 @@ void omap_aess_write_fifo(struct omap_aess *abe, u32 memory_bank, u32 descr_addr
 	/* read FIFO descriptor from DMEM */
 	omap_abe_mem_read(abe, OMAP_ABE_DMEM, descr_addr,
 			  &fifo_addr[0], 4 * sizeof(u32));
+
 	/* WRITE ptr < FIFO start address */
-	if (fifo_addr[1] < fifo_addr[2])
-		omap_aess_dbg_error(abe, OMAP_ABE_ERR_DBG,
-				    ABE_FW_FIFO_WRITE_PTR_ERR);
-	/* WRITE ptr > FIFO end address */
-	if (fifo_addr[1] > fifo_addr[3])
-		omap_aess_dbg_error(abe, OMAP_ABE_ERR_DBG,
-				    ABE_FW_FIFO_WRITE_PTR_ERR);
+	if ((fifo_addr[1] < fifo_addr[2]) || (fifo_addr[1] > fifo_addr[3]))
+		aess_err("FIFO write pointer Error");
+
 	switch (memory_bank) {
 	case OMAP_ABE_DMEM:
 		for (i = 0; i < nb_data32; i++) {
@@ -106,8 +103,7 @@ void omap_aess_write_fifo(struct omap_aess *abe, u32 memory_bank, u32 descr_addr
 			if (fifo_addr[1] > fifo_addr[3])
 				fifo_addr[1] = fifo_addr[2];
 			if (fifo_addr[1] == fifo_addr[0])
-				omap_aess_dbg_error(abe, OMAP_ABE_ERR_DBG,
-						    ABE_FW_FIFO_WRITE_PTR_ERR);
+				aess_err("FIFO write pointer Error");
 		}
 		/* update WRITE pointer in DMEM */
 		omap_abe_mem_write(abe, OMAP_ABE_DMEM, descr_addr +
@@ -117,7 +113,6 @@ void omap_aess_write_fifo(struct omap_aess *abe, u32 memory_bank, u32 descr_addr
 		break;
 	}
 }
-
 
 /**
  * abe_init_asrc_vx_dl
