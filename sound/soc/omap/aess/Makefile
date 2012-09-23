@@ -1,7 +1,6 @@
 snd-soc-abe-hal-objs += abe_aess.o \
 			abe_asrc.o \
 			abe_core.o \
-			abe_dbg.o \
 			abe_ini.o \
 			abe_gain.o \
 			abe_port.o \
