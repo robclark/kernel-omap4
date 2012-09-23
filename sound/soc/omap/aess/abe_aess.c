@@ -131,7 +131,8 @@ int omap_aess_write_event_generator(struct omap_aess *abe, u32 e)
 		counter = EVENT_GENERATOR_COUNTER_44100;
 		break;
 	default:
-		omap_aess_dbg_error(abe, OMAP_ABE_ERR_API, ABE_BLOCK_COPY_ERR);
+		aess_err("Bad event generator selection");
+		return -AESS_EINVAL;
 	}
 	omap_aess_reg_writel(abe, EVENT_GENERATOR_COUNTER, counter);
 	omap_aess_reg_writel(abe, EVENT_SOURCE_SELECTION, selection);

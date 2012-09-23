@@ -81,6 +81,7 @@
 #define ABE_SMEM_BASE_OFFSET_MPU	0xc0000
 #define ABE_DMEM_BASE_OFFSET_MPU	0x80000
 #define ABE_ATC_BASE_OFFSET_MPU		0xf1000
+
 /* default base address for io_base */
 #define ABE_DEFAULT_BASE_ADDRESS_L3 0x49000000L
 #define ABE_DEFAULT_BASE_ADDRESS_L4 0x40100000L
@@ -248,8 +249,6 @@ struct omap_aess {
 	u32 nb_pingpong;
 
 	u32 irq_dbg_read_ptr;
-	u32 dbg_param;
-	struct omap_aess_dbg *dbg;
 	struct omap_aess_seq seq;
 	struct omap_aess_mapping *fw_info;
 

@@ -87,8 +87,6 @@ int omap_aess_reset_hal(struct omap_aess *abe)
 {
 	u32 i;
 
-	omap_aess_dbg_reset(abe->dbg);
-
 	/* IRQ & DBG circular read pointer in DMEM */
 	abe->irq_dbg_read_ptr = 0;
 
@@ -231,8 +229,8 @@ int omap_aess_read_next_ping_pong_buffer(struct omap_aess *abe, u32 port,
 
 	/* ping_pong is only supported on MM_DL */
 	if (port != OMAP_ABE_MM_DL_PORT) {
-		omap_aess_dbg_error(abe, OMAP_ABE_ERR_API,
-				    ABE_PARAMETER_ERROR);
+		aess_err("Only Ping-pong port supported");
+		return -AESS_EINVAL;
 	}
 	/* read the port SIO descriptor and extract the current pointer
 	   address after reading the counter */
@@ -274,8 +272,8 @@ int omap_aess_init_ping_pong_buffer(struct omap_aess *abe,
 	/* ping_pong is supported in 2 buffers configuration right now but FW
 	   is ready for ping/pong/pung/pang... */
 	if (id != OMAP_ABE_MM_DL_PORT || n_buffers > MAX_PINGPONG_BUFFERS) {
-		omap_aess_dbg_error(abe, OMAP_ABE_ERR_API,
-				    ABE_PARAMETER_ERROR);
+		aess_err("Too Many Ping-pong buffers requested");
+		return -AESS_EINVAL;
 	}
 
 	memcpy(&addr, &abe->fw_info->map[OMAP_AESS_DMEM_PING_ID],
@@ -362,8 +360,7 @@ int omap_aess_set_opp_processing(struct omap_aess *abe, u32 opp)
 		dOppMode32 = DOPPMODE32_OPP50;
 		break;
 	default:
-		omap_aess_dbg_error(abe, OMAP_ABE_ERR_API,
-				    ABE_BLOCK_COPY_ERR);
+		aess_warm("Bad OPP value requested");
 	case ABE_OPP100:
 		/* OPP100% */
 		dOppMode32 = DOPPMODE32_OPP100;
