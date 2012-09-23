@@ -129,18 +129,18 @@ void omap_aess_dummy_subroutine(void)
  * @id: ABE port id
  * @f: pointer to the subroutines
  * @nparam: number of parameters
- * @params: pointer to the psrameters
+ * @params: pointer to the parameters
  *
  * add one function pointer more and returns the index to it
  */
-void omap_aess_add_subroutine(struct omap_aess *abe, u32 *id, abe_subroutine2 f, u32 nparam, u32 *params)
+int omap_aess_add_subroutine(struct omap_aess *abe, u32 *id, abe_subroutine2 f, u32 nparam, u32 *params)
 {
 	u32 i, i_found;
 
 	if ((abe->seq.write_pointer >= OMAP_ABE_MAX_SUB_ROUTINE) ||
 			((u32) f == 0)) {
-		omap_aess_dbg_error(abe, OMAP_ABE_ERR_SEQ,
-				   ABE_PARAMETER_OVERFLOW);
+		aess_err("Too many subroutine Plugged");
+		return -AESS_EINVAL;
 	} else {
 		/* search if this subroutine address was not already
 		 * declared, then return the previous index
@@ -167,6 +167,7 @@ void omap_aess_add_subroutine(struct omap_aess *abe, u32 *id, abe_subroutine2 f,
 			*id = i_found;
 		}
 	}
+	return 0;
 }
 
 /**
@@ -199,15 +200,15 @@ void omap_aess_init_subroutine_table(struct omap_aess *abe)
  *
  * Load a time-sequenced operations.
  */
-void omap_aess_add_sequence(struct omap_aess *abe, u32 *id, struct omap_aess_sequence *s)
+int omap_aess_add_sequence(struct omap_aess *abe, u32 *id, struct omap_aess_sequence *s)
 {
 	struct omap_aess_seq_info *seq_src, *seq_dst;
 	u32 i, no_end_of_sequence_found;
 	seq_src = &(s->seq1);
 	seq_dst = &((abe_all_sequence[abe_sequence_write_pointer]).seq1);
 	if ((abe->seq.write_pointer >= OMAP_ABE_MAX_NB_SEQ) || ((u32) s == 0)) {
-		omap_aess_dbg_error(abe, OMAP_ABE_ERR_SEQ,
-				   ABE_PARAMETER_OVERFLOW);
+		aess_err("Too many sequence requested");
+		return -AESS_EINVAL;
 	} else {
 		*id = abe->seq.write_pointer;
 		/* copy the mask */
@@ -224,10 +225,12 @@ void omap_aess_add_sequence(struct omap_aess *abe, u32 *id, struct omap_aess_seq
 			}
 		}
 		abe->seq.write_pointer++;
-		if (no_end_of_sequence_found)
-			omap_aess_dbg_error(abe, OMAP_ABE_ERR_API,
-					   ABE_SEQTOOLONG);
+		if (no_end_of_sequence_found) {
+			aess_err("No sequence found");
+			return -AESS_EINVAL;
+		}
 	}
+	return 0;
 }
 
 /**
