@@ -159,7 +159,7 @@ static struct omap_aess_port abe_port[LAST_PORT_ID];	/* list of ABE ports */
 u32 abe_dma_port_iter_factor(struct omap_aess_data_format *f);
 u32 abe_dma_port_iteration(struct omap_aess_data_format *f);
 void omap_aess_decide_main_port(struct omap_aess *abe);
-void omap_aess_init_io_tasks(struct omap_aess *abe, u32 id,
+int omap_aess_init_io_tasks(struct omap_aess *abe, u32 id,
 			     struct omap_aess_data_format *format,
 			     struct omap_aess_port_protocol *prot);
 void abe_init_dma_t(u32 id, struct omap_aess_port_protocol *prot);
@@ -897,8 +897,8 @@ int omap_aess_connect_irq_ping_pong_port(struct omap_aess *abe,
 
 	/* ping_pong is only supported on MM_DL */
 	if (id != OMAP_ABE_MM_DL_PORT) {
-		omap_aess_dbg_error(abe, OMAP_ABE_ERR_API,
-				    ABE_PARAMETER_ERROR);
+		aess_err("Only Ping-pong port supported");
+		return -AESS_EINVAL;
 	}
 
 	memcpy(&addr, &abe->fw_info->map[OMAP_AESS_DMEM_PING_ID],
@@ -1110,7 +1110,7 @@ void omap_aess_disable_atc(struct omap_aess *abe, u32 id)
  * For Write to DMEM usually THR1/THR2 = 2/0
  * UP_1/2 =X+1/X-1
  */
-void omap_aess_init_io_tasks(struct omap_aess *abe, u32 id,
+int omap_aess_init_io_tasks(struct omap_aess *abe, u32 id,
 			struct omap_aess_data_format *format,
 			struct omap_aess_port_protocol *prot)
 {
@@ -1130,8 +1130,8 @@ void omap_aess_init_io_tasks(struct omap_aess *abe, u32 id,
 
 		/* ping_pong is only supported on MM_DL */
 		if (OMAP_ABE_MM_DL_PORT != id) {
-			omap_aess_dbg_error(abe, OMAP_ABE_ERR_API,
-					    ABE_PARAMETER_ERROR);
+			aess_err("Only Ping-pong port supported");
+			return -AESS_EINVAL;
 		}
 		if (abe_port[id].format.f == 44100)
 			smem1 = omap_aess_update_io_task1(abe, &(abe->fw_info->ping_pong->tsk_freq[2].task), 1);
@@ -1421,6 +1421,7 @@ void omap_aess_init_io_tasks(struct omap_aess *abe, u32 id,
 	omap_aess_mem_write(abe, abe->fw_info->map[OMAP_AESS_DMEM_MULTIFRAME_ID],
 		(u32 *) abe->MultiFrame);
 
+	return 0;
 }
 
 /**
@@ -1731,8 +1732,8 @@ int omap_aess_set_ping_pong_buffer(struct omap_aess *abe, u32 port, u32 n_bytes)
 
 	/* ping_pong is only supported on MM_DL */
 	if (port != OMAP_ABE_MM_DL_PORT) {
-		omap_aess_dbg_error(abe, OMAP_ABE_ERR_API,
-				    ABE_PARAMETER_ERROR);
+		aess_err("Only Ping-pong port supported");
+		return -AESS_EINVAL;
 	}
 	/* translates the number of bytes in samples */
 	/* data size in DMEM words */
@@ -1789,8 +1790,8 @@ int omap_aess_read_offset_from_ping_buffer(struct omap_aess *abe,
 
 	/* ping_pong is only supported on MM_DL */
 	if (OMAP_ABE_MM_DL_PORT != id) {
-		omap_aess_dbg_error(abe, OMAP_ABE_ERR_API,
-				    ABE_PARAMETER_ERROR);
+		aess_err("Only Ping-pong port supported");
+		return -AESS_EINVAL;
 	} else {
 		/* read the port SIO ping pong descriptor */
 		memcpy(&addr, &abe->fw_info->map[OMAP_AESS_DMEM_PINGPONGDESC_ID],
@@ -1819,9 +1820,8 @@ int omap_aess_read_offset_from_ping_buffer(struct omap_aess *abe,
 			*n += abe->pp_buf_id * abe->size_pingpong / 8;
 			break;
 		default:
-			omap_aess_dbg_error(abe, OMAP_ABE_ERR_API,
-					    ABE_PARAMETER_ERROR);
-			return -EINVAL;
+			aess_err("Bad data format for Ping-pong buffer");
+			return -AESS_EINVAL;
 		}
 	}
 
