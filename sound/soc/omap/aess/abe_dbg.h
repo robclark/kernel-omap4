@@ -59,72 +59,26 @@
 #ifndef _ABE_DBG_H_
 #define _ABE_DBG_H_
 
-#include <linux/mutex.h>
+#define DEBUG
 
-#include "abe_typ.h"
+#include <linux/printk.h>
 
-/*
- *	Debug trace format
- *	TIME 2 bytes from ABE : 4kHz period of the FW scheduler
- *	SUBID 1 byte : HAL API index
- * From 0 to 16 bytes : parameters of the subroutine
- * on every 32 dumps a tag is pushed on the debug trace : 0x55555555
- */
-#define dbg_bitfield_offset 8
-#define dbg_api_calls 0
-#define dbg_mapi (1L << (dbg_api_calls + dbg_bitfield_offset))
-#define dbg_external_data_access 1
-#define dbg_mdata (1L << (dbg_external_data_access + dbg_bitfield_offset))
-#define dbg_err_codes 2
-#define dbg_merr (1L << (dbg_api_calls + dbg_bitfield_offset))
-#define ABE_DBG_MAGIC_NUMBER 0x55555555
+#ifdef DEBUG
 
-/*
- * IDs used for error codes
- */
-#define NOERR 0
-#define ABE_SET_MEMORY_CONFIG_ERR (1 + dbg_merr)
-#define ABE_BLOCK_COPY_ERR (2 + dbg_merr)
-#define ABE_SEQTOOLONG (3 + dbg_merr)
-#define ABE_BADSAMPFORMAT (4 + dbg_merr)
-#define ABE_SET_ATC_ABE_BLOCK_COPY_ERR MEMORY_CONFIG_ERR (5 + dbg_merr)
-#define ABE_PROTOCOL_ERROR (6 + dbg_merr)
-#define ABE_PARAMETER_ERROR (7 + dbg_merr)
-/*  port programmed while still running */
-#define ABE_PORT_REPROGRAMMING (8 + dbg_merr)
-#define ABE_READ_USE_CASE_OPP_ERR (9 + dbg_merr)
-#define ABE_PARAMETER_OVERFLOW (10 + dbg_merr)
-#define ABE_FW_FIFO_WRITE_PTR_ERR (11 + dbg_merr)
+#define aess_err(format, ...) \
+	pr_err(format, ## __VA_ARGS__)
+#define aess_warm(format, ...) \
+	pr_warn(format, ## __VA_ARGS__)
+#define aess_info(format, ...) \
+	pr_info(format, ## __VA_ARGS__)
+#else
 
-/*
- * IDs used for error codes
- */
-#define OMAP_ABE_ERR_LIB   (1 << 1)
-#define OMAP_ABE_ERR_API   (1 << 2)
-#define OMAP_ABE_ERR_INI   (1 << 3)
-#define OMAP_ABE_ERR_SEQ   (1 << 4)
-#define OMAP_ABE_ERR_DBG   (1 << 5)
-#define OMAP_ABE_ERR_EXT   (1 << 6)
+#define aess_err(format, ...)
+#define aess_warm(format, ...)
+#define aess_info(format, ...)
 
-#define OMAP_ABE_D_DEBUG_FIFO_HAL_SIZE	0x800
-#define OMAP_ABE_D_DEBUG_HAL_TASK_SIZE	0x800
+#endif
 
-struct omap_aess_dbg {
-	/* Debug Data */
-	u32 activity_log[OMAP_ABE_D_DEBUG_HAL_TASK_SIZE];
-	u32 activity_log_write_pointer;
-	u32 mask;
-};
-
-/**
- * omap_aess_dbg_reset
- * @dbg: Pointer on abe debug handle
- *
- * Called in order to reset Audio Back End debug global data.
- * This ensures that ABE debug trace pointer is reset correctly.
- */
-int omap_aess_dbg_reset(struct omap_aess_dbg *dbg);
-void omap_aess_dbg_log(struct omap_aess *abe, u32 x, u32 y, u32 z, u32 t);
-void omap_aess_dbg_error(struct omap_aess *abe, int level, int error);
+#define AESS_EINVAL	EINVAL
 
 #endif /* _ABE_DBG_H_ */
