@@ -607,29 +607,26 @@ static __devinit int omap_mcasp_probe(struct platform_device *pdev)
 	long fclk_rate;
 	int ret = 0;
 
-	mcasp = kzalloc(sizeof(struct omap_mcasp), GFP_KERNEL);
-	if (!mcasp)
+	mcasp = devm_kzalloc(&pdev->dev, sizeof(struct omap_mcasp), GFP_KERNEL);
+	if (!mcasp) {
+		dev_err(&pdev->dev, "cannot allocate memory\n");
 		return -ENOMEM;
+	}
 
 	spin_lock_init(&mcasp->lock);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(&pdev->dev, "no resource\n");
-		ret = -ENODEV;
-		goto err_res;
+		return -ENODEV;
 	}
 
-	if (!request_mem_region(res->start, resource_size(res), "McASP")) {
-		ret = -EBUSY;
-		goto err_res;
-	}
+	if (!request_mem_region(res->start, resource_size(res), "McASP"))
+		return -EBUSY;
 
 	mcasp->base = ioremap(res->start, resource_size(res));
-	if (!mcasp->base) {
-		ret = -ENOMEM;
-		goto err_res;
-	}
+	if (!mcasp->base)
+		return -ENOMEM;
 
 	mcasp->irq = platform_get_irq(pdev, 0);
 	if (mcasp->irq < 0) {
@@ -674,8 +671,6 @@ err_clk:
 	free_irq(mcasp->irq, (void *)mcasp);
 err_irq:
 	iounmap(mcasp->base);
-err_res:
-	kfree(mcasp);
 	return ret;
 }
 
@@ -688,7 +683,6 @@ static __devexit int omap_mcasp_remove(struct platform_device *pdev)
 	clk_put(mcasp->fclk);
 	free_irq(mcasp->irq, (void *)mcasp);
 	iounmap(mcasp->base);
-	kfree(mcasp);
 
 	return 0;
 }
