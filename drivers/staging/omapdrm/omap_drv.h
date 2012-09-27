@@ -27,6 +27,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <linux/platform_data/omap_drm.h>
 #include "omap_drm.h"
+#include "omap_atomic.h"
 
 /* APIs we need from dispc.. TODO omapdss should export these */
 #include "../../video/omap2/dss/dss.h"
@@ -46,15 +47,6 @@ void hdmi_dump_regs(struct seq_file *s);
  * data..
  */
 #define MAX_MAPPERS 2
-
-/* parameters which describe (unrotated) coordinates of scanout within a fb: */
-struct omap_drm_window {
-	uint32_t rotation;
-	int32_t  crtc_x, crtc_y;		/* signed because can be offscreen */
-	uint32_t crtc_w, crtc_h;
-	uint32_t src_x, src_y;
-	uint32_t src_w, src_h;
-};
 
 /* Once GO bit is set, we can't make further updates to shadowed registers
  * until the GO bit is cleared.  So various parts in the kms code that need
@@ -119,9 +111,16 @@ struct omap_drm_private {
 	struct drm_property *zorder_prop;
 
 	/* irq handling: */
-	struct list_head irq_list;    /* list of omap_drm_irq */
+	struct list_head irq_list;   /* list of omap_drm_irq */
 	uint32_t vblank_mask;         /* irq bits set for userspace vblank */
 	struct omap_drm_irq error_handler;
+
+	/* atomic: */
+	bool global_atomic;           /* in global atomic update (ie. modeset) */
+	bool crtc_atomic[8];          /* in per-crtc atomic update (ie. pageflip) */
+
+	/* pending vblank event per CRTC: */
+	struct drm_pending_vblank_event *event[8];
 };
 
 /* this should probably be in drm-core to standardize amongst drivers */
@@ -154,6 +153,10 @@ void omap_fbdev_free(struct drm_device *dev);
 
 const struct omap_video_timings *omap_crtc_timings(struct drm_crtc *crtc);
 enum omap_channel omap_crtc_channel(struct drm_crtc *crtc);
+int omap_crtc_check_state(struct drm_crtc *crtc,
+		struct omap_crtc_state *crtc_state);
+void omap_crtc_commit_state(struct drm_crtc *crtc,
+		struct omap_crtc_state *crtc_state);
 int omap_crtc_apply(struct drm_crtc *crtc,
 		struct omap_drm_apply *apply);
 struct drm_crtc *omap_crtc_init(struct drm_device *dev,
@@ -162,17 +165,14 @@ struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 struct drm_plane *omap_plane_init(struct drm_device *dev,
 		int plane_id, bool private_plane);
 int omap_plane_dpms(struct drm_plane *plane, int mode);
-int omap_plane_mode_set(struct drm_plane *plane,
-		struct drm_crtc *crtc, struct drm_framebuffer *fb,
-		int crtc_x, int crtc_y,
-		unsigned int crtc_w, unsigned int crtc_h,
-		uint32_t src_x, uint32_t src_y,
-		uint32_t src_w, uint32_t src_h,
-		void (*fxn)(void *), void *arg);
 void omap_plane_install_properties(struct drm_plane *plane,
 		struct drm_mode_object *obj);
 int omap_plane_set_property(struct drm_plane *plane, void *state,
 		struct drm_property *property, uint64_t val);
+int omap_plane_check_state(struct drm_plane *plane,
+		struct omap_plane_state *plane_state);
+void omap_plane_commit_state(struct drm_plane *plane,
+		struct omap_plane_state *plane_state);
 
 struct drm_encoder *omap_encoder_init(struct drm_device *dev);
 struct drm_encoder *omap_connector_attached_encoder(
@@ -198,7 +198,7 @@ int omap_framebuffer_replace(struct drm_framebuffer *a,
 		struct drm_framebuffer *b, void *arg,
 		void (*unpin)(void *arg, struct drm_gem_object *bo));
 void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
-		struct omap_drm_window *win, struct omap_overlay_info *info);
+		struct drm_plane_state *state, struct omap_overlay_info *info);
 struct drm_connector *omap_framebuffer_get_next_connector(
 		struct drm_framebuffer *fb, struct drm_connector *from);
 void omap_framebuffer_flush(struct drm_framebuffer *fb,
@@ -282,6 +282,13 @@ static inline uint32_t pipe2vbl(int crtc)
 {
 	enum omap_channel channel = pipe2chan(crtc);
 	return dispc_mgr_get_vsync_irq(channel);
+}
+
+/* is the specified pipe/crtc blocked for atomic update? */
+static inline bool pipe_in_atomic(struct drm_device *dev, int pipe)
+{
+	struct omap_drm_private *priv = dev->dev_private;
+	return priv->global_atomic || priv->crtc_atomic[pipe];
 }
 
 /* should these be made into common util helpers?
