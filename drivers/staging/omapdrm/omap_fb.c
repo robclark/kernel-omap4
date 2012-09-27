@@ -154,33 +154,34 @@ static uint32_t get_linear_addr(struct plane *plane,
 /* update ovl info for scanout, handles cases of multi-planar fb's, etc.
  */
 void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
-		struct omap_drm_window *win, struct omap_overlay_info *info)
+		struct drm_plane_state *state, struct omap_overlay_info *info)
 {
 	struct omap_framebuffer *omap_fb = to_omap_framebuffer(fb);
+	struct omap_plane_state *plane_state = to_omap_plane_state(state);
 	const struct format *format = omap_fb->format;
 	struct plane *plane = &omap_fb->planes[0];
 	uint32_t x, y, orient = 0;
 
 	info->color_mode = format->dss_format;
 
-	info->pos_x      = win->crtc_x;
-	info->pos_y      = win->crtc_y;
-	info->out_width  = win->crtc_w;
-	info->out_height = win->crtc_h;
-	info->width      = win->src_w;
-	info->height     = win->src_h;
+	info->pos_x      = state->crtc_x;
+	info->pos_y      = state->crtc_y;
+	info->out_width  = state->crtc_w;
+	info->out_height = state->crtc_h;
+	info->width      = state->src_w >> 16;
+	info->height     = state->src_h >> 16;
 
-	x = win->src_x;
-	y = win->src_y;
+	x = state->src_x >> 16;
+	y = state->src_y >> 16;
 
 	if (omap_gem_flags(plane->bo) & OMAP_BO_TILED) {
-		uint32_t w = win->src_w;
-		uint32_t h = win->src_h;
+		uint32_t w = state->src_w >> 16;
+		uint32_t h = state->src_h >> 16;
 
-		switch (win->rotation & 0xf) {
+		switch (plane_state->rotation & 0xf) {
 		default:
 			dev_err(fb->dev->dev, "invalid rotation: %02x",
-					(uint32_t)win->rotation);
+					plane_state->rotation);
 			/* fallthru to default to no rotation */
 		case 0:
 		case BIT(DRM_ROTATE_0):
@@ -197,10 +198,10 @@ void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
 			break;
 		}
 
-		if (win->rotation & BIT(DRM_REFLECT_X))
+		if (plane_state->rotation & BIT(DRM_REFLECT_X))
 			orient ^= MASK_X_INVERT;
 
-		if (win->rotation & BIT(DRM_REFLECT_Y))
+		if (plane_state->rotation & BIT(DRM_REFLECT_Y))
 			orient ^= MASK_Y_INVERT;
 
 		/* adjust x,y offset for flip/invert: */
@@ -219,6 +220,9 @@ void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
 		info->rotation_type = OMAP_DSS_ROT_DMA;
 		info->screen_width  = plane->pitch;
 	}
+
+	/* always do the rotation in tiler (or none at all): */
+	info->rotation = OMAP_DSS_ROT_0;
 
 	/* convert to pixels: */
 	info->screen_width /= format->planes[0].stride_bpp;
@@ -316,7 +320,7 @@ struct drm_connector *omap_framebuffer_get_next_connector(
 		if (connector != from) {
 			struct drm_encoder *encoder = connector->encoder;
 			struct drm_crtc *crtc = encoder ? encoder->crtc : NULL;
-			if (crtc && crtc->fb == fb) {
+			if (crtc && crtc->state->fb == fb) {
 				return connector;
 			}
 		}
@@ -342,10 +346,10 @@ void omap_framebuffer_flush(struct drm_framebuffer *fb,
 			 * could do the coordinate translation..
 			 */
 			struct drm_crtc *crtc = connector->encoder->crtc;
-			int cx = max(0, x - crtc->x);
-			int cy = max(0, y - crtc->y);
-			int cw = w + (x - crtc->x) - cx;
-			int ch = h + (y - crtc->y) - cy;
+			int cx = max(0, x - crtc->state->x);
+			int cy = max(0, y - crtc->state->y);
+			int cw = w + (x - crtc->state->x) - cx;
+			int ch = h + (y - crtc->state->y) - cy;
 
 			omap_connector_flush(connector, cx, cy, cw, ch);
 		}
