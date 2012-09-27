@@ -18,6 +18,7 @@
  */
 
 #include "omap_drv.h"
+#include "omap_atomic.h"
 
 #include "drm_crtc_helper.h"
 #include "drm_fb_helper.h"
@@ -513,15 +514,14 @@ static int dev_firstopen(struct drm_device *dev)
  */
 static void dev_lastclose(struct drm_device *dev)
 {
-	int i;
-
-	/* we don't support vga-switcheroo.. so just make sure the fbdev
-	 * mode is active
-	 */
 	struct omap_drm_private *priv = dev->dev_private;
-	int ret;
+	void *state;
+	int ret, i;
 
 	DBG("lastclose: dev=%p", dev);
+	mutex_lock(&dev->mode_config.mutex);
+
+	state = dev->driver->atomic_begin(dev, NULL);
 
 	if (priv->rotation_prop) {
 		/* need to restore default rotation state.. not sure
@@ -532,18 +532,21 @@ static void dev_lastclose(struct drm_device *dev)
 		 */
 		for (i = 0; i < priv->num_crtcs; i++) {
 			struct drm_crtc *crtc = priv->crtcs[i];
-			drm_object_property_set_value(&crtc->base,
-					&crtc->propvals, priv->rotation_prop, 0);
+			drm_mode_crtc_set_obj_prop(crtc, state,
+					priv->rotation_prop, 0);
 		}
 
 		for (i = 0; i < priv->num_planes; i++) {
 			struct drm_plane *plane = priv->planes[i];
-			drm_object_property_set_value(&plane->base,
-					&plane->state->propvals, priv->rotation_prop, 0);
+			drm_mode_plane_set_obj_prop(plane, state,
+					priv->rotation_prop, 0);
 		}
 	}
+	/* disabling rotation won't ever fail: */
+	dev->driver->atomic_check(dev, state);
+	dev->driver->atomic_commit(dev, state, NULL);
+	dev->driver->atomic_end(dev, state);
 
-	mutex_lock(&dev->mode_config.mutex);
 	ret = drm_fb_helper_restore_fbdev_mode(priv->fbdev);
 	mutex_unlock(&dev->mode_config.mutex);
 	if (ret)
@@ -552,7 +555,19 @@ static void dev_lastclose(struct drm_device *dev)
 
 static void dev_preclose(struct drm_device *dev, struct drm_file *file)
 {
+	struct omap_drm_private *priv = dev->dev_private;
+	int i;
+
 	DBG("preclose: dev=%p", dev);
+
+	/*
+	 * Clear out pending events before they get destroyed in
+	 * drm_events_release(), so that if we later get a vblank
+	 * we don't deref a bogus ptr
+	 */
+	for (i = 0; i < ARRAY_SIZE(priv->event); i++)
+		if (priv->event[i] && priv->event[i]->base.file_priv == file)
+			priv->event[i] = NULL;
 }
 
 static void dev_postclose(struct drm_device *dev, struct drm_file *file)
@@ -609,6 +624,10 @@ static struct drm_driver omap_drm_driver = {
 		.dumb_create = omap_gem_dumb_create,
 		.dumb_map_offset = omap_gem_dumb_map_offset,
 		.dumb_destroy = omap_gem_dumb_destroy,
+		.atomic_begin = omap_atomic_begin,
+		.atomic_check = omap_atomic_check,
+		.atomic_commit = omap_atomic_commit,
+		.atomic_end = omap_atomic_end,
 		.ioctls = ioctls,
 		.num_ioctls = DRM_OMAP_NUM_IOCTLS,
 		.fops = &omapdriver_fops,
