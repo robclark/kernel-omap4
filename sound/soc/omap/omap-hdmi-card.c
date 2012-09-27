@@ -117,7 +117,11 @@ err_register_card:
 static int __devexit omap_hdmi_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
+	struct hdmi_card_data *card_data;
 
+	card_data = snd_soc_card_get_drvdata(card);
+	if (!IS_ERR(card_data->codec_pdev))
+		platform_device_unregister(card_data->codec_pdev);
 	snd_soc_unregister_card(card);
 	card->dev = NULL;
 	return 0;
