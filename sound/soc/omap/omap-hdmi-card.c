@@ -82,9 +82,6 @@ static __devinit int omap_hdmi_probe(struct platform_device *pdev)
 			return -EINVAL;
 		}
 
-		omap_hdmi_dai.cpu_dai_name = NULL;
-		omap_hdmi_dai.cpu_of_node = dev_node;
-
 		dev_node = of_parse_phandle(node, "ti,level_shifter", 0);
 		if (!dev_node) {
 			dev_err(&pdev->dev, "level shifter node is not provided\n");
