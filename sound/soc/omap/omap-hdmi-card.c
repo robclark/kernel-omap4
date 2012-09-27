@@ -30,6 +30,10 @@
 
 #define DRV_NAME "omap-hdmi-audio"
 
+struct hdmi_card_data {
+	struct platform_device *codec_pdev;
+};
+
 static struct snd_soc_dai_link omap_hdmi_dai = {
 	.name = "HDMI",
 	.stream_name = "HDMI",
@@ -50,13 +54,16 @@ static __devinit int omap_hdmi_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = &snd_soc_omap_hdmi;
 	struct device_node *node = pdev->dev.of_node;
-	struct platform_device *dai_dev, *codec_dev;
+	struct hdmi_card_data *card_data;
 	int ret;
 
-	dai_dev = ERR_PTR(-EINVAL);
-	codec_dev = ERR_PTR(-EINVAL);
-
 	card->dev = &pdev->dev;
+
+	card_data = devm_kzalloc(&pdev->dev, sizeof(*card_data), GFP_KERNEL);
+	if (!card_data)
+		return -ENOMEM;
+
+	card_data->codec_pdev = ERR_PTR(-EINVAL);
 
 	/* for DT boot */
 	if (node) {
@@ -83,15 +90,16 @@ static __devinit int omap_hdmi_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "level shifter node is not provided\n");
 			return -EINVAL;
 		}
-		codec_dev = platform_device_register_simple("hdmi-audio-codec",
+		card_data->codec_pdev = platform_device_register_simple("hdmi-audio-codec",
 							    -1, NULL, 0);
-		if (IS_ERR(codec_dev)) {
+		if (IS_ERR(card_data->codec_pdev)) {
 			dev_err(&pdev->dev,
 				"Cannot instantiate hdmi-audio-codec\n");
-		return PTR_ERR(codec_dev);
+			return PTR_ERR(card_data->codec_pdev);
 		}
 	}
 
+	snd_soc_card_set_drvdata(card, card_data);
 	ret = snd_soc_register_card(card);
 	if (ret) {
 		dev_err(&pdev->dev, "snd_soc_register_card failed (%d)\n", ret);
@@ -102,7 +110,7 @@ static __devinit int omap_hdmi_probe(struct platform_device *pdev)
 	return 0;
 
 err_register_card:
-	platform_device_unregister(codec_dev);
+	platform_device_unregister(card_data->codec_pdev);
 	return ret;
 }
 
