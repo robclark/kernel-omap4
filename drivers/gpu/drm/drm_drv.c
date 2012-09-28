@@ -393,7 +393,7 @@ long drm_ioctl(struct file *filp,
 	atomic_inc(&dev->counts[_DRM_STAT_IOCTLS]);
 	++file_priv->ioctl_count;
 
-	DRM_DEBUG("pid=%d, cmd=0x%02x, nr=0x%02x, dev 0x%lx, auth=%d\n",
+	DRM_VERB("pid=%d, cmd=0x%02x, nr=0x%02x, dev 0x%lx, auth=%d\n",
 		  task_pid_nr(current), cmd, nr,
 		  (long)old_encode_dev(file_priv->minor->device),
 		  file_priv->authenticated);
@@ -474,8 +474,13 @@ long drm_ioctl(struct file *filp,
 	if (kdata != stack_kdata)
 		kfree(kdata);
 	atomic_dec(&dev->ioctl_count);
-	if (retcode)
+	if (retcode) {
+		DRM_DEBUG("pid=%d, cmd=0x%02x, nr=0x%02x, dev 0x%lx, auth=%d\n",
+			  task_pid_nr(current), cmd, nr,
+			  (long)old_encode_dev(file_priv->minor->device),
+			  file_priv->authenticated);
 		DRM_DEBUG("ret = %d\n", retcode);
+	}
 	return retcode;
 }
 
