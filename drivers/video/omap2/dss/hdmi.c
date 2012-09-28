@@ -56,6 +56,7 @@
 static struct {
 	struct mutex lock;
 	struct platform_device *pdev;
+	struct platform_device *audio_pdev;
 	struct hdmi_ip_data ip_data;
 	int hdmi_irq;
 
@@ -68,6 +69,10 @@ static struct {
 
 	struct omap_dss_output output;
 } hdmi;
+
+#define HDMI_AUDIO_MEM_RESOURCE 0
+#define HDMI_AUDIO_DMA_RESOURCE 1
+static struct resource hdmi_aud_res[2];
 
 /*
  * Logic for the below structure :
@@ -1317,6 +1322,7 @@ static int __init omapdss_hdmihw_probe(struct platform_device *pdev)
 	int r;
 
 	hdmi.pdev = pdev;
+	hdmi.audio_pdev = ERR_PTR(-EINVAL);
 
 	mutex_init(&hdmi.lock);
 
@@ -1335,6 +1341,22 @@ static int __init omapdss_hdmihw_probe(struct platform_device *pdev)
 		DSSERR("can't ioremap WP\n");
 		return -ENOMEM;
 	}
+
+	/* Pass this resource to audio_pdev */
+	hdmi_aud_res[HDMI_AUDIO_MEM_RESOURCE].start = hdmi_mem->start;
+	hdmi_aud_res[HDMI_AUDIO_MEM_RESOURCE].end = hdmi_mem->end;
+	hdmi_aud_res[HDMI_AUDIO_MEM_RESOURCE].flags = IORESOURCE_MEM;
+
+	hdmi_mem = platform_get_resource(hdmi.pdev, IORESOURCE_DMA, 0);
+	if (!hdmi_mem) {
+		DSSERR("can't get PLL CTRL IORESOURCE_DMA HDMI\n");
+		return -EINVAL;
+	}
+
+	/* Pass this resource to audio_pdev */
+	hdmi_aud_res[HDMI_AUDIO_DMA_RESOURCE].start = hdmi_mem->start;
+	hdmi_aud_res[HDMI_AUDIO_DMA_RESOURCE].end = hdmi_mem->end;
+	hdmi_aud_res[HDMI_AUDIO_DMA_RESOURCE].flags = IORESOURCE_DMA;
 
 	/* HDMI PLLCTRL memory remap */
 	hdmi_mem = platform_get_resource_byname(hdmi.pdev,
@@ -1394,6 +1416,16 @@ static int __init omapdss_hdmihw_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
+	/* create platform device for HDMI audio drivers */
+	hdmi.audio_pdev = platform_device_register_simple(
+							"omap-hdmi-audio-dai",
+							-1, hdmi_aud_res,
+							ARRAY_SIZE(hdmi_aud_res));
+	if (IS_ERR(hdmi.audio_pdev)) {
+		DSSERR("Can't instantiate hdmi-audio\n");
+		return PTR_ERR(hdmi.audio_pdev);
+	}
+
 	mutex_init(&hdmi.ip_data.lock);
 
 	hdmi_panel_init();
@@ -1419,6 +1451,9 @@ static int __exit hdmi_remove_child(struct device *dev, void *data)
 
 static int __exit omapdss_hdmihw_remove(struct platform_device *pdev)
 {
+	if (!IS_ERR(hdmi.audio_pdev))
+		platform_device_unregister(hdmi.audio_pdev);
+
 	device_for_each_child(&pdev->dev, NULL, hdmi_remove_child);
 
 	dss_unregister_child_devices(&pdev->dev);
