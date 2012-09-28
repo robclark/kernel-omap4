@@ -411,7 +411,7 @@ void drm_vm_open_locked(struct drm_device *dev,
 {
 	struct drm_vma_entry *vma_entry;
 
-	DRM_DEBUG("0x%08lx,0x%08lx\n",
+	DRM_VERB("0x%08lx,0x%08lx\n",
 		  vma->vm_start, vma->vm_end - vma->vm_start);
 	atomic_inc(&dev->vma_count);
 
@@ -438,7 +438,7 @@ void drm_vm_close_locked(struct drm_device *dev,
 {
 	struct drm_vma_entry *pt, *temp;
 
-	DRM_DEBUG("0x%08lx,0x%08lx\n",
+	DRM_VERB("0x%08lx,0x%08lx\n",
 		  vma->vm_start, vma->vm_end - vma->vm_start);
 	atomic_dec(&dev->vma_count);
 
