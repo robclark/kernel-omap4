@@ -3657,6 +3657,9 @@ static bool drm_property_change_is_valid(struct drm_property *property,
 		if (value == 0)
 			return true;
 		return drm_property_get_obj(property, value) != NULL;
+	} else if (property->flags & DRM_MODE_PROP_BLOB) {
+		/* Only the driver knows */
+		return true;
 	} else {
 		int i;
 		for (i = 0; i < property->num_values; i++)
