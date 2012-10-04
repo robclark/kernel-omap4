@@ -460,6 +460,9 @@ struct drm_crtc {
 	void *helper_private;
 
 	struct drm_object_properties properties;
+
+	struct drm_property_blob *mode_blob;
+	struct drm_property_blob *connector_ids_blob;
 };
 
 
