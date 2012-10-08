@@ -4871,6 +4871,7 @@ static struct omap_hwmod_ocp_if omap54xx_l4_abe__mcasp = {
 
 static struct omap_hwmod_addr_space omap54xx_mcbsp1_addrs[] = {
 	{
+		.name		= "mpu",
 		.pa_start	= 0x40122000,
 		.pa_end		= 0x401220ff,
 		.flags		= ADDR_TYPE_RT
@@ -4884,11 +4885,31 @@ static struct omap_hwmod_ocp_if omap54xx_l4_abe__mcbsp1 = {
 	.slave		= &omap54xx_mcbsp1_hwmod,
 	.clk		= "abe_iclk",
 	.addr		= omap54xx_mcbsp1_addrs,
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+	.user		= OCP_USER_MPU,
+};
+
+static struct omap_hwmod_addr_space omap54xx_mcbsp1_dma_addrs[] = {
+	{
+		.name		= "dma",
+		.pa_start	= 0x49022000,
+		.pa_end		= 0x490220ff,
+		.flags		= ADDR_TYPE_RT
+	},
+	{ }
+};
+
+/* l4_abe -> mcbsp1 (dma) */
+static struct omap_hwmod_ocp_if omap54xx_l4_abe__mcbsp1_dma = {
+	.master		= &omap54xx_l4_abe_hwmod,
+	.slave		= &omap54xx_mcbsp1_hwmod,
+	.clk		= "abe_iclk",
+	.addr		= omap54xx_mcbsp1_dma_addrs,
+	.user		= OCP_USER_SDMA,
 };
 
 static struct omap_hwmod_addr_space omap54xx_mcbsp2_addrs[] = {
 	{
+		.name		= "mpu",
 		.pa_start	= 0x40124000,
 		.pa_end		= 0x401240ff,
 		.flags		= ADDR_TYPE_RT
@@ -4902,11 +4923,31 @@ static struct omap_hwmod_ocp_if omap54xx_l4_abe__mcbsp2 = {
 	.slave		= &omap54xx_mcbsp2_hwmod,
 	.clk		= "abe_iclk",
 	.addr		= omap54xx_mcbsp2_addrs,
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+	.user		= OCP_USER_MPU,
+};
+
+static struct omap_hwmod_addr_space omap54xx_mcbsp2_dma_addrs[] = {
+	{
+		.name		= "dma",
+		.pa_start	= 0x49024000,
+		.pa_end		= 0x490240ff,
+		.flags		= ADDR_TYPE_RT
+	},
+	{ }
+};
+
+/* l4_abe -> mcbsp1 (dma) */
+static struct omap_hwmod_ocp_if omap54xx_l4_abe__mcbsp2_dma = {
+	.master		= &omap54xx_l4_abe_hwmod,
+	.slave		= &omap54xx_mcbsp2_hwmod,
+	.clk		= "abe_iclk",
+	.addr		= omap54xx_mcbsp2_dma_addrs,
+	.user		= OCP_USER_SDMA,
 };
 
 static struct omap_hwmod_addr_space omap54xx_mcbsp3_addrs[] = {
 	{
+		.name		= "mpu",
 		.pa_start	= 0x40126000,
 		.pa_end		= 0x401260ff,
 		.flags		= ADDR_TYPE_RT
@@ -4920,7 +4961,26 @@ static struct omap_hwmod_ocp_if omap54xx_l4_abe__mcbsp3 = {
 	.slave		= &omap54xx_mcbsp3_hwmod,
 	.clk		= "abe_iclk",
 	.addr		= omap54xx_mcbsp3_addrs,
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+	.user		= OCP_USER_MPU,
+};
+
+static struct omap_hwmod_addr_space omap54xx_mcbsp3_dma_addrs[] = {
+	{
+		.name		= "dma",
+		.pa_start	= 0x49026000,
+		.pa_end		= 0x490260ff,
+		.flags		= ADDR_TYPE_RT
+	},
+	{ }
+};
+
+/* l4_abe -> mcbsp3 (dma) */
+static struct omap_hwmod_ocp_if omap54xx_l4_abe__mcbsp3_dma = {
+	.master		= &omap54xx_l4_abe_hwmod,
+	.slave		= &omap54xx_mcbsp3_hwmod,
+	.clk		= "abe_iclk",
+	.addr		= omap54xx_mcbsp3_dma_addrs,
+	.user		= OCP_USER_SDMA,
 };
 
 static struct omap_hwmod_addr_space omap54xx_mcpdm_addrs[] = {
@@ -5883,8 +5943,11 @@ static struct omap_hwmod_ocp_if *omap54xx_hwmod_ocp_ifs[] __initdata = {
 	&omap54xx_l4_cfg__mailbox,
 	&omap54xx_l4_abe__mcasp,
 	&omap54xx_l4_abe__mcbsp1,
+	&omap54xx_l4_abe__mcbsp1_dma,
 	&omap54xx_l4_abe__mcbsp2,
+	&omap54xx_l4_abe__mcbsp2_dma,
 	&omap54xx_l4_abe__mcbsp3,
+	&omap54xx_l4_abe__mcbsp3_dma,
 	&omap54xx_l4_abe__mcpdm,
 	&omap54xx_l4_per__mcspi1,
 	&omap54xx_l4_per__mcspi2,
