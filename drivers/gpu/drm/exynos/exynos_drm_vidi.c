@@ -370,7 +370,6 @@ static void vidi_finish_pageflip(struct drm_device *drm_dev, int crtc)
 {
 	struct exynos_drm_private *dev_priv = drm_dev->dev_private;
 	struct drm_pending_vblank_event *e, *t;
-	struct timeval now;
 	unsigned long flags;
 	bool is_checked = false;
 
@@ -384,13 +383,8 @@ static void vidi_finish_pageflip(struct drm_device *drm_dev, int crtc)
 
 		is_checked = true;
 
-		do_gettimeofday(&now);
-		e->event.sequence = 0;
-		e->event.tv_sec = now.tv_sec;
-		e->event.tv_usec = now.tv_usec;
-
-		list_move_tail(&e->base.link, &e->base.file_priv->event_list);
-		wake_up_interruptible(&e->base.file_priv->event_wait);
+		list_del(&e->base.link);
+		drm_send_vblank_event(drm_dev, -1, e);
 	}
 
 	if (is_checked) {
