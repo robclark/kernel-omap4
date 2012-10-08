@@ -135,23 +135,26 @@ static int ipu_page_flip(struct drm_crtc *crtc,
 		struct drm_pending_vblank_event *event)
 {
 	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
+	struct drm_device *drm = ipu_crtc->base.dev;
+	unsigned long flags;
 	int ret;
 
 	if (ipu_crtc->newfb)
 		return -EBUSY;
 
+	spin_lock_irqsave(&drm->event_lock, flags);
 	ret = imx_drm_crtc_vblank_get(ipu_crtc->imx_crtc);
 	if (ret) {
 		dev_dbg(ipu_crtc->dev, "failed to acquire vblank counter\n");
-		list_del(&event->base.link);
-
-		return ret;
+		goto out;
 	}
 
 	ipu_crtc->newfb = fb;
 	ipu_crtc->page_flip_event = event;
 
-	return 0;
+out:
+	spin_unlock_irqrestore(&drm->event_lock, flags);
+	return ret;
 }
 
 static const struct drm_crtc_funcs ipu_crtc_funcs = {
