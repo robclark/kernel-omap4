@@ -119,7 +119,6 @@ static void vblank_cb(void *arg)
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
 	unsigned long flags;
 
-	WARN_ON(!event);
 	spin_lock_irqsave(&dev->event_lock, flags);
 
 	/* wakeup userspace */
@@ -127,6 +126,7 @@ static void vblank_cb(void *arg)
 		drm_send_vblank_event(dev, -1, omap_crtc->event);
 
 	omap_crtc->event = NULL;
+	omap_crtc->old_fb = NULL;
 
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 }
@@ -137,8 +137,6 @@ static void page_flip_cb(void *arg)
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
 	struct drm_framebuffer *old_fb = omap_crtc->old_fb;
 	struct drm_gem_object *bo;
-
-	omap_crtc->old_fb = NULL;
 
 	omap_crtc_mode_set_base(crtc, crtc->x, crtc->y, old_fb);
 
@@ -162,7 +160,7 @@ static int omap_crtc_page_flip_locked(struct drm_crtc *crtc,
 
 	DBG("%d -> %d", crtc->fb ? crtc->fb->base.id : -1, fb->base.id);
 
-	if (omap_crtc->event) {
+	if (omap_crtc->old_fb) {
 		dev_err(dev->dev, "already a pending flip\n");
 		return -EINVAL;
 	}
