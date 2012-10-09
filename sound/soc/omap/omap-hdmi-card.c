@@ -28,7 +28,7 @@
 #include <asm/mach-types.h>
 #include <video/omapdss.h>
 
-#define DRV_NAME "omap-hdmi-audio"
+#define DRV_NAME "omap-hdmi-tpd12s015-audio"
 
 struct hdmi_card_data {
 	struct platform_device *codec_pdev;
