@@ -6,6 +6,10 @@ menuconfig OMAP2_DSS
 
 if OMAP2_DSS
 
+config DSS_COMPAT
+	bool
+	default n
+
 config OMAP2_VRAM_SIZE
 	int "VRAM size (MB)"
 	range 0 32
