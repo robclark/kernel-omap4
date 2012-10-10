@@ -504,7 +504,7 @@ static int hdmi_power_on(struct omap_dss_device *dssdev)
 {
 	int r;
 	struct omap_video_timings *p;
-	struct omap_overlay_manager *mgr = dssdev->output->manager;
+	enum omap_channel mgr = dssdev->output->manager_id;
 	unsigned long phy;
 
 	gpio_set_value(hdmi.ct_cp_hpd_gpio, 1);
@@ -593,7 +593,7 @@ err_vdac_enable:
 
 static void hdmi_power_off(struct omap_dss_device *dssdev)
 {
-	struct omap_overlay_manager *mgr = dssdev->output->manager;
+	enum omap_channel mgr = dssdev->output->manager_id;
 
 	dss_mgr_disable(mgr);
 
@@ -699,7 +699,7 @@ int omapdss_hdmi_display_enable(struct omap_dss_device *dssdev)
 
 	mutex_lock(&hdmi.lock);
 
-	if (out == NULL || out->manager == NULL) {
+	if (out == NULL || out->manager_id == OMAP_DSS_CHANNEL_INVALID) {
 		DSSERR("failed to enable display: no output/manager\n");
 		r = -ENODEV;
 		goto err0;

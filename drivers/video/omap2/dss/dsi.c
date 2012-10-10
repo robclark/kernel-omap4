@@ -4333,7 +4333,7 @@ int dsi_enable_video_output(struct omap_dss_device *dssdev, int channel)
 {
 	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-	struct omap_overlay_manager *mgr = dssdev->output->manager;
+	enum omap_channel mgr = dssdev->output->manager_id;
 	int bpp = dsi_get_pixel_size(dsi->pix_fmt);
 	u8 data_type;
 	u16 word_count;
@@ -4391,7 +4391,7 @@ void dsi_disable_video_output(struct omap_dss_device *dssdev, int channel)
 {
 	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-	struct omap_overlay_manager *mgr = dssdev->output->manager;
+	enum omap_channel mgr = dssdev->output->manager_id;
 
 	if (dsi->mode == OMAP_DSS_DSI_VIDEO_MODE) {
 		dsi_if_enable(dsidev, false);
@@ -4412,7 +4412,7 @@ static void dsi_update_screen_dispc(struct omap_dss_device *dssdev)
 {
 	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-	struct omap_overlay_manager *mgr = dssdev->output->manager;
+	enum omap_channel mgr = dssdev->output->manager_id;
 	unsigned bytespp;
 	unsigned bytespl;
 	unsigned bytespf;
@@ -4604,7 +4604,7 @@ static int dsi_display_init_dispc(struct omap_dss_device *dssdev)
 {
 	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-	struct omap_overlay_manager *mgr = dssdev->output->manager;
+	enum omap_channel mgr = dssdev->output->manager_id;
 	int r;
 
 	if (dsi->mode == OMAP_DSS_DSI_CMD_MODE) {
@@ -4666,7 +4666,7 @@ static void dsi_display_uninit_dispc(struct omap_dss_device *dssdev)
 {
 	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-	struct omap_overlay_manager *mgr = dssdev->output->manager;
+	enum omap_channel mgr = dssdev->output->manager_id;
 
 	if (dsi->mode == OMAP_DSS_DSI_CMD_MODE)
 		dss_mgr_unregister_framedone_handler(mgr,
@@ -4702,7 +4702,7 @@ static int dsi_display_init_dsi(struct omap_dss_device *dssdev)
 {
 	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-	struct omap_overlay_manager *mgr = dssdev->output->manager;
+	enum omap_channel mgr = dssdev->output->manager_id;
 	int r;
 
 	r = dsi_pll_init(dsidev, true, true);
@@ -4715,8 +4715,7 @@ static int dsi_display_init_dsi(struct omap_dss_device *dssdev)
 
 	dss_select_dispc_clk_source(dssdev->clocks.dispc.dispc_fclk_src);
 	dss_select_dsi_clk_source(dsi->module_id, dssdev->clocks.dsi.dsi_fclk_src);
-	dss_select_lcd_clk_source(mgr->id,
-			dssdev->clocks.dispc.channel.lcd_clk_src);
+	dss_select_lcd_clk_source(mgr, dssdev->clocks.dispc.channel.lcd_clk_src);
 
 	DSSDBG("PLL OK\n");
 
@@ -4750,7 +4749,7 @@ err3:
 err2:
 	dss_select_dispc_clk_source(OMAP_DSS_CLK_SRC_FCK);
 	dss_select_dsi_clk_source(dsi->module_id, OMAP_DSS_CLK_SRC_FCK);
-	dss_select_lcd_clk_source(mgr->id, OMAP_DSS_CLK_SRC_FCK);
+	dss_select_lcd_clk_source(mgr, OMAP_DSS_CLK_SRC_FCK);
 
 err1:
 	dsi_pll_uninit(dsidev, true);
@@ -4763,7 +4762,7 @@ static void dsi_display_uninit_dsi(struct omap_dss_device *dssdev,
 {
 	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-	struct omap_overlay_manager *mgr = dssdev->output->manager;
+	enum omap_channel mgr = dssdev->output->manager_id;
 
 	if (enter_ulps && !dsi->ulps_enabled)
 		dsi_enter_ulps(dsidev);
@@ -4777,7 +4776,7 @@ static void dsi_display_uninit_dsi(struct omap_dss_device *dssdev,
 
 	dss_select_dispc_clk_source(OMAP_DSS_CLK_SRC_FCK);
 	dss_select_dsi_clk_source(dsi->module_id, OMAP_DSS_CLK_SRC_FCK);
-	dss_select_lcd_clk_source(mgr->id, OMAP_DSS_CLK_SRC_FCK);
+	dss_select_lcd_clk_source(mgr, OMAP_DSS_CLK_SRC_FCK);
 	dsi_cio_uninit(dsidev);
 	dsi_pll_uninit(dsidev, disconnect_lanes);
 }
@@ -4795,7 +4794,7 @@ int omapdss_dsi_display_enable(struct omap_dss_device *dssdev)
 
 	mutex_lock(&dsi->lock);
 
-	if (out == NULL || out->manager == NULL) {
+	if (out == NULL || out->manager_id == OMAP_DSS_CHANNEL_INVALID) {
 		DSSERR("failed to enable display: no output/manager\n");
 		r = -ENODEV;
 		goto err_start_dev;
