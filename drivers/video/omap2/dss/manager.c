@@ -36,39 +36,9 @@
 static int num_managers;
 static struct omap_overlay_manager *managers;
 
-static inline struct omap_dss_device *dss_mgr_get_device(struct omap_overlay_manager *mgr)
-{
-	return mgr->output ? mgr->output->device : NULL;
-}
-
-static int dss_mgr_wait_for_vsync(struct omap_overlay_manager *mgr)
-{
-	unsigned long timeout = msecs_to_jiffies(500);
-	struct omap_dss_device *dssdev = mgr->get_device(mgr);
-	u32 irq;
-	int r;
-
-	r = dispc_runtime_get();
-	if (r)
-		return r;
-
-	if (dssdev->type == OMAP_DISPLAY_TYPE_VENC)
-		irq = DISPC_IRQ_EVSYNC_ODD;
-	else if (dssdev->type == OMAP_DISPLAY_TYPE_HDMI)
-		irq = DISPC_IRQ_EVSYNC_EVEN;
-	else
-		irq = dispc_mgr_get_vsync_irq(mgr->id);
-
-	r = omap_dispc_wait_for_irq_interruptible_timeout(irq, timeout);
-
-	dispc_runtime_put();
-
-	return r;
-}
-
 int dss_init_overlay_managers(struct platform_device *pdev)
 {
-	int i, r;
+	int i;
 
 	num_managers = dss_feat_get_num_mgrs();
 
@@ -99,15 +69,6 @@ int dss_init_overlay_managers(struct platform_device *pdev)
 			break;
 		}
 
-		mgr->set_output = &dss_mgr_set_output;
-		mgr->unset_output = &dss_mgr_unset_output;
-		mgr->apply = &omap_dss_mgr_apply;
-		mgr->set_manager_info = &dss_mgr_set_info;
-		mgr->get_manager_info = &dss_mgr_get_info;
-		mgr->wait_for_go = &dss_mgr_wait_for_go;
-		mgr->wait_for_vsync = &dss_mgr_wait_for_vsync;
-		mgr->get_device = &dss_mgr_get_device;
-
 		mgr->caps = 0;
 		mgr->supported_displays =
 			dss_feat_get_supported_displays(mgr->id);
@@ -115,10 +76,6 @@ int dss_init_overlay_managers(struct platform_device *pdev)
 			dss_feat_get_supported_outputs(mgr->id);
 
 		INIT_LIST_HEAD(&mgr->overlays);
-
-		r = dss_manager_kobj_init(mgr, pdev);
-		if (r)
-			DSSERR("failed to create sysfs file\n");
 	}
 
 	return 0;
@@ -126,13 +83,6 @@ int dss_init_overlay_managers(struct platform_device *pdev)
 
 void dss_uninit_overlay_managers(struct platform_device *pdev)
 {
-	int i;
-
-	for (i = 0; i < num_managers; ++i) {
-		struct omap_overlay_manager *mgr = &managers[i];
-		dss_manager_kobj_uninit(mgr);
-	}
-
 	kfree(managers);
 	managers = NULL;
 	num_managers = 0;
