@@ -247,8 +247,6 @@ static int __init omap_dss_probe(struct platform_device *pdev)
 
 	dss_features_init(omapdss_get_version());
 
-	omapdss_compat_init();
-
 	r = dss_initialize_debugfs();
 	if (r)
 		goto err_debugfs;
@@ -272,8 +270,6 @@ static int omap_dss_remove(struct platform_device *pdev)
 	unregister_pm_notifier(&omap_dss_pm_notif_block);
 
 	dss_uninitialize_debugfs();
-
-	omapdss_compat_uninit();
 
 	return 0;
 }
