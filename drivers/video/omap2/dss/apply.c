@@ -1612,6 +1612,15 @@ int omapdss_apply_init(void)
 		ovl->get_device = &dss_ovl_get_device;
 	}
 
+	dispc_runtime_get();
+
+	r = dss_dispc_initialize_irq();
+
+	dispc_runtime_put();
+
+	if (r)
+		return r; // XXX
+
 	return 0;
 }
 EXPORT_SYMBOL(omapdss_apply_init);
@@ -1621,6 +1630,8 @@ void omapdss_apply_uninit(void)
 	int num_mgrs = omap_dss_get_num_overlay_managers();
 	int num_ovls = omap_dss_get_num_overlays();
 	int i;
+
+	dss_dispc_uninitialize_irq();
 
 	for (i = 0; i < num_ovls; i++) {
 		struct omap_overlay *ovl = omap_dss_get_overlay(i);
