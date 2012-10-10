@@ -878,7 +878,7 @@ static void dss_apply_irq_handler(void *data, u32 mask)
 			continue;
 
 		was_updating = mp->updating;
-		mp->updating = dispc_mgr_is_enabled(i);
+		mp->updating = dispc_mgr_output_enabled(i);
 
 		if (!mgr_manual_update(mgr)) {
 			bool was_busy = mp->busy;
