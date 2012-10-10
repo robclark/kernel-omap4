@@ -2589,14 +2589,14 @@ static void dispc_disable_isr(void *data, u32 mask)
 	complete(compl);
 }
 
-static void _enable_mgr_out(enum omap_channel channel, bool enable)
+void dispc_mgr_enable_output(enum omap_channel channel, bool enable)
 {
 	mgr_fld_write(channel, DISPC_MGR_FLD_ENABLE, enable);
 	/* flush posted write */
 	mgr_fld_read(channel, DISPC_MGR_FLD_ENABLE);
 }
 
-bool dispc_mgr_is_enabled(enum omap_channel channel)
+bool dispc_mgr_output_enabled(enum omap_channel channel)
 {
 	return !!mgr_fld_read(channel, DISPC_MGR_FLD_ENABLE);
 }
@@ -2611,7 +2611,7 @@ static void dispc_mgr_enable_lcd_out(enum omap_channel channel, bool enable)
 	/* When we disable LCD output, we need to wait until frame is done.
 	 * Otherwise the DSS is still working, and turning off the clocks
 	 * prevents DSS from going to OFF mode */
-	is_on = dispc_mgr_is_enabled(channel);
+	is_on = dispc_mgr_output_enabled(channel);
 
 	irq = mgr_desc[channel].framedone_irq;
 
@@ -2625,7 +2625,7 @@ static void dispc_mgr_enable_lcd_out(enum omap_channel channel, bool enable)
 			DSSERR("failed to register FRAMEDONE isr\n");
 	}
 
-	_enable_mgr_out(channel, enable);
+	dispc_mgr_enable_output(channel, enable);
 
 	if (!enable && is_on) {
 		if (!wait_for_completion_timeout(&frame_done_completion,
@@ -2648,7 +2648,7 @@ static void dispc_mgr_enable_digit_out(bool enable)
 	u32 irq_mask;
 	int num_irqs;
 
-	if (dispc_mgr_is_enabled(OMAP_DSS_CHANNEL_DIGIT) == enable)
+	if (dispc_mgr_output_enabled(OMAP_DSS_CHANNEL_DIGIT) == enable)
 		return;
 
 	src = dss_get_hdmi_venc_clk_source();
@@ -2685,7 +2685,7 @@ static void dispc_mgr_enable_digit_out(bool enable)
 	if (r)
 		DSSERR("failed to register %x isr\n", irq_mask);
 
-	_enable_mgr_out(OMAP_DSS_CHANNEL_DIGIT, enable);
+	dispc_mgr_enable_output(OMAP_DSS_CHANNEL_DIGIT, enable);
 
 	for (i = 0; i < num_irqs; ++i) {
 		if (!wait_for_completion_timeout(&frame_done_completion,
