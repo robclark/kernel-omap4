@@ -94,6 +94,7 @@ EXPORT_SYMBOL(omapdss_output_unset_device);
 
 void dss_register_output(struct omap_dss_output *out)
 {
+	out->manager_id = OMAP_DSS_CHANNEL_INVALID;
 	list_add_tail(&out->list, &output_list);
 }
 

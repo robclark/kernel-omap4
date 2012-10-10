@@ -253,41 +253,41 @@ void dss_uninstall_mgr_ops(void)
 	dss_mgr_ops = NULL;
 }
 
-void dss_mgr_set_timings(struct omap_overlay_manager *mgr,
+void dss_mgr_set_timings(enum omap_channel id,
 		const struct omap_video_timings *timings)
 {
-	dss_mgr_ops->set_timings(mgr, timings);
+	dss_mgr_ops->set_timings(id, timings);
 }
 
-void dss_mgr_set_lcd_config(struct omap_overlay_manager *mgr,
+void dss_mgr_set_lcd_config(enum omap_channel id,
 		const struct dss_lcd_mgr_config *config)
 {
-	dss_mgr_ops->set_lcd_config(mgr, config);
+	dss_mgr_ops->set_lcd_config(id, config);
 }
 
-int dss_mgr_enable(struct omap_overlay_manager *mgr)
+int dss_mgr_enable(enum omap_channel id)
 {
-	return dss_mgr_ops->enable(mgr);
+	return dss_mgr_ops->enable(id);
 }
 
-void dss_mgr_disable(struct omap_overlay_manager *mgr)
+void dss_mgr_disable(enum omap_channel id)
 {
-	dss_mgr_ops->disable(mgr);
+	dss_mgr_ops->disable(id);
 }
 
-void dss_mgr_start_update(struct omap_overlay_manager *mgr)
+void dss_mgr_start_update(enum omap_channel id)
 {
-	dss_mgr_ops->start_update(mgr);
+	dss_mgr_ops->start_update(id);
 }
 
-int dss_mgr_register_framedone_handler(struct omap_overlay_manager *mgr,
+int dss_mgr_register_framedone_handler(enum omap_channel id,
 		void (*handler)(void *), void *data)
 {
-	return dss_mgr_ops->register_framedone_handler(mgr, handler, data);
+	return dss_mgr_ops->register_framedone_handler(id, handler, data);
 }
 
-void dss_mgr_unregister_framedone_handler(struct omap_overlay_manager *mgr,
+void dss_mgr_unregister_framedone_handler(enum omap_channel id,
 		void (*handler)(void *), void *data)
 {
-	dss_mgr_ops->unregister_framedone_handler(mgr, handler, data);
+	dss_mgr_ops->unregister_framedone_handler(id, handler, data);
 }

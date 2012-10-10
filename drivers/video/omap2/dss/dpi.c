@@ -131,7 +131,7 @@ static int dpi_set_dispc_clk(struct omap_dss_device *dssdev,
 static int dpi_set_mode(struct omap_dss_device *dssdev)
 {
 	struct omap_video_timings *t = &dpi.timings;
-	struct omap_overlay_manager *mgr = dssdev->output->manager;
+	enum omap_channel mgr = dssdev->output->manager_id;
 	int lck_div = 0, pck_div = 0;
 	unsigned long fck = 0;
 	unsigned long pck;
@@ -163,7 +163,7 @@ static int dpi_set_mode(struct omap_dss_device *dssdev)
 
 static void dpi_config_lcd_manager(struct omap_dss_device *dssdev)
 {
-	struct omap_overlay_manager *mgr = dssdev->output->manager;
+	enum omap_channel mgr = dssdev->output->manager_id;
 
 	dpi.mgr_config.io_pad_mode = DSS_IO_PAD_MODE_BYPASS;
 
@@ -190,7 +190,7 @@ int omapdss_dpi_display_enable(struct omap_dss_device *dssdev)
 		goto err_no_reg;
 	}
 
-	if (out == NULL || out->manager == NULL) {
+	if (out == NULL || out->manager_id == OMAP_DSS_CHANNEL_INVALID) {
 		DSSERR("failed to enable display: no output/manager\n");
 		r = -ENODEV;
 		goto err_no_out_mgr;
@@ -236,7 +236,7 @@ int omapdss_dpi_display_enable(struct omap_dss_device *dssdev)
 
 	mdelay(2);
 
-	r = dss_mgr_enable(out->manager);
+	r = dss_mgr_enable(out->manager_id);
 	if (r)
 		goto err_mgr_enable;
 
@@ -269,7 +269,7 @@ EXPORT_SYMBOL(omapdss_dpi_display_enable);
 
 void omapdss_dpi_display_disable(struct omap_dss_device *dssdev)
 {
-	struct omap_overlay_manager *mgr = dssdev->output->manager;
+	enum omap_channel mgr = dssdev->output->manager_id;
 
 	mutex_lock(&dpi.lock);
 
@@ -311,13 +311,13 @@ int dpi_check_timings(struct omap_dss_device *dssdev,
 			struct omap_video_timings *timings)
 {
 	int r;
-	struct omap_overlay_manager *mgr = dssdev->output->manager;
+	enum omap_channel mgr = dssdev->output->manager_id;
 	int lck_div, pck_div;
 	unsigned long fck;
 	unsigned long pck;
 	struct dispc_clock_info dispc_cinfo;
 
-	if (dss_mgr_check_timings(mgr, timings))
+	if (!dispc_mgr_timings_ok(mgr, timings))
 		return -EINVAL;
 
 	if (timings->pixel_clock == 0)
