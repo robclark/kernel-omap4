@@ -77,6 +77,88 @@ static int get_connector_type(struct omap_dss_device *dssdev)
 	}
 }
 
+/* we need a special version, instead of just using drm_irq_install(),
+ * because we need to register the irq via omapdss.. possibly we could
+ * associate dispc hwmod data w/ omapdrm then drm_irq_install() should
+ * work normally..
+ */
+#define drm_irq_install hack_irq_install
+static int hack_irq_install(struct drm_device *dev)
+{
+	int ret;
+
+	mutex_lock(&dev->struct_mutex);
+
+	if (dev->irq_enabled) {
+		mutex_unlock(&dev->struct_mutex);
+		return -EBUSY;
+	}
+	dev->irq_enabled = 1;
+	mutex_unlock(&dev->struct_mutex);
+
+	/* Before installing handler */
+	if (dev->driver->irq_preinstall)
+		dev->driver->irq_preinstall(dev);
+
+	ret = dispc_request_irq(dev->driver->irq_handler, dev);
+
+	if (ret < 0) {
+		mutex_lock(&dev->struct_mutex);
+		dev->irq_enabled = 0;
+		mutex_unlock(&dev->struct_mutex);
+		return ret;
+	}
+
+	/* After installing handler */
+	if (dev->driver->irq_postinstall)
+		ret = dev->driver->irq_postinstall(dev);
+
+	if (ret < 0) {
+		mutex_lock(&dev->struct_mutex);
+		dev->irq_enabled = 0;
+		mutex_unlock(&dev->struct_mutex);
+		dispc_free_irq(dev);
+	}
+
+	return ret;
+}
+
+#define drm_irq_uninstall hack_irq_uninstall
+static int hack_irq_uninstall(struct drm_device *dev)
+{
+	unsigned long irqflags;
+	int irq_enabled, i;
+
+	mutex_lock(&dev->struct_mutex);
+	irq_enabled = dev->irq_enabled;
+	dev->irq_enabled = 0;
+	mutex_unlock(&dev->struct_mutex);
+
+	/*
+	 * Wake up any waiters so they don't hang.
+	 */
+	if (dev->num_crtcs) {
+		spin_lock_irqsave(&dev->vbl_lock, irqflags);
+		for (i = 0; i < dev->num_crtcs; i++) {
+			DRM_WAKEUP(&dev->vbl_queue[i]);
+			dev->vblank_enabled[i] = 0;
+			dev->last_vblank[i] =
+				dev->driver->get_vblank_counter(dev, i);
+		}
+		spin_unlock_irqrestore(&dev->vbl_lock, irqflags);
+	}
+
+	if (!irq_enabled)
+		return -EINVAL;
+
+	if (dev->driver->irq_uninstall)
+		dev->driver->irq_uninstall(dev);
+
+	dispc_free_irq(dev);
+
+	return 0;
+}
+
 static int omap_modeset_init(struct drm_device *dev)
 {
 	struct omap_drm_private *priv = dev->dev_private;
