@@ -524,7 +524,7 @@ bool dispc_mgr_go_busy(enum omap_channel channel)
 	return mgr_fld_read(channel, DISPC_MGR_FLD_GO) == 1;
 }
 
-void dispc_mgr_go(enum omap_channel channel)
+bool dispc_mgr_go(enum omap_channel channel)
 {
 	bool enable_bit, go_bit;
 
@@ -532,18 +532,20 @@ void dispc_mgr_go(enum omap_channel channel)
 	enable_bit = mgr_fld_read(channel, DISPC_MGR_FLD_ENABLE) == 1;
 
 	if (!enable_bit)
-		return;
+		return false;
 
 	go_bit = mgr_fld_read(channel, DISPC_MGR_FLD_GO) == 1;
 
 	if (go_bit) {
 		DSSERR("GO bit not down for channel %d\n", channel);
-		return;
+		return false;
 	}
 
 	DSSDBG("GO %s\n", mgr_desc[channel].name);
 
 	mgr_fld_write(channel, DISPC_MGR_FLD_GO, 1);
+
+	return true;
 }
 
 bool dispc_wb_go_busy(void)
