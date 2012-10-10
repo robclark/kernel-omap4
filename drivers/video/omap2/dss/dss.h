@@ -23,6 +23,8 @@
 #ifndef __OMAP2_DSS_H
 #define __OMAP2_DSS_H
 
+#include <linux/interrupt.h>
+
 #ifdef CONFIG_OMAP2_DSS_DEBUG_SUPPORT
 #define DEBUG
 #endif
@@ -412,6 +414,9 @@ void dispc_clear_irqstatus(u32 mask);
 u32 dispc_read_irqenable(void);
 void dispc_write_irqenable(u32 mask);
 
+int dispc_request_irq(irq_handler_t handler, void *dev_id);
+void dispc_free_irq(void *dev_id);
+
 int dispc_runtime_get(void);
 void dispc_runtime_put(void);
 
@@ -447,6 +452,7 @@ void dispc_ovl_set_channel_out(enum omap_plane plane,
 
 u32 dispc_mgr_get_vsync_irq(enum omap_channel channel);
 u32 dispc_mgr_get_framedone_irq(enum omap_channel channel);
+u32 dispc_mgr_get_sync_lost_irq(enum omap_channel channel);
 bool dispc_mgr_go_busy(enum omap_channel channel);
 void dispc_mgr_go(enum omap_channel channel);
 void dispc_mgr_enable_output(enum omap_channel channel, bool enable);
