@@ -2588,12 +2588,6 @@ bool dispc_ovl_enabled(enum omap_plane plane)
 	return REG_GET(DISPC_OVL_ATTRIBUTES(plane), 0, 0);
 }
 
-static void dispc_disable_isr(void *data, u32 mask)
-{
-	struct completion *compl = data;
-	complete(compl);
-}
-
 void dispc_mgr_enable_output(enum omap_channel channel, bool enable)
 {
 	mgr_fld_write(channel, DISPC_MGR_FLD_ENABLE, enable);
@@ -2604,42 +2598,6 @@ void dispc_mgr_enable_output(enum omap_channel channel, bool enable)
 bool dispc_mgr_output_enabled(enum omap_channel channel)
 {
 	return !!mgr_fld_read(channel, DISPC_MGR_FLD_ENABLE);
-}
-
-void dispc_wb_enable(void)
-{
-	if (dispc_wb_is_enabled())
-		return;
-
-	dispc_ovl_enable(OMAP_DSS_WB, true);
-}
-
-void dispc_wb_disable(void)
-{
-	DECLARE_COMPLETION_ONSTACK(frame_done_completion);
-	int r;
-	u32 irq;
-
-	if (dispc_wb_is_enabled() == false)
-		return;
-
-	irq = DISPC_IRQ_FRAMEDONEWB;
-
-	r = omap_dispc_register_isr(dispc_disable_isr, &frame_done_completion,
-			irq);
-	if (r)
-		DSSERR("failed to register FRAMEDONEWB isr\n");
-
-	dispc_ovl_enable(OMAP_DSS_WB, false);
-
-	if (!wait_for_completion_timeout(&frame_done_completion,
-				msecs_to_jiffies(100)))
-		DSSERR("timeout waiting for FRAMEDONEWB\n");
-
-	r = omap_dispc_unregister_isr(dispc_disable_isr, &frame_done_completion,
-			irq);
-	if (r)
-		DSSERR("failed to unregister FRAMEDONEWB isr\n");
 }
 
 bool dispc_wb_is_enabled(void)

@@ -170,6 +170,42 @@ void dispc_mgr_disable_digit_out(void)
 		DSSERR("failed to unregister %x isr\n", irq_mask);
 }
 
+void dispc_wb_enable(void)
+{
+	if (dispc_wb_is_enabled())
+		return;
+
+	dispc_ovl_enable(OMAP_DSS_WB, true);
+}
+
+void dispc_wb_disable(void)
+{
+	DECLARE_COMPLETION_ONSTACK(frame_done_completion);
+	int r;
+	u32 irq;
+
+	if (dispc_wb_is_enabled() == false)
+		return;
+
+	irq = DISPC_IRQ_FRAMEDONEWB;
+
+	r = omap_dispc_register_isr(dispc_disable_output_isr,
+			&frame_done_completion, irq);
+	if (r)
+		DSSERR("failed to register FRAMEDONEWB isr\n");
+
+	dispc_ovl_enable(OMAP_DSS_WB, false);
+
+	if (!wait_for_completion_timeout(&frame_done_completion,
+				msecs_to_jiffies(100)))
+		DSSERR("timeout waiting for FRAMEDONEWB\n");
+
+	r = omap_dispc_unregister_isr(dispc_disable_output_isr,
+			&frame_done_completion, irq);
+	if (r)
+		DSSERR("failed to unregister FRAMEDONEWB isr\n");
+}
+
 int omap_dispc_wait_for_irq_interruptible_timeout(u32 irqmask,
 		unsigned long timeout)
 {
