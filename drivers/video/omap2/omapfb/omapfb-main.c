@@ -2441,6 +2441,9 @@ static int __init omapfb_probe(struct platform_device *pdev)
 				"ignoring the module parameter vrfb=y\n");
 	}
 
+	r = omapdss_apply_init();
+	if (r)
+		goto err0;
 
 	mutex_init(&fbdev->mtx);
 
@@ -2578,6 +2581,8 @@ static int __exit omapfb_remove(struct platform_device *pdev)
 	omapfb_remove_sysfs(fbdev);
 
 	omapfb_free_resources(fbdev);
+
+	omapdss_apply_uninit();
 
 	return 0;
 }

@@ -833,4 +833,7 @@ void omapdss_rfbi_set_data_lines(struct omap_dss_device *dssdev,
 void omapdss_rfbi_set_interface_timings(struct omap_dss_device *dssdev,
 		struct rfbi_timings *timings);
 
+int omapdss_apply_init(void);
+void omapdss_apply_uninit(void);
+
 #endif
