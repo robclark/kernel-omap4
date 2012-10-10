@@ -640,7 +640,7 @@ void omapdss_hdmi_display_set_timing(struct omap_dss_device *dssdev,
 	mutex_unlock(&hdmi.lock);
 }
 
-static void hdmi_dump_regs(struct seq_file *s)
+void hdmi_dump_regs(struct seq_file *s)
 {
 	mutex_lock(&hdmi.lock);
 
@@ -655,6 +655,7 @@ static void hdmi_dump_regs(struct seq_file *s)
 	hdmi_runtime_put();
 	mutex_unlock(&hdmi.lock);
 }
+EXPORT_SYMBOL_GPL(hdmi_dump_regs);
 
 int omapdss_hdmi_read_edid(u8 *buf, int len)
 {
