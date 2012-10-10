@@ -240,7 +240,7 @@ static int __init omap_dss_probe(struct platform_device *pdev)
 
 	dss_features_init(pdata->version);
 
-	dss_apply_init();
+	omapdss_compat_init();
 
 	dss_init_overlay_managers(pdev);
 	dss_init_overlays(pdev);
@@ -271,6 +271,8 @@ static int omap_dss_remove(struct platform_device *pdev)
 
 	dss_uninit_overlays(pdev);
 	dss_uninit_overlay_managers(pdev);
+
+	omapdss_compat_uninit();
 
 	return 0;
 }
