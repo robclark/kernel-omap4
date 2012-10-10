@@ -149,6 +149,10 @@ struct omap_dss_output *omapdss_get_output_from_dssdev(struct omap_dss_device *d
 }
 
 
+/*
+ * XXX where should this stuff below here live?
+ */
+
 static const struct dss_mgr_ops *dss_mgr_ops;
 
 int dss_install_mgr_ops(const struct dss_mgr_ops *mgr_ops)

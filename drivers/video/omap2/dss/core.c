@@ -22,6 +22,8 @@
 
 #define DSS_SUBSYS_NAME "CORE"
 
+#define HIDE_APPLY_LAYER
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/clk.h>
@@ -245,10 +247,12 @@ static int __init omap_dss_probe(struct platform_device *pdev)
 
 	dss_features_init();
 
+	// XXX optional: this could move to compat
 	r = dss_initialize_debugfs();
 	if (r)
 		goto err_debugfs;
 
+	// XXX optional: this could probably also move to compat
 	if (def_disp_name)
 		core.default_display_name = def_disp_name;
 	else if (pdata->default_device)
@@ -267,6 +271,7 @@ static int omap_dss_remove(struct platform_device *pdev)
 {
 	unregister_pm_notifier(&omap_dss_pm_notif_block);
 
+	// XXX optional: this could move to compat
 	dss_uninitialize_debugfs();
 
 	return 0;

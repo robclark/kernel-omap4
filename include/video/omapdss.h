@@ -401,6 +401,7 @@ struct omap_overlay_info {
 	u8 zorder;
 };
 
+#ifndef HIDE_APPLY_LAYER
 struct omap_overlay {
 	struct kobject kobj;
 	struct list_head list;
@@ -445,6 +446,7 @@ struct omap_overlay {
 
 	struct omap_dss_device *(*get_device)(struct omap_overlay *ovl);
 };
+#endif
 
 struct omap_overlay_manager_info {
 	u32 default_color;
@@ -459,6 +461,7 @@ struct omap_overlay_manager_info {
 	struct omap_dss_cpr_coefs cpr_coefs;
 };
 
+#ifndef HIDE_APPLY_LAYER
 struct omap_overlay_manager {
 	struct kobject kobj;
 
@@ -502,6 +505,7 @@ struct omap_overlay_manager {
 
 	struct omap_dss_device *(*get_device)(struct omap_overlay_manager *mgr);
 };
+#endif
 
 /* 22 pins means 1 clk lane and 10 data lanes */
 #define OMAP_DSS_MAX_DSI_PINS 22
@@ -753,11 +757,13 @@ const char *dss_get_default_display_name(void);
 int omap_dss_start_device(struct omap_dss_device *dssdev);
 void omap_dss_stop_device(struct omap_dss_device *dssdev);
 
+#ifndef HIDE_APPLY_LAYER
 int omap_dss_get_num_overlay_managers(void);
 struct omap_overlay_manager *omap_dss_get_overlay_manager(int num);
 
 int omap_dss_get_num_overlays(void);
 struct omap_overlay *omap_dss_get_overlay(int num);
+#endif
 
 struct omap_dss_output *omap_dss_get_output(enum omap_dss_output_id id);
 int omapdss_output_set_device(struct omap_dss_output *out,
