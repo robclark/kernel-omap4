@@ -419,6 +419,13 @@ static void wait_pending_extra_info_updates(void)
 		DSSERR("wait_pending_extra_info_updates failed: %d\n", r);
 }
 
+static inline struct omap_dss_device *dss_ovl_get_device(struct omap_overlay *ovl)
+{
+	return ovl->manager ?
+		(ovl->manager->output ? ovl->manager->output->device : NULL) :
+		NULL;
+}
+
 static inline struct omap_dss_device *dss_mgr_get_device(struct omap_overlay_manager *mgr)
 {
 	return mgr->output ? mgr->output->device : NULL;
@@ -519,7 +526,7 @@ static int dss_mgr_wait_for_go(struct omap_overlay_manager *mgr)
 	return r;
 }
 
-int dss_mgr_wait_for_go_ovl(struct omap_overlay *ovl)
+static int dss_mgr_wait_for_go_ovl(struct omap_overlay *ovl)
 {
 	unsigned long timeout = msecs_to_jiffies(500);
 	struct ovl_priv_data *op;
@@ -1256,7 +1263,7 @@ out:
 	spin_unlock_irqrestore(&data_lock, flags);
 }
 
-int dss_ovl_set_info(struct omap_overlay *ovl,
+static int dss_ovl_set_info(struct omap_overlay *ovl,
 		struct omap_overlay_info *info)
 {
 	struct ovl_priv_data *op = get_ovl_priv(ovl);
@@ -1277,7 +1284,7 @@ int dss_ovl_set_info(struct omap_overlay *ovl,
 	return 0;
 }
 
-void dss_ovl_get_info(struct omap_overlay *ovl,
+static void dss_ovl_get_info(struct omap_overlay *ovl,
 		struct omap_overlay_info *info)
 {
 	struct ovl_priv_data *op = get_ovl_priv(ovl);
@@ -1290,7 +1297,7 @@ void dss_ovl_get_info(struct omap_overlay *ovl,
 	spin_unlock_irqrestore(&data_lock, flags);
 }
 
-int dss_ovl_set_manager(struct omap_overlay *ovl,
+static int dss_ovl_set_manager(struct omap_overlay *ovl,
 		struct omap_overlay_manager *mgr)
 {
 	struct ovl_priv_data *op = get_ovl_priv(ovl);
@@ -1347,7 +1354,7 @@ err:
 	return r;
 }
 
-int dss_ovl_unset_manager(struct omap_overlay *ovl)
+static int dss_ovl_unset_manager(struct omap_overlay *ovl)
 {
 	struct ovl_priv_data *op = get_ovl_priv(ovl);
 	unsigned long flags;
@@ -1392,7 +1399,7 @@ err:
 	return r;
 }
 
-bool dss_ovl_is_enabled(struct omap_overlay *ovl)
+static bool dss_ovl_is_enabled(struct omap_overlay *ovl)
 {
 	struct ovl_priv_data *op = get_ovl_priv(ovl);
 	unsigned long flags;
@@ -1407,7 +1414,7 @@ bool dss_ovl_is_enabled(struct omap_overlay *ovl)
 	return e;
 }
 
-int dss_ovl_enable(struct omap_overlay *ovl)
+static int dss_ovl_enable(struct omap_overlay *ovl)
 {
 	struct ovl_priv_data *op = get_ovl_priv(ovl);
 	unsigned long flags;
@@ -1457,7 +1464,7 @@ err1:
 	return r;
 }
 
-int dss_ovl_disable(struct omap_overlay *ovl)
+static int dss_ovl_disable(struct omap_overlay *ovl)
 {
 	struct ovl_priv_data *op = get_ovl_priv(ovl);
 	unsigned long flags;
@@ -1496,6 +1503,7 @@ int omapdss_apply_init(void)
 {
 	struct platform_device *pdev = dss_get_core_pdev();
 	int num_mgrs = omap_dss_get_num_overlay_managers();
+	int num_ovls = omap_dss_get_num_overlays();
 	int i, r;
 
 	apply_init_priv();
@@ -1519,6 +1527,24 @@ int omapdss_apply_init(void)
 		mgr->get_device = &dss_mgr_get_device;
 	}
 
+	for (i = 0; i < num_ovls; i++) {
+		struct omap_overlay *ovl = omap_dss_get_overlay(i);
+
+		r = dss_overlay_kobj_init(ovl, pdev);
+		if (r)
+			DSSERR("failed to create sysfs file\n");
+
+		ovl->is_enabled = &dss_ovl_is_enabled;
+		ovl->enable = &dss_ovl_enable;
+		ovl->disable = &dss_ovl_disable;
+		ovl->set_manager = &dss_ovl_set_manager;
+		ovl->unset_manager = &dss_ovl_unset_manager;
+		ovl->set_overlay_info = &dss_ovl_set_info;
+		ovl->get_overlay_info = &dss_ovl_get_info;
+		ovl->wait_for_go = &dss_mgr_wait_for_go_ovl;
+		ovl->get_device = &dss_ovl_get_device;
+	}
+
 	return 0;
 }
 EXPORT_SYMBOL(omapdss_apply_init);
@@ -1526,7 +1552,13 @@ EXPORT_SYMBOL(omapdss_apply_init);
 void omapdss_apply_uninit(void)
 {
 	int num_mgrs = omap_dss_get_num_overlay_managers();
+	int num_ovls = omap_dss_get_num_overlays();
 	int i;
+
+	for (i = 0; i < num_ovls; i++) {
+		struct omap_overlay *ovl = omap_dss_get_overlay(i);
+		dss_overlay_kobj_uninit(ovl);
+	}
 
 	for (i = 0; i < num_mgrs; i++) {
 		struct omap_overlay_manager *mgr;
