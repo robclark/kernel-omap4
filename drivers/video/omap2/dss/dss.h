@@ -237,6 +237,7 @@ void dss_uninit_device(struct platform_device *pdev,
 		struct omap_dss_device *dssdev);
 
 /* manager */
+#ifndef HIDE_APPLY_LAYER
 int dss_init_overlay_managers(void);
 void dss_uninit_overlay_managers(void);
 int dss_mgr_simple_check(struct omap_overlay_manager *mgr,
@@ -248,6 +249,7 @@ int dss_mgr_check(struct omap_overlay_manager *mgr,
 		const struct omap_video_timings *mgr_timings,
 		const struct dss_lcd_mgr_config *config,
 		struct omap_overlay_info **overlay_infos);
+#endif
 
 static inline bool dss_mgr_is_lcd(enum omap_channel id)
 {
@@ -258,11 +260,14 @@ static inline bool dss_mgr_is_lcd(enum omap_channel id)
 		return false;
 }
 
+#ifndef HIDE_APPLY_LAYER
 int dss_manager_kobj_init(struct omap_overlay_manager *mgr,
 		struct platform_device *pdev);
 void dss_manager_kobj_uninit(struct omap_overlay_manager *mgr);
+#endif
 
 /* overlay */
+#ifndef HIDE_APPLY_LAYER
 void dss_init_overlays(void);
 void dss_uninit_overlays(void);
 void dss_overlay_setup_dispc_manager(struct omap_overlay_manager *mgr);
@@ -275,6 +280,7 @@ bool dss_ovl_use_replication(struct dss_lcd_mgr_config config,
 int dss_overlay_kobj_init(struct omap_overlay *ovl,
 		struct platform_device *pdev);
 void dss_overlay_kobj_uninit(struct omap_overlay *ovl);
+#endif
 
 /* DSS */
 int dss_init_platform_driver(void) __init;

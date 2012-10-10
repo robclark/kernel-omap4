@@ -22,6 +22,8 @@
 
 #define DSS_SUBSYS_NAME "DISPC"
 
+#define HIDE_APPLY_LAYER
+
 #include <linux/kernel.h>
 #include <linux/dma-mapping.h>
 #include <linux/vmalloc.h>
