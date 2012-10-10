@@ -18,6 +18,7 @@
 #define DSS_SUBSYS_NAME "APPLY"
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/jiffies.h>
@@ -132,7 +133,7 @@ static struct mgr_priv_data *get_mgr_priv(struct omap_overlay_manager *mgr)
 	return &dss_data.mgr_priv_data_array[mgr->id];
 }
 
-void dss_apply_init(void)
+static void apply_init_priv(void)
 {
 	const int num_ovls = dss_feat_get_num_ovls();
 	struct mgr_priv_data *mp;
@@ -1461,3 +1462,15 @@ err:
 	return r;
 }
 
+int omapdss_apply_init(void)
+{
+	apply_init_priv();
+
+	return 0;
+}
+EXPORT_SYMBOL(omapdss_apply_init);
+
+void omapdss_apply_uninit(void)
+{
+}
+EXPORT_SYMBOL(omapdss_apply_uninit);
