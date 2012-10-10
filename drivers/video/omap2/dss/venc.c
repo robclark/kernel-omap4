@@ -662,7 +662,7 @@ static int __init venc_init_display(struct omap_dss_device *dssdev)
 	return 0;
 }
 
-static void venc_dump_regs(struct seq_file *s)
+void venc_dump_regs(struct seq_file *s)
 {
 #define DUMPREG(r) seq_printf(s, "%-35s %08x\n", #r, venc_read_reg(r))
 

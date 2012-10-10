@@ -810,7 +810,7 @@ void omapdss_rfbi_set_interface_timings(struct omap_dss_device *dssdev,
 }
 EXPORT_SYMBOL(omapdss_rfbi_set_interface_timings);
 
-static void rfbi_dump_regs(struct seq_file *s)
+void rfbi_dump_regs(struct seq_file *s)
 {
 #define DUMPREG(r) seq_printf(s, "%-35s %08x\n", #r, rfbi_read_reg(r))
 
