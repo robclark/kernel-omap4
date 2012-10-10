@@ -3098,7 +3098,7 @@ void dispc_dump_clocks(struct seq_file *s)
 	dispc_runtime_put();
 }
 
-static void dispc_dump_regs(struct seq_file *s)
+void dispc_dump_regs(struct seq_file *s)
 {
 	int i, j;
 	const char *mgr_names[] = {
@@ -3262,6 +3262,7 @@ static void dispc_dump_regs(struct seq_file *s)
 #undef DISPC_REG
 #undef DUMPREG
 }
+EXPORT_SYMBOL_GPL(dispc_dump_regs);
 
 /* with fck as input clock rate, find dispc dividers that produce req_pck */
 void dispc_find_clk_divs(unsigned long req_pck, unsigned long fck,

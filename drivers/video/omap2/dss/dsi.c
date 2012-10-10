@@ -2082,14 +2082,14 @@ static void dsi_dump_dsidev_regs(struct platform_device *dsidev,
 #undef DUMPREG
 }
 
-static void dsi1_dump_regs(struct seq_file *s)
+void dsi1_dump_regs(struct seq_file *s)
 {
 	struct platform_device *dsidev = dsi_get_dsidev_from_id(0);
 
 	dsi_dump_dsidev_regs(dsidev, s);
 }
 
-static void dsi2_dump_regs(struct seq_file *s)
+void dsi2_dump_regs(struct seq_file *s)
 {
 	struct platform_device *dsidev = dsi_get_dsidev_from_id(1);
 
