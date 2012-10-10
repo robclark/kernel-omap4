@@ -237,8 +237,8 @@ void dss_uninit_device(struct platform_device *pdev,
 		struct omap_dss_device *dssdev);
 
 /* manager */
-int dss_init_overlay_managers(struct platform_device *pdev);
-void dss_uninit_overlay_managers(struct platform_device *pdev);
+int dss_init_overlay_managers(void);
+void dss_uninit_overlay_managers(void);
 int dss_mgr_simple_check(struct omap_overlay_manager *mgr,
 		const struct omap_overlay_manager_info *info);
 int dss_mgr_check_timings(struct omap_overlay_manager *mgr,
@@ -263,8 +263,8 @@ int dss_manager_kobj_init(struct omap_overlay_manager *mgr,
 void dss_manager_kobj_uninit(struct omap_overlay_manager *mgr);
 
 /* overlay */
-void dss_init_overlays(struct platform_device *pdev);
-void dss_uninit_overlays(struct platform_device *pdev);
+void dss_init_overlays(void);
+void dss_uninit_overlays(void);
 void dss_overlay_setup_dispc_manager(struct omap_overlay_manager *mgr);
 int dss_ovl_simple_check(struct omap_overlay *ovl,
 		const struct omap_overlay_info *info);

@@ -1576,6 +1576,9 @@ int omapdss_apply_init(void)
 	int num_ovls = omap_dss_get_num_overlays();
 	int i, r;
 
+	dss_init_overlay_managers();
+	dss_init_overlays();
+
 	apply_init_priv();
 
 	r = dss_install_mgr_ops(&apply_mgr_ops);
@@ -1652,6 +1655,9 @@ void omapdss_apply_uninit(void)
 
 		dss_manager_kobj_uninit(mgr);
 	}
+
+	dss_uninit_overlays();
+	dss_uninit_overlay_managers();
 
 	dss_uninstall_mgr_ops();
 }

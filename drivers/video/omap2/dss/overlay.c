@@ -53,7 +53,7 @@ struct omap_overlay *omap_dss_get_overlay(int num)
 }
 EXPORT_SYMBOL(omap_dss_get_overlay);
 
-void dss_init_overlays(struct platform_device *pdev)
+void dss_init_overlays(void)
 {
 	int i;
 
@@ -92,7 +92,7 @@ void dss_init_overlays(struct platform_device *pdev)
 	}
 }
 
-void dss_uninit_overlays(struct platform_device *pdev)
+void dss_uninit_overlays()
 {
 	kfree(overlays);
 	overlays = NULL;

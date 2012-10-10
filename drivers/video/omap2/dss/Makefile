@@ -1,8 +1,8 @@
 obj-$(CONFIG_OMAP2_DSS) += omapdss.o
 omapdss-y := core.o dss.o dss_features.o dispc.o dispc_coefs.o display.o \
-	manager.o overlay.o output.o
+	output.o
 omapdss-$(CONFIG_DSS_COMPAT) += apply.o manager-sysfs.o overlay-sysfs.o \
-	dispc-compat.o
+	dispc-compat.o overlay.o manager.o
 omapdss-$(CONFIG_OMAP2_DSS_DPI) += dpi.o
 omapdss-$(CONFIG_OMAP2_DSS_RFBI) += rfbi.o
 omapdss-$(CONFIG_OMAP2_DSS_VENC) += venc.o venc_panel.o
