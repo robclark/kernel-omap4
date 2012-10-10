@@ -465,7 +465,8 @@ void dispc_mgr_setup(enum omap_channel channel,
 u32 dispc_wb_get_framedone_irq(void);
 bool dispc_wb_go_busy(void);
 void dispc_wb_go(void);
-void dispc_wb_enable(bool enable);
+void dispc_wb_enable(void);
+void dispc_wb_disable(void);
 bool dispc_wb_is_enabled(void);
 void dispc_wb_set_channel_in(enum dss_writeback_channel channel);
 int dispc_wb_setup(const struct omap_dss_writeback_info *wi,
