@@ -1605,6 +1605,15 @@ int omapdss_compat_init(void)
 	if (r)
 		return r;
 
+	dispc_runtime_get();
+
+	r = dss_dispc_initialize_irq();
+
+	dispc_runtime_put();
+
+	if (r)
+		return r; // XXX
+
 out:
 	mutex_unlock(&apply_lock);
 
@@ -1620,6 +1629,8 @@ void omapdss_compat_uninit(void)
 
 	if (--compat_refcnt > 0)
 		goto out;
+
+	dss_dispc_uninitialize_irq();
 
 	dss_uninstall_mgr_ops();
 
