@@ -81,6 +81,8 @@ enum omap_channel {
 	OMAP_DSS_CHANNEL_DIGIT	= 1,
 	OMAP_DSS_CHANNEL_LCD2	= 2,
 	OMAP_DSS_CHANNEL_LCD3	= 3,
+	OMAP_DSS_CHANNEL_MAX,
+	OMAP_DSS_CHANNEL_INVALID = -1,
 };
 
 enum omap_color_mode {
@@ -542,7 +544,7 @@ struct omap_dss_output {
 	struct platform_device *pdev;
 
 	/* dynamic fields */
-	struct omap_overlay_manager *manager;
+	enum omap_channel manager_id;
 
 	struct omap_dss_device *device;
 };
