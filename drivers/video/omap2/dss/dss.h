@@ -187,6 +187,7 @@ struct platform_device;
 
 /* core */
 const char *dss_get_default_display_name(void);
+struct platform_device *dss_get_core_pdev(void);
 struct bus_type *dss_get_bus(void);
 struct regulator *dss_get_vdds_dsi(void);
 struct regulator *dss_get_vdds_sdi(void);

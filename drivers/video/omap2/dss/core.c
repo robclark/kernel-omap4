@@ -64,6 +64,11 @@ const char *dss_get_default_display_name(void)
 }
 EXPORT_SYMBOL(dss_get_default_display_name);
 
+struct platform_device *dss_get_core_pdev(void)
+{
+	return core.pdev;
+}
+
 /* REGULATORS */
 
 struct regulator *dss_get_vdds_dsi(void)
