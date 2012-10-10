@@ -1606,10 +1606,22 @@ int omapdss_compat_init(void)
 	if (r)
 		goto err_mgr_ops;
 
+	dispc_runtime_get();
+
+	r = dss_dispc_initialize_irq();
+	if (r)
+		goto err_init_irq;
+
+	dispc_runtime_put();
+
 out:
 	mutex_unlock(&apply_lock);
 
 	return 0;
+
+err_init_irq:
+	dispc_runtime_put();
+	dss_uninstall_mgr_ops();
 
 err_mgr_ops:
 	dss_uninit_overlay_managers(pdev);
@@ -1631,6 +1643,8 @@ void omapdss_compat_uninit(void)
 
 	if (--compat_refcnt > 0)
 		goto out;
+
+	dss_dispc_uninitialize_irq();
 
 	dss_uninstall_mgr_ops();
 
