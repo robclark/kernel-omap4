@@ -460,7 +460,7 @@ u32 dispc_mgr_get_vsync_irq(enum omap_channel channel);
 u32 dispc_mgr_get_framedone_irq(enum omap_channel channel);
 u32 dispc_mgr_get_sync_lost_irq(enum omap_channel channel);
 bool dispc_mgr_go_busy(enum omap_channel channel);
-void dispc_mgr_go(enum omap_channel channel);
+bool dispc_mgr_go(enum omap_channel channel);
 void dispc_mgr_enable_output(enum omap_channel channel, bool enable);
 bool dispc_mgr_output_enabled(enum omap_channel channel);
 bool dispc_mgr_is_channel_enabled(enum omap_channel channel);
