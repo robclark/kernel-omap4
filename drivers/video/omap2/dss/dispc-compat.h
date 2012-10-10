@@ -22,6 +22,8 @@ void dispc_mgr_enable_lcd_out(enum omap_channel channel);
 void dispc_mgr_disable_lcd_out(enum omap_channel channel);
 void dispc_mgr_enable_digit_out(void);
 void dispc_mgr_disable_digit_out(void);
+void dispc_wb_enable(void);
+void dispc_wb_disable(void);
 
 int omap_dispc_wait_for_irq_interruptible_timeout(u32 irqmask,
 		unsigned long timeout);
