@@ -38,13 +38,6 @@
 static int num_overlays;
 static struct omap_overlay *overlays;
 
-static inline struct omap_dss_device *dss_ovl_get_device(struct omap_overlay *ovl)
-{
-	return ovl->manager ?
-		(ovl->manager->output ? ovl->manager->output->device : NULL) :
-		NULL;
-}
-
 int omap_dss_get_num_overlays(void)
 {
 	return num_overlays;
@@ -62,7 +55,7 @@ EXPORT_SYMBOL(omap_dss_get_overlay);
 
 void dss_init_overlays(struct platform_device *pdev)
 {
-	int i, r;
+	int i;
 
 	num_overlays = dss_feat_get_num_ovls();
 
@@ -93,35 +86,14 @@ void dss_init_overlays(struct platform_device *pdev)
 			break;
 		}
 
-		ovl->is_enabled = &dss_ovl_is_enabled;
-		ovl->enable = &dss_ovl_enable;
-		ovl->disable = &dss_ovl_disable;
-		ovl->set_manager = &dss_ovl_set_manager;
-		ovl->unset_manager = &dss_ovl_unset_manager;
-		ovl->set_overlay_info = &dss_ovl_set_info;
-		ovl->get_overlay_info = &dss_ovl_get_info;
-		ovl->wait_for_go = &dss_mgr_wait_for_go_ovl;
-		ovl->get_device = &dss_ovl_get_device;
-
 		ovl->caps = dss_feat_get_overlay_caps(ovl->id);
 		ovl->supported_modes =
 			dss_feat_get_supported_color_modes(ovl->id);
-
-		r = dss_overlay_kobj_init(ovl, pdev);
-		if (r)
-			DSSERR("failed to create sysfs file\n");
 	}
 }
 
 void dss_uninit_overlays(struct platform_device *pdev)
 {
-	int i;
-
-	for (i = 0; i < num_overlays; ++i) {
-		struct omap_overlay *ovl = &overlays[i];
-		dss_overlay_kobj_uninit(ovl);
-	}
-
 	kfree(overlays);
 	overlays = NULL;
 	num_overlays = 0;
