@@ -785,7 +785,7 @@ static void mgr_clear_shadow_dirty(struct omap_overlay_manager *mgr)
 	}
 }
 
-void dss_mgr_start_update(struct omap_overlay_manager *mgr)
+static void dss_mgr_start_update_compat(struct omap_overlay_manager *mgr)
 {
 	struct mgr_priv_data *mp = get_mgr_priv(mgr);
 	unsigned long flags;
@@ -1029,7 +1029,7 @@ static void dss_setup_fifos(void)
 	}
 }
 
-int dss_mgr_enable(struct omap_overlay_manager *mgr)
+static int dss_mgr_enable_compat(struct omap_overlay_manager *mgr)
 {
 	struct mgr_priv_data *mp = get_mgr_priv(mgr);
 	unsigned long flags;
@@ -1079,7 +1079,7 @@ err:
 	return r;
 }
 
-void dss_mgr_disable(struct omap_overlay_manager *mgr)
+static void dss_mgr_disable_compat(struct omap_overlay_manager *mgr)
 {
 	struct mgr_priv_data *mp = get_mgr_priv(mgr);
 	unsigned long flags;
@@ -1216,7 +1216,7 @@ static void dss_apply_mgr_timings(struct omap_overlay_manager *mgr,
 	mp->extra_info_dirty = true;
 }
 
-void dss_mgr_set_timings(struct omap_overlay_manager *mgr,
+static void dss_mgr_set_timings_compat(struct omap_overlay_manager *mgr,
 		const struct omap_video_timings *timings)
 {
 	unsigned long flags;
@@ -1244,7 +1244,7 @@ static void dss_apply_mgr_lcd_config(struct omap_overlay_manager *mgr,
 	mp->extra_info_dirty = true;
 }
 
-void dss_mgr_set_lcd_config(struct omap_overlay_manager *mgr,
+static void dss_mgr_set_lcd_config_compat(struct omap_overlay_manager *mgr,
 		const struct dss_lcd_mgr_config *config)
 {
 	unsigned long flags;
@@ -1499,12 +1499,20 @@ err:
 	return r;
 }
 
+static const struct dss_mgr_ops apply_mgr_ops = {
+	.start_update = dss_mgr_start_update_compat,
+	.enable = dss_mgr_enable_compat,
+	.disable = dss_mgr_disable_compat,
+	.set_timings = dss_mgr_set_timings_compat,
+	.set_lcd_config = dss_mgr_set_lcd_config_compat,
+};
+
 static int compat_refcnt;
 
 int omapdss_compat_init(void)
 {
 	struct platform_device *pdev = dss_get_core_pdev();
-	int i;
+	int i, r;
 
 	mutex_lock(&apply_lock);
 
@@ -1546,6 +1554,10 @@ int omapdss_compat_init(void)
 		ovl->get_device = &dss_ovl_get_device;
 	}
 
+	r = dss_install_mgr_ops(&apply_mgr_ops);
+	if (r)
+		return r;
+
 out:
 	mutex_unlock(&apply_lock);
 
@@ -1561,6 +1573,8 @@ void omapdss_compat_uninit(void)
 
 	if (--compat_refcnt > 0)
 		goto out;
+
+	dss_uninstall_mgr_ops();
 
 	dss_uninit_overlay_managers(pdev);
 	dss_uninit_overlays(pdev);
