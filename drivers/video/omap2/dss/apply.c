@@ -27,6 +27,7 @@
 
 #include "dss.h"
 #include "dss_features.h"
+#include "dispc-compat.h"
 
 /*
  * We have 4 levels of cache for the dispc settings. First two are in SW and
@@ -810,7 +811,7 @@ static void dss_mgr_start_update_compat(struct omap_overlay_manager *mgr)
 	if (!dss_data.irq_enabled && need_isr())
 		dss_register_vsync_isr();
 
-	dispc_mgr_enable(mgr->id, true);
+	dispc_mgr_enable_output(mgr->id, true);
 
 	mgr_clear_shadow_dirty(mgr);
 
@@ -1064,8 +1065,12 @@ static int dss_mgr_enable_compat(struct omap_overlay_manager *mgr)
 
 	spin_unlock_irqrestore(&data_lock, flags);
 
-	if (!mgr_manual_update(mgr))
-		dispc_mgr_enable(mgr->id, true);
+	if (!mgr_manual_update(mgr)) {
+		if (dss_mgr_is_lcd(mgr->id))
+			dispc_mgr_enable_lcd_out(mgr->id);
+		else
+			dispc_mgr_enable_digit_out();
+	}
 
 out:
 	mutex_unlock(&apply_lock);
@@ -1089,8 +1094,12 @@ static void dss_mgr_disable_compat(struct omap_overlay_manager *mgr)
 	if (!mp->enabled)
 		goto out;
 
-	if (!mgr_manual_update(mgr))
-		dispc_mgr_enable(mgr->id, false);
+	if (!mgr_manual_update(mgr)) {
+		if (dss_mgr_is_lcd(mgr->id))
+			dispc_mgr_disable_lcd_out(mgr->id);
+		else
+			dispc_mgr_disable_digit_out();
+	}
 
 	spin_lock_irqsave(&data_lock, flags);
 
