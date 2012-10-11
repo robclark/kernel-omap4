@@ -247,7 +247,7 @@ static int hdmi_panel_enable(struct omap_dss_device *dssdev)
 
 	omapdss_hdmi_display_set_timing(dssdev, &dssdev->panel.timings);
 
-	r = omapdss_hdmi_display_enable(dssdev);
+	r = omapdss_hdmi_display_enable(dssdev, true);
 	if (r) {
 		DSSERR("failed to power on\n");
 		goto err;
@@ -272,7 +272,7 @@ static void hdmi_panel_disable(struct omap_dss_device *dssdev)
 		 * machine.
 		 */
 		hdmi_panel_audio_disable(dssdev);
-		omapdss_hdmi_display_disable(dssdev);
+		omapdss_hdmi_display_disable(dssdev, true);
 	}
 
 	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
@@ -298,7 +298,7 @@ static int hdmi_panel_suspend(struct omap_dss_device *dssdev)
 	hdmi_panel_audio_disable(dssdev);
 
 	dssdev->state = OMAP_DSS_DISPLAY_SUSPENDED;
-	omapdss_hdmi_display_disable(dssdev);
+	omapdss_hdmi_display_disable(dssdev, true);
 
 err:
 	mutex_unlock(&hdmi.lock);
@@ -317,7 +317,7 @@ static int hdmi_panel_resume(struct omap_dss_device *dssdev)
 		goto err;
 	}
 
-	r = omapdss_hdmi_display_enable(dssdev);
+	r = omapdss_hdmi_display_enable(dssdev, true);
 	if (r) {
 		DSSERR("failed to power on\n");
 		goto err;
@@ -383,16 +383,17 @@ static int hdmi_read_edid(struct omap_dss_device *dssdev, u8 *buf, int len)
 	mutex_lock(&hdmi.lock);
 
 	if (dssdev->state != OMAP_DSS_DISPLAY_ACTIVE) {
-		r = omapdss_hdmi_display_enable(dssdev);
+		r = omapdss_hdmi_display_enable(dssdev, false);
 		if (r)
 			goto err;
 	}
 
+	omap_dss_start_device(dssdev);
 	r = omapdss_hdmi_read_edid(buf, len);
 
 	if (dssdev->state == OMAP_DSS_DISPLAY_DISABLED ||
 			dssdev->state == OMAP_DSS_DISPLAY_SUSPENDED)
-		omapdss_hdmi_display_disable(dssdev);
+		omapdss_hdmi_display_disable(dssdev, false);
 err:
 	mutex_unlock(&hdmi.lock);
 
@@ -406,7 +407,7 @@ static bool hdmi_detect(struct omap_dss_device *dssdev)
 	mutex_lock(&hdmi.lock);
 
 	if (dssdev->state != OMAP_DSS_DISPLAY_ACTIVE) {
-		r = omapdss_hdmi_display_enable(dssdev);
+		r = omapdss_hdmi_display_enable(dssdev, false);
 		if (r)
 			goto err;
 	}
@@ -415,7 +416,7 @@ static bool hdmi_detect(struct omap_dss_device *dssdev)
 
 	if (dssdev->state == OMAP_DSS_DISPLAY_DISABLED ||
 			dssdev->state == OMAP_DSS_DISPLAY_SUSPENDED)
-		omapdss_hdmi_display_disable(dssdev);
+		omapdss_hdmi_display_disable(dssdev, false);
 err:
 	mutex_unlock(&hdmi.lock);
 
