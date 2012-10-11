@@ -407,7 +407,7 @@ static bool hdmi_timings_compare(struct omap_video_timings *timing1,
 		timing2_vsync = timing2->vfp + timing2->vsw + timing2->vbp;
 		timing1_vsync = timing2->vfp + timing2->vsw + timing2->vbp;
 
-		DSSDBG("timing1_hsync = %d timing1_vsync = %d"\
+		DSSDBG("timing1_hsync = %d timing1_vsync = %d "\
 			"timing2_hsync = %d timing2_vsync = %d\n",
 			timing1_hsync, timing1_vsync,
 			timing2_hsync, timing2_vsync);
@@ -650,6 +650,11 @@ void omapdss_hdmi_display_set_timing(struct omap_dss_device *dssdev,
 	t = hdmi_get_timings();
 	if (t != NULL)
 		hdmi.ip_data.cfg = *t;
+
+	if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE) {
+		hdmi_power_off(dssdev, true);
+		hdmi_power_on(dssdev, true);
+	}
 
 	mutex_unlock(&hdmi.lock);
 }
