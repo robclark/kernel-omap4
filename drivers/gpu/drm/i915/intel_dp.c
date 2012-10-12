@@ -2366,7 +2366,8 @@ done:
 	if (intel_dp->base.base.crtc) {
 		struct drm_crtc *crtc = intel_dp->base.base.crtc;
 		intel_set_mode(crtc, &crtc->mode,
-			       crtc->x, crtc->y, crtc->fb);
+			       crtc->state->x, crtc->state->y,
+			       crtc->state->fb);
 	}
 
 	return 0;

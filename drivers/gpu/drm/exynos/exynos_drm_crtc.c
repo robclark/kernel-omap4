@@ -115,6 +115,7 @@ exynos_drm_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mode,
 {
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
 	struct drm_plane *plane = exynos_crtc->plane;
+	struct drm_framebuffer *fb = crtc->state->fb;
 	unsigned int crtc_w;
 	unsigned int crtc_h;
 	int pipe = exynos_crtc->pipe;
@@ -128,16 +129,16 @@ exynos_drm_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mode,
 	 */
 	memcpy(&crtc->mode, adjusted_mode, sizeof(*adjusted_mode));
 
-	crtc_w = crtc->fb->width - x;
-	crtc_h = crtc->fb->height - y;
+	crtc_w = fb->width - x;
+	crtc_h = fb->height - y;
 
-	ret = exynos_plane_mode_set(plane, crtc, crtc->fb, 0, 0, crtc_w, crtc_h,
+	ret = exynos_plane_mode_set(plane, crtc, fb, 0, 0, crtc_w, crtc_h,
 				    x, y, crtc_w, crtc_h);
 	if (ret)
 		return ret;
 
 	plane->state->crtc = crtc;
-	plane->state->fb = crtc->fb;
+	plane->state->fb = fb;
 
 	exynos_drm_fn_encoder(crtc, &pipe, exynos_drm_encoder_crtc_pipe);
 
@@ -149,6 +150,7 @@ static int exynos_drm_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 {
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
 	struct drm_plane *plane = exynos_crtc->plane;
+	struct drm_framebuffer *fb = crtc->state->fb;
 	unsigned int crtc_w;
 	unsigned int crtc_h;
 	int ret;
@@ -161,10 +163,10 @@ static int exynos_drm_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 		return -EPERM;
 	}
 
-	crtc_w = crtc->fb->width - x;
-	crtc_h = crtc->fb->height - y;
+	crtc_w = fb->width - x;
+	crtc_h = fb->height - y;
 
-	ret = exynos_plane_mode_set(plane, crtc, crtc->fb, 0, 0, crtc_w, crtc_h,
+	ret = exynos_plane_mode_set(plane, crtc, fb, 0, 0, crtc_w, crtc_h,
 				    x, y, crtc_w, crtc_h);
 	if (ret)
 		return ret;
@@ -208,7 +210,8 @@ static int exynos_drm_crtc_page_flip(struct drm_crtc *crtc,
 	struct drm_device *dev = crtc->dev;
 	struct exynos_drm_private *dev_priv = dev->dev_private;
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
-	struct drm_framebuffer *old_fb = crtc->fb;
+	struct drm_crtc_state *state = crtc->state;
+	struct drm_framebuffer *old_fb = state->fb;
 	int ret = -EINVAL;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
@@ -238,11 +241,11 @@ static int exynos_drm_crtc_page_flip(struct drm_crtc *crtc,
 		list_add_tail(&event->base.link,
 				&dev_priv->pageflip_event_list);
 
-		crtc->fb = fb;
-		ret = exynos_drm_crtc_mode_set_base(crtc, crtc->x, crtc->y,
+		state->fb = fb;
+		ret = exynos_drm_crtc_mode_set_base(crtc, state->x, state->y,
 						    NULL);
 		if (ret) {
-			crtc->fb = old_fb;
+			state->fb = old_fb;
 			drm_vblank_put(dev, exynos_crtc->pipe);
 			list_del(&event->base.link);
 

@@ -70,7 +70,8 @@ static void i8xx_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_framebuffer *fb = crtc->fb;
+	struct drm_crtc_state *state = crtc->state;
+	struct drm_framebuffer *fb = state->fb;
 	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
 	struct drm_i915_gem_object *obj = intel_fb->obj;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
@@ -94,7 +95,7 @@ static void i8xx_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 	fbc_ctl2 = FBC_CTL_FENCE_DBL | FBC_CTL_IDLE_IMM | FBC_CTL_CPU_FENCE;
 	fbc_ctl2 |= plane;
 	I915_WRITE(FBC_CONTROL2, fbc_ctl2);
-	I915_WRITE(FBC_FENCE_OFF, crtc->y);
+	I915_WRITE(FBC_FENCE_OFF, state->y);
 
 	/* enable it... */
 	fbc_ctl = FBC_CTL_EN | FBC_CTL_PERIODIC;
@@ -106,7 +107,7 @@ static void i8xx_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 	I915_WRITE(FBC_CONTROL, fbc_ctl);
 
 	DRM_DEBUG_KMS("enabled FBC, pitch %d, yoff %d, plane %d, ",
-		      cfb_pitch, crtc->y, intel_crtc->plane);
+		      cfb_pitch, state->y, intel_crtc->plane);
 }
 
 static bool i8xx_fbc_enabled(struct drm_device *dev)
@@ -120,7 +121,7 @@ static void g4x_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_framebuffer *fb = crtc->fb;
+	struct drm_framebuffer *fb = crtc->state->fb;
 	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
 	struct drm_i915_gem_object *obj = intel_fb->obj;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
@@ -135,7 +136,7 @@ static void g4x_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 	I915_WRITE(DPFC_RECOMP_CTL, DPFC_RECOMP_STALL_EN |
 		   (stall_watermark << DPFC_RECOMP_STALL_WM_SHIFT) |
 		   (interval << DPFC_RECOMP_TIMER_COUNT_SHIFT));
-	I915_WRITE(DPFC_FENCE_YOFF, crtc->y);
+	I915_WRITE(DPFC_FENCE_YOFF, crtc->state->y);
 
 	/* enable it... */
 	I915_WRITE(DPFC_CONTROL, I915_READ(DPFC_CONTROL) | DPFC_CTL_EN);
@@ -189,7 +190,8 @@ static void ironlake_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_framebuffer *fb = crtc->fb;
+	struct drm_crtc_state *state = crtc->state;
+	struct drm_framebuffer *fb = state->fb;
 	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
 	struct drm_i915_gem_object *obj = intel_fb->obj;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
@@ -208,7 +210,7 @@ static void ironlake_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 	I915_WRITE(ILK_DPFC_RECOMP_CTL, DPFC_RECOMP_STALL_EN |
 		   (stall_watermark << DPFC_RECOMP_STALL_WM_SHIFT) |
 		   (interval << DPFC_RECOMP_TIMER_COUNT_SHIFT));
-	I915_WRITE(ILK_DPFC_FENCE_YOFF, crtc->y);
+	I915_WRITE(ILK_DPFC_FENCE_YOFF, state->y);
 	I915_WRITE(ILK_FBC_RT_BASE, obj->gtt_offset | ILK_FBC_RT_VALID);
 	/* enable it... */
 	I915_WRITE(ILK_DPFC_CONTROL, dpfc_ctl | DPFC_CTL_EN);
@@ -216,7 +218,7 @@ static void ironlake_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 	if (IS_GEN6(dev)) {
 		I915_WRITE(SNB_DPFC_CTL_SA,
 			   SNB_CPU_FENCE_ENABLE | obj->fence_reg);
-		I915_WRITE(DPFC_CPU_FENCE_OFFSET, crtc->y);
+		I915_WRITE(DPFC_CPU_FENCE_OFFSET, state->y);
 		sandybridge_blit_fbc_update(dev);
 	}
 
@@ -268,13 +270,13 @@ static void intel_fbc_work_fn(struct work_struct *__work)
 		/* Double check that we haven't switched fb without cancelling
 		 * the prior work.
 		 */
-		if (work->crtc->fb == work->fb) {
+		if (work->crtc->state->fb == work->fb) {
 			dev_priv->display.enable_fbc(work->crtc,
 						     work->interval);
 
 			dev_priv->cfb_plane = to_intel_crtc(work->crtc)->plane;
-			dev_priv->cfb_fb = work->crtc->fb->base.id;
-			dev_priv->cfb_y = work->crtc->y;
+			dev_priv->cfb_fb = work->crtc->state->fb->base.id;
+			dev_priv->cfb_y = work->crtc->state->y;
 		}
 
 		dev_priv->fbc_work = NULL;
@@ -325,7 +327,7 @@ void intel_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 	}
 
 	work->crtc = crtc;
-	work->fb = crtc->fb;
+	work->fb = crtc->state->fb;
 	work->interval = interval;
 	INIT_DELAYED_WORK(&work->work, intel_fbc_work_fn);
 
@@ -407,7 +409,7 @@ void intel_update_fbc(struct drm_device *dev)
 	list_for_each_entry(tmp_crtc, &dev->mode_config.crtc_list, head) {
 		if (tmp_crtc->enabled &&
 		    !to_intel_crtc(tmp_crtc)->primary_disabled &&
-		    tmp_crtc->fb) {
+		    tmp_crtc->state->fb) {
 			if (crtc) {
 				DRM_DEBUG_KMS("more than one pipe active, disabling compression\n");
 				dev_priv->no_fbc_reason = FBC_MULTIPLE_PIPES;
@@ -417,14 +419,14 @@ void intel_update_fbc(struct drm_device *dev)
 		}
 	}
 
-	if (!crtc || crtc->fb == NULL) {
+	if (!crtc || crtc->state->fb == NULL) {
 		DRM_DEBUG_KMS("no output, disabling\n");
 		dev_priv->no_fbc_reason = FBC_NO_OUTPUT;
 		goto out_disable;
 	}
 
 	intel_crtc = to_intel_crtc(crtc);
-	fb = crtc->fb;
+	fb = crtc->state->fb;
 	intel_fb = to_intel_framebuffer(fb);
 	obj = intel_fb->obj;
 
@@ -486,7 +488,7 @@ void intel_update_fbc(struct drm_device *dev)
 	 */
 	if (dev_priv->cfb_plane == intel_crtc->plane &&
 	    dev_priv->cfb_fb == fb->base.id &&
-	    dev_priv->cfb_y == crtc->y)
+	    dev_priv->cfb_y == crtc->state->y)
 		return;
 
 	if (intel_fbc_enabled(dev)) {
@@ -992,7 +994,7 @@ static struct drm_crtc *single_enabled_crtc(struct drm_device *dev)
 	struct drm_crtc *crtc, *enabled = NULL;
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		if (crtc->enabled && crtc->fb) {
+		if (crtc->enabled && crtc->state->fb) {
 			if (enabled)
 				return NULL;
 			enabled = crtc;
@@ -1021,7 +1023,7 @@ static void pineview_update_wm(struct drm_device *dev)
 	crtc = single_enabled_crtc(dev);
 	if (crtc) {
 		int clock = crtc->mode.clock;
-		int pixel_size = crtc->fb->bits_per_pixel / 8;
+		int pixel_size = crtc->state->fb->bits_per_pixel / 8;
 
 		/* Display SR */
 		wm = intel_calculate_wm(clock, &pineview_display_wm,
@@ -1086,7 +1088,7 @@ static bool g4x_compute_wm0(struct drm_device *dev,
 	int entries, tlb_miss;
 
 	crtc = intel_get_crtc_for_plane(dev, plane);
-	if (crtc->fb == NULL || !crtc->enabled) {
+	if (crtc->state->fb == NULL || !crtc->enabled) {
 		*cursor_wm = cursor->guard_size;
 		*plane_wm = display->guard_size;
 		return false;
@@ -1095,7 +1097,7 @@ static bool g4x_compute_wm0(struct drm_device *dev,
 	htotal = crtc->mode.htotal;
 	hdisplay = crtc->mode.hdisplay;
 	clock = crtc->mode.clock;
-	pixel_size = crtc->fb->bits_per_pixel / 8;
+	pixel_size = crtc->state->fb->bits_per_pixel / 8;
 
 	/* Use the small buffer method to calculate plane watermark */
 	entries = ((clock * pixel_size / 1000) * display_latency_ns) / 1000;
@@ -1180,7 +1182,7 @@ static bool g4x_compute_srwm(struct drm_device *dev,
 	hdisplay = crtc->mode.hdisplay;
 	htotal = crtc->mode.htotal;
 	clock = crtc->mode.clock;
-	pixel_size = crtc->fb->bits_per_pixel / 8;
+	pixel_size = crtc->state->fb->bits_per_pixel / 8;
 
 	line_time_us = (htotal * 1000) / clock;
 	line_count = (latency_ns / line_time_us + 1000) / 1000;
@@ -1215,11 +1217,11 @@ static bool vlv_compute_drain_latency(struct drm_device *dev,
 	int entries;
 
 	crtc = intel_get_crtc_for_plane(dev, plane);
-	if (crtc->fb == NULL || !crtc->enabled)
+	if (crtc->state->fb == NULL || !crtc->enabled)
 		return false;
 
 	clock = crtc->mode.clock;	/* VESA DOT Clock */
-	pixel_size = crtc->fb->bits_per_pixel / 8;	/* BPP */
+	pixel_size = crtc->state->fb->bits_per_pixel / 8;	/* BPP */
 
 	entries = (clock / 1000) * pixel_size;
 	*plane_prec_mult = (entries > 256) ?
@@ -1397,7 +1399,7 @@ static void i965_update_wm(struct drm_device *dev)
 		int clock = crtc->mode.clock;
 		int htotal = crtc->mode.htotal;
 		int hdisplay = crtc->mode.hdisplay;
-		int pixel_size = crtc->fb->bits_per_pixel / 8;
+		int pixel_size = crtc->state->fb->bits_per_pixel / 8;
 		unsigned long line_time_us;
 		int entries;
 
@@ -1467,10 +1469,10 @@ static void i9xx_update_wm(struct drm_device *dev)
 
 	fifo_size = dev_priv->display.get_fifo_size(dev, 0);
 	crtc = intel_get_crtc_for_plane(dev, 0);
-	if (crtc->enabled && crtc->fb) {
+	if (crtc->enabled && crtc->state->fb) {
 		planea_wm = intel_calculate_wm(crtc->mode.clock,
 					       wm_info, fifo_size,
-					       crtc->fb->bits_per_pixel / 8,
+					       crtc->state->fb->bits_per_pixel / 8,
 					       latency_ns);
 		enabled = crtc;
 	} else
@@ -1478,10 +1480,10 @@ static void i9xx_update_wm(struct drm_device *dev)
 
 	fifo_size = dev_priv->display.get_fifo_size(dev, 1);
 	crtc = intel_get_crtc_for_plane(dev, 1);
-	if (crtc->enabled && crtc->fb) {
+	if (crtc->enabled && crtc->state->fb) {
 		planeb_wm = intel_calculate_wm(crtc->mode.clock,
 					       wm_info, fifo_size,
-					       crtc->fb->bits_per_pixel / 8,
+					       crtc->state->fb->bits_per_pixel / 8,
 					       latency_ns);
 		if (enabled == NULL)
 			enabled = crtc;
@@ -1510,7 +1512,7 @@ static void i9xx_update_wm(struct drm_device *dev)
 		int clock = enabled->mode.clock;
 		int htotal = enabled->mode.htotal;
 		int hdisplay = enabled->mode.hdisplay;
-		int pixel_size = enabled->fb->bits_per_pixel / 8;
+		int pixel_size = enabled->state->fb->bits_per_pixel / 8;
 		unsigned long line_time_us;
 		int entries;
 
@@ -1571,7 +1573,7 @@ static void i830_update_wm(struct drm_device *dev)
 
 	planea_wm = intel_calculate_wm(crtc->mode.clock, &i830_wm_info,
 				       dev_priv->display.get_fifo_size(dev, 0),
-				       crtc->fb->bits_per_pixel / 8,
+				       crtc->state->fb->bits_per_pixel / 8,
 				       latency_ns);
 	fwater_lo = I915_READ(FW_BLC) & ~0xfff;
 	fwater_lo |= (3<<8) | planea_wm;
@@ -1656,7 +1658,7 @@ static bool ironlake_compute_srwm(struct drm_device *dev, int level, int plane,
 	hdisplay = crtc->mode.hdisplay;
 	htotal = crtc->mode.htotal;
 	clock = crtc->mode.clock;
-	pixel_size = crtc->fb->bits_per_pixel / 8;
+	pixel_size = crtc->state->fb->bits_per_pixel / 8;
 
 	line_time_us = (htotal * 1000) / clock;
 	line_count = (latency_ns / line_time_us + 1000) / 1000;
@@ -1923,7 +1925,7 @@ sandybridge_compute_sprite_wm(struct drm_device *dev, int plane,
 	int entries, tlb_miss;
 
 	crtc = intel_get_crtc_for_plane(dev, plane);
-	if (crtc->fb == NULL || !crtc->enabled) {
+	if (crtc->state->fb == NULL || !crtc->enabled) {
 		*sprite_wm = display->guard_size;
 		return false;
 	}

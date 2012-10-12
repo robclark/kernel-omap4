@@ -241,8 +241,8 @@ int vmw_du_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 	struct vmw_display_unit *du = vmw_crtc_to_du(crtc);
 	bool shown = du->cursor_surface || du->cursor_dmabuf ? true : false;
 
-	du->cursor_x = x + crtc->x;
-	du->cursor_y = y + crtc->y;
+	du->cursor_x = x + crtc->state->x;
+	du->cursor_y = y + crtc->state->y;
 
 	vmw_cursor_update_position(dev_priv, shown,
 				   du->cursor_x + du->hotspot_x,
@@ -443,7 +443,7 @@ static int do_surface_dirty_sou(struct vmw_private *dev_priv,
 	num_units = 0;
 	list_for_each_entry(crtc, &dev_priv->dev->mode_config.crtc_list,
 			    head) {
-		if (crtc->fb != &framebuffer->base)
+		if (crtc->state->fb != &framebuffer->base)
 			continue;
 		units[num_units++] = vmw_crtc_to_du(crtc);
 	}
@@ -505,10 +505,10 @@ static int do_surface_dirty_sou(struct vmw_private *dev_priv,
 		struct vmw_clip_rect clip;
 		int num;
 
-		clip.x1 = left - unit->crtc.x;
-		clip.y1 = top - unit->crtc.y;
-		clip.x2 = right - unit->crtc.x;
-		clip.y2 = bottom - unit->crtc.y;
+		clip.x1 = left - unit->crtc.state->x;
+		clip.y1 = top - unit->crtc.state->y;
+		clip.x2 = right - unit->crtc.state->x;
+		clip.y2 = bottom - unit->crtc.state->y;
 
 		/* skip any crtcs that misses the clip region */
 		if (clip.x1 >= unit->crtc.mode.hdisplay ||
@@ -851,7 +851,7 @@ static int do_dmabuf_dirty_sou(struct drm_file *file_priv,
 
 	num_units = 0;
 	list_for_each_entry(crtc, &dev_priv->dev->mode_config.crtc_list, head) {
-		if (crtc->fb != &framebuffer->base)
+		if (crtc->state->fb != &framebuffer->base)
 			continue;
 		units[num_units++] = vmw_crtc_to_du(crtc);
 	}
@@ -862,10 +862,10 @@ static int do_dmabuf_dirty_sou(struct drm_file *file_priv,
 
 		clips_ptr = clips;
 		for (i = 0; i < num_clips; i++, clips_ptr += increment) {
-			int clip_x1 = clips_ptr->x1 - unit->crtc.x;
-			int clip_y1 = clips_ptr->y1 - unit->crtc.y;
-			int clip_x2 = clips_ptr->x2 - unit->crtc.x;
-			int clip_y2 = clips_ptr->y2 - unit->crtc.y;
+			int clip_x1 = clips_ptr->x1 - unit->crtc.state->x;
+			int clip_y1 = clips_ptr->y1 - unit->crtc.state->y;
+			int clip_x2 = clips_ptr->x2 - unit->crtc.state->x;
+			int clip_y2 = clips_ptr->y2 - unit->crtc.state->y;
 			int move_x, move_y;
 
 			/* skip any crtcs that misses the clip region */
@@ -1206,7 +1206,7 @@ int vmw_kms_present(struct vmw_private *dev_priv,
 
 	num_units = 0;
 	list_for_each_entry(crtc, &dev_priv->dev->mode_config.crtc_list, head) {
-		if (crtc->fb != &vfb->base)
+		if (crtc->state->fb != &vfb->base)
 			continue;
 		units[num_units++] = vmw_crtc_to_du(crtc);
 	}
@@ -1263,10 +1263,10 @@ int vmw_kms_present(struct vmw_private *dev_priv,
 		struct vmw_clip_rect clip;
 		int num;
 
-		clip.x1 = left + destX - unit->crtc.x;
-		clip.y1 = top + destY - unit->crtc.y;
-		clip.x2 = right + destX - unit->crtc.x;
-		clip.y2 = bottom + destY - unit->crtc.y;
+		clip.x1 = left + destX - unit->crtc.state->x;
+		clip.y1 = top + destY - unit->crtc.state->y;
+		clip.x2 = right + destX - unit->crtc.state->x;
+		clip.y2 = bottom + destY - unit->crtc.state->y;
 
 		/* skip any crtcs that misses the clip region */
 		if (clip.x1 >= unit->crtc.mode.hdisplay ||
@@ -1343,7 +1343,7 @@ int vmw_kms_readback(struct vmw_private *dev_priv,
 
 	num_units = 0;
 	list_for_each_entry(crtc, &dev_priv->dev->mode_config.crtc_list, head) {
-		if (crtc->fb != &vfb->base)
+		if (crtc->state->fb != &vfb->base)
 			continue;
 		units[num_units++] = vmw_crtc_to_du(crtc);
 	}
@@ -1374,10 +1374,10 @@ int vmw_kms_readback(struct vmw_private *dev_priv,
 		struct drm_vmw_rect *c = clips;
 		for (k = 0; k < num_clips; k++, c++) {
 			/* transform clip coords to crtc origin based coords */
-			int clip_x1 = c->x - units[i]->crtc.x;
-			int clip_x2 = c->x - units[i]->crtc.x + c->w;
-			int clip_y1 = c->y - units[i]->crtc.y;
-			int clip_y2 = c->y - units[i]->crtc.y + c->h;
+			int clip_x1 = c->x - units[i]->crtc.state->x;
+			int clip_x2 = c->x - units[i]->crtc.state->x + c->w;
+			int clip_y1 = c->y - units[i]->crtc.state->y;
+			int clip_y2 = c->y - units[i]->crtc.state->y + c->h;
 			int dest_x = c->x;
 			int dest_y = c->y;
 
@@ -1685,7 +1685,7 @@ int vmw_du_page_flip(struct drm_crtc *crtc,
 		     struct drm_pending_vblank_event *event)
 {
 	struct vmw_private *dev_priv = vmw_priv(crtc->dev);
-	struct drm_framebuffer *old_fb = crtc->fb;
+	struct drm_framebuffer *old_fb = crtc->state->fb;
 	struct vmw_framebuffer *vfb = vmw_framebuffer_to_vfb(fb);
 	struct drm_file *file_priv ;
 	struct vmw_fence_obj *fence = NULL;
@@ -1703,7 +1703,7 @@ int vmw_du_page_flip(struct drm_crtc *crtc,
 	if (!vmw_kms_screen_object_flippable(dev_priv, crtc))
 		return -EINVAL;
 
-	crtc->fb = fb;
+	crtc->state->fb = fb;
 
 	/* do a full screen dirty update */
 	clips.x1 = clips.y1 = 0;
@@ -1743,7 +1743,7 @@ int vmw_du_page_flip(struct drm_crtc *crtc,
 	return ret;
 
 out_no_fence:
-	crtc->fb = old_fb;
+	crtc->state->fb = old_fb;
 	return ret;
 }
 

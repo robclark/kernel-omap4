@@ -580,7 +580,8 @@ static int intel_lvds_set_property(struct drm_connector *connector,
 			 * according to the new panel fitting mode.
 			 */
 			intel_set_mode(crtc, &crtc->mode,
-				       crtc->x, crtc->y, crtc->fb);
+				       crtc->state->x, crtc->state->y,
+				       crtc->state->fb);
 		}
 	}
 

@@ -238,7 +238,7 @@ nv_crtc_mode_set_vga(struct drm_crtc *crtc, struct drm_display_mode *mode)
 	struct drm_device *dev = crtc->dev;
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	struct nv04_crtc_reg *regp = &nv04_display(dev)->mode_reg.crtc_reg[nv_crtc->index];
-	struct drm_framebuffer *fb = crtc->fb;
+	struct drm_framebuffer *fb = crtc->state->fb;
 
 	/* Calculate our timings */
 	int horizDisplay	= (mode->crtc_hdisplay >> 3)		- 1;
@@ -575,7 +575,7 @@ nv_crtc_mode_set_regs(struct drm_crtc *crtc, struct drm_display_mode * mode)
 		regp->CRTC[NV_CIO_CRE_86] = 0x1;
 	}
 
-	regp->CRTC[NV_CIO_CRE_PIXEL_INDEX] = (crtc->fb->depth + 1) / 8;
+	regp->CRTC[NV_CIO_CRE_PIXEL_INDEX] = (crtc->state->fb->depth + 1) / 8;
 	/* Enable slaved mode (called MODE_TV in nv4ref.h) */
 	if (lvds_output || tmds_output || tv_output)
 		regp->CRTC[NV_CIO_CRE_PIXEL_INDEX] |= (1 << 7);
@@ -589,7 +589,7 @@ nv_crtc_mode_set_regs(struct drm_crtc *crtc, struct drm_display_mode * mode)
 	regp->ramdac_gen_ctrl = NV_PRAMDAC_GENERAL_CONTROL_BPC_8BITS |
 				NV_PRAMDAC_GENERAL_CONTROL_VGA_STATE_SEL |
 				NV_PRAMDAC_GENERAL_CONTROL_PIXMIX_ON;
-	if (crtc->fb->depth == 16)
+	if (crtc->state->fb->depth == 16)
 		regp->ramdac_gen_ctrl |= NV_PRAMDAC_GENERAL_CONTROL_ALT_MODE_SEL;
 	if (nv_device(drm->device)->chipset >= 0x11)
 		regp->ramdac_gen_ctrl |= NV_PRAMDAC_GENERAL_CONTROL_PIPE_LONG;
@@ -705,7 +705,7 @@ static void nv_crtc_commit(struct drm_crtc *crtc)
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 
 	nouveau_hw_load_state(dev, nv_crtc->index, &nv04_display(dev)->mode_reg);
-	nv04_crtc_mode_set_base(crtc, crtc->x, crtc->y, NULL);
+	nv04_crtc_mode_set_base(crtc, crtc->state->x, crtc->state->y, NULL);
 
 #ifdef __BIG_ENDIAN
 	/* turn on LFB swapping */
@@ -770,7 +770,7 @@ nv_crtc_gamma_set(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b, uint32_t start,
 	 * mark the lut values as dirty by setting depth==0, and it'll be
 	 * uploaded on the first mode_set_base()
 	 */
-	if (!nv_crtc->base.fb) {
+	if (!nv_crtc->base.state->fb) {
 		nv_crtc->lut.depth = 0;
 		return;
 	}
@@ -784,6 +784,7 @@ nv04_crtc_do_mode_set_base(struct drm_crtc *crtc,
 			   int x, int y, bool atomic)
 {
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+	struct drm_crtc_state *state = crtc->state;
 	struct drm_device *dev = crtc->dev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nv04_crtc_reg *regp = &nv04_display(dev)->mode_reg.crtc_reg[nv_crtc->index];
@@ -795,7 +796,7 @@ nv04_crtc_do_mode_set_base(struct drm_crtc *crtc,
 	NV_DEBUG(drm, "index %d\n", nv_crtc->index);
 
 	/* no fb bound */
-	if (!atomic && !crtc->fb) {
+	if (!atomic && !state->fb) {
 		NV_DEBUG(drm, "No FB bound\n");
 		return 0;
 	}
@@ -809,8 +810,8 @@ nv04_crtc_do_mode_set_base(struct drm_crtc *crtc,
 		drm_fb = passed_fb;
 		fb = nouveau_framebuffer(passed_fb);
 	} else {
-		drm_fb = crtc->fb;
-		fb = nouveau_framebuffer(crtc->fb);
+		drm_fb = state->fb;
+		fb = nouveau_framebuffer(state->fb);
 		/* If not atomic, we can go ahead and pin, and unpin the
 		 * old fb we were passed.
 		 */
@@ -833,9 +834,9 @@ nv04_crtc_do_mode_set_base(struct drm_crtc *crtc,
 
 	/* Update the framebuffer format. */
 	regp->CRTC[NV_CIO_CRE_PIXEL_INDEX] &= ~3;
-	regp->CRTC[NV_CIO_CRE_PIXEL_INDEX] |= (crtc->fb->depth + 1) / 8;
+	regp->CRTC[NV_CIO_CRE_PIXEL_INDEX] |= (state->fb->depth + 1) / 8;
 	regp->ramdac_gen_ctrl &= ~NV_PRAMDAC_GENERAL_CONTROL_ALT_MODE_SEL;
-	if (crtc->fb->depth == 16)
+	if (state->fb->depth == 16)
 		regp->ramdac_gen_ctrl |= NV_PRAMDAC_GENERAL_CONTROL_ALT_MODE_SEL;
 	crtc_wr_cio_state(crtc, regp, NV_CIO_CRE_PIXEL_INDEX);
 	NVWriteRAMDAC(dev, nv_crtc->index, NV_PRAMDAC_GENERAL_CONTROL,

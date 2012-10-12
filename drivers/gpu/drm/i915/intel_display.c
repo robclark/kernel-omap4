@@ -2182,8 +2182,8 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		return ret;
 	}
 
-	if (crtc->fb)
-		intel_finish_fb(crtc->fb);
+	if (crtc->state->fb)
+		intel_finish_fb(crtc->state->fb);
 
 	ret = dev_priv->display.update_plane(crtc, fb, x, y);
 	if (ret) {
@@ -2193,10 +2193,10 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		return ret;
 	}
 
-	old_fb = crtc->fb;
-	crtc->fb = fb;
-	crtc->x = x;
-	crtc->y = y;
+	old_fb = crtc->state->fb;
+	crtc->state->fb = fb;
+	crtc->state->x = x;
+	crtc->state->y = y;
 
 	if (old_fb) {
 		intel_wait_for_vblank(dev, intel_crtc->pipe);
@@ -2828,14 +2828,14 @@ static void intel_crtc_wait_for_pending_flips(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (crtc->fb == NULL)
+	if (crtc->state->fb == NULL)
 		return;
 
 	wait_event(dev_priv->pending_flip_queue,
 		   !intel_crtc_has_pending_flip(crtc));
 
 	mutex_lock(&dev->struct_mutex);
-	intel_finish_fb(crtc->fb);
+	intel_finish_fb(crtc->state->fb);
 	mutex_unlock(&dev->struct_mutex);
 }
 
@@ -3510,11 +3510,11 @@ static void intel_crtc_disable(struct drm_crtc *crtc)
 	assert_plane_disabled(dev->dev_private, to_intel_crtc(crtc)->plane);
 	assert_pipe_disabled(dev->dev_private, to_intel_crtc(crtc)->pipe);
 
-	if (crtc->fb) {
+	if (crtc->state->fb) {
 		mutex_lock(&dev->struct_mutex);
-		intel_unpin_fb_obj(to_intel_framebuffer(crtc->fb)->obj);
+		intel_unpin_fb_obj(to_intel_framebuffer(crtc->state->fb)->obj);
 		mutex_unlock(&dev->struct_mutex);
-		crtc->fb = NULL;
+		crtc->state->fb = NULL;
 	}
 
 	/* Update computed state. */
@@ -5479,12 +5479,12 @@ static void intel_crtc_update_cursor(struct drm_crtc *crtc,
 
 	pos = 0;
 
-	if (on && crtc->enabled && crtc->fb) {
+	if (on && crtc->enabled && crtc->state->fb) {
 		base = intel_crtc->cursor_addr;
-		if (x > (int) crtc->fb->width)
+		if (x > (int) crtc->state->fb->width)
 			base = 0;
 
-		if (y > (int) crtc->fb->height)
+		if (y > (int) crtc->state->fb->height)
 			base = 0;
 	} else
 		base = 0;
@@ -6121,10 +6121,10 @@ void intel_mark_fb_busy(struct drm_i915_gem_object *obj)
 		return;
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		if (!crtc->fb)
+		if (!crtc->state->fb)
 			continue;
 
-		if (to_intel_framebuffer(crtc->fb)->obj == obj)
+		if (to_intel_framebuffer(crtc->state->fb)->obj == obj)
 			intel_increase_pllclock(crtc);
 	}
 }
@@ -6138,10 +6138,10 @@ void intel_mark_fb_idle(struct drm_i915_gem_object *obj)
 		return;
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		if (!crtc->fb)
+		if (!crtc->state->fb)
 			continue;
 
-		if (to_intel_framebuffer(crtc->fb)->obj == obj)
+		if (to_intel_framebuffer(crtc->state->fb)->obj == obj)
 			intel_decrease_pllclock(crtc);
 	}
 }
@@ -6502,7 +6502,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	int ret;
 
 	/* Can't change pixel format via MI display flips. */
-	if (fb->pixel_format != crtc->fb->pixel_format)
+	if (fb->pixel_format != crtc->state->fb->pixel_format)
 		return -EINVAL;
 
 	/*
@@ -6510,8 +6510,8 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	 * Note that pitch changes could also affect these register.
 	 */
 	if (INTEL_INFO(dev)->gen > 3 &&
-	    (fb->offsets[0] != crtc->fb->offsets[0] ||
-	     fb->pitches[0] != crtc->fb->pitches[0]))
+	    (fb->offsets[0] != crtc->state->fb->offsets[0] ||
+	     fb->pitches[0] != crtc->state->fb->pitches[0]))
 		return -EINVAL;
 
 	work = kzalloc(sizeof *work, GFP_KERNEL);
@@ -6520,7 +6520,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 
 	work->event = event;
 	work->dev = crtc->dev;
-	intel_fb = to_intel_framebuffer(crtc->fb);
+	intel_fb = to_intel_framebuffer(crtc->state->fb);
 	work->old_fb_obj = intel_fb->obj;
 	INIT_WORK(&work->work, intel_unpin_work_fn);
 
@@ -6552,7 +6552,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	drm_gem_object_reference(&work->old_fb_obj->base);
 	drm_gem_object_reference(&obj->base);
 
-	crtc->fb = fb;
+	crtc->state->fb = fb;
 
 	work->pending_flip_obj = obj;
 
@@ -7163,26 +7163,27 @@ static void
 intel_set_config_compute_mode_changes(struct drm_mode_set *set,
 				      struct intel_set_config *config)
 {
+	struct drm_crtc_state *state = set->crtc->state;
 
 	/* We should be able to check here if the fb has the same properties
 	 * and then just flip_or_move it */
-	if (set->crtc->fb != set->fb) {
+	if (state->fb != set->fb) {
 		/* If we have no fb then treat it as a full mode set */
-		if (set->crtc->fb == NULL) {
+		if (state->fb == NULL) {
 			DRM_DEBUG_KMS("crtc has no fb, full mode set\n");
 			config->mode_changed = true;
 		} else if (set->fb == NULL) {
 			config->mode_changed = true;
-		} else if (set->fb->depth != set->crtc->fb->depth) {
+		} else if (set->fb->depth != state->fb->depth) {
 			config->mode_changed = true;
 		} else if (set->fb->bits_per_pixel !=
-			   set->crtc->fb->bits_per_pixel) {
+				state->fb->bits_per_pixel) {
 			config->mode_changed = true;
 		} else
 			config->fb_changed = true;
 	}
 
-	if (set->fb && (set->x != set->crtc->x || set->y != set->crtc->y))
+	if (set->fb && (set->x != state->x || set->y != state->y))
 		config->fb_changed = true;
 
 	if (set->mode && !drm_mode_equal(set->mode, &set->crtc->mode)) {
@@ -7339,9 +7340,9 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 
 	save_set.crtc = set->crtc;
 	save_set.mode = &set->crtc->mode;
-	save_set.x = set->crtc->x;
-	save_set.y = set->crtc->y;
-	save_set.fb = set->crtc->fb;
+	save_set.x = set->crtc->state->x;
+	save_set.y = set->crtc->state->y;
+	save_set.fb = set->crtc->state->fb;
 
 	/* Compute whether we need a full modeset, only an fb base update or no
 	 * change at all. In the future we might also check whether only the
@@ -8324,7 +8325,7 @@ void intel_modeset_cleanup(struct drm_device *dev)
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		/* Skip inactive CRTCs */
-		if (!crtc->fb)
+		if (!crtc->state->fb)
 			continue;
 
 		intel_crtc = to_intel_crtc(crtc);

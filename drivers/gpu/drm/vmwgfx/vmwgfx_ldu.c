@@ -86,14 +86,14 @@ static int vmw_ldu_commit_list(struct vmw_private *dev_priv)
 		int w = 0, h = 0;
 		list_for_each_entry(entry, &lds->active, active) {
 			crtc = &entry->base.crtc;
-			w = max(w, crtc->x + crtc->mode.hdisplay);
-			h = max(h, crtc->y + crtc->mode.vdisplay);
+			w = max(w, crtc->state->x + crtc->mode.hdisplay);
+			h = max(h, crtc->state->y + crtc->mode.vdisplay);
 			i++;
 		}
 
 		if (crtc == NULL)
 			return 0;
-		fb = entry->base.crtc.fb;
+		fb = entry->base.crtc.state->fb;
 
 		return vmw_kms_write_svga(dev_priv, w, h, fb->pitches[0],
 					  fb->bits_per_pixel, fb->depth);
@@ -101,7 +101,7 @@ static int vmw_ldu_commit_list(struct vmw_private *dev_priv)
 
 	if (!list_empty(&lds->active)) {
 		entry = list_entry(lds->active.next, typeof(*entry), active);
-		fb = entry->base.crtc.fb;
+		fb = entry->base.crtc.state->fb;
 
 		vmw_kms_write_svga(dev_priv, fb->width, fb->height, fb->pitches[0],
 				   fb->bits_per_pixel, fb->depth);
@@ -117,8 +117,8 @@ static int vmw_ldu_commit_list(struct vmw_private *dev_priv)
 
 		vmw_write(dev_priv, SVGA_REG_DISPLAY_ID, i);
 		vmw_write(dev_priv, SVGA_REG_DISPLAY_IS_PRIMARY, !i);
-		vmw_write(dev_priv, SVGA_REG_DISPLAY_POSITION_X, crtc->x);
-		vmw_write(dev_priv, SVGA_REG_DISPLAY_POSITION_Y, crtc->y);
+		vmw_write(dev_priv, SVGA_REG_DISPLAY_POSITION_X, crtc->state->x);
+		vmw_write(dev_priv, SVGA_REG_DISPLAY_POSITION_Y, crtc->state->y);
 		vmw_write(dev_priv, SVGA_REG_DISPLAY_WIDTH, crtc->mode.hdisplay);
 		vmw_write(dev_priv, SVGA_REG_DISPLAY_HEIGHT, crtc->mode.vdisplay);
 		vmw_write(dev_priv, SVGA_REG_DISPLAY_ID, SVGA_ID_INVALID);
@@ -259,7 +259,7 @@ static int vmw_ldu_crtc_set_config(struct drm_mode_set *set)
 
 		connector->encoder = NULL;
 		encoder->crtc = NULL;
-		crtc->fb = NULL;
+		crtc->state->fb = NULL;
 
 		vmw_ldu_del_active(dev_priv, ldu);
 
@@ -279,11 +279,11 @@ static int vmw_ldu_crtc_set_config(struct drm_mode_set *set)
 
 	vmw_fb_off(dev_priv);
 
-	crtc->fb = fb;
+	crtc->state->fb = fb;
 	encoder->crtc = crtc;
 	connector->encoder = encoder;
-	crtc->x = set->x;
-	crtc->y = set->y;
+	crtc->state->x = set->x;
+	crtc->state->y = set->y;
 	crtc->mode = *mode;
 
 	vmw_ldu_add_active(dev_priv, ldu, vfb);
