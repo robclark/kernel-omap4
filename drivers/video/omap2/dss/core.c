@@ -62,6 +62,12 @@ const char *dss_get_default_display_name(void)
 {
 	return core.default_display_name;
 }
+EXPORT_SYMBOL(dss_get_default_display_name);
+
+struct platform_device *dss_get_core_pdev(void)
+{
+	return core.pdev;
+}
 
 /* REGULATORS */
 
@@ -238,8 +244,6 @@ static int __init omap_dss_probe(struct platform_device *pdev)
 	core.pdev = pdev;
 
 	dss_features_init();
-
-	dss_apply_init();
 
 	dss_init_overlay_managers(pdev);
 	dss_init_overlays(pdev);

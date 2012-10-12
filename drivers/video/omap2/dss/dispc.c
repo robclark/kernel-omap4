@@ -33,7 +33,6 @@
 #include <linux/delay.h>
 #include <linux/workqueue.h>
 #include <linux/hardirq.h>
-#include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 
@@ -46,21 +45,6 @@
 /* DISPC */
 #define DISPC_SZ_REGS			SZ_4K
 
-#define DISPC_IRQ_MASK_ERROR            (DISPC_IRQ_GFX_FIFO_UNDERFLOW | \
-					 DISPC_IRQ_OCP_ERR | \
-					 DISPC_IRQ_VID1_FIFO_UNDERFLOW | \
-					 DISPC_IRQ_VID2_FIFO_UNDERFLOW | \
-					 DISPC_IRQ_SYNC_LOST | \
-					 DISPC_IRQ_SYNC_LOST_DIGIT)
-
-#define DISPC_MAX_NR_ISRS		8
-
-struct omap_dispc_isr_data {
-	omap_dispc_isr_t	isr;
-	void			*arg;
-	u32			mask;
-};
-
 enum omap_burst_size {
 	BURST_SIZE_X2 = 0,
 	BURST_SIZE_X4 = 1,
@@ -72,12 +56,6 @@ enum omap_burst_size {
 
 #define REG_FLD_MOD(idx, val, start, end)				\
 	dispc_write_reg(idx, FLD_MOD(dispc_read_reg(idx), val, start, end))
-
-struct dispc_irq_stats {
-	unsigned long last_reset;
-	unsigned irq_count;
-	unsigned irqs[32];
-};
 
 struct dispc_features {
 	u8 sw_start;
@@ -116,21 +94,10 @@ static struct {
 	/* maps which plane is using a fifo. fifo-id -> plane-id */
 	int fifo_assignment[DISPC_MAX_NR_FIFOS];
 
-	spinlock_t irq_lock;
-	u32 irq_error_mask;
-	struct omap_dispc_isr_data registered_isr[DISPC_MAX_NR_ISRS];
-	u32 error_irqs;
-	struct work_struct error_work;
-
 	bool		ctx_valid;
 	u32		ctx[DISPC_SZ_REGS / sizeof(u32)];
 
 	const struct dispc_features *feat;
-
-#ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
-	spinlock_t irq_stats_lock;
-	struct dispc_irq_stats irq_stats;
-#endif
 } dispc;
 
 enum omap_color_component {
@@ -241,7 +208,6 @@ struct color_conv_coef {
 	int full_range;
 };
 
-static void _omap_dispc_set_irqs(void);
 static unsigned long dispc_plane_pclk_rate(enum omap_plane plane);
 static unsigned long dispc_plane_lclk_rate(enum omap_plane plane);
 
@@ -496,7 +462,7 @@ static void dispc_restore_context(void)
 	if (dss_has_feature(FEAT_MGR_LCD3))
 		RR(CONTROL3);
 	/* clear spurious SYNC_LOST_DIGIT interrupts */
-	dispc_write_reg(DISPC_IRQSTATUS, DISPC_IRQ_SYNC_LOST_DIGIT);
+	dispc_clear_irqstatus(DISPC_IRQ_SYNC_LOST_DIGIT);
 
 	/*
 	 * enable last so IRQs won't trigger before
@@ -544,6 +510,11 @@ u32 dispc_mgr_get_framedone_irq(enum omap_channel channel)
 u32 dispc_wb_get_framedone_irq(void)
 {
 	return DISPC_IRQ_FRAMEDONEWB;
+}
+
+u32 dispc_mgr_get_sync_lost_irq(enum omap_channel channel)
+{
+	return mgr_desc[channel].sync_lost_irq;
 }
 
 bool dispc_mgr_go_busy(enum omap_channel channel)
@@ -1074,7 +1045,7 @@ static void dispc_mgr_enable_cpr(enum omap_channel channel, bool enable)
 }
 
 static void dispc_mgr_set_cpr_coef(enum omap_channel channel,
-		struct omap_dss_cpr_coefs *coefs)
+		const struct omap_dss_cpr_coefs *coefs)
 {
 	u32 coef_r, coef_g, coef_b;
 
@@ -2503,7 +2474,7 @@ int dispc_ovl_setup(enum omap_plane plane, const struct omap_overlay_info *oi,
 		bool mem_to_mem)
 {
 	int r;
-	struct omap_overlay *ovl = omap_dss_get_overlay(plane);
+	const struct omap_overlay *ovl = omap_dss_get_overlay(plane);
 	enum omap_channel channel;
 
 	channel = dispc_ovl_get_channel_out(plane);
@@ -2583,191 +2554,29 @@ int dispc_ovl_enable(enum omap_plane plane, bool enable)
 	return 0;
 }
 
-static void dispc_disable_isr(void *data, u32 mask)
+bool dispc_ovl_enabled(enum omap_plane plane)
 {
-	struct completion *compl = data;
-	complete(compl);
+	return REG_GET(DISPC_OVL_ATTRIBUTES(plane), 0, 0);
 }
 
-static void _enable_lcd_out(enum omap_channel channel, bool enable)
+void dispc_mgr_enable_output(enum omap_channel channel, bool enable)
 {
 	mgr_fld_write(channel, DISPC_MGR_FLD_ENABLE, enable);
 	/* flush posted write */
 	mgr_fld_read(channel, DISPC_MGR_FLD_ENABLE);
 }
 
-static void dispc_mgr_enable_lcd_out(enum omap_channel channel, bool enable)
-{
-	struct completion frame_done_completion;
-	bool is_on;
-	int r;
-	u32 irq;
-
-	/* When we disable LCD output, we need to wait until frame is done.
-	 * Otherwise the DSS is still working, and turning off the clocks
-	 * prevents DSS from going to OFF mode */
-	is_on = mgr_fld_read(channel, DISPC_MGR_FLD_ENABLE);
-
-	irq = mgr_desc[channel].framedone_irq;
-
-	if (!enable && is_on) {
-		init_completion(&frame_done_completion);
-
-		r = omap_dispc_register_isr(dispc_disable_isr,
-				&frame_done_completion, irq);
-
-		if (r)
-			DSSERR("failed to register FRAMEDONE isr\n");
-	}
-
-	_enable_lcd_out(channel, enable);
-
-	if (!enable && is_on) {
-		if (!wait_for_completion_timeout(&frame_done_completion,
-					msecs_to_jiffies(100)))
-			DSSERR("timeout waiting for FRAME DONE\n");
-
-		r = omap_dispc_unregister_isr(dispc_disable_isr,
-				&frame_done_completion, irq);
-
-		if (r)
-			DSSERR("failed to unregister FRAMEDONE isr\n");
-	}
-}
-
-static void _enable_digit_out(bool enable)
-{
-	REG_FLD_MOD(DISPC_CONTROL, enable ? 1 : 0, 1, 1);
-	/* flush posted write */
-	dispc_read_reg(DISPC_CONTROL);
-}
-
-static void dispc_mgr_enable_digit_out(bool enable)
-{
-	struct completion frame_done_completion;
-	enum dss_hdmi_venc_clk_source_select src;
-	int r, i;
-	u32 irq_mask;
-	int num_irqs;
-
-	if (REG_GET(DISPC_CONTROL, 1, 1) == enable)
-		return;
-
-	src = dss_get_hdmi_venc_clk_source();
-
-	if (enable) {
-		unsigned long flags;
-		/* When we enable digit output, we'll get an extra digit
-		 * sync lost interrupt, that we need to ignore */
-		spin_lock_irqsave(&dispc.irq_lock, flags);
-		dispc.irq_error_mask &= ~DISPC_IRQ_SYNC_LOST_DIGIT;
-		_omap_dispc_set_irqs();
-		spin_unlock_irqrestore(&dispc.irq_lock, flags);
-	}
-
-	/* When we disable digit output, we need to wait until fields are done.
-	 * Otherwise the DSS is still working, and turning off the clocks
-	 * prevents DSS from going to OFF mode. And when enabling, we need to
-	 * wait for the extra sync losts */
-	init_completion(&frame_done_completion);
-
-	if (src == DSS_HDMI_M_PCLK && enable == false) {
-		irq_mask = DISPC_IRQ_FRAMEDONETV;
-		num_irqs = 1;
-	} else {
-		irq_mask = DISPC_IRQ_EVSYNC_EVEN | DISPC_IRQ_EVSYNC_ODD;
-		/* XXX I understand from TRM that we should only wait for the
-		 * current field to complete. But it seems we have to wait for
-		 * both fields */
-		num_irqs = 2;
-	}
-
-	r = omap_dispc_register_isr(dispc_disable_isr, &frame_done_completion,
-			irq_mask);
-	if (r)
-		DSSERR("failed to register %x isr\n", irq_mask);
-
-	_enable_digit_out(enable);
-
-	for (i = 0; i < num_irqs; ++i) {
-		if (!wait_for_completion_timeout(&frame_done_completion,
-					msecs_to_jiffies(100)))
-			DSSERR("timeout waiting for digit out to %s\n",
-					enable ? "start" : "stop");
-	}
-
-	r = omap_dispc_unregister_isr(dispc_disable_isr, &frame_done_completion,
-			irq_mask);
-	if (r)
-		DSSERR("failed to unregister %x isr\n", irq_mask);
-
-	if (enable) {
-		unsigned long flags;
-		spin_lock_irqsave(&dispc.irq_lock, flags);
-		dispc.irq_error_mask |= DISPC_IRQ_SYNC_LOST_DIGIT;
-		dispc_write_reg(DISPC_IRQSTATUS, DISPC_IRQ_SYNC_LOST_DIGIT);
-		_omap_dispc_set_irqs();
-		spin_unlock_irqrestore(&dispc.irq_lock, flags);
-	}
-}
-
-bool dispc_mgr_is_enabled(enum omap_channel channel)
+bool dispc_mgr_output_enabled(enum omap_channel channel)
 {
 	return !!mgr_fld_read(channel, DISPC_MGR_FLD_ENABLE);
 }
 
-void dispc_mgr_enable(enum omap_channel channel, bool enable)
-{
-	if (dss_mgr_is_lcd(channel))
-		dispc_mgr_enable_lcd_out(channel, enable);
-	else if (channel == OMAP_DSS_CHANNEL_DIGIT)
-		dispc_mgr_enable_digit_out(enable);
-	else
-		BUG();
-}
-
-void dispc_wb_enable(bool enable)
-{
-	enum omap_plane plane = OMAP_DSS_WB;
-	struct completion frame_done_completion;
-	bool is_on;
-	int r;
-	u32 irq;
-
-	is_on = REG_GET(DISPC_OVL_ATTRIBUTES(plane), 0, 0);
-	irq = DISPC_IRQ_FRAMEDONEWB;
-
-	if (!enable && is_on) {
-		init_completion(&frame_done_completion);
-
-		r = omap_dispc_register_isr(dispc_disable_isr,
-				&frame_done_completion, irq);
-		if (r)
-			DSSERR("failed to register FRAMEDONEWB isr\n");
-	}
-
-	REG_FLD_MOD(DISPC_OVL_ATTRIBUTES(plane), enable ? 1 : 0, 0, 0);
-
-	if (!enable && is_on) {
-		if (!wait_for_completion_timeout(&frame_done_completion,
-					msecs_to_jiffies(100)))
-			DSSERR("timeout waiting for FRAMEDONEWB\n");
-
-		r = omap_dispc_unregister_isr(dispc_disable_isr,
-				&frame_done_completion, irq);
-		if (r)
-			DSSERR("failed to unregister FRAMEDONEWB isr\n");
-	}
-}
-
 bool dispc_wb_is_enabled(void)
 {
-	enum omap_plane plane = OMAP_DSS_WB;
-
-	return REG_GET(DISPC_OVL_ATTRIBUTES(plane), 0, 0);
+	return dispc_ovl_enabled(OMAP_DSS_WB);
 }
 
-void dispc_lcd_enable_signal_polarity(bool act_high)
+static void dispc_lcd_enable_signal_polarity(bool act_high)
 {
 	if (!dss_has_feature(FEAT_LCDENABLEPOL))
 		return;
@@ -2791,13 +2600,13 @@ void dispc_pck_free_enable(bool enable)
 	REG_FLD_MOD(DISPC_CONTROL, enable ? 1 : 0, 27, 27);
 }
 
-void dispc_mgr_enable_fifohandcheck(enum omap_channel channel, bool enable)
+static void dispc_mgr_enable_fifohandcheck(enum omap_channel channel, bool enable)
 {
 	mgr_fld_write(channel, DISPC_MGR_FLD_FIFOHANDCHECK, enable);
 }
 
 
-void dispc_mgr_set_lcd_type_tft(enum omap_channel channel)
+static void dispc_mgr_set_lcd_type_tft(enum omap_channel channel)
 {
 	mgr_fld_write(channel, DISPC_MGR_FLD_STNTFT, 1);
 }
@@ -2840,7 +2649,7 @@ static void dispc_mgr_enable_alpha_fixed_zorder(enum omap_channel ch,
 }
 
 void dispc_mgr_setup(enum omap_channel channel,
-		struct omap_overlay_manager_info *info)
+		const struct omap_overlay_manager_info *info)
 {
 	dispc_mgr_set_default_color(channel, info->default_color);
 	dispc_mgr_set_trans_key(channel, info->trans_key_type, info->trans_key);
@@ -2853,7 +2662,7 @@ void dispc_mgr_setup(enum omap_channel channel,
 	}
 }
 
-void dispc_mgr_set_tft_data_lines(enum omap_channel channel, u8 data_lines)
+static void dispc_mgr_set_tft_data_lines(enum omap_channel channel, u8 data_lines)
 {
 	int code;
 
@@ -2878,7 +2687,7 @@ void dispc_mgr_set_tft_data_lines(enum omap_channel channel, u8 data_lines)
 	mgr_fld_write(channel, DISPC_MGR_FLD_TFTDATALINES, code);
 }
 
-void dispc_mgr_set_io_pad_mode(enum dss_io_pad_mode mode)
+static void dispc_mgr_set_io_pad_mode(enum dss_io_pad_mode mode)
 {
 	u32 l;
 	int gpout0, gpout1;
@@ -2907,9 +2716,26 @@ void dispc_mgr_set_io_pad_mode(enum dss_io_pad_mode mode)
 	dispc_write_reg(DISPC_CONTROL, l);
 }
 
-void dispc_mgr_enable_stallmode(enum omap_channel channel, bool enable)
+static void dispc_mgr_enable_stallmode(enum omap_channel channel, bool enable)
 {
 	mgr_fld_write(channel, DISPC_MGR_FLD_STALLMODE, enable);
+}
+
+void dispc_mgr_set_lcd_config(enum omap_channel channel,
+		const struct dss_lcd_mgr_config *config)
+{
+	dispc_mgr_set_io_pad_mode(config->io_pad_mode);
+
+	dispc_mgr_enable_stallmode(channel, config->stallmode);
+	dispc_mgr_enable_fifohandcheck(channel, config->fifohandcheck);
+
+	dispc_mgr_set_clock_div(channel, &config->clock_info);
+
+	dispc_mgr_set_tft_data_lines(channel, config->video_port_width);
+
+	dispc_lcd_enable_signal_polarity(config->lcden_sig_polarity);
+
+	dispc_mgr_set_lcd_type_tft(channel);
 }
 
 static bool _dispc_mgr_size_ok(u16 width, u16 height)
@@ -3010,7 +2836,7 @@ static void _dispc_mgr_set_lcd_timings(enum omap_channel channel, int hsw,
 
 /* change name to mode? */
 void dispc_mgr_set_timings(enum omap_channel channel,
-		struct omap_video_timings *timings)
+		const struct omap_video_timings *timings)
 {
 	unsigned xtot, ytot;
 	unsigned long ht, vt;
@@ -3244,64 +3070,6 @@ void dispc_dump_clocks(struct seq_file *s)
 	dispc_runtime_put();
 }
 
-#ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
-void dispc_dump_irqs(struct seq_file *s)
-{
-	unsigned long flags;
-	struct dispc_irq_stats stats;
-
-	spin_lock_irqsave(&dispc.irq_stats_lock, flags);
-
-	stats = dispc.irq_stats;
-	memset(&dispc.irq_stats, 0, sizeof(dispc.irq_stats));
-	dispc.irq_stats.last_reset = jiffies;
-
-	spin_unlock_irqrestore(&dispc.irq_stats_lock, flags);
-
-	seq_printf(s, "period %u ms\n",
-			jiffies_to_msecs(jiffies - stats.last_reset));
-
-	seq_printf(s, "irqs %d\n", stats.irq_count);
-#define PIS(x) \
-	seq_printf(s, "%-20s %10d\n", #x, stats.irqs[ffs(DISPC_IRQ_##x)-1]);
-
-	PIS(FRAMEDONE);
-	PIS(VSYNC);
-	PIS(EVSYNC_EVEN);
-	PIS(EVSYNC_ODD);
-	PIS(ACBIAS_COUNT_STAT);
-	PIS(PROG_LINE_NUM);
-	PIS(GFX_FIFO_UNDERFLOW);
-	PIS(GFX_END_WIN);
-	PIS(PAL_GAMMA_MASK);
-	PIS(OCP_ERR);
-	PIS(VID1_FIFO_UNDERFLOW);
-	PIS(VID1_END_WIN);
-	PIS(VID2_FIFO_UNDERFLOW);
-	PIS(VID2_END_WIN);
-	if (dss_feat_get_num_ovls() > 3) {
-		PIS(VID3_FIFO_UNDERFLOW);
-		PIS(VID3_END_WIN);
-	}
-	PIS(SYNC_LOST);
-	PIS(SYNC_LOST_DIGIT);
-	PIS(WAKEUP);
-	if (dss_has_feature(FEAT_MGR_LCD2)) {
-		PIS(FRAMEDONE2);
-		PIS(VSYNC2);
-		PIS(ACBIAS_COUNT_STAT2);
-		PIS(SYNC_LOST2);
-	}
-	if (dss_has_feature(FEAT_MGR_LCD3)) {
-		PIS(FRAMEDONE3);
-		PIS(VSYNC3);
-		PIS(ACBIAS_COUNT_STAT3);
-		PIS(SYNC_LOST3);
-	}
-#undef PIS
-}
-#endif
-
 static void dispc_dump_regs(struct seq_file *s)
 {
 	int i, j;
@@ -3531,7 +3299,7 @@ int dispc_calc_clock_rates(unsigned long dispc_fclk_rate,
 }
 
 void dispc_mgr_set_clock_div(enum omap_channel channel,
-		struct dispc_clock_info *cinfo)
+		const struct dispc_clock_info *cinfo)
 {
 	DSSDBG("lck = %lu (%u)\n", cinfo->lck, cinfo->lck_div);
 	DSSDBG("pck = %lu (%u)\n", cinfo->pck, cinfo->pck_div);
@@ -3555,402 +3323,29 @@ int dispc_mgr_get_clock_div(enum omap_channel channel,
 	return 0;
 }
 
-/* dispc.irq_lock has to be locked by the caller */
-static void _omap_dispc_set_irqs(void)
+u32 dispc_read_irqstatus(void)
 {
-	u32 mask;
-	u32 old_mask;
-	int i;
-	struct omap_dispc_isr_data *isr_data;
+	return dispc_read_reg(DISPC_IRQSTATUS);
+}
 
-	mask = dispc.irq_error_mask;
+void dispc_clear_irqstatus(u32 mask)
+{
+	dispc_write_reg(DISPC_IRQSTATUS, mask);
+}
 
-	for (i = 0; i < DISPC_MAX_NR_ISRS; i++) {
-		isr_data = &dispc.registered_isr[i];
+u32 dispc_read_irqenable(void)
+{
+	return dispc_read_reg(DISPC_IRQENABLE);
+}
 
-		if (isr_data->isr == NULL)
-			continue;
+void dispc_write_irqenable(u32 mask)
+{
+	u32 old_mask = dispc_read_reg(DISPC_IRQENABLE);
 
-		mask |= isr_data->mask;
-	}
-
-	old_mask = dispc_read_reg(DISPC_IRQENABLE);
 	/* clear the irqstatus for newly enabled irqs */
-	dispc_write_reg(DISPC_IRQSTATUS, (mask ^ old_mask) & mask);
+	dispc_clear_irqstatus((mask ^ old_mask) & mask);
 
 	dispc_write_reg(DISPC_IRQENABLE, mask);
-}
-
-int omap_dispc_register_isr(omap_dispc_isr_t isr, void *arg, u32 mask)
-{
-	int i;
-	int ret;
-	unsigned long flags;
-	struct omap_dispc_isr_data *isr_data;
-
-	if (isr == NULL)
-		return -EINVAL;
-
-	spin_lock_irqsave(&dispc.irq_lock, flags);
-
-	/* check for duplicate entry */
-	for (i = 0; i < DISPC_MAX_NR_ISRS; i++) {
-		isr_data = &dispc.registered_isr[i];
-		if (isr_data->isr == isr && isr_data->arg == arg &&
-				isr_data->mask == mask) {
-			ret = -EINVAL;
-			goto err;
-		}
-	}
-
-	isr_data = NULL;
-	ret = -EBUSY;
-
-	for (i = 0; i < DISPC_MAX_NR_ISRS; i++) {
-		isr_data = &dispc.registered_isr[i];
-
-		if (isr_data->isr != NULL)
-			continue;
-
-		isr_data->isr = isr;
-		isr_data->arg = arg;
-		isr_data->mask = mask;
-		ret = 0;
-
-		break;
-	}
-
-	if (ret)
-		goto err;
-
-	_omap_dispc_set_irqs();
-
-	spin_unlock_irqrestore(&dispc.irq_lock, flags);
-
-	return 0;
-err:
-	spin_unlock_irqrestore(&dispc.irq_lock, flags);
-
-	return ret;
-}
-EXPORT_SYMBOL(omap_dispc_register_isr);
-
-int omap_dispc_unregister_isr(omap_dispc_isr_t isr, void *arg, u32 mask)
-{
-	int i;
-	unsigned long flags;
-	int ret = -EINVAL;
-	struct omap_dispc_isr_data *isr_data;
-
-	spin_lock_irqsave(&dispc.irq_lock, flags);
-
-	for (i = 0; i < DISPC_MAX_NR_ISRS; i++) {
-		isr_data = &dispc.registered_isr[i];
-		if (isr_data->isr != isr || isr_data->arg != arg ||
-				isr_data->mask != mask)
-			continue;
-
-		/* found the correct isr */
-
-		isr_data->isr = NULL;
-		isr_data->arg = NULL;
-		isr_data->mask = 0;
-
-		ret = 0;
-		break;
-	}
-
-	if (ret == 0)
-		_omap_dispc_set_irqs();
-
-	spin_unlock_irqrestore(&dispc.irq_lock, flags);
-
-	return ret;
-}
-EXPORT_SYMBOL(omap_dispc_unregister_isr);
-
-#ifdef DEBUG
-static void print_irq_status(u32 status)
-{
-	if ((status & dispc.irq_error_mask) == 0)
-		return;
-
-	printk(KERN_DEBUG "DISPC IRQ: 0x%x: ", status);
-
-#define PIS(x) \
-	if (status & DISPC_IRQ_##x) \
-		printk(#x " ");
-	PIS(GFX_FIFO_UNDERFLOW);
-	PIS(OCP_ERR);
-	PIS(VID1_FIFO_UNDERFLOW);
-	PIS(VID2_FIFO_UNDERFLOW);
-	if (dss_feat_get_num_ovls() > 3)
-		PIS(VID3_FIFO_UNDERFLOW);
-	PIS(SYNC_LOST);
-	PIS(SYNC_LOST_DIGIT);
-	if (dss_has_feature(FEAT_MGR_LCD2))
-		PIS(SYNC_LOST2);
-	if (dss_has_feature(FEAT_MGR_LCD3))
-		PIS(SYNC_LOST3);
-#undef PIS
-
-	printk("\n");
-}
-#endif
-
-/* Called from dss.c. Note that we don't touch clocks here,
- * but we presume they are on because we got an IRQ. However,
- * an irq handler may turn the clocks off, so we may not have
- * clock later in the function. */
-static irqreturn_t omap_dispc_irq_handler(int irq, void *arg)
-{
-	int i;
-	u32 irqstatus, irqenable;
-	u32 handledirqs = 0;
-	u32 unhandled_errors;
-	struct omap_dispc_isr_data *isr_data;
-	struct omap_dispc_isr_data registered_isr[DISPC_MAX_NR_ISRS];
-
-	spin_lock(&dispc.irq_lock);
-
-	irqstatus = dispc_read_reg(DISPC_IRQSTATUS);
-	irqenable = dispc_read_reg(DISPC_IRQENABLE);
-
-	/* IRQ is not for us */
-	if (!(irqstatus & irqenable)) {
-		spin_unlock(&dispc.irq_lock);
-		return IRQ_NONE;
-	}
-
-#ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
-	spin_lock(&dispc.irq_stats_lock);
-	dispc.irq_stats.irq_count++;
-	dss_collect_irq_stats(irqstatus, dispc.irq_stats.irqs);
-	spin_unlock(&dispc.irq_stats_lock);
-#endif
-
-#ifdef DEBUG
-	if (dss_debug)
-		print_irq_status(irqstatus);
-#endif
-	/* Ack the interrupt. Do it here before clocks are possibly turned
-	 * off */
-	dispc_write_reg(DISPC_IRQSTATUS, irqstatus);
-	/* flush posted write */
-	dispc_read_reg(DISPC_IRQSTATUS);
-
-	/* make a copy and unlock, so that isrs can unregister
-	 * themselves */
-	memcpy(registered_isr, dispc.registered_isr,
-			sizeof(registered_isr));
-
-	spin_unlock(&dispc.irq_lock);
-
-	for (i = 0; i < DISPC_MAX_NR_ISRS; i++) {
-		isr_data = &registered_isr[i];
-
-		if (!isr_data->isr)
-			continue;
-
-		if (isr_data->mask & irqstatus) {
-			isr_data->isr(isr_data->arg, irqstatus);
-			handledirqs |= isr_data->mask;
-		}
-	}
-
-	spin_lock(&dispc.irq_lock);
-
-	unhandled_errors = irqstatus & ~handledirqs & dispc.irq_error_mask;
-
-	if (unhandled_errors) {
-		dispc.error_irqs |= unhandled_errors;
-
-		dispc.irq_error_mask &= ~unhandled_errors;
-		_omap_dispc_set_irqs();
-
-		schedule_work(&dispc.error_work);
-	}
-
-	spin_unlock(&dispc.irq_lock);
-
-	return IRQ_HANDLED;
-}
-
-static void dispc_error_worker(struct work_struct *work)
-{
-	int i;
-	u32 errors;
-	unsigned long flags;
-	static const unsigned fifo_underflow_bits[] = {
-		DISPC_IRQ_GFX_FIFO_UNDERFLOW,
-		DISPC_IRQ_VID1_FIFO_UNDERFLOW,
-		DISPC_IRQ_VID2_FIFO_UNDERFLOW,
-		DISPC_IRQ_VID3_FIFO_UNDERFLOW,
-	};
-
-	spin_lock_irqsave(&dispc.irq_lock, flags);
-	errors = dispc.error_irqs;
-	dispc.error_irqs = 0;
-	spin_unlock_irqrestore(&dispc.irq_lock, flags);
-
-	dispc_runtime_get();
-
-	for (i = 0; i < omap_dss_get_num_overlays(); ++i) {
-		struct omap_overlay *ovl;
-		unsigned bit;
-
-		ovl = omap_dss_get_overlay(i);
-		bit = fifo_underflow_bits[i];
-
-		if (bit & errors) {
-			DSSERR("FIFO UNDERFLOW on %s, disabling the overlay\n",
-					ovl->name);
-			dispc_ovl_enable(ovl->id, false);
-			dispc_mgr_go(ovl->manager->id);
-			msleep(50);
-		}
-	}
-
-	for (i = 0; i < omap_dss_get_num_overlay_managers(); ++i) {
-		struct omap_overlay_manager *mgr;
-		unsigned bit;
-
-		mgr = omap_dss_get_overlay_manager(i);
-		bit = mgr_desc[i].sync_lost_irq;
-
-		if (bit & errors) {
-			struct omap_dss_device *dssdev = mgr->get_device(mgr);
-			bool enable;
-
-			DSSERR("SYNC_LOST on channel %s, restarting the output "
-					"with video overlays disabled\n",
-					mgr->name);
-
-			enable = dssdev->state == OMAP_DSS_DISPLAY_ACTIVE;
-			dssdev->driver->disable(dssdev);
-
-			for (i = 0; i < omap_dss_get_num_overlays(); ++i) {
-				struct omap_overlay *ovl;
-				ovl = omap_dss_get_overlay(i);
-
-				if (ovl->id != OMAP_DSS_GFX &&
-						ovl->manager == mgr)
-					dispc_ovl_enable(ovl->id, false);
-			}
-
-			dispc_mgr_go(mgr->id);
-			msleep(50);
-
-			if (enable)
-				dssdev->driver->enable(dssdev);
-		}
-	}
-
-	if (errors & DISPC_IRQ_OCP_ERR) {
-		DSSERR("OCP_ERR\n");
-		for (i = 0; i < omap_dss_get_num_overlay_managers(); ++i) {
-			struct omap_overlay_manager *mgr;
-			struct omap_dss_device *dssdev;
-
-			mgr = omap_dss_get_overlay_manager(i);
-			dssdev = mgr->get_device(mgr);
-
-			if (dssdev && dssdev->driver)
-				dssdev->driver->disable(dssdev);
-		}
-	}
-
-	spin_lock_irqsave(&dispc.irq_lock, flags);
-	dispc.irq_error_mask |= errors;
-	_omap_dispc_set_irqs();
-	spin_unlock_irqrestore(&dispc.irq_lock, flags);
-
-	dispc_runtime_put();
-}
-
-int omap_dispc_wait_for_irq_timeout(u32 irqmask, unsigned long timeout)
-{
-	void dispc_irq_wait_handler(void *data, u32 mask)
-	{
-		complete((struct completion *)data);
-	}
-
-	int r;
-	DECLARE_COMPLETION_ONSTACK(completion);
-
-	r = omap_dispc_register_isr(dispc_irq_wait_handler, &completion,
-			irqmask);
-
-	if (r)
-		return r;
-
-	timeout = wait_for_completion_timeout(&completion, timeout);
-
-	omap_dispc_unregister_isr(dispc_irq_wait_handler, &completion, irqmask);
-
-	if (timeout == 0)
-		return -ETIMEDOUT;
-
-	if (timeout == -ERESTARTSYS)
-		return -ERESTARTSYS;
-
-	return 0;
-}
-
-int omap_dispc_wait_for_irq_interruptible_timeout(u32 irqmask,
-		unsigned long timeout)
-{
-	void dispc_irq_wait_handler(void *data, u32 mask)
-	{
-		complete((struct completion *)data);
-	}
-
-	int r;
-	DECLARE_COMPLETION_ONSTACK(completion);
-
-	r = omap_dispc_register_isr(dispc_irq_wait_handler, &completion,
-			irqmask);
-
-	if (r)
-		return r;
-
-	timeout = wait_for_completion_interruptible_timeout(&completion,
-			timeout);
-
-	omap_dispc_unregister_isr(dispc_irq_wait_handler, &completion, irqmask);
-
-	if (timeout == 0)
-		return -ETIMEDOUT;
-
-	if (timeout == -ERESTARTSYS)
-		return -ERESTARTSYS;
-
-	return 0;
-}
-
-static void _omap_dispc_initialize_irq(void)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&dispc.irq_lock, flags);
-
-	memset(dispc.registered_isr, 0, sizeof(dispc.registered_isr));
-
-	dispc.irq_error_mask = DISPC_IRQ_MASK_ERROR;
-	if (dss_has_feature(FEAT_MGR_LCD2))
-		dispc.irq_error_mask |= DISPC_IRQ_SYNC_LOST2;
-	if (dss_has_feature(FEAT_MGR_LCD3))
-		dispc.irq_error_mask |= DISPC_IRQ_SYNC_LOST3;
-	if (dss_feat_get_num_ovls() > 3)
-		dispc.irq_error_mask |= DISPC_IRQ_VID3_FIFO_UNDERFLOW;
-
-	/* there's SYNC_LOST_DIGIT waiting after enabling the DSS,
-	 * so clear it */
-	dispc_write_reg(DISPC_IRQSTATUS, dispc_read_reg(DISPC_IRQSTATUS));
-
-	_omap_dispc_set_irqs();
-
-	spin_unlock_irqrestore(&dispc.irq_lock, flags);
 }
 
 void dispc_enable_sidle(void)
@@ -4072,6 +3467,17 @@ static int __init dispc_init_features(struct device *dev)
 	return 0;
 }
 
+int dispc_request_irq(irq_handler_t handler, void *dev_id)
+{
+	return devm_request_irq(&dispc.pdev->dev, dispc.irq, handler,
+			     IRQF_SHARED, "OMAP DISPC", dev_id);
+}
+
+void dispc_free_irq(void *dev_id)
+{
+	devm_free_irq(&dispc.pdev->dev, dispc.irq, dev_id);
+}
+
 /* DISPC HW IP initialisation */
 static int __init omap_dispchw_probe(struct platform_device *pdev)
 {
@@ -4085,15 +3491,6 @@ static int __init omap_dispchw_probe(struct platform_device *pdev)
 	r = dispc_init_features(&dispc.pdev->dev);
 	if (r)
 		return r;
-
-	spin_lock_init(&dispc.irq_lock);
-
-#ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
-	spin_lock_init(&dispc.irq_stats_lock);
-	dispc.irq_stats.last_reset = jiffies;
-#endif
-
-	INIT_WORK(&dispc.error_work, dispc_error_worker);
 
 	dispc_mem = platform_get_resource(dispc.pdev, IORESOURCE_MEM, 0);
 	if (!dispc_mem) {
@@ -4114,13 +3511,6 @@ static int __init omap_dispchw_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	r = devm_request_irq(&pdev->dev, dispc.irq, omap_dispc_irq_handler,
-			     IRQF_SHARED, "OMAP DISPC", dispc.pdev);
-	if (r < 0) {
-		DSSERR("request_irq failed\n");
-		return r;
-	}
-
 	clk = clk_get(&pdev->dev, "fck");
 	if (IS_ERR(clk)) {
 		DSSERR("can't get fck\n");
@@ -4138,8 +3528,6 @@ static int __init omap_dispchw_probe(struct platform_device *pdev)
 
 	_omap_dispc_initial_config();
 
-	_omap_dispc_initialize_irq();
-
 	rev = dispc_read_reg(DISPC_REVISION);
 	dev_dbg(&pdev->dev, "OMAP DISPC rev %d.%d\n",
 	       FLD_GET(rev, 7, 4), FLD_GET(rev, 3, 0));
@@ -4148,9 +3536,6 @@ static int __init omap_dispchw_probe(struct platform_device *pdev)
 
 	dss_debugfs_create_file("dispc", dispc_dump_regs);
 
-#ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
-	dss_debugfs_create_file("dispc_irq", dispc_dump_irqs);
-#endif
 	return 0;
 
 err_runtime_get:

@@ -412,6 +412,9 @@ struct omap_overlay {
 	/* dynamic fields */
 	struct omap_overlay_manager *manager;
 
+	/* not touched by omapdss */
+	void *user_data;
+
 	/*
 	 * The following functions do not block:
 	 *
@@ -467,6 +470,9 @@ struct omap_overlay_manager {
 
 	/* dynamic fields */
 	struct omap_dss_output *output;
+
+	/* not touched by omapdss */
+	void *user_data;
 
 	/*
 	 * The following functions do not block:
@@ -740,6 +746,7 @@ void omap_dss_put_device(struct omap_dss_device *dssdev);
 struct omap_dss_device *omap_dss_get_next_device(struct omap_dss_device *from);
 struct omap_dss_device *omap_dss_find_device(void *data,
 		int (*match)(struct omap_dss_device *dssdev, void *data));
+const char *dss_get_default_display_name(void);
 
 int omap_dss_start_device(struct omap_dss_device *dssdev);
 void omap_dss_stop_device(struct omap_dss_device *dssdev);
@@ -764,10 +771,6 @@ void omapdss_default_get_timings(struct omap_dss_device *dssdev,
 typedef void (*omap_dispc_isr_t) (void *arg, u32 mask);
 int omap_dispc_register_isr(omap_dispc_isr_t isr, void *arg, u32 mask);
 int omap_dispc_unregister_isr(omap_dispc_isr_t isr, void *arg, u32 mask);
-
-int omap_dispc_wait_for_irq_timeout(u32 irqmask, unsigned long timeout);
-int omap_dispc_wait_for_irq_interruptible_timeout(u32 irqmask,
-		unsigned long timeout);
 
 #define to_dss_driver(x) container_of((x), struct omap_dss_driver, driver)
 #define to_dss_device(x) container_of((x), struct omap_dss_device, dev)
@@ -825,5 +828,8 @@ void omapdss_rfbi_set_data_lines(struct omap_dss_device *dssdev,
 		int data_lines);
 void omapdss_rfbi_set_interface_timings(struct omap_dss_device *dssdev,
 		struct rfbi_timings *timings);
+
+int omapdss_apply_init(void);
+void omapdss_apply_uninit(void);
 
 #endif
