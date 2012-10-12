@@ -34,6 +34,8 @@
 #include <sound/asoundef.h>
 #endif
 
+#include <plat/cpu.h>
+
 #include "ti_hdmi_4xxx_ip.h"
 #include "dss.h"
 #include "dss_features.h"
