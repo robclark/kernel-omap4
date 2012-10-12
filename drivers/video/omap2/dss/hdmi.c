@@ -38,6 +38,8 @@
 #include <linux/of_gpio.h>
 #include <video/omapdss.h>
 
+#include <plat/cpu.h>
+
 #include "ti_hdmi.h"
 #include "dss.h"
 #include "dss_features.h"
