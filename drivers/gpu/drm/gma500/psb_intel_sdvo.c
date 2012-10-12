@@ -1829,8 +1829,9 @@ set_value:
 done:
 	if (psb_intel_sdvo->base.base.crtc) {
 		struct drm_crtc *crtc = psb_intel_sdvo->base.base.crtc;
-		drm_crtc_helper_set_mode(crtc, &crtc->mode, crtc->x,
-					 crtc->y, crtc->fb);
+		struct drm_crtc_state *state = crtc->state;
+		drm_crtc_helper_set_mode(crtc, &state->mode, state->x,
+					 state->y, state->fb);
 	}
 
 	return 0;

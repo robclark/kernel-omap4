@@ -76,6 +76,7 @@ int exynos_plane_mode_set(struct drm_plane *plane, struct drm_crtc *crtc,
 {
 	struct exynos_plane *exynos_plane = to_exynos_plane(plane);
 	struct exynos_drm_overlay *overlay = &exynos_plane->overlay;
+	struct drm_display_mode *mode = &crtc->state->mode;
 	unsigned int actual_w;
 	unsigned int actual_h;
 	int nr;
@@ -100,8 +101,8 @@ int exynos_plane_mode_set(struct drm_plane *plane, struct drm_crtc *crtc,
 				(unsigned long)overlay->dma_addr[i]);
 	}
 
-	actual_w = exynos_plane_get_size(crtc_x, crtc_w, crtc->mode.hdisplay);
-	actual_h = exynos_plane_get_size(crtc_y, crtc_h, crtc->mode.vdisplay);
+	actual_w = exynos_plane_get_size(crtc_x, crtc_w, mode->hdisplay);
+	actual_h = exynos_plane_get_size(crtc_y, crtc_h, mode->vdisplay);
 
 	if (crtc_x < 0) {
 		if (actual_w)
@@ -137,10 +138,10 @@ int exynos_plane_mode_set(struct drm_plane *plane, struct drm_crtc *crtc,
 	overlay->crtc_height = actual_h;
 
 	/* set drm mode data. */
-	overlay->mode_width = crtc->mode.hdisplay;
-	overlay->mode_height = crtc->mode.vdisplay;
-	overlay->refresh = crtc->mode.vrefresh;
-	overlay->scan_flag = crtc->mode.flags;
+	overlay->mode_width = mode->hdisplay;
+	overlay->mode_height = mode->vdisplay;
+	overlay->refresh = mode->vrefresh;
+	overlay->scan_flag = mode->flags;
 
 	DRM_DEBUG_KMS("overlay : offset_x/y(%d,%d), width/height(%d,%d)",
 			overlay->crtc_x, overlay->crtc_y,
@@ -204,7 +205,7 @@ exynos_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 		return ret;
 
 	plane->state->crtc = crtc;
-	plane->state->fb = crtc->fb;
+	plane->state->fb = crtc->state->fb;
 
 	exynos_plane_commit(plane);
 	exynos_plane_dpms(plane, DRM_MODE_DPMS_ON);

@@ -990,7 +990,7 @@ static void evergreen_program_watermarks(struct radeon_device *rdev,
 					 struct radeon_crtc *radeon_crtc,
 					 u32 lb_size, u32 num_heads)
 {
-	struct drm_display_mode *mode = &radeon_crtc->base.mode;
+	struct drm_display_mode *mode = &radeon_crtc->base.state->mode;
 	struct evergreen_wm_params wm;
 	u32 pixel_period;
 	u32 line_time = 0;
@@ -1116,8 +1116,8 @@ void evergreen_bandwidth_update(struct radeon_device *rdev)
 			num_heads++;
 	}
 	for (i = 0; i < rdev->num_crtc; i += 2) {
-		mode0 = &rdev->mode_info.crtcs[i]->base.mode;
-		mode1 = &rdev->mode_info.crtcs[i+1]->base.mode;
+		mode0 = &rdev->mode_info.crtcs[i]->base.state->mode;
+		mode1 = &rdev->mode_info.crtcs[i+1]->base.state->mode;
 		lb_size = evergreen_line_buffer_adjust(rdev, rdev->mode_info.crtcs[i], mode0, mode1);
 		evergreen_program_watermarks(rdev, rdev->mode_info.crtcs[i], lb_size, num_heads);
 		lb_size = evergreen_line_buffer_adjust(rdev, rdev->mode_info.crtcs[i+1], mode1, mode0);

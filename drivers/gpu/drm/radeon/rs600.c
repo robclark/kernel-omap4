@@ -791,9 +791,9 @@ void rs600_bandwidth_update(struct radeon_device *rdev)
 	radeon_update_display_priority(rdev);
 
 	if (rdev->mode_info.crtcs[0]->base.enabled)
-		mode0 = &rdev->mode_info.crtcs[0]->base.mode;
+		mode0 = &rdev->mode_info.crtcs[0]->base.state->mode;
 	if (rdev->mode_info.crtcs[1]->base.enabled)
-		mode1 = &rdev->mode_info.crtcs[1]->base.mode;
+		mode1 = &rdev->mode_info.crtcs[1]->base.state->mode;
 
 	rs690_line_buffer_adjust(rdev, mode0, mode1);
 

@@ -317,7 +317,7 @@ static void tv_setup_filter(struct drm_encoder *encoder)
 {
 	struct nv17_tv_encoder *tv_enc = to_tv_enc(encoder);
 	struct nv17_tv_norm_params *tv_norm = get_tv_norm(encoder);
-	struct drm_display_mode *mode = &encoder->crtc->mode;
+	struct drm_display_mode *mode = &encoder->crtc->state->mode;
 	uint32_t (*filters[])[4][7] = {&tv_enc->state.hfilter,
 				       &tv_enc->state.vfilter};
 	int i, j, k;
@@ -546,7 +546,7 @@ void nv17_ctv_update_rescaler(struct drm_encoder *encoder)
 	struct nv17_tv_encoder *tv_enc = to_tv_enc(encoder);
 	int head = nouveau_crtc(encoder->crtc)->index;
 	struct nv04_crtc_reg *regs = &nv04_display(dev)->mode_reg.crtc_reg[head];
-	struct drm_display_mode *crtc_mode = &encoder->crtc->mode;
+	struct drm_display_mode *crtc_mode = &encoder->crtc->state->mode;
 	struct drm_display_mode *output_mode =
 		&get_tv_norm(encoder)->ctv_enc_mode.mode;
 	int overscan, hmargin, vmargin, hratio, vratio;

@@ -701,7 +701,7 @@ static int mga_crtc_do_set_base(struct drm_crtc *crtc,
 		mgag200_bo_unreserve(bo);
 	}
 
-	mga_fb = to_mga_framebuffer(crtc->fb);
+	mga_fb = to_mga_framebuffer(crtc->state->fb);
 	obj = mga_fb->obj;
 	bo = gem_to_mga_bo(obj);
 
@@ -744,6 +744,7 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 {
 	struct drm_device *dev = crtc->dev;
 	struct mga_device *mdev = dev->dev_private;
+	struct drm_framebuffer *fb = crtc->state->fb;
 	int hdisplay, hsyncstart, hsyncend, htotal;
 	int vdisplay, vsyncstart, vsyncend, vtotal;
 	int pitch;
@@ -768,7 +769,7 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 		/* 0x48: */        0,    0,    0,    0,    0,    0,    0,    0
 	};
 
-	bppshift = mdev->bpp_shifts[(crtc->fb->bits_per_pixel >> 3) - 1];
+	bppshift = mdev->bpp_shifts[(fb->bits_per_pixel >> 3) - 1];
 
 	switch (mdev->type) {
 	case G200_SE_A:
@@ -807,12 +808,12 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 		break;
 	}
 
-	switch (crtc->fb->bits_per_pixel) {
+	switch (fb->bits_per_pixel) {
 	case 8:
 		dacvalue[MGA1064_MUL_CTL] = MGA1064_MUL_CTL_8bits;
 		break;
 	case 16:
-		if (crtc->fb->depth == 15)
+		if (fb->depth == 15)
 			dacvalue[MGA1064_MUL_CTL] = MGA1064_MUL_CTL_15bits;
 		else
 			dacvalue[MGA1064_MUL_CTL] = MGA1064_MUL_CTL_16bits;
@@ -866,8 +867,8 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 	WREG_SEQ(3, 0);
 	WREG_SEQ(4, 0xe);
 
-	pitch = crtc->fb->pitches[0] / (crtc->fb->bits_per_pixel / 8);
-	if (crtc->fb->bits_per_pixel == 24)
+	pitch = fb->pitches[0] / (fb->bits_per_pixel / 8);
+	if (fb->bits_per_pixel == 24)
 		pitch = pitch >> (4 - bppshift);
 	else
 		pitch = pitch >> (4 - bppshift);
@@ -944,7 +945,7 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 		((vdisplay & 0xc00) >> 7) |
 		((vsyncstart & 0xc00) >> 5) |
 		((vdisplay & 0x400) >> 3);
-	if (crtc->fb->bits_per_pixel == 24)
+	if (fb->bits_per_pixel == 24)
 		ext_vga[3] = (((1 << bppshift) * 3) - 1) | 0x80;
 	else
 		ext_vga[3] = ((1 << bppshift) - 1) | 0x80;
@@ -1006,9 +1007,9 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 			u32 bpp;
 			u32 mb;
 
-			if (crtc->fb->bits_per_pixel > 16)
+			if (fb->bits_per_pixel > 16)
 				bpp = 32;
-			else if (crtc->fb->bits_per_pixel > 8)
+			else if (fb->bits_per_pixel > 8)
 				bpp = 16;
 			else
 				bpp = 8;

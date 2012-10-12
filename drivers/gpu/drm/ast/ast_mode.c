@@ -78,10 +78,11 @@ static bool ast_get_vbios_mode_info(struct drm_crtc *crtc, struct drm_display_mo
 				    struct ast_vbios_mode_info *vbios_mode)
 {
 	struct ast_private *ast = crtc->dev->dev_private;
+	struct drm_crtc_state *state = crtc->state;
 	u32 refresh_rate_index = 0, mode_id, color_index, refresh_rate;
 	u32 hborder, vborder;
 
-	switch (crtc->fb->bits_per_pixel) {
+	switch (state->fb->bits_per_pixel) {
 	case 8:
 		vbios_mode->std_table = &vbios_stdtable[VGAModeIndex];
 		color_index = VGAModeIndex - 1;
@@ -99,7 +100,7 @@ static bool ast_get_vbios_mode_info(struct drm_crtc *crtc, struct drm_display_mo
 		return false;
 	}
 
-	switch (crtc->mode.crtc_hdisplay) {
+	switch (state->mode.crtc_hdisplay) {
 	case 640:
 		vbios_mode->enh_table = &res_640x480[refresh_rate_index];
 		break;
@@ -110,7 +111,7 @@ static bool ast_get_vbios_mode_info(struct drm_crtc *crtc, struct drm_display_mo
 		vbios_mode->enh_table = &res_1024x768[refresh_rate_index];
 		break;
 	case 1280:
-		if (crtc->mode.crtc_vdisplay == 800)
+		if (state->mode.crtc_vdisplay == 800)
 			vbios_mode->enh_table = &res_1280x800[refresh_rate_index];
 		else
 			vbios_mode->enh_table = &res_1280x1024[refresh_rate_index];
@@ -125,7 +126,7 @@ static bool ast_get_vbios_mode_info(struct drm_crtc *crtc, struct drm_display_mo
 		vbios_mode->enh_table = &res_1680x1050[refresh_rate_index];
 		break;
 	case 1920:
-		if (crtc->mode.crtc_vdisplay == 1080)
+		if (state->mode.crtc_vdisplay == 1080)
 			vbios_mode->enh_table = &res_1920x1080[refresh_rate_index];
 		else
 			vbios_mode->enh_table = &res_1920x1200[refresh_rate_index];
@@ -176,7 +177,7 @@ static bool ast_get_vbios_mode_info(struct drm_crtc *crtc, struct drm_display_mo
 		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x8e, mode_id & 0xff);
 
 		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x91, 0xa8);
-		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x92, crtc->fb->bits_per_pixel);
+		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x92, crtc->state->fb->bits_per_pixel);
 		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x93, adjusted_mode->clock / 1000);
 		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x94, adjusted_mode->crtc_hdisplay);
 		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x95, adjusted_mode->crtc_hdisplay >> 8);
@@ -340,7 +341,7 @@ static void ast_set_offset_reg(struct drm_crtc *crtc)
 
 	u16 offset;
 
-	offset = crtc->fb->pitches[0] >> 3;
+	offset = crtc->state->fb->pitches[0] >> 3;
 	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x13, (offset & 0xff));
 	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xb0, (offset >> 8) & 0x3f);
 }
@@ -365,7 +366,7 @@ static void ast_set_ext_reg(struct drm_crtc *crtc, struct drm_display_mode *mode
 	struct ast_private *ast = crtc->dev->dev_private;
 	u8 jregA0 = 0, jregA3 = 0, jregA8 = 0;
 
-	switch (crtc->fb->bits_per_pixel) {
+	switch (crtc->state->fb->bits_per_pixel) {
 	case 8:
 		jregA0 = 0x70;
 		jregA3 = 0x01;
@@ -418,7 +419,7 @@ void ast_set_sync_reg(struct drm_device *dev, struct drm_display_mode *mode,
 bool ast_set_dac_reg(struct drm_crtc *crtc, struct drm_display_mode *mode,
 		     struct ast_vbios_mode_info *vbios_mode)
 {
-	switch (crtc->fb->bits_per_pixel) {
+	switch (crtc->state->fb->bits_per_pixel) {
 	case 8:
 		break;
 	default:
@@ -490,7 +491,7 @@ static int ast_crtc_do_set_base(struct drm_crtc *crtc,
 		ast_bo_unreserve(bo);
 	}
 
-	ast_fb = to_ast_framebuffer(crtc->fb);
+	ast_fb = to_ast_framebuffer(crtc->state->fb);
 	obj = ast_fb->obj;
 	bo = gem_to_ast_bo(obj);
 

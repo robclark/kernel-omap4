@@ -266,7 +266,7 @@ void drm_helper_disable_unused_functions(struct drm_device *dev)
 				(*crtc_funcs->disable)(crtc);
 			else
 				(*crtc_funcs->dpms)(crtc, DRM_MODE_DPMS_OFF);
-			crtc->fb = NULL;
+			crtc->state->fb = NULL;
 		}
 	}
 }
@@ -362,16 +362,16 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 		return false;
 
 	saved_hwmode = crtc->hwmode;
-	saved_mode = crtc->mode;
-	saved_x = crtc->x;
-	saved_y = crtc->y;
+	saved_mode = crtc->state->mode;
+	saved_x = crtc->state->x;
+	saved_y = crtc->state->y;
 
 	/* Update crtc values up front so the driver can rely on them for mode
 	 * setting.
 	 */
-	crtc->mode = *mode;
-	crtc->x = x;
-	crtc->y = y;
+	crtc->state->mode = *mode;
+	crtc->state->x = x;
+	crtc->state->y = y;
 
 	/* Pass our mode to the connectors and the CRTC to give them a chance to
 	 * adjust it according to limitations or connector properties, and also
@@ -455,9 +455,9 @@ done:
 	drm_mode_destroy(dev, adjusted_mode);
 	if (!ret) {
 		crtc->hwmode = saved_hwmode;
-		crtc->mode = saved_mode;
-		crtc->x = saved_x;
-		crtc->y = saved_y;
+		crtc->state->mode = saved_mode;
+		crtc->state->x = saved_x;
+		crtc->state->y = saved_y;
 	}
 
 	return ret;
@@ -590,35 +590,35 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 	}
 
 	save_set.crtc = set->crtc;
-	save_set.mode = &set->crtc->mode;
-	save_set.x = set->crtc->x;
-	save_set.y = set->crtc->y;
-	save_set.fb = set->crtc->fb;
+	save_set.mode = &set->crtc->state->mode;
+	save_set.x = set->crtc->state->x;
+	save_set.y = set->crtc->state->y;
+	save_set.fb = set->crtc->state->fb;
 
 	/* We should be able to check here if the fb has the same properties
 	 * and then just flip_or_move it */
-	if (set->crtc->fb != set->fb) {
+	if (set->crtc->state->fb != set->fb) {
 		/* If we have no fb then treat it as a full mode set */
-		if (set->crtc->fb == NULL) {
+		if (set->crtc->state->fb == NULL) {
 			DRM_DEBUG_KMS("crtc has no fb, full mode set\n");
 			mode_changed = true;
 		} else if (set->fb == NULL) {
 			mode_changed = true;
-		} else if (set->fb->depth != set->crtc->fb->depth) {
+		} else if (set->fb->depth != set->crtc->state->fb->depth) {
 			mode_changed = true;
 		} else if (set->fb->bits_per_pixel !=
-			   set->crtc->fb->bits_per_pixel) {
+			   set->crtc->state->fb->bits_per_pixel) {
 			mode_changed = true;
 		} else
 			fb_changed = true;
 	}
 
-	if (set->x != set->crtc->x || set->y != set->crtc->y)
+	if (set->x != set->crtc->state->x || set->y != set->crtc->state->y)
 		fb_changed = true;
 
-	if (set->mode && !drm_mode_equal(set->mode, &set->crtc->mode)) {
+	if (set->mode && !drm_mode_equal(set->mode, &set->crtc->state->mode)) {
 		DRM_DEBUG_KMS("modes are different, full mode set\n");
-		drm_mode_debug_printmodeline(&set->crtc->mode);
+		drm_mode_debug_printmodeline(&set->crtc->state->mode);
 		drm_mode_debug_printmodeline(set->mode);
 		mode_changed = true;
 	}
@@ -704,14 +704,14 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 			DRM_DEBUG_KMS("attempting to set mode from"
 					" userspace\n");
 			drm_mode_debug_printmodeline(set->mode);
-			old_fb = set->crtc->fb;
-			set->crtc->fb = set->fb;
+			old_fb = set->crtc->state->fb;
+			set->crtc->state->fb = set->fb;
 			if (!drm_crtc_helper_set_mode(set->crtc, set->mode,
 						      set->x, set->y,
 						      old_fb)) {
 				DRM_ERROR("failed to set mode on [CRTC:%d]\n",
 					  set->crtc->base.id);
-				set->crtc->fb = old_fb;
+				set->crtc->state->fb = old_fb;
 				ret = -EINVAL;
 				goto fail;
 			}
@@ -724,16 +724,16 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set)
 		}
 		drm_helper_disable_unused_functions(dev);
 	} else if (fb_changed) {
-		set->crtc->x = set->x;
-		set->crtc->y = set->y;
+		set->crtc->state->x = set->x;
+		set->crtc->state->y = set->y;
 
-		old_fb = set->crtc->fb;
-		if (set->crtc->fb != set->fb)
-			set->crtc->fb = set->fb;
+		old_fb = set->crtc->state->fb;
+		if (set->crtc->state->fb != set->fb)
+			set->crtc->state->fb = set->fb;
 		ret = crtc_funcs->mode_set_base(set->crtc,
 						set->x, set->y, old_fb);
 		if (ret != 0) {
-			set->crtc->fb = old_fb;
+			set->crtc->state->fb = old_fb;
 			goto fail;
 		}
 	}
@@ -887,8 +887,9 @@ int drm_helper_resume_force_mode(struct drm_device *dev)
 		if (!crtc->enabled)
 			continue;
 
-		ret = drm_crtc_helper_set_mode(crtc, &crtc->mode,
-					       crtc->x, crtc->y, crtc->fb);
+		ret = drm_crtc_helper_set_mode(crtc, &crtc->state->mode,
+					       crtc->state->x, crtc->state->y,
+					       crtc->state->fb);
 
 		if (ret == false)
 			DRM_ERROR("failed to set mode on crtc %p\n", crtc);

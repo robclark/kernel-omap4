@@ -623,9 +623,9 @@ int psb_intel_lvds_set_property(struct drm_connector *connector,
 		    crtc->saved_mode.vdisplay != 0) {
 			if (!drm_crtc_helper_set_mode(encoder->crtc,
 						      &crtc->saved_mode,
-						      encoder->crtc->x,
-						      encoder->crtc->y,
-						      encoder->crtc->fb))
+						      encoder->crtc->state->x,
+						      encoder->crtc->state->y,
+						      encoder->crtc->state->fb))
 				goto set_prop_error;
 		}
 	} else if (!strcmp(property->name, "backlight")) {

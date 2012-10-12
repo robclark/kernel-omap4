@@ -228,7 +228,7 @@ static void rs690_crtc_bandwidth_compute(struct radeon_device *rdev,
 				  struct radeon_crtc *crtc,
 				  struct rs690_watermark *wm)
 {
-	struct drm_display_mode *mode = &crtc->base.mode;
+	struct drm_display_mode *mode = &crtc->base.state->mode;
 	fixed20_12 a, b, c;
 	fixed20_12 pclk, request_fifo_depth, tolerable_latency, estimated_width;
 	fixed20_12 consumption_time, line_time, chunk_time, read_delay_latency;
@@ -285,7 +285,7 @@ static void rs690_crtc_bandwidth_compute(struct radeon_device *rdev,
 	 *  LineTime = total number of horizontal pixels
 	 *  pclk = pixel clock period(ns)
 	 */
-	a.full = dfixed_const(crtc->base.mode.crtc_htotal);
+	a.full = dfixed_const(mode->crtc_htotal);
 	line_time.full = dfixed_mul(a, pclk);
 
 	/* Determine active time
@@ -293,8 +293,8 @@ static void rs690_crtc_bandwidth_compute(struct radeon_device *rdev,
 	 *  hactive = total number of horizontal active pixels
 	 *  htotal = total number of horizontal pixels
 	 */
-	a.full = dfixed_const(crtc->base.mode.crtc_htotal);
-	b.full = dfixed_const(crtc->base.mode.crtc_hdisplay);
+	a.full = dfixed_const(mode->crtc_htotal);
+	b.full = dfixed_const(mode->crtc_hdisplay);
 	wm->active_time.full = dfixed_mul(line_time, b);
 	wm->active_time.full = dfixed_div(wm->active_time, a);
 
@@ -375,14 +375,14 @@ static void rs690_crtc_bandwidth_compute(struct radeon_device *rdev,
 	 *  width = viewport width in pixels
 	 */
 	a.full = dfixed_const(16);
-	wm->priority_mark_max.full = dfixed_const(crtc->base.mode.crtc_hdisplay);
+	wm->priority_mark_max.full = dfixed_const(mode->crtc_hdisplay);
 	wm->priority_mark_max.full = dfixed_div(wm->priority_mark_max, a);
 	wm->priority_mark_max.full = dfixed_ceil(wm->priority_mark_max);
 
 	/* Determine estimated width */
 	estimated_width.full = tolerable_latency.full - wm->worst_case_latency.full;
 	estimated_width.full = dfixed_div(estimated_width, consumption_time);
-	if (dfixed_trunc(estimated_width) > crtc->base.mode.crtc_hdisplay) {
+	if (dfixed_trunc(estimated_width) > mode->crtc_hdisplay) {
 		wm->priority_mark.full = dfixed_const(10);
 	} else {
 		a.full = dfixed_const(16);
@@ -407,9 +407,9 @@ void rs690_bandwidth_update(struct radeon_device *rdev)
 	radeon_update_display_priority(rdev);
 
 	if (rdev->mode_info.crtcs[0]->base.enabled)
-		mode0 = &rdev->mode_info.crtcs[0]->base.mode;
+		mode0 = &rdev->mode_info.crtcs[0]->base.state->mode;
 	if (rdev->mode_info.crtcs[1]->base.enabled)
-		mode1 = &rdev->mode_info.crtcs[1]->base.mode;
+		mode1 = &rdev->mode_info.crtcs[1]->base.state->mode;
 	/*
 	 * Set display0/1 priority up in the memory controller for
 	 * modes if the user specifies HIGH for displaypriority

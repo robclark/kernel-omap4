@@ -679,7 +679,7 @@ static void psb_user_framebuffer_destroy(struct drm_framebuffer *fb)
 
 	/* Check if we are erroneously live */
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
-		if (crtc->fb == fb)
+		if (crtc->state->fb == fb)
 			reset = 1;
 
 	if (reset)

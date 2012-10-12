@@ -665,7 +665,7 @@ void intel_ddi_mode_set(struct drm_encoder *encoder,
 	DRM_DEBUG_KMS("Preparing HDMI DDI mode for Haswell on port %c, pipe %c\n", port_name(port), pipe_name(pipe));
 
 	for (i = 0; i < ARRAY_SIZE(wrpll_tmds_clock_table); i++)
-		if (crtc->mode.clock <= wrpll_tmds_clock_table[i].clock)
+		if (crtc->state->mode.clock <= wrpll_tmds_clock_table[i].clock)
 			break;
 
 	if (i == ARRAY_SIZE(wrpll_tmds_clock_table))
@@ -675,12 +675,12 @@ void intel_ddi_mode_set(struct drm_encoder *encoder,
 	n2 = wrpll_tmds_clock_table[i].n2;
 	r2 = wrpll_tmds_clock_table[i].r2;
 
-	if (wrpll_tmds_clock_table[i].clock != crtc->mode.clock)
+	if (wrpll_tmds_clock_table[i].clock != crtc->state->mode.clock)
 		DRM_INFO("WR PLL: using settings for %dKHz on %dKHz mode\n",
-			 wrpll_tmds_clock_table[i].clock, crtc->mode.clock);
+			 wrpll_tmds_clock_table[i].clock, crtc->state->mode.clock);
 
 	DRM_DEBUG_KMS("WR PLL: %dKHz refresh rate with p=%d, n2=%d r2=%d\n",
-		      crtc->mode.clock, p, n2, r2);
+		      crtc->state->mode.clock, p, n2, r2);
 
 	/* Enable LCPLL if disabled */
 	temp = I915_READ(LCPLL_CTL);

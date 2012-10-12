@@ -342,6 +342,7 @@ static int radeon_crtc_page_flip(struct drm_crtc *crtc,
 				 struct drm_pending_vblank_event *event)
 {
 	struct drm_device *dev = crtc->dev;
+	struct drm_crtc_state *state = crtc->state;
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 	struct radeon_framebuffer *old_radeon_fb;
@@ -361,7 +362,7 @@ static int radeon_crtc_page_flip(struct drm_crtc *crtc,
 	work->event = event;
 	work->rdev = rdev;
 	work->crtc_id = radeon_crtc->crtc_id;
-	old_radeon_fb = to_radeon_framebuffer(crtc->fb);
+	old_radeon_fb = to_radeon_framebuffer(state->fb);
 	new_radeon_fb = to_radeon_framebuffer(fb);
 	/* schedule unpin of the old buffer */
 	obj = old_radeon_fb->obj;
@@ -417,11 +418,11 @@ static int radeon_crtc_page_flip(struct drm_crtc *crtc,
 				base &= ~0x7ff;
 			} else {
 				int byteshift = fb->bits_per_pixel >> 4;
-				int tile_addr = (((crtc->y >> 3) * pitch_pixels +  crtc->x) >> (8 - byteshift)) << 11;
-				base += tile_addr + ((crtc->x << byteshift) % 256) + ((crtc->y % 8) << 8);
+				int tile_addr = (((state->y >> 3) * pitch_pixels +  state->x) >> (8 - byteshift)) << 11;
+				base += tile_addr + ((state->x << byteshift) % 256) + ((state->y % 8) << 8);
 			}
 		} else {
-			int offset = crtc->y * pitch_pixels + crtc->x;
+			int offset = state->y * pitch_pixels + state->x;
 			switch (fb->bits_per_pixel) {
 			case 8:
 			default:
@@ -448,7 +449,7 @@ static int radeon_crtc_page_flip(struct drm_crtc *crtc,
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 
 	/* update crtc fb */
-	crtc->fb = fb;
+	state->fb = fb;
 
 	r = drm_vblank_get(dev, radeon_crtc->crtc_id);
 	if (r) {
@@ -1444,9 +1445,9 @@ bool radeon_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
 			memcpy(&radeon_crtc->native_mode,
 			       &radeon_encoder->native_mode,
 				sizeof(struct drm_display_mode));
-			src_v = crtc->mode.vdisplay;
+			src_v = crtc->state->mode.vdisplay;
 			dst_v = radeon_crtc->native_mode.vdisplay;
-			src_h = crtc->mode.hdisplay;
+			src_h = crtc->state->mode.hdisplay;
 			dst_h = radeon_crtc->native_mode.hdisplay;
 
 			/* fix up for overscan on hdmi */
@@ -1465,10 +1466,10 @@ bool radeon_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
 				else
 					radeon_crtc->v_border = (mode->vdisplay >> 5) + 16;
 				radeon_crtc->rmx_type = RMX_FULL;
-				src_v = crtc->mode.vdisplay;
-				dst_v = crtc->mode.vdisplay - (radeon_crtc->v_border * 2);
-				src_h = crtc->mode.hdisplay;
-				dst_h = crtc->mode.hdisplay - (radeon_crtc->h_border * 2);
+				src_v = crtc->state->mode.vdisplay;
+				dst_v = crtc->state->mode.vdisplay - (radeon_crtc->v_border * 2);
+				src_h = crtc->state->mode.hdisplay;
+				dst_h = crtc->state->mode.hdisplay - (radeon_crtc->h_border * 2);
 			}
 			first = false;
 		} else {

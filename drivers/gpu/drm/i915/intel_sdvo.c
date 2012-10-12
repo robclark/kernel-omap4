@@ -1963,8 +1963,9 @@ set_value:
 done:
 	if (intel_sdvo->base.base.crtc) {
 		struct drm_crtc *crtc = intel_sdvo->base.base.crtc;
-		intel_set_mode(crtc, &crtc->mode,
-			       crtc->x, crtc->y, crtc->fb);
+		struct drm_crtc_state *state = crtc->state;
+		intel_set_mode(crtc, &state->mode,
+			       state->x, state->y, state->fb);
 	}
 
 	return 0;

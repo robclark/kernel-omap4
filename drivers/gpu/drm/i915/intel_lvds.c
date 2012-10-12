@@ -580,8 +580,9 @@ static int intel_lvds_set_property(struct drm_connector *connector,
 			 * If the CRTC is enabled, the display will be changed
 			 * according to the new panel fitting mode.
 			 */
-			intel_set_mode(crtc, &crtc->mode,
-				       crtc->x, crtc->y, crtc->fb);
+			struct drm_crtc_state *state = crtc->state;
+			intel_set_mode(crtc, &state->mode,
+				       state->x, state->y, state->fb);
 		}
 	}
 

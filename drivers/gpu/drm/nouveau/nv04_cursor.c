@@ -47,7 +47,7 @@ nv04_cursor_set_offset(struct nouveau_crtc *nv_crtc, uint32_t offset)
 		XLATE(offset, 17, NV_CIO_CRE_HCUR_ADDR0_ADR);
 	regp->CRTC[NV_CIO_CRE_HCUR_ADDR1_INDEX] =
 		XLATE(offset, 11, NV_CIO_CRE_HCUR_ADDR1_ADR);
-	if (crtc->mode.flags & DRM_MODE_FLAG_DBLSCAN)
+	if (crtc->state->mode.flags & DRM_MODE_FLAG_DBLSCAN)
 		regp->CRTC[NV_CIO_CRE_HCUR_ADDR1_INDEX] |=
 			MASK(NV_CIO_CRE_HCUR_ADDR1_CUR_DBL);
 	regp->CRTC[NV_CIO_CRE_HCUR_ADDR2_INDEX] = offset >> 24;

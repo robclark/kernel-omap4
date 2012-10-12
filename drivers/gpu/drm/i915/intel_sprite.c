@@ -424,7 +424,8 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	int pipe = intel_plane->pipe;
 	int ret = 0;
 	int x = src_x >> 16, y = src_y >> 16;
-	int primary_w = crtc->mode.hdisplay, primary_h = crtc->mode.vdisplay;
+	int primary_w = crtc->state->mode.hdisplay;
+	int primary_h = crtc->state->mode.vdisplay;
 	bool disable_primary = false;
 
 	intel_fb = to_intel_framebuffer(fb);

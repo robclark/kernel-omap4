@@ -474,9 +474,9 @@ nouveau_connector_set_property(struct drm_connector *connector,
 
 		if (modeset || !nv_crtc->set_scale) {
 			ret = drm_crtc_helper_set_mode(&nv_crtc->base,
-							&nv_crtc->base.mode,
-							nv_crtc->base.x,
-							nv_crtc->base.y, NULL);
+							&nv_crtc->base.state->mode,
+							nv_crtc->base.state->x,
+							nv_crtc->base.state->y, NULL);
 			if (!ret)
 				return -EINVAL;
 		} else {

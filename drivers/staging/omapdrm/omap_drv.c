@@ -530,7 +530,7 @@ static void dev_lastclose(struct drm_device *dev)
 		for (i = 0; i < priv->num_crtcs; i++) {
 			struct drm_crtc *crtc = priv->crtcs[i];
 			drm_object_property_set_value(&crtc->base,
-					&crtc->propvals, priv->rotation_prop, 0);
+					&crtc->state->propvals, priv->rotation_prop, 0);
 		}
 
 		for (i = 0; i < priv->num_planes; i++) {

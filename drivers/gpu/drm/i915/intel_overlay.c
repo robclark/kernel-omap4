@@ -604,16 +604,17 @@ static bool update_scaling_factors(struct intel_overlay *overlay,
 static void update_colorkey(struct intel_overlay *overlay,
 			    struct overlay_registers __iomem *regs)
 {
+	struct drm_framebuffer *fb = overlay->crtc->base.state->fb;
 	u32 key = overlay->color_key;
 
-	switch (overlay->crtc->base.fb->bits_per_pixel) {
+	switch (fb->bits_per_pixel) {
 	case 8:
 		iowrite32(0, &regs->DCLRKV);
 		iowrite32(CLK_RGB8I_MASK | DST_KEY_ENABLE, &regs->DCLRKM);
 		break;
 
 	case 16:
-		if (overlay->crtc->base.fb->depth == 15) {
+		if (fb->depth == 15) {
 			iowrite32(RGB15_TO_COLORKEY(key), &regs->DCLRKV);
 			iowrite32(CLK_RGB15_MASK | DST_KEY_ENABLE,
 				  &regs->DCLRKM);
@@ -861,7 +862,7 @@ static void update_pfit_vscale_ratio(struct intel_overlay *overlay)
 static int check_overlay_dst(struct intel_overlay *overlay,
 			     struct drm_intel_overlay_put_image *rec)
 {
-	struct drm_display_mode *mode = &overlay->crtc->base.mode;
+	struct drm_display_mode *mode = &overlay->crtc->base.state->mode;
 
 	if (rec->dst_x < mode->hdisplay &&
 	    rec->dst_x + rec->dst_width <= mode->hdisplay &&
@@ -1089,7 +1090,7 @@ int intel_overlay_put_image(struct drm_device *dev, void *data,
 		goto out_unlock;
 
 	if (overlay->crtc != crtc) {
-		struct drm_display_mode *mode = &crtc->base.mode;
+		struct drm_display_mode *mode = &crtc->base.state->mode;
 		ret = intel_overlay_switch_off(overlay);
 		if (ret != 0)
 			goto out_unlock;

@@ -205,8 +205,9 @@ static int cdv_hdmi_set_property(struct drm_connector *connector,
 		if (crtc->saved_mode.hdisplay != 0 &&
 		    crtc->saved_mode.vdisplay != 0) {
 			if (centre) {
+				struct drm_crtc_state *state = encoder->crtc->state;
 				if (!drm_crtc_helper_set_mode(encoder->crtc, &crtc->saved_mode,
-					    encoder->crtc->x, encoder->crtc->y, encoder->crtc->fb))
+					    state->x, state->y, state->fb))
 					return -1;
 			} else {
 				struct drm_encoder_helper_funcs *helpers

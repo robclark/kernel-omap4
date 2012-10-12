@@ -185,7 +185,7 @@ static struct drm_framebuffer *drm_mode_config_fb(struct drm_crtc *crtc)
 
 	list_for_each_entry(c, &dev->mode_config.crtc_list, head) {
 		if (crtc->base.id == c->base.id)
-			return c->fb;
+			return c->state->fb;
 	}
 
 	return NULL;
@@ -214,8 +214,9 @@ int drm_fb_helper_debug_leave(struct fb_info *info)
 		}
 
 		drm_fb_helper_restore_lut_atomic(mode_set->crtc);
-		funcs->mode_set_base_atomic(mode_set->crtc, fb, crtc->x,
-					    crtc->y, LEAVE_ATOMIC_MODE_SET);
+		funcs->mode_set_base_atomic(mode_set->crtc, fb,
+				crtc->state->x, crtc->state->y,
+				LEAVE_ATOMIC_MODE_SET);
 	}
 
 	return 0;
@@ -1356,9 +1357,9 @@ int drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper)
 
 	mutex_lock(&dev->mode_config.mutex);
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		if (crtc->fb)
+		if (crtc->state->fb)
 			crtcs_bound++;
-		if (crtc->fb == fb_helper->fb)
+		if (crtc->state->fb == fb_helper->fb)
 			bound++;
 	}
 
