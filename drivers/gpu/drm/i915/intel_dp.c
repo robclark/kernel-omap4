@@ -2393,7 +2393,7 @@ intel_dp_set_property(struct drm_connector *connector,
 	struct intel_dp *intel_dp = enc_to_intel_dp(&intel_encoder->base);
 	int ret;
 
-	ret = drm_connector_property_set_value(connector, property, val);
+	ret = drm_object_property_set_value(&connector->base, property, val);
 	if (ret)
 		return ret;
 
@@ -2569,8 +2569,8 @@ intel_dp_add_properties(struct intel_dp *intel_dp, struct drm_connector *connect
 
 	if (is_edp(intel_dp)) {
 		drm_mode_create_scaling_mode_property(connector->dev);
-		drm_connector_attach_property(
-			connector,
+		drm_object_attach_property(
+			&connector->base,
 			connector->dev->mode_config.scaling_mode_property,
 			DRM_MODE_SCALE_ASPECT);
 		intel_connector->panel.fitting_mode = DRM_MODE_SCALE_ASPECT;
