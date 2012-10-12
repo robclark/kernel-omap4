@@ -30,9 +30,9 @@
 #include <linux/types.h>
 #include <linux/idr.h>
 #include <linux/fb.h>
-#include <drm/drm_mode.h>
 
-#include <drm/drm_fourcc.h>
+#include <uapi/drm/drm_mode.h>
+#include <uapi/drm/drm_fourcc.h>
 
 struct drm_device;
 struct drm_mode_set;
