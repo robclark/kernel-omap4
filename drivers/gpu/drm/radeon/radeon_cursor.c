@@ -219,6 +219,7 @@ fail:
 int radeon_crtc_cursor_move(struct drm_crtc *crtc,
 			    int x, int y)
 {
+	struct drm_crtc_state *state = crtc->state;
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 	struct radeon_device *rdev = crtc->dev->dev_private;
 	int xorigin = 0, yorigin = 0;
@@ -226,10 +227,10 @@ int radeon_crtc_cursor_move(struct drm_crtc *crtc,
 
 	if (ASIC_IS_AVIVO(rdev)) {
 		/* avivo cursor are offset into the total surface */
-		x += crtc->x;
-		y += crtc->y;
+		x += state->x;
+		y += state->y;
 	}
-	DRM_DEBUG("x %d y %d c->x %d c->y %d\n", x, y, crtc->x, crtc->y);
+	DRM_DEBUG("x %d y %d c->x %d c->y %d\n", x, y, state->x, state->y);
 
 	if (x < 0) {
 		xorigin = min(-x, CURSOR_WIDTH - 1);
@@ -255,7 +256,7 @@ int radeon_crtc_cursor_move(struct drm_crtc *crtc,
 			int cursor_end, frame_end;
 
 			cursor_end = x - xorigin + w;
-			frame_end = crtc->x + crtc->mode.crtc_hdisplay;
+			frame_end = state->x + crtc->mode.crtc_hdisplay;
 			if (cursor_end >= frame_end) {
 				w = w - (cursor_end - frame_end);
 				if (!(frame_end & 0x7f))

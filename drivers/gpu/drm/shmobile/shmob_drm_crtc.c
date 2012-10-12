@@ -165,7 +165,7 @@ static void shmob_drm_crtc_start(struct shmob_drm_crtc *scrtc)
 	if (scrtc->started)
 		return;
 
-	format = shmob_drm_format_info(crtc->fb->pixel_format);
+	format = shmob_drm_format_info(crtc->state->fb->pixel_format);
 	if (WARN_ON(format == NULL))
 		return;
 
@@ -293,7 +293,7 @@ static void shmob_drm_crtc_compute_base(struct shmob_drm_crtc *scrtc,
 					int x, int y)
 {
 	struct drm_crtc *crtc = &scrtc->crtc;
-	struct drm_framebuffer *fb = crtc->fb;
+	struct drm_framebuffer *fb = crtc->state->fb;
 	struct shmob_drm_device *sdev = crtc->dev->dev_private;
 	struct drm_gem_cma_object *gem;
 	unsigned int bpp;
@@ -322,7 +322,7 @@ static void shmob_drm_crtc_update_base(struct shmob_drm_crtc *scrtc)
 	struct drm_crtc *crtc = &scrtc->crtc;
 	struct shmob_drm_device *sdev = crtc->dev->dev_private;
 
-	shmob_drm_crtc_compute_base(scrtc, crtc->x, crtc->y);
+	shmob_drm_crtc_compute_base(scrtc, crtc->state->x, crtc->state->y);
 
 	lcdc_write_mirror(sdev, LDSA1R, scrtc->dma[0]);
 	if (scrtc->format->yuv)
@@ -370,17 +370,18 @@ static int shmob_drm_crtc_mode_set(struct drm_crtc *crtc,
 	struct shmob_drm_device *sdev = crtc->dev->dev_private;
 	const struct sh_mobile_meram_cfg *mdata = sdev->pdata->meram;
 	const struct shmob_drm_format_info *format;
+	struct drm_framebuffer *fb = crtc->state->fb;
 	void *cache;
 
-	format = shmob_drm_format_info(crtc->fb->pixel_format);
+	format = shmob_drm_format_info(fb->pixel_format);
 	if (format == NULL) {
 		dev_dbg(sdev->dev, "mode_set: unsupported format %08x\n",
-			crtc->fb->pixel_format);
+			fb->pixel_format);
 		return -EINVAL;
 	}
 
 	scrtc->format = format;
-	scrtc->line_size = crtc->fb->pitches[0];
+	scrtc->line_size = fb->pitches[0];
 
 	if (sdev->meram) {
 		/* Enable MERAM cache if configured. We need to de-init
@@ -392,7 +393,7 @@ static int shmob_drm_crtc_mode_set(struct drm_crtc *crtc,
 		}
 
 		cache = sh_mobile_meram_cache_alloc(sdev->meram, mdata,
-						    crtc->fb->pitches[0],
+						    fb->pitches[0],
 						    adjusted_mode->vdisplay,
 						    format->meram,
 						    &scrtc->line_size);
@@ -478,7 +479,7 @@ static int shmob_drm_crtc_page_flip(struct drm_crtc *crtc,
 	}
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 
-	crtc->fb = fb;
+	crtc->state->fb = fb;
 	shmob_drm_crtc_update_base(scrtc);
 
 	if (event) {

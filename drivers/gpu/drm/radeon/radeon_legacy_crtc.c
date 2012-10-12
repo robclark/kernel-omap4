@@ -358,6 +358,7 @@ int radeon_crtc_do_set_base(struct drm_crtc *crtc,
 			 int x, int y, int atomic)
 {
 	struct drm_device *dev = crtc->dev;
+	struct drm_crtc_state *state = crtc->state;
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 	struct radeon_framebuffer *radeon_fb;
@@ -374,7 +375,7 @@ int radeon_crtc_do_set_base(struct drm_crtc *crtc,
 
 	DRM_DEBUG_KMS("\n");
 	/* no fb bound */
-	if (!atomic && !crtc->fb) {
+	if (!atomic && !state->fb) {
 		DRM_DEBUG_KMS("No FB bound\n");
 		return 0;
 	}
@@ -384,8 +385,8 @@ int radeon_crtc_do_set_base(struct drm_crtc *crtc,
 		target_fb = fb;
 	}
 	else {
-		radeon_fb = to_radeon_framebuffer(crtc->fb);
-		target_fb = crtc->fb;
+		radeon_fb = to_radeon_framebuffer(state->fb);
+		target_fb = state->fb;
 	}
 
 	switch (target_fb->bits_per_pixel) {
@@ -516,7 +517,7 @@ int radeon_crtc_do_set_base(struct drm_crtc *crtc,
 	WREG32(RADEON_CRTC_OFFSET + radeon_crtc->crtc_offset, crtc_offset);
 	WREG32(RADEON_CRTC_PITCH + radeon_crtc->crtc_offset, crtc_pitch);
 
-	if (!atomic && fb && fb != crtc->fb) {
+	if (!atomic && fb && fb != state->fb) {
 		radeon_fb = to_radeon_framebuffer(fb);
 		rbo = gem_to_radeon_bo(radeon_fb->obj);
 		r = radeon_bo_reserve(rbo, false);
@@ -560,7 +561,7 @@ static bool radeon_set_crtc_timing(struct drm_crtc *crtc, struct drm_display_mod
 		}
 	}
 
-	switch (crtc->fb->bits_per_pixel) {
+	switch (crtc->state->fb->bits_per_pixel) {
 	case 8:
 		format = 2;
 		break;

@@ -145,7 +145,7 @@ nv50_crtc_set_dither(struct nouveau_crtc *nv_crtc, bool update)
 	nv_connector = nouveau_crtc_connector_get(nv_crtc);
 	connector = &nv_connector->base;
 	if (nv_connector->dithering_mode == DITHERING_MODE_AUTO) {
-		if (nv_crtc->base.fb->depth > connector->display_info.bpc * 3)
+		if (nv_crtc->base.state->fb->depth > connector->display_info.bpc * 3)
 			mode = DITHERING_MODE_DYNAMIC2X2;
 	} else {
 		mode = nv_connector->dithering_mode;
@@ -324,7 +324,7 @@ nv50_crtc_set_scale(struct nouveau_crtc *nv_crtc, bool update)
 	if (update) {
 		nv50_display_flip_stop(crtc);
 		nv50_display_sync(dev);
-		nv50_display_flip_next(crtc, crtc->fb, NULL);
+		nv50_display_flip_next(crtc, crtc->state->fb, NULL);
 	}
 
 	return 0;
@@ -423,7 +423,7 @@ nv50_crtc_gamma_set(struct drm_crtc *crtc, u16 *r, u16 *g, u16 *b,
 	 * mark the lut values as dirty by setting depth==0, and it'll be
 	 * uploaded on the first mode_set_base()
 	 */
-	if (!nv_crtc->base.fb) {
+	if (!nv_crtc->base.state->fb) {
 		nv_crtc->lut.depth = 0;
 		return;
 	}
@@ -487,7 +487,7 @@ nv50_crtc_commit(struct drm_crtc *crtc)
 	nv50_crtc_blank(nv_crtc, false);
 	drm_vblank_post_modeset(dev, nv_crtc->index);
 	nv50_display_sync(dev);
-	nv50_display_flip_next(crtc, crtc->fb, NULL);
+	nv50_display_flip_next(crtc, crtc->state->fb, NULL);
 }
 
 static bool
@@ -503,6 +503,7 @@ nv50_crtc_do_mode_set_base(struct drm_crtc *crtc,
 			   int x, int y, bool atomic)
 {
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+	struct drm_crtc_state *state = crtc->state;
 	struct drm_device *dev = nv_crtc->base.dev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_channel *evo = nv50_display(dev)->master;
@@ -513,7 +514,7 @@ nv50_crtc_do_mode_set_base(struct drm_crtc *crtc,
 	NV_DEBUG(drm, "index %d\n", nv_crtc->index);
 
 	/* no fb bound */
-	if (!atomic && !crtc->fb) {
+	if (!atomic && !state->fb) {
 		NV_DEBUG(drm, "No FB bound\n");
 		return 0;
 	}
@@ -526,8 +527,8 @@ nv50_crtc_do_mode_set_base(struct drm_crtc *crtc,
 		drm_fb = passed_fb;
 		fb = nouveau_framebuffer(passed_fb);
 	} else {
-		drm_fb = crtc->fb;
-		fb = nouveau_framebuffer(crtc->fb);
+		drm_fb = state->fb;
+		fb = nouveau_framebuffer(state->fb);
 		/* If not atomic, we can go ahead and pin, and unpin the
 		 * old fb we were passed.
 		 */
@@ -670,7 +671,7 @@ nv50_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 	if (ret)
 		return ret;
 
-	return nv50_display_flip_next(crtc, crtc->fb, NULL);
+	return nv50_display_flip_next(crtc, crtc->state->fb, NULL);
 }
 
 static int
