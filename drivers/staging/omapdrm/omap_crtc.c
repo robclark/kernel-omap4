@@ -206,7 +206,7 @@ static int omap_crtc_mode_set(struct drm_crtc *crtc,
 		}
 	}
 
-	return omap_plane_mode_set(omap_crtc->plane, crtc, crtc->fb,
+	return omap_plane_mode_set(omap_crtc->plane, crtc, crtc->state->fb,
 			0, 0, mode->hdisplay, mode->vdisplay,
 			x << 16, y << 16,
 			mode->hdisplay << 16, mode->vdisplay << 16,
@@ -234,7 +234,7 @@ static int omap_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 	struct drm_plane *plane = omap_crtc->plane;
 	struct drm_display_mode *mode = &crtc->mode;
 
-	return omap_plane_mode_set(plane, crtc, crtc->fb,
+	return omap_plane_mode_set(plane, crtc, crtc->state->fb,
 			0, 0, mode->hdisplay, mode->vdisplay,
 			x << 16, y << 16,
 			mode->hdisplay << 16, mode->vdisplay << 16,
@@ -274,14 +274,14 @@ static void page_flip_worker(struct work_struct *work)
 	struct drm_gem_object *bo;
 
 	mutex_lock(&dev->mode_config.mutex);
-	omap_plane_mode_set(omap_crtc->plane, crtc, crtc->fb,
+	omap_plane_mode_set(omap_crtc->plane, crtc, crtc->state->fb,
 			0, 0, mode->hdisplay, mode->vdisplay,
-			crtc->x << 16, crtc->y << 16,
+			crtc->state->x << 16, crtc->state->y << 16,
 			mode->hdisplay << 16, mode->vdisplay << 16,
 			vblank_cb, crtc);
 	mutex_unlock(&dev->mode_config.mutex);
 
-	bo = omap_framebuffer_bo(crtc->fb, 0);
+	bo = omap_framebuffer_bo(crtc->state->fb, 0);
 	drm_gem_object_unreference_unlocked(bo);
 }
 
@@ -303,7 +303,7 @@ static int omap_crtc_page_flip_locked(struct drm_crtc *crtc,
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
 	struct drm_gem_object *bo;
 
-	DBG("%d -> %d (event=%p)", crtc->fb ? crtc->fb->base.id : -1,
+	DBG("%d -> %d (event=%p)", crtc->state->fb ? crtc->state->fb->base.id : -1,
 			fb->base.id, event);
 
 	if (omap_crtc->old_fb) {
@@ -312,7 +312,7 @@ static int omap_crtc_page_flip_locked(struct drm_crtc *crtc,
 	}
 
 	omap_crtc->event = event;
-	crtc->fb = fb;
+	crtc->state->fb = fb;
 
 	/*
 	 * Hold a reference temporarily until the crtc is updated
@@ -334,7 +334,7 @@ static int omap_crtc_set_property(struct drm_crtc *crtc, void *state,
 	struct omap_drm_private *priv = crtc->dev->dev_private;
 
 	if (property == priv->rotation_prop) {
-		crtc->invert_dimensions =
+		crtc->state->invert_dimensions =
 				!!(val & ((1LL << DRM_ROTATE_90) | (1LL << DRM_ROTATE_270)));
 	}
 

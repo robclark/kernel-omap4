@@ -316,7 +316,7 @@ struct drm_connector *omap_framebuffer_get_next_connector(
 		if (connector != from) {
 			struct drm_encoder *encoder = connector->encoder;
 			struct drm_crtc *crtc = encoder ? encoder->crtc : NULL;
-			if (crtc && crtc->fb == fb) {
+			if (crtc && crtc->state->fb == fb) {
 				return connector;
 			}
 		}
@@ -342,10 +342,10 @@ void omap_framebuffer_flush(struct drm_framebuffer *fb,
 			 * could do the coordinate translation..
 			 */
 			struct drm_crtc *crtc = connector->encoder->crtc;
-			int cx = max(0, x - crtc->x);
-			int cy = max(0, y - crtc->y);
-			int cw = w + (x - crtc->x) - cx;
-			int ch = h + (y - crtc->y) - cy;
+			int cx = max(0, x - crtc->state->x);
+			int cy = max(0, y - crtc->state->y);
+			int cw = w + (x - crtc->state->x) - cx;
+			int ch = h + (y - crtc->state->y) - cy;
 
 			omap_connector_flush(connector, cx, cy, cw, ch);
 		}
