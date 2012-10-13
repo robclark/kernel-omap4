@@ -24,9 +24,9 @@ enum raster_load_mode {
 };
 
 struct da8xx_lcdc_platform_data {
-	const char manu_name[10];
+	char manu_name[10];
 	void *controller_data;
-	const char type[25];
+	char type[25];
 	void (*panel_power_ctrl)(int);
 };
 
