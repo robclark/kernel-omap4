@@ -107,7 +107,8 @@ static __devinit int omap_hdmi_probe(struct platform_device *pdev)
 	return 0;
 
 err_register_card:
-	platform_device_unregister(card_data->codec_pdev);
+	if (!IS_ERR(card_data->codec_pdev))
+		platform_device_unregister(card_data->codec_pdev);
 	return ret;
 }
 
