@@ -382,22 +382,6 @@ static void __init omap_init_dmic(void)
 static inline void omap_init_dmic(void) {}
 #endif
 
-#if defined(CONFIG_SND_OMAP_SOC_OMAP_HDMI) || \
-		defined(CONFIG_SND_OMAP_SOC_OMAP_HDMI_MODULE)
-
-static struct platform_device omap_hdmi_audio = {
-	.name	= "omap-hdmi-audio",
-	.id	= -1,
-};
-
-static void __init omap_init_hdmi_audio(void)
-{
-	platform_device_register(&omap_hdmi_audio);
-}
-#else
-static inline void omap_init_hdmi_audio(void) {}
-#endif
-
 #if defined(CONFIG_SND_OMAP_SOC_ABE) || \
 	defined(CONFIG_SND_OMAP_SOC_ABE_MODULE)
 
@@ -671,7 +655,6 @@ static int __init omap2_init_devices(void)
 	if (!of_have_populated_dt()) {
 		omap_init_aess();
 		omap_init_dmic();
-		omap_init_hdmi_audio();
 		omap_init_mcpdm();
 		omap_init_mcspi();
 	}

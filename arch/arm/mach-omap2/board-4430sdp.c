@@ -391,6 +391,11 @@ static struct platform_device sdp4430_hdmi_audio_codec = {
 	.id	= -1,
 };
 
+static struct platform_device sdp4430_hdmi_tpd12s015_audio = {
+	.name	= "omap-hdmi-tpd12s015-audio",
+	.id	= -1,
+};
+
 static struct platform_device sdp4430_spdif_dit_codec = {
 	.name           = "spdif-dit",
 	.id             = -1,
@@ -433,6 +438,7 @@ static struct platform_device *sdp4430_devices[] __initdata = {
 	&sdp4430_spdif_dit_codec,
 	&sdp4430_abe_audio,
 	&sdp4430_hdmi_audio_codec,
+	&sdp4430_hdmi_tpd12s015_audio,
 };
 
 static struct omap_musb_board_data musb_board_data = {
