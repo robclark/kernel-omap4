@@ -296,10 +296,8 @@ int omap_plane_set_property(struct drm_plane *plane, void *state,
 	/* if it is not a base plane property, see if it is one of ours: */
 
 	if (property == priv->rotation_prop) {
-		DBG("%s: rotation: %02x", omap_plane->name, (uint32_t)val);
 		plane_state->rotation = val;
 	} else if (property == priv->zorder_prop) {
-		DBG("%s: zorder: %02x", omap_plane->name, (uint32_t)val);
 		plane_state->zorder = val;
 	} else {
 		return -EINVAL;

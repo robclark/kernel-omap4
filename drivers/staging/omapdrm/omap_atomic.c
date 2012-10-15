@@ -45,25 +45,12 @@ struct omap_atomic_state {
 
 static void commit_worker(struct work_struct *work);
 
-static int crtc2pipe(struct drm_device *dev, struct drm_crtc *crtc)
-{
-	struct omap_drm_private *priv = dev->dev_private;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(priv->crtcs); i++)
-		if (priv->crtcs[i] == crtc)
-			return i;
-
-	BUG();  /* bogus CRTC ptr */
-	return -1;
-}
-
 static void set_atomic(struct omap_atomic_state *omap_state, bool atomic)
 {
 	struct omap_drm_private *priv = omap_state->dev->dev_private;
 	if (omap_state->crtc) {
 		int pipe = omap_state->pipe;
-		priv->crtc_atomic[pipe] = atomic;
+		priv->crtc_atomic[pipe] += (atomic ? 1 : -1);
 	} else {
 		priv->global_atomic = atomic;
 	}

@@ -117,7 +117,7 @@ struct omap_drm_private {
 
 	/* atomic: */
 	bool global_atomic;           /* in global atomic update (ie. modeset) */
-	bool crtc_atomic[8];          /* in per-crtc atomic update (ie. pageflip) */
+	int crtc_atomic[8];          /* in per-crtc atomic update (ie. pageflip) */
 
 	/* pending vblank event per CRTC: */
 	struct drm_pending_vblank_event *event[8];

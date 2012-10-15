@@ -521,6 +521,7 @@ static void dev_lastclose(struct drm_device *dev)
 	int ret;
 
 	DBG("lastclose: dev=%p", dev);
+	mutex_lock(&dev->mode_config.mutex);
 
 	/* need to restore default rotation state.. not sure if there is
 	 * a cleaner way to restore properties to default state?  Maybe
@@ -538,7 +539,6 @@ static void dev_lastclose(struct drm_device *dev)
 	dev->driver->atomic_commit(dev, state, NULL);
 	dev->driver->atomic_end(dev, state);
 
-	mutex_lock(&dev->mode_config.mutex);
 	ret = drm_fb_helper_restore_fbdev_mode(priv->fbdev);
 	mutex_unlock(&dev->mode_config.mutex);
 	if (ret)

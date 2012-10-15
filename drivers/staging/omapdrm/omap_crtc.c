@@ -192,14 +192,24 @@ static int omap_crtc_mode_set(struct drm_crtc *crtc,
 static void omap_crtc_prepare(struct drm_crtc *crtc)
 {
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
+	struct drm_device *dev = crtc->dev;
+	struct omap_drm_private *priv = dev->dev_private;
+
 	DBG("%s", omap_crtc->name);
+
 	omap_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
+	priv->crtc_atomic[crtc2pipe(dev, crtc)]++;
 }
 
 static void omap_crtc_commit(struct drm_crtc *crtc)
 {
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
+	struct drm_device *dev = crtc->dev;
+	struct omap_drm_private *priv = dev->dev_private;
+
 	DBG("%s", omap_crtc->name);
+
+	priv->crtc_atomic[crtc2pipe(dev, crtc)]--;
 	omap_crtc_dpms(crtc, DRM_MODE_DPMS_ON);
 }
 
