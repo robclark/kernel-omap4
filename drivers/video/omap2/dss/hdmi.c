@@ -1321,7 +1321,7 @@ static void __init hdmi_probe_of(struct platform_device *pdev)
 /* HDMI HW IP initialisation */
 static int __init omapdss_hdmihw_probe(struct platform_device *pdev)
 {
-	struct resource *hdmi_mem;
+	struct resource *res;
 	int r;
 
 	hdmi.pdev = pdev;
@@ -1331,76 +1331,76 @@ static int __init omapdss_hdmihw_probe(struct platform_device *pdev)
 
 	/* TODO: implement error handling sequence */
 	/* HDMI wrapper memory remap */
-	hdmi_mem = platform_get_resource_byname(hdmi.pdev,
+	res = platform_get_resource_byname(hdmi.pdev,
 						IORESOURCE_MEM, "hdmi_wp");
-	if (!hdmi_mem) {
+	if (!res) {
 		DSSERR("can't get WP IORESOURCE_MEM HDMI\n");
 		return -EINVAL;
 	}
 
-	hdmi.ip_data.base_wp = devm_ioremap(&pdev->dev, hdmi_mem->start,
-						resource_size(hdmi_mem));
+	hdmi.ip_data.base_wp = devm_ioremap(&pdev->dev, res->start,
+						resource_size(res));
 	if (!hdmi.ip_data.base_wp) {
 		DSSERR("can't ioremap WP\n");
 		return -ENOMEM;
 	}
 
 	/* Pass this resource to audio_pdev */
-	hdmi_aud_res[HDMI_AUDIO_MEM_RESOURCE].start = hdmi_mem->start;
-	hdmi_aud_res[HDMI_AUDIO_MEM_RESOURCE].end = hdmi_mem->end;
+	hdmi_aud_res[HDMI_AUDIO_MEM_RESOURCE].start = res->start;
+	hdmi_aud_res[HDMI_AUDIO_MEM_RESOURCE].end = res->end;
 	hdmi_aud_res[HDMI_AUDIO_MEM_RESOURCE].flags = IORESOURCE_MEM;
 
-	hdmi_mem = platform_get_resource(hdmi.pdev, IORESOURCE_DMA, 0);
-	if (!hdmi_mem) {
+	res = platform_get_resource(hdmi.pdev, IORESOURCE_DMA, 0);
+	if (!res) {
 		DSSERR("can't get PLL CTRL IORESOURCE_DMA HDMI\n");
 		return -EINVAL;
 	}
 
 	/* Pass this resource to audio_pdev */
-	hdmi_aud_res[HDMI_AUDIO_DMA_RESOURCE].start = hdmi_mem->start;
-	hdmi_aud_res[HDMI_AUDIO_DMA_RESOURCE].end = hdmi_mem->end;
+	hdmi_aud_res[HDMI_AUDIO_DMA_RESOURCE].start = res->start;
+	hdmi_aud_res[HDMI_AUDIO_DMA_RESOURCE].end = res->end;
 	hdmi_aud_res[HDMI_AUDIO_DMA_RESOURCE].flags = IORESOURCE_DMA;
 
 	/* HDMI PLLCTRL memory remap */
-	hdmi_mem = platform_get_resource_byname(hdmi.pdev,
+	res = platform_get_resource_byname(hdmi.pdev,
 						IORESOURCE_MEM, "pllctrl");
-	if (!hdmi_mem) {
+	if (!res) {
 		DSSERR("can't get PLL CTRL IORESOURCE_MEM HDMI\n");
 		return -EINVAL;
 	}
 
-	hdmi.ip_data.base_pllctrl = devm_ioremap(&pdev->dev, hdmi_mem->start,
-					    resource_size(hdmi_mem));
+	hdmi.ip_data.base_pllctrl = devm_ioremap(&pdev->dev, res->start,
+					    resource_size(res));
 	if (!hdmi.ip_data.base_pllctrl) {
 		DSSERR("can't ioremap PLL ctrl\n");
 		return -ENOMEM;
 	}
 
 	/* HDMI TXPHYCTRL memory remap */
-	hdmi_mem = platform_get_resource_byname(hdmi.pdev,
+	res = platform_get_resource_byname(hdmi.pdev,
 						IORESOURCE_MEM, "hdmitxphy");
-	if (!hdmi_mem) {
+	if (!res) {
 		DSSERR("can't get TXPHY CTRL IORESOURCE_MEM HDMI\n");
 		return -EINVAL;
 	}
 
-	hdmi.ip_data.base_txphyctrl = devm_ioremap(&pdev->dev, hdmi_mem->start,
-					    resource_size(hdmi_mem));
+	hdmi.ip_data.base_txphyctrl = devm_ioremap(&pdev->dev, res->start,
+					    resource_size(res));
 	if (!hdmi.ip_data.base_txphyctrl) {
 		DSSERR("can't ioremap TXPHY ctrl\n");
 		return -ENOMEM;
 	}
 
 	/* HDMI core memory remap */
-	hdmi_mem = platform_get_resource_byname(hdmi.pdev,
+	res = platform_get_resource_byname(hdmi.pdev,
 						IORESOURCE_MEM, "hdmi_core");
-	if (!hdmi_mem) {
+	if (!res) {
 		DSSERR("can't get core IORESOURCE_MEM HDMI\n");
 		return -EINVAL;
 	}
 
-	hdmi.ip_data.base_core = devm_ioremap(&pdev->dev, hdmi_mem->start,
-					    resource_size(hdmi_mem));
+	hdmi.ip_data.base_core = devm_ioremap(&pdev->dev, res->start,
+					    resource_size(res));
 	if (!hdmi.ip_data.base_core) {
 		DSSERR("can't ioremap core\n");
 		return -ENOMEM;
