@@ -112,7 +112,9 @@ int omap_irq_wait(struct drm_device *dev, struct omap_irq_wait *wait,
 	int ret = wait_event_timeout(wait_event, (wait->count <= 0), timeout);
 	omap_irq_unregister(dev, &wait->irq);
 	kfree(wait);
-	return ret;
+	if (ret == 0)
+		return -1;
+	return 0;
 }
 
 /**
@@ -184,6 +186,10 @@ irqreturn_t omap_irq_handler(DRM_IRQ_ARGS)
 
 	VERB("irqs: %08x", irqstatus);
 
+	for (id = 0; id < priv->num_crtcs; id++)
+		if (irqstatus & pipe2vbl(id))
+			drm_handle_vblank(dev, id);
+
 	spin_lock_irqsave(&list_lock, flags);
 	list_for_each_entry_safe(handler, n, &priv->irq_list, node) {
 		if (handler->irqmask & irqstatus) {
@@ -193,10 +199,6 @@ irqreturn_t omap_irq_handler(DRM_IRQ_ARGS)
 		}
 	}
 	spin_unlock_irqrestore(&list_lock, flags);
-
-	for (id = 0; id < priv->num_crtcs; id++)
-		if (irqstatus & pipe2vbl(id))
-			drm_handle_vblank(dev, id);
 
 	return IRQ_HANDLED;
 }

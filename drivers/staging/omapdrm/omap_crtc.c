@@ -33,10 +33,8 @@ struct omap_crtc {
 	int pipe;
 	enum omap_channel channel;
 
-	struct dss_lcd_mgr_config lcd_config;
-
 	struct omap_video_timings timings;
-	bool enabled, timings_valid;
+	bool enabled;
 
 	struct omap_drm_apply apply;
 
@@ -83,6 +81,10 @@ static void omap_crtc_disable(enum omap_channel channel)
 static void omap_crtc_set_timings(enum omap_channel channel,
 		const struct omap_video_timings *timings)
 {
+	struct drm_crtc *crtc = channel2crtc[channel];
+	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
+	DBG("%s", omap_crtc->name);
+	omap_crtc->timings = *timings;
 }
 
 static void omap_crtc_set_lcd_config(enum omap_channel channel,
@@ -91,8 +93,7 @@ static void omap_crtc_set_lcd_config(enum omap_channel channel,
 	struct drm_crtc *crtc = channel2crtc[channel];
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
 	DBG("%s", omap_crtc->name);
-	omap_crtc->lcd_config = *config;
-	omap_crtc_apply(crtc, &omap_crtc->apply);
+	dispc_mgr_set_lcd_config(channel, config);
 }
 
 static int omap_crtc_register_framedone_handler(enum omap_channel channel,
@@ -180,23 +181,10 @@ static int omap_crtc_mode_set(struct drm_crtc *crtc,
 		struct drm_framebuffer *old_fb)
 {
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
-	struct drm_device *dev = crtc->dev;
-	struct omap_drm_private *priv = dev->dev_private;
-	int i;
 
 	mode = adjusted_mode;
 
-	for (i = 0; i < priv->num_connectors; i++) {
-		struct drm_connector *connector =
-				priv->connectors[i];
-		struct drm_encoder *encoder =
-				omap_connector_attached_encoder(connector);
-		if (crtc == encoder->crtc) {
-			int ret = omap_connector_mode_set(connector,
-					mode, &omap_crtc->timings);
-			omap_crtc->timings_valid = (ret == 0);
-		}
-	}
+	copy_timings_drm_to_omap(&omap_crtc->timings, mode);
 
 	return omap_crtc_mode_set_base(crtc, x, y, old_fb);
 }
@@ -493,13 +481,10 @@ static void set_enabled(struct drm_crtc *crtc, bool enable)
 		 * Otherwise the DSS is still working, and turning off the clocks
 		 * prevents DSS from going to OFF mode. And when enabling, we need to
 		 * wait for the extra sync losts
-		 *
-		 * XXX maybe I should change the error irq handling to have each crtc
-		 * register it's own error irq handler as well..  that would make
-		 * ignoring the extra sync-lost easier..
 		 */
 
 		if (enable) {
+			omap_irq_unregister(crtc->dev, &omap_crtc->error_irq);
 			wait = omap_irq_wait_init(dev, DISPC_IRQ_EVSYNC_EVEN |
 					DISPC_IRQ_EVSYNC_ODD | DISPC_IRQ_SYNC_LOST_DIGIT, 2);
 		} else {
@@ -521,6 +506,9 @@ static void set_enabled(struct drm_crtc *crtc, bool enable)
 			dev_err(dev->dev, "%s: timeout waiting for %s\n",
 					omap_crtc->name, enable ? "enable" : "disable");
 		}
+		if (enable && !dss_mgr_is_lcd(channel)) {
+			omap_irq_register(crtc->dev, &omap_crtc->error_irq);
+		}
 	}
 }
 
@@ -531,11 +519,9 @@ static void omap_crtc_pre_apply(struct omap_drm_apply *apply)
 	enum omap_channel channel = omap_crtc->channel;
 	struct omap_overlay_manager_info info = {0};
 
-	DBG("%s: enabled=%d, timings_valid=%d", omap_crtc->name,
-			omap_crtc->enabled,
-			omap_crtc->timings_valid);
+	DBG("%s: enabled=%d", omap_crtc->name, omap_crtc->enabled);
 
-	if (!omap_crtc->enabled || !omap_crtc->timings_valid) {
+	if (!omap_crtc->enabled) {
 		set_enabled(&omap_crtc->base, false);
 		return;
 	}
@@ -545,8 +531,6 @@ static void omap_crtc_pre_apply(struct omap_drm_apply *apply)
 	info.trans_key_type = OMAP_DSS_COLOR_KEY_GFX_DST;
 	info.trans_enabled = false;
 
-	if (dss_mgr_is_lcd(channel))
-		dispc_mgr_set_lcd_config(channel, &omap_crtc->lcd_config);
 	dispc_mgr_setup(channel, &info);
 	dispc_mgr_set_timings(channel, &omap_crtc->timings);
 	set_enabled(&omap_crtc->base, true);

@@ -34,7 +34,7 @@ struct omap_connector {
 	struct drm_encoder *encoder;
 };
 
-static inline void copy_timings_omap_to_drm(struct drm_display_mode *mode,
+void copy_timings_omap_to_drm(struct drm_display_mode *mode,
 		struct omap_video_timings *timings)
 {
 	mode->clock = timings->pixel_clock;
@@ -65,7 +65,7 @@ static inline void copy_timings_omap_to_drm(struct drm_display_mode *mode,
 		mode->flags |= DRM_MODE_FLAG_NVSYNC;
 }
 
-static inline void copy_timings_drm_to_omap(struct omap_video_timings *timings,
+void copy_timings_drm_to_omap(struct omap_video_timings *timings,
 		struct drm_display_mode *mode)
 {
 	timings->pixel_clock = mode->clock;
@@ -97,47 +97,6 @@ static inline void copy_timings_drm_to_omap(struct omap_video_timings *timings,
 	timings->sync_pclk_edge = OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES;
 }
 
-static void omap_connector_dpms(struct drm_connector *connector, int mode)
-{
-	struct omap_connector *omap_connector = to_omap_connector(connector);
-	struct omap_dss_device *dssdev = omap_connector->dssdev;
-	int old_dpms;
-
-	DBG("%s: %d", dssdev->name, mode);
-
-	old_dpms = connector->dpms;
-
-	/* from off to on, do from crtc to connector */
-	if (mode < old_dpms)
-		drm_helper_connector_dpms(connector, mode);
-
-	if (mode == DRM_MODE_DPMS_ON) {
-		/* store resume info for suspended displays */
-		switch (dssdev->state) {
-		case OMAP_DSS_DISPLAY_SUSPENDED:
-			dssdev->activate_after_resume = true;
-			break;
-		case OMAP_DSS_DISPLAY_DISABLED: {
-			int ret = dssdev->driver->enable(dssdev);
-			if (ret) {
-				DBG("%s: failed to enable: %d",
-						dssdev->name, ret);
-				dssdev->driver->disable(dssdev);
-			}
-			break;
-		}
-		default:
-			break;
-		}
-	} else {
-		/* TODO */
-	}
-
-	/* from on to off, do from connector to crtc */
-	if (mode > old_dpms)
-		drm_helper_connector_dpms(connector, mode);
-}
-
 static enum drm_connector_status omap_connector_detect(
 		struct drm_connector *connector, bool force)
 {
@@ -165,8 +124,6 @@ static void omap_connector_destroy(struct drm_connector *connector)
 {
 	struct omap_connector *omap_connector = to_omap_connector(connector);
 	struct omap_dss_device *dssdev = omap_connector->dssdev;
-
-	dssdev->driver->disable(dssdev);
 
 	DBG("%s", omap_connector->dssdev->name);
 	drm_sysfs_connector_remove(connector);
@@ -268,7 +225,7 @@ struct drm_encoder *omap_connector_attached_encoder(
 }
 
 static const struct drm_connector_funcs omap_connector_funcs = {
-	.dpms = omap_connector_dpms,
+	.dpms = drm_helper_connector_dpms,
 	.detect = omap_connector_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = omap_connector_destroy,
@@ -279,41 +236,6 @@ static const struct drm_connector_helper_funcs omap_connector_helper_funcs = {
 	.mode_valid = omap_connector_mode_valid,
 	.best_encoder = omap_connector_attached_encoder,
 };
-
-/* called from encoder when mode is set, to propagate settings to the dssdev */
-int omap_connector_mode_set(struct drm_connector *connector,
-		struct drm_display_mode *mode,
-		struct omap_video_timings *timings)
-{
-	struct drm_device *dev = connector->dev;
-	struct omap_connector *omap_connector = to_omap_connector(connector);
-	struct omap_dss_device *dssdev = omap_connector->dssdev;
-	struct omap_dss_driver *dssdrv = dssdev->driver;
-	int ret;
-
-	copy_timings_drm_to_omap(timings, mode);
-
-	DBG("%s: set mode: %d:\"%s\" %d %d %d %d %d %d %d %d %d %d 0x%x 0x%x",
-			omap_connector->dssdev->name,
-			mode->base.id, mode->name, mode->vrefresh, mode->clock,
-			mode->hdisplay, mode->hsync_start,
-			mode->hsync_end, mode->htotal,
-			mode->vdisplay, mode->vsync_start,
-			mode->vsync_end, mode->vtotal, mode->type, mode->flags);
-
-	if (connector->encoder && connector->encoder->crtc)
-		dssdev->output->manager_id = omap_crtc_channel(connector->encoder->crtc);
-
-	ret = dssdrv->check_timings(dssdev, timings);
-	if (ret) {
-		dev_err(dev->dev, "could not set timings: %d\n", ret);
-		return ret;
-	}
-
-	dssdrv->set_timings(dssdev, timings);
-
-	return 0;
-}
 
 /* flush an area of the framebuffer (in case of manual update display that
  * is not automatically flushed)

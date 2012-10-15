@@ -174,18 +174,21 @@ int omap_plane_check_state(struct drm_plane *plane,
 void omap_plane_commit_state(struct drm_plane *plane,
 		struct omap_plane_state *plane_state);
 
-struct drm_encoder *omap_encoder_init(struct drm_device *dev);
+struct drm_encoder *omap_encoder_init(struct drm_device *dev,
+		struct omap_dss_device *dssdev);
 struct drm_encoder *omap_connector_attached_encoder(
 		struct drm_connector *connector);
 
 struct drm_connector *omap_connector_init(struct drm_device *dev,
 		int connector_type, struct omap_dss_device *dssdev,
 		struct drm_encoder *encoder);
-int omap_connector_mode_set(struct drm_connector *connector,
-		struct drm_display_mode *mode,
-		struct omap_video_timings *timings);
 void omap_connector_flush(struct drm_connector *connector,
 		int x, int y, int w, int h);
+
+void copy_timings_omap_to_drm(struct drm_display_mode *mode,
+		struct omap_video_timings *timings);
+void copy_timings_drm_to_omap(struct omap_video_timings *timings,
+		struct drm_display_mode *mode);
 
 uint32_t omap_framebuffer_get_formats(uint32_t *pixel_formats,
 		uint32_t max_formats, enum omap_color_mode supported_modes);
@@ -289,6 +292,19 @@ static inline bool pipe_in_atomic(struct drm_device *dev, int pipe)
 {
 	struct omap_drm_private *priv = dev->dev_private;
 	return priv->global_atomic || priv->crtc_atomic[pipe];
+}
+
+static inline int crtc2pipe(struct drm_device *dev, struct drm_crtc *crtc)
+{
+	struct omap_drm_private *priv = dev->dev_private;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(priv->crtcs); i++)
+		if (priv->crtcs[i] == crtc)
+			return i;
+
+	BUG();  /* bogus CRTC ptr */
+	return -1;
 }
 
 /* should these be made into common util helpers?

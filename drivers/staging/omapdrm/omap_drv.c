@@ -218,7 +218,7 @@ static int omap_modeset_init(struct drm_device *dev)
 			return 0;
 		}
 
-		encoder = omap_encoder_init(dev);
+		encoder = omap_encoder_init(dev, dssdev);
 
 		if (!encoder) {
 			dev_err(dev->dev, "could not create encoder: %s\n",

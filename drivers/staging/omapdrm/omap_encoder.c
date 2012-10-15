@@ -31,20 +31,40 @@
 
 #define to_omap_encoder(x) container_of(x, struct omap_encoder, base)
 
+/* The encoder and connector both map to same dssdev.. the encoder
+ * handles the 'active' parts, ie. anything the modifies the state
+ * of the hw, and the connector handles the 'read-only' parts, like
+ * detecting connection and reading edid.
+ */
 struct omap_encoder {
 	struct drm_encoder base;
-
-	/*
-	 * Currently this is just a stub.. but when we get rid of
-	 * omap_dss_device in the connector, what we *should* do
-	 * is have the drm encoder map to the what the dssdev is
-	 * now (ie. DSI1, DSI2, RFBI, VENC, HDMI), and then have
-	 * the connector map to the panel driver
-	 *
-	 * Instead for now we just create one encoder for each
-	 * connector which is statically bound to that connector.
-	 */
+	struct omap_dss_device *dssdev;
+	struct omap_drm_apply apply;
+	bool enabled;
+	struct omap_video_timings timings;
 };
+
+static void omap_encoder_pre_apply(struct omap_drm_apply *apply)
+{
+	struct omap_encoder *omap_encoder =
+			container_of(apply, struct omap_encoder, apply);
+	struct omap_dss_device *dssdev = omap_encoder->dssdev;
+	struct omap_dss_driver *dssdrv = dssdev->driver;
+
+	DBG("%s: enabled=%d", dssdev->name, omap_encoder->enabled);
+
+	if (omap_encoder->enabled) {
+		dssdrv->set_timings(dssdev, &omap_encoder->timings);
+		dssdrv->enable(dssdev);
+	} else {
+		dssdrv->disable(dssdev);
+	}
+}
+
+static void omap_encoder_post_apply(struct omap_drm_apply *apply)
+{
+	/* nothing needed */
+}
 
 static void omap_encoder_destroy(struct drm_encoder *encoder)
 {
@@ -55,6 +75,11 @@ static void omap_encoder_destroy(struct drm_encoder *encoder)
 
 static void omap_encoder_dpms(struct drm_encoder *encoder, int mode)
 {
+	struct omap_encoder *omap_encoder = to_omap_encoder(encoder);
+	omap_encoder->enabled = (mode == DRM_MODE_DPMS_ON);
+	DBG("%s: %d", omap_encoder->dssdev->name, mode);
+	if (encoder->crtc)
+		omap_crtc_apply(encoder->crtc, &omap_encoder->apply);
 }
 
 static bool omap_encoder_mode_fixup(struct drm_encoder *encoder,
@@ -64,10 +89,52 @@ static bool omap_encoder_mode_fixup(struct drm_encoder *encoder,
 	return true;
 }
 
+/* called from encoder when mode is set, to propagate settings to the dssdev */
+int omap_encoder_set_timings(struct drm_encoder *encoder,
+		struct drm_display_mode *mode,
+		struct omap_video_timings *timings)
+{
+	struct drm_device *dev = encoder->dev;
+	struct omap_encoder *omap_encoder = to_omap_encoder(encoder);
+	struct omap_dss_device *dssdev = omap_encoder->dssdev;
+	struct omap_dss_driver *dssdrv = dssdev->driver;
+	int ret;
+
+	copy_timings_drm_to_omap(timings, mode);
+
+	DBG("%s: set mode: %d:\"%s\" %d %d %d %d %d %d %d %d %d %d 0x%x 0x%x",
+			dssdev->name, mode->base.id, mode->name,
+			mode->vrefresh, mode->clock,
+			mode->hdisplay, mode->hsync_start,
+			mode->hsync_end, mode->htotal,
+			mode->vdisplay, mode->vsync_start,
+			mode->vsync_end, mode->vtotal,
+			mode->type, mode->flags);
+
+	if (encoder->crtc)
+		dssdev->output->manager_id = omap_crtc_channel(encoder->crtc);
+
+	ret = dssdrv->check_timings(dssdev, timings);
+	if (ret) {
+		dev_err(dev->dev, "could not set timings: %d\n", ret);
+		return ret;
+	}
+
+	omap_encoder->timings = *timings;
+	omap_encoder->enabled = true;
+
+	if (encoder->crtc)
+		omap_crtc_apply(encoder->crtc, &omap_encoder->apply);
+
+	return 0;
+}
+
 static void omap_encoder_mode_set(struct drm_encoder *encoder,
 				struct drm_display_mode *mode,
 				struct drm_display_mode *adjusted_mode)
 {
+	struct omap_video_timings timings = {0};
+	omap_encoder_set_timings(encoder, mode, &timings);
 }
 
 static void omap_encoder_prepare(struct drm_encoder *encoder)
@@ -91,7 +158,8 @@ static const struct drm_encoder_helper_funcs omap_encoder_helper_funcs = {
 };
 
 /* initialize encoder */
-struct drm_encoder *omap_encoder_init(struct drm_device *dev)
+struct drm_encoder *omap_encoder_init(struct drm_device *dev,
+		struct omap_dss_device *dssdev)
 {
 	struct drm_encoder *encoder = NULL;
 	struct omap_encoder *omap_encoder;
@@ -101,6 +169,11 @@ struct drm_encoder *omap_encoder_init(struct drm_device *dev)
 		dev_err(dev->dev, "could not allocate encoder\n");
 		goto fail;
 	}
+
+	omap_encoder->dssdev = dssdev;
+
+	omap_encoder->apply.pre_apply  = omap_encoder_pre_apply;
+	omap_encoder->apply.post_apply = omap_encoder_post_apply;
 
 	encoder = &omap_encoder->base;
 
