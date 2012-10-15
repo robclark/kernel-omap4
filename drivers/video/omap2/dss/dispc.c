@@ -2344,12 +2344,6 @@ int dispc_ovl_check(enum omap_plane plane, enum omap_channel channel,
 	int pos_x = oi->pos_x;
 	int pos_y = oi->pos_y;
 
-	// XXX don't ignore channel passed in.. we need to check clk w/
-	// channel passed in, not current hw settings..
-
-	if (oi->paddr == 0)
-		return -EINVAL;
-
 	out_width = oi->out_width == 0 ? oi->width : oi->out_width;
 	out_height = oi->out_height == 0 ? oi->height : oi->out_height;
 
