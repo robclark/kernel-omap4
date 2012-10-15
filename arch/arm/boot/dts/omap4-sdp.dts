@@ -142,6 +142,14 @@
 			"omap-dmic-abe.2 Capture", "Digital Mic1 Bias",
 			"Digital Mic1 Bias", "Digital Mic 2";
 	};
+
+	sound_hdmi {
+		compatible = "ti,omap-hdmi-audio";
+		ti,model = "OMAP4HDMI";
+
+		ti,hdmi_audio = <&hdmi>;
+		ti,level_shifter = <&tpd12s015>;
+	};
 };
 
 &omap4_pmx_core {
@@ -221,14 +229,6 @@
 			0xba 0x8	/* abe_mcbsp2_dx.abe_mcbsp2_dx OUTPUT PULLDOWN | MODE0 */
 			0xbc 0x100	/* abe_mcbsp2_fsx.abe_mcbsp2_fsx INPUT | MODE0 */
 		>;
-	};
-
-	sound_hdmi {
-		compatible = "ti,omap-hdmi-audio";
-		ti,model = "OMAP4HDMI";
-
-		ti,hdmi_audio = <&hdmi>;
-		ti,level_shifter = <&tpd12s015>;
 	};
 };
 
