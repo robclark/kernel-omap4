@@ -126,7 +126,7 @@ static int __devexit omap_hdmi_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id omap_hdmi_of_match[] = {
-	{.compatible = "ti,omap-hdmi-audio", },
+	{.compatible = "ti,omap-hdmi-tpd12s015-audio", },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, omap_hdmi_of_match);
