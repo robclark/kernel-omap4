@@ -1011,6 +1011,50 @@ static void hdmi_put_clocks(void)
 
 #if defined(CONFIG_OMAP4_DSS_HDMI_AUDIO) || \
 	defined(CONFIG_OMAP5_DSS_HDMI_AUDIO)
+static int hdmi_probe_audio(struct platform_device *pdev)
+{
+	struct resource *res;
+
+	hdmi.audio_pdev = ERR_PTR(-EINVAL);
+
+	res = platform_get_resource(hdmi.pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		DSSERR("can't get IORESOURCE_MEM HDMI\n");
+		return -EINVAL;
+	}
+
+	/*
+	 * Pass this resource to audio_pdev.
+	 * Audio drivers should not remap it
+	 */
+	hdmi_aud_res[HDMI_AUDIO_MEM_RESOURCE].start = res->start;
+	hdmi_aud_res[HDMI_AUDIO_MEM_RESOURCE].end = res->end;
+	hdmi_aud_res[HDMI_AUDIO_MEM_RESOURCE].flags = IORESOURCE_MEM;
+
+	res = platform_get_resource(hdmi.pdev, IORESOURCE_DMA, 0);
+	if (!res) {
+		DSSERR("can't get IORESOURCE_DMA HDMI\n");
+		return -EINVAL;
+	}
+
+	/* Pass this resource to audio_pdev */
+	hdmi_aud_res[HDMI_AUDIO_DMA_RESOURCE].start = res->start;
+	hdmi_aud_res[HDMI_AUDIO_DMA_RESOURCE].end = res->end;
+	hdmi_aud_res[HDMI_AUDIO_DMA_RESOURCE].flags = IORESOURCE_DMA;
+
+	/* create platform device for HDMI audio driver */
+	hdmi.audio_pdev = platform_device_register_simple(
+							  "omap_hdmi_audio",
+							  -1, hdmi_aud_res,
+							   ARRAY_SIZE(hdmi_aud_res));
+	if (IS_ERR(hdmi.audio_pdev)) {
+		DSSERR("Can't instantiate hdmi-audio\n");
+		return PTR_ERR(hdmi.audio_pdev);
+	}
+
+	return 0;
+}
+
 int hdmi_compute_acr(u32 sample_freq, u32 *n, u32 *cts)
 {
 	u32 deep_color;
@@ -1327,7 +1371,6 @@ static int __init omapdss_hdmihw_probe(struct platform_device *pdev)
 	int r;
 
 	hdmi.pdev = pdev;
-	hdmi.audio_pdev = ERR_PTR(-EINVAL);
 
 	mutex_init(&hdmi.lock);
 	mutex_init(&hdmi.ip_data.lock);
@@ -1347,22 +1390,6 @@ static int __init omapdss_hdmihw_probe(struct platform_device *pdev)
 		DSSERR("can't ioremap WP\n");
 		return -ENOMEM;
 	}
-
-	/* Pass this resource to audio_pdev */
-	hdmi_aud_res[HDMI_AUDIO_MEM_RESOURCE].start = res->start;
-	hdmi_aud_res[HDMI_AUDIO_MEM_RESOURCE].end = res->end;
-	hdmi_aud_res[HDMI_AUDIO_MEM_RESOURCE].flags = IORESOURCE_MEM;
-
-	res = platform_get_resource(hdmi.pdev, IORESOURCE_DMA, 0);
-	if (!res) {
-		DSSERR("can't get PLL CTRL IORESOURCE_DMA HDMI\n");
-		return -EINVAL;
-	}
-
-	/* Pass this resource to audio_pdev */
-	hdmi_aud_res[HDMI_AUDIO_DMA_RESOURCE].start = res->start;
-	hdmi_aud_res[HDMI_AUDIO_DMA_RESOURCE].end = res->end;
-	hdmi_aud_res[HDMI_AUDIO_DMA_RESOURCE].flags = IORESOURCE_DMA;
 
 	/* HDMI PLLCTRL memory remap */
 	res = platform_get_resource_byname(hdmi.pdev,
@@ -1423,14 +1450,9 @@ static int __init omapdss_hdmihw_probe(struct platform_device *pdev)
 	}
 
 	/* create platform device for HDMI audio drivers */
-	hdmi.audio_pdev = platform_device_register_simple(
-							"omap-hdmi-audio-dai",
-							-1, hdmi_aud_res,
-							ARRAY_SIZE(hdmi_aud_res));
-	if (IS_ERR(hdmi.audio_pdev)) {
-		DSSERR("Can't instantiate hdmi-audio\n");
-		return PTR_ERR(hdmi.audio_pdev);
-	}
+	r = hdmi_probe_audio(pdev);
+	if (r)
+		goto err_audio_dev;
 
 	r = hdmi_panel_init();
 	if (r) {
@@ -1449,6 +1471,8 @@ static int __init omapdss_hdmihw_probe(struct platform_device *pdev)
 
 	return 0;
 
+err_audio_dev:
+	hdmi_panel_exit();
 err_panel_init:
 	hdmi_put_clocks();
 	return r;
