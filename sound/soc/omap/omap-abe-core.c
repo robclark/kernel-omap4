@@ -286,12 +286,11 @@ static int abe_probe(struct snd_soc_platform *platform)
 		goto err_irq;
 	}
 
-	if (cpu_is_omap443x()) {
-		/* No OPP definition for OMAP5 inside the tree */
-		ret = abe_opp_init_initial_opp(abe);
-		if (ret < 0)
-			goto err_opp;
-	}
+	/* No OPP definition for OMAP5 inside the tree */
+	ret = abe_opp_init_initial_opp(abe);
+	if (ret < 0)
+		dev_warn(platform->dev, "No OPP scaling\n");
+
 	/* aess_clk has to be enabled to access hal register.
 	 * Disable the clk after it has been used.
 	 */
@@ -321,8 +320,6 @@ static int abe_probe(struct snd_soc_platform *platform)
 	abe_init_debugfs(abe);
 	return 0;
 
-err_opp:
-	free_irq(abe->irq, (void *)abe);
 err_irq:
 	abe_free_fw(abe);
 err_fw:
