@@ -225,12 +225,14 @@
 };
 
 &i2c5 {
-	tca: tca@22 {
+	tca6424a: tca6424a@22 {
+		compatible = "ti,tca6424a";
+		gpio-controller;
+		#gpio-cells = <2>;
 		reg = <0x22>;
 	};
-};
 
-/include/ "tca6424a.dtsi"
+};
 
 &keypad {
 	keypad,num-rows = <8>;
@@ -271,8 +273,8 @@
 	tpd12s015: tpd12s015 {
 		compatible = "ti,tpd12s015";
 
-		gpios = <&tca 0 0>,	/* TCA6424A P01, CT_CP_HDP */
-			<&tca 1 0>,	/* TCA6424A P00, LS_OE*/
+		gpios = <&tca6424a 0 0>,	/* TCA6424A P01, CT_CP_HDP */
+			<&tca6424a 1 0>,	/* TCA6424A P00, LS_OE*/
 			<&gpio7 1 0>;	/* 193, HPD */
 
 		hdmi-monitor {
