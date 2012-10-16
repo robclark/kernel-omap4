@@ -18,6 +18,7 @@
 #define DSS_SUBSYS_NAME "APPLY"
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/jiffies.h>
@@ -26,6 +27,7 @@
 
 #include "dss.h"
 #include "dss_features.h"
+#include "dispc-compat.h"
 
 /*
  * We have 4 levels of cache for the dispc settings. First two are in SW and
@@ -105,6 +107,9 @@ struct mgr_priv_data {
 
 	struct omap_video_timings timings;
 	struct dss_lcd_mgr_config lcd_config;
+
+	void (*framedone_handler)(void *);
+	void *framedone_handler_data;
 };
 
 static struct {
@@ -132,7 +137,7 @@ static struct mgr_priv_data *get_mgr_priv(struct omap_overlay_manager *mgr)
 	return &dss_data.mgr_priv_data_array[mgr->id];
 }
 
-void dss_apply_init(void)
+static void apply_init_priv(void)
 {
 	const int num_ovls = dss_feat_get_num_ovls();
 	struct mgr_priv_data *mp;
@@ -418,7 +423,44 @@ static void wait_pending_extra_info_updates(void)
 		DSSERR("wait_pending_extra_info_updates failed: %d\n", r);
 }
 
-int dss_mgr_wait_for_go(struct omap_overlay_manager *mgr)
+static inline struct omap_dss_device *dss_ovl_get_device(struct omap_overlay *ovl)
+{
+	return ovl->manager ?
+		(ovl->manager->output ? ovl->manager->output->device : NULL) :
+		NULL;
+}
+
+static inline struct omap_dss_device *dss_mgr_get_device(struct omap_overlay_manager *mgr)
+{
+	return mgr->output ? mgr->output->device : NULL;
+}
+
+static int dss_mgr_wait_for_vsync(struct omap_overlay_manager *mgr)
+{
+	unsigned long timeout = msecs_to_jiffies(500);
+	struct omap_dss_device *dssdev = mgr->get_device(mgr);
+	u32 irq;
+	int r;
+
+	r = dispc_runtime_get();
+	if (r)
+		return r;
+
+	if (dssdev->type == OMAP_DISPLAY_TYPE_VENC)
+		irq = DISPC_IRQ_EVSYNC_ODD;
+	else if (dssdev->type == OMAP_DISPLAY_TYPE_HDMI)
+		irq = DISPC_IRQ_EVSYNC_EVEN;
+	else
+		irq = dispc_mgr_get_vsync_irq(mgr->id);
+
+	r = omap_dispc_wait_for_irq_interruptible_timeout(irq, timeout);
+
+	dispc_runtime_put();
+
+	return r;
+}
+
+static int dss_mgr_wait_for_go(struct omap_overlay_manager *mgr)
 {
 	unsigned long timeout = msecs_to_jiffies(500);
 	struct mgr_priv_data *mp = get_mgr_priv(mgr);
@@ -488,7 +530,7 @@ int dss_mgr_wait_for_go(struct omap_overlay_manager *mgr)
 	return r;
 }
 
-int dss_mgr_wait_for_go_ovl(struct omap_overlay *ovl)
+static int dss_mgr_wait_for_go_ovl(struct omap_overlay *ovl)
 {
 	unsigned long timeout = msecs_to_jiffies(500);
 	struct ovl_priv_data *op;
@@ -666,22 +708,8 @@ static void dss_mgr_write_regs_extra(struct omap_overlay_manager *mgr)
 	dispc_mgr_set_timings(mgr->id, &mp->timings);
 
 	/* lcd_config parameters */
-	if (dss_mgr_is_lcd(mgr->id)) {
-		dispc_mgr_set_io_pad_mode(mp->lcd_config.io_pad_mode);
-
-		dispc_mgr_enable_stallmode(mgr->id, mp->lcd_config.stallmode);
-		dispc_mgr_enable_fifohandcheck(mgr->id,
-			mp->lcd_config.fifohandcheck);
-
-		dispc_mgr_set_clock_div(mgr->id, &mp->lcd_config.clock_info);
-
-		dispc_mgr_set_tft_data_lines(mgr->id,
-			mp->lcd_config.video_port_width);
-
-		dispc_lcd_enable_signal_polarity(mp->lcd_config.lcden_sig_polarity);
-
-		dispc_mgr_set_lcd_type_tft(mgr->id);
-	}
+	if (dss_mgr_is_lcd(mgr->id))
+		dispc_mgr_set_lcd_config(mgr->id, &mp->lcd_config);
 
 	mp->extra_info_dirty = false;
 	if (mp->updating)
@@ -761,7 +789,7 @@ static void mgr_clear_shadow_dirty(struct omap_overlay_manager *mgr)
 	}
 }
 
-void dss_mgr_start_update(struct omap_overlay_manager *mgr)
+static void dss_mgr_start_update_compat(struct omap_overlay_manager *mgr)
 {
 	struct mgr_priv_data *mp = get_mgr_priv(mgr);
 	unsigned long flags;
@@ -786,7 +814,7 @@ void dss_mgr_start_update(struct omap_overlay_manager *mgr)
 	if (!dss_data.irq_enabled && need_isr())
 		dss_register_vsync_isr();
 
-	dispc_mgr_enable(mgr->id, true);
+	dispc_mgr_enable_output(mgr->id, true);
 
 	mgr_clear_shadow_dirty(mgr);
 
@@ -854,7 +882,7 @@ static void dss_apply_irq_handler(void *data, u32 mask)
 			continue;
 
 		was_updating = mp->updating;
-		mp->updating = dispc_mgr_is_enabled(i);
+		mp->updating = dispc_mgr_output_enabled(i);
 
 		if (!mgr_manual_update(mgr)) {
 			bool was_busy = mp->busy;
@@ -871,6 +899,21 @@ static void dss_apply_irq_handler(void *data, u32 mask)
 	extra_updating = extra_info_update_ongoing();
 	if (!extra_updating)
 		complete_all(&extra_updated_completion);
+
+	/* call framedone handlers for manual update displays */
+	for (i = 0; i < num_mgrs; i++) {
+		struct omap_overlay_manager *mgr;
+		struct mgr_priv_data *mp;
+
+		mgr = omap_dss_get_overlay_manager(i);
+		mp = get_mgr_priv(mgr);
+
+		if (!mgr_manual_update(mgr) || !mp->framedone_handler)
+			continue;
+
+		if (mask & dispc_mgr_get_framedone_irq(i))
+			mp->framedone_handler(mp->framedone_handler_data);
+	}
 
 	if (!need_isr())
 		dss_unregister_vsync_isr();
@@ -906,7 +949,7 @@ static void omap_dss_mgr_apply_mgr(struct omap_overlay_manager *mgr)
 	mp->info = mp->user_info;
 }
 
-int omap_dss_mgr_apply(struct omap_overlay_manager *mgr)
+static int omap_dss_mgr_apply(struct omap_overlay_manager *mgr)
 {
 	unsigned long flags;
 	struct omap_overlay *ovl;
@@ -1005,7 +1048,7 @@ static void dss_setup_fifos(void)
 	}
 }
 
-int dss_mgr_enable(struct omap_overlay_manager *mgr)
+static int dss_mgr_enable_compat(struct omap_overlay_manager *mgr)
 {
 	struct mgr_priv_data *mp = get_mgr_priv(mgr);
 	unsigned long flags;
@@ -1035,10 +1078,17 @@ int dss_mgr_enable(struct omap_overlay_manager *mgr)
 	if (!mgr_manual_update(mgr))
 		mp->updating = true;
 
+	if (!dss_data.irq_enabled && need_isr())
+		dss_register_vsync_isr();
+
 	spin_unlock_irqrestore(&data_lock, flags);
 
-	if (!mgr_manual_update(mgr))
-		dispc_mgr_enable(mgr->id, true);
+	if (!mgr_manual_update(mgr)) {
+		if (dss_mgr_is_lcd(mgr->id))
+			dispc_mgr_enable_lcd_out(mgr->id);
+		else
+			dispc_mgr_enable_digit_out();
+	}
 
 out:
 	mutex_unlock(&apply_lock);
@@ -1052,7 +1102,7 @@ err:
 	return r;
 }
 
-void dss_mgr_disable(struct omap_overlay_manager *mgr)
+static void dss_mgr_disable_compat(struct omap_overlay_manager *mgr)
 {
 	struct mgr_priv_data *mp = get_mgr_priv(mgr);
 	unsigned long flags;
@@ -1062,8 +1112,12 @@ void dss_mgr_disable(struct omap_overlay_manager *mgr)
 	if (!mp->enabled)
 		goto out;
 
-	if (!mgr_manual_update(mgr))
-		dispc_mgr_enable(mgr->id, false);
+	if (!mgr_manual_update(mgr)) {
+		if (dss_mgr_is_lcd(mgr->id))
+			dispc_mgr_disable_lcd_out(mgr->id);
+		else
+			dispc_mgr_disable_digit_out();
+	}
 
 	spin_lock_irqsave(&data_lock, flags);
 
@@ -1076,7 +1130,7 @@ out:
 	mutex_unlock(&apply_lock);
 }
 
-int dss_mgr_set_info(struct omap_overlay_manager *mgr,
+static int dss_mgr_set_info(struct omap_overlay_manager *mgr,
 		struct omap_overlay_manager_info *info)
 {
 	struct mgr_priv_data *mp = get_mgr_priv(mgr);
@@ -1097,7 +1151,7 @@ int dss_mgr_set_info(struct omap_overlay_manager *mgr,
 	return 0;
 }
 
-void dss_mgr_get_info(struct omap_overlay_manager *mgr,
+static void dss_mgr_get_info(struct omap_overlay_manager *mgr,
 		struct omap_overlay_manager_info *info)
 {
 	struct mgr_priv_data *mp = get_mgr_priv(mgr);
@@ -1110,7 +1164,7 @@ void dss_mgr_get_info(struct omap_overlay_manager *mgr,
 	spin_unlock_irqrestore(&data_lock, flags);
 }
 
-int dss_mgr_set_output(struct omap_overlay_manager *mgr,
+static int dss_mgr_set_output(struct omap_overlay_manager *mgr,
 		struct omap_dss_output *output)
 {
 	int r;
@@ -1142,7 +1196,7 @@ err:
 	return r;
 }
 
-int dss_mgr_unset_output(struct omap_overlay_manager *mgr)
+static int dss_mgr_unset_output(struct omap_overlay_manager *mgr)
 {
 	int r;
 	struct mgr_priv_data *mp = get_mgr_priv(mgr);
@@ -1189,7 +1243,7 @@ static void dss_apply_mgr_timings(struct omap_overlay_manager *mgr,
 	mp->extra_info_dirty = true;
 }
 
-void dss_mgr_set_timings(struct omap_overlay_manager *mgr,
+static void dss_mgr_set_timings_compat(struct omap_overlay_manager *mgr,
 		const struct omap_video_timings *timings)
 {
 	unsigned long flags;
@@ -1217,7 +1271,7 @@ static void dss_apply_mgr_lcd_config(struct omap_overlay_manager *mgr,
 	mp->extra_info_dirty = true;
 }
 
-void dss_mgr_set_lcd_config(struct omap_overlay_manager *mgr,
+static void dss_mgr_set_lcd_config_compat(struct omap_overlay_manager *mgr,
 		const struct dss_lcd_mgr_config *config)
 {
 	unsigned long flags;
@@ -1236,7 +1290,7 @@ out:
 	spin_unlock_irqrestore(&data_lock, flags);
 }
 
-int dss_ovl_set_info(struct omap_overlay *ovl,
+static int dss_ovl_set_info(struct omap_overlay *ovl,
 		struct omap_overlay_info *info)
 {
 	struct ovl_priv_data *op = get_ovl_priv(ovl);
@@ -1257,7 +1311,7 @@ int dss_ovl_set_info(struct omap_overlay *ovl,
 	return 0;
 }
 
-void dss_ovl_get_info(struct omap_overlay *ovl,
+static void dss_ovl_get_info(struct omap_overlay *ovl,
 		struct omap_overlay_info *info)
 {
 	struct ovl_priv_data *op = get_ovl_priv(ovl);
@@ -1270,7 +1324,7 @@ void dss_ovl_get_info(struct omap_overlay *ovl,
 	spin_unlock_irqrestore(&data_lock, flags);
 }
 
-int dss_ovl_set_manager(struct omap_overlay *ovl,
+static int dss_ovl_set_manager(struct omap_overlay *ovl,
 		struct omap_overlay_manager *mgr)
 {
 	struct ovl_priv_data *op = get_ovl_priv(ovl);
@@ -1327,7 +1381,7 @@ err:
 	return r;
 }
 
-int dss_ovl_unset_manager(struct omap_overlay *ovl)
+static int dss_ovl_unset_manager(struct omap_overlay *ovl)
 {
 	struct ovl_priv_data *op = get_ovl_priv(ovl);
 	unsigned long flags;
@@ -1372,7 +1426,7 @@ err:
 	return r;
 }
 
-bool dss_ovl_is_enabled(struct omap_overlay *ovl)
+static bool dss_ovl_is_enabled(struct omap_overlay *ovl)
 {
 	struct ovl_priv_data *op = get_ovl_priv(ovl);
 	unsigned long flags;
@@ -1387,7 +1441,7 @@ bool dss_ovl_is_enabled(struct omap_overlay *ovl)
 	return e;
 }
 
-int dss_ovl_enable(struct omap_overlay *ovl)
+static int dss_ovl_enable(struct omap_overlay *ovl)
 {
 	struct ovl_priv_data *op = get_ovl_priv(ovl);
 	unsigned long flags;
@@ -1437,7 +1491,7 @@ err1:
 	return r;
 }
 
-int dss_ovl_disable(struct omap_overlay *ovl)
+static int dss_ovl_disable(struct omap_overlay *ovl)
 {
 	struct ovl_priv_data *op = get_ovl_priv(ovl);
 	unsigned long flags;
@@ -1472,3 +1526,126 @@ err:
 	return r;
 }
 
+static int dss_mgr_register_framedone_handler_compat(struct omap_overlay_manager *mgr,
+		void (*handler)(void *), void *data)
+{
+	struct mgr_priv_data *mp = get_mgr_priv(mgr);
+
+	if (mp->framedone_handler)
+		return -EBUSY;
+
+	mp->framedone_handler = handler;
+	mp->framedone_handler_data = data;
+
+	return 0;
+}
+
+static void dss_mgr_unregister_framedone_handler_compat(struct omap_overlay_manager *mgr,
+		void (*handler)(void *), void *data)
+{
+	struct mgr_priv_data *mp = get_mgr_priv(mgr);
+
+	WARN_ON(mp->framedone_handler != handler ||
+			mp->framedone_handler_data != data);
+
+	mp->framedone_handler = NULL;
+	mp->framedone_handler_data = NULL;
+}
+
+static const struct dss_mgr_ops apply_mgr_ops = {
+	.start_update = dss_mgr_start_update_compat,
+	.enable = dss_mgr_enable_compat,
+	.disable = dss_mgr_disable_compat,
+	.set_timings = dss_mgr_set_timings_compat,
+	.set_lcd_config = dss_mgr_set_lcd_config_compat,
+	.register_framedone_handler = dss_mgr_register_framedone_handler_compat,
+	.unregister_framedone_handler = dss_mgr_unregister_framedone_handler_compat,
+};
+
+int omapdss_apply_init(void)
+{
+	struct platform_device *pdev = dss_get_core_pdev();
+	int num_mgrs = omap_dss_get_num_overlay_managers();
+	int num_ovls = omap_dss_get_num_overlays();
+	int i, r;
+
+	apply_init_priv();
+
+	r = dss_install_mgr_ops(&apply_mgr_ops);
+	if (r)
+		return r;
+
+	for (i = 0; i < num_mgrs; i++) {
+		struct omap_overlay_manager *mgr;
+
+		mgr = omap_dss_get_overlay_manager(i);
+
+		r = dss_manager_kobj_init(mgr, pdev);
+		if (r)
+			DSSERR("failed to create sysfs file\n");
+
+		mgr->set_output = &dss_mgr_set_output;
+		mgr->unset_output = &dss_mgr_unset_output;
+		mgr->apply = &omap_dss_mgr_apply;
+		mgr->set_manager_info = &dss_mgr_set_info;
+		mgr->get_manager_info = &dss_mgr_get_info;
+		mgr->wait_for_go = &dss_mgr_wait_for_go;
+		mgr->wait_for_vsync = &dss_mgr_wait_for_vsync;
+		mgr->get_device = &dss_mgr_get_device;
+	}
+
+	for (i = 0; i < num_ovls; i++) {
+		struct omap_overlay *ovl = omap_dss_get_overlay(i);
+
+		r = dss_overlay_kobj_init(ovl, pdev);
+		if (r)
+			DSSERR("failed to create sysfs file\n");
+
+		ovl->is_enabled = &dss_ovl_is_enabled;
+		ovl->enable = &dss_ovl_enable;
+		ovl->disable = &dss_ovl_disable;
+		ovl->set_manager = &dss_ovl_set_manager;
+		ovl->unset_manager = &dss_ovl_unset_manager;
+		ovl->set_overlay_info = &dss_ovl_set_info;
+		ovl->get_overlay_info = &dss_ovl_get_info;
+		ovl->wait_for_go = &dss_mgr_wait_for_go_ovl;
+		ovl->get_device = &dss_ovl_get_device;
+	}
+
+	dispc_runtime_get();
+
+	r = dss_dispc_initialize_irq();
+
+	dispc_runtime_put();
+
+	if (r)
+		return r; // XXX
+
+	return 0;
+}
+EXPORT_SYMBOL(omapdss_apply_init);
+
+void omapdss_apply_uninit(void)
+{
+	int num_mgrs = omap_dss_get_num_overlay_managers();
+	int num_ovls = omap_dss_get_num_overlays();
+	int i;
+
+	dss_dispc_uninitialize_irq();
+
+	for (i = 0; i < num_ovls; i++) {
+		struct omap_overlay *ovl = omap_dss_get_overlay(i);
+		dss_overlay_kobj_uninit(ovl);
+	}
+
+	for (i = 0; i < num_mgrs; i++) {
+		struct omap_overlay_manager *mgr;
+
+		mgr = omap_dss_get_overlay_manager(i);
+
+		dss_manager_kobj_uninit(mgr);
+	}
+
+	dss_uninstall_mgr_ops();
+}
+EXPORT_SYMBOL(omapdss_apply_uninit);
