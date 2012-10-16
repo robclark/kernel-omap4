@@ -78,7 +78,7 @@
 	};
 
 	sound_hdmi {
-		compatible = "ti,omap-hdmi-audio";
+		compatible = "ti,omap-hdmi-tpd12s015-audio";
 		ti,model = "OMAP5HDMI";
 
 		ti,hdmi_audio = <&hdmi>;
