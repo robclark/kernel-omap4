@@ -98,3 +98,5 @@ signing_key.x509
 signing_key.x509.keyid
 signing_key.x509.signer
 x509.genkey
+
+samples/hidraw/hid-example
