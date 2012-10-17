@@ -753,6 +753,10 @@ static struct omap_dss_board_info sdp4430_dss_data = {
 static void __init omap_4430sdp_display_init(void)
 {
 	int r;
+	enum omap_hdmi_flags flags;
+
+	/* in non-DT boot HDMI signal muxing is needed */
+	flags = OMAP_HDMI_DO_INIT_SIGNAL_MUX;
 
 	/* Enable LCD2 by default (instead of Pico DLP) */
 	r = gpio_request_one(DISPLAY_SEL_GPIO, GPIOF_OUT_INIT_HIGH,
@@ -767,9 +771,9 @@ static void __init omap_4430sdp_display_init(void)
 	 * later have external pull up on the HDMI I2C lines
 	 */
 	if (cpu_is_omap446x() || omap_rev() > OMAP4430_REV_ES2_2)
-		omap_hdmi_init(OMAP_HDMI_SDA_SCL_EXTERNAL_PULLUP);
-	else
-		omap_hdmi_init(0);
+		flags |= OMAP_HDMI_SDA_SCL_EXTERNAL_PULLUP;
+
+	omap_hdmi_init(flags);
 
 	omap_mux_init_gpio(HDMI_GPIO_LS_OE, OMAP_PIN_OUTPUT);
 	omap_mux_init_gpio(HDMI_GPIO_CT_CP_HPD, OMAP_PIN_OUTPUT);
