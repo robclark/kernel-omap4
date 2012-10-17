@@ -2566,6 +2566,60 @@ static struct omap_hwmod omap54xx_prcm_mpu_hwmod = {
 };
 
 /*
+ * 'ocp2scp' class
+ * bridge to transform ocp interface protocol to scp (serial control port)
+ * protocol
+ */
+static struct omap_hwmod_class_sysconfig omap54xx_ocp2scp_sysc = {
+	.rev_offs	= 0x0000,
+	.sysc_offs	= 0x0010,
+	.syss_offs	= 0x0014,
+	.sysc_flags	= (SYSC_HAS_AUTOIDLE | SYSC_HAS_SIDLEMODE |
+			   SYSC_HAS_SOFTRESET | SYSS_HAS_RESET_STATUS),
+	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
+	.sysc_fields	= &omap_hwmod_sysc_type1,
+};
+
+static struct omap_hwmod_class omap54xx_ocp2scp_hwmod_class = {
+	.name	= "ocp2scp",
+	.sysc	= &omap54xx_ocp2scp_sysc,
+};
+
+/* ocp2scp3 */
+static struct omap_hwmod omap54xx_ocp2scp3_hwmod;
+static struct omap_hwmod_addr_space omap54xx_ocp2scp3_addrs[] = {
+	{
+		.name		= "ocp2scp3",
+		.pa_start	= 0x4a090000,
+		.pa_end		= 0x4a09001f,
+		.flags		= ADDR_TYPE_RT
+	},
+	{ }
+};
+
+static struct omap_hwmod omap54xx_ocp2scp3_hwmod = {
+	.name		= "ocp2scp3",
+	.class		= &omap54xx_ocp2scp_hwmod_class,
+	.clkdm_name	= "l3init_clkdm",
+	.prcm = {
+		.omap4 = {
+			.clkctrl_offs = OMAP54XX_CM_L3INIT_OCP2SCP3_CLKCTRL_OFFSET,
+			.context_offs = OMAP54XX_RM_L3INIT_OCP2SCP3_CONTEXT_OFFSET,
+			.modulemode   = MODULEMODE_HWCTRL,
+		},
+	},
+};
+
+/* l4_cfg -> ocp2scp3 */
+static struct omap_hwmod_ocp_if omap54xx_l4_cfg__ocp2scp3 = {
+	.master		= &omap54xx_l4_cfg_hwmod,
+	.slave		= &omap54xx_ocp2scp3_hwmod,
+	.clk		= "l4_div_ck",
+	.addr		= omap54xx_ocp2scp3_addrs,
+	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+};
+
+/*
  * 'sata' class
  * sata:  serial ata interface  gen2 compliant   ( 1 rx/ 1 tx)
  */
@@ -5309,6 +5363,21 @@ static struct omap_hwmod_addr_space omap54xx_sata_addrs[] = {
 		.pa_end		= 0x4a141103,
 		.flags		= ADDR_TYPE_RT
 	},
+	{
+		.name		= "pll",
+		.pa_start	= 0x4A096800,
+		.pa_end		= 0x4A096840,
+	},
+	{
+		.name		= "rx",
+		.pa_start	= 0x4A096000,
+		.pa_end		= 0x4A096080,
+	},
+	{
+		.name		= "tx",
+		.pa_start	= 0x4A096400,
+		.pa_end		= 0x4A096464,
+	},
 	{ }
 };
 
@@ -5898,6 +5967,7 @@ static struct omap_hwmod_ocp_if *omap54xx_hwmod_ocp_ifs[] __initdata = {
 	&omap54xx_iva__l3_main_2,
 	&omap54xx_l3_main_1__l3_main_2,
 	&omap54xx_l4_cfg__l3_main_2,
+	&omap54xx_l4_cfg__ocp2scp3,
 	&omap54xx_sata__l3_main_2,
 	&omap54xx_usb_host_hs__l3_main_2,
 	&omap54xx_usb_otg_ss__l3_main_2,
