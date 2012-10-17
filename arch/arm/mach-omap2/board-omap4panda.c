@@ -468,6 +468,10 @@ static struct omap_dss_board_info omap4_panda_dss_data = {
 
 static void __init omap4_panda_display_init(void)
 {
+	enum omap_hdmi_flags flags;
+
+	/* in non-DT boot HDMI signal muxing is needed */
+	flags = OMAP_HDMI_DO_INIT_SIGNAL_MUX;
 
 	omap_display_init(&omap4_panda_dss_data);
 
@@ -476,9 +480,9 @@ static void __init omap4_panda_display_init(void)
 	 * later have external pull up on the HDMI I2C lines
 	 */
 	if (cpu_is_omap446x() || omap_rev() > OMAP4430_REV_ES2_2)
-		omap_hdmi_init(OMAP_HDMI_SDA_SCL_EXTERNAL_PULLUP);
-	else
-		omap_hdmi_init(0);
+		flags |= OMAP_HDMI_SDA_SCL_EXTERNAL_PULLUP;
+
+	omap_hdmi_init(flags);
 
 	omap_mux_init_gpio(HDMI_GPIO_LS_OE, OMAP_PIN_OUTPUT);
 	omap_mux_init_gpio(HDMI_GPIO_CT_CP_HPD, OMAP_PIN_OUTPUT);
