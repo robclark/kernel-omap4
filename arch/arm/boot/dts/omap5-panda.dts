@@ -25,6 +25,50 @@
 		regulator-max-microvolt = <3000000>;
 	};
 
+	leds {
+		compatible = "gpio-leds";
+		usr1 {
+			label = "usr1";
+			gpios = <&tca6424a 2 0>;	/* TCA6424A P02, GRN_LED0 */
+			default-state = "off";
+		};
+		usr2 {
+			label = "usr2";
+			gpios = <&tca6424a 3 0>;	/* TCA6424A P03, GRN_LED1 */
+			default-state = "off";
+		};
+		usr3 {
+			label = "usr3";
+			gpios = <&tca6424a 4 0>;	/* TCA6424A P04, GRN_LED2 */
+			default-state = "off";
+		};
+		usr4 {
+			label = "usr4";
+			gpios = <&tca6424a 5 0>;	/* TCA6424A P05, GRN_LED3 */
+			default-state = "off";
+		};
+		usr5 {
+			label = "usr5";
+			gpios = <&tca6424a 6 0>;	/* TCA6424A P06, GRN_LED4 */
+			default-state = "off";
+		};
+		tcr {
+			label = "tcr";
+			gpios = <&tca6424a 17 0>;	/* TCA6424A P21, TC_LED_RED */
+			linux,default-trigger = "heartbeat";
+		};
+		tcg {
+			label = "tcg";
+			gpios = <&tca6424a 18 0>;	/* TCA6424A P22, TC_LED_GRN */
+			default-state = "off";
+		};
+		tcb {
+			label = "tcb";
+			gpios = <&tca6424a 19 0>;	/* TCA6424A P23, TC_LED_BLUE */
+			default-state = "off";
+		};
+	};
+
 	sound {
 		compatible = "ti,abe-twl6040";
 		ti,model = "PandaBoard5";
