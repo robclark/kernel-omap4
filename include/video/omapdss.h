@@ -208,6 +208,7 @@ enum omap_dss_clk_source {
 
 enum omap_hdmi_flags {
 	OMAP_HDMI_SDA_SCL_EXTERNAL_PULLUP = 1 << 0,
+	OMAP_HDMI_DO_INIT_SIGNAL_MUX	  = 1 << 1,
 };
 
 enum omap_dss_output_id {

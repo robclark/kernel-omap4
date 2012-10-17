@@ -116,12 +116,14 @@ static void __init omap4_hdmi_mux_pads(enum omap_hdmi_flags flags)
 	u32 reg;
 	u16 control_i2c_1;
 
-	omap_mux_init_signal("hdmi_cec",
-			OMAP_PIN_INPUT_PULLUP);
-	omap_mux_init_signal("hdmi_ddc_scl",
-			OMAP_PIN_INPUT_PULLUP);
-	omap_mux_init_signal("hdmi_ddc_sda",
-			OMAP_PIN_INPUT_PULLUP);
+	if (flags & OMAP_HDMI_DO_INIT_SIGNAL_MUX) {
+		omap_mux_init_signal("hdmi_cec",
+				OMAP_PIN_INPUT_PULLUP);
+		omap_mux_init_signal("hdmi_ddc_scl",
+				OMAP_PIN_INPUT_PULLUP);
+		omap_mux_init_signal("hdmi_ddc_sda",
+				OMAP_PIN_INPUT_PULLUP);
+	}
 
 	/*
 	 * CONTROL_I2C_1: HDMI_DDC_SDA_PULLUPRESX (bit 28) and
