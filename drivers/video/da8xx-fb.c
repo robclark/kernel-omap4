@@ -274,6 +274,21 @@ static struct fb_videomode known_lcd_panels[] = {
 		.sync           = FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
 		.flag           = 0,
 	},
+	[4] = {
+		/* CDTech S035Q01 */
+		.name 		= "CDTech_S035Q01",
+		.xres 		= 320,
+		.yres		= 240,
+		.pixclock	= 8000000,
+		.left_margin    = 21,
+		.right_margin   = 58,
+		.upper_margin   = 11,
+		.lower_margin   = 23,
+		.hsync_len      = 47,
+		.vsync_len      = 2,
+		.sync           = FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
+		.flag           = 0,
+	},
 };
 
 /* Enable the Raster Engine of the LCD Controller */
