@@ -289,6 +289,21 @@ static struct fb_videomode known_lcd_panels[] = {
 		.sync           = FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
 		.flag           = 0,
 	},
+	/* ThreeFive S9700RTWV35TR */
+	[5] = {
+		.name = "TFC_S9700RTWV35TR_01B",
+		.xres 		= 800,
+		.yres		= 480,
+		.pixclock	= 30000000,
+		.left_margin    = 39,
+		.right_margin   = 39,
+		.upper_margin   = 29,
+		.lower_margin   = 13,
+		.hsync_len      = 47,
+		.vsync_len      = 2,
+		.sync           = FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
+		.flag           = 0,
+	},
 };
 
 /* Enable the Raster Engine of the LCD Controller */
