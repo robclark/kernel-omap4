@@ -27,6 +27,10 @@
 #include <linux/clk.h>
 #include <plat/sata.h>
 
+/* Big fat hack! */
+#include "iomap.h"
+#include "cm2_54xx.h"
+
 #if defined(CONFIG_SATA_AHCI_PLATFORM) || \
 	defined(CONFIG_SATA_AHCI_PLATFORM_MODULE)
 
@@ -156,6 +160,7 @@ static int __init sata_phy_init(struct device *dev)
 {
 	void __iomem		*pll;
 	void __iomem		*ocp2scp3;
+	void __iomem		*satamac;
 	struct resource		*res;
 	struct platform_device	*pdev;
 	u32			reg;
@@ -176,6 +181,25 @@ static int __init sata_phy_init(struct device *dev)
 #ifdef OMAP_SATA_PHY_PWR
 	sata_phy_pwr_on();
 #endif
+
+	/* Big fat hack! */
+	printk("Big fat sata hack!\n");
+	__raw_writel(0x00000102, OMAP54XX_CM_L3INIT_SATA_CLKCTRL);
+
+	res =  platform_get_resource_byname(pdev, IORESOURCE_MEM, "satamac_wrapper");
+	if (!res) {
+		dev_err(dev, "satamac get resource failed\n");
+		goto end;
+	}
+
+	satamac = ioremap(res->start, resource_size(res));
+	if (!satamac) {
+		dev_err(dev, "can't map satamac 0x%X\n", res->start);
+		return -ENOMEM;
+	}
+
+	omap_sata_writel(satamac, 0, 0x00000014);
+
 	res =  platform_get_resource_byname(pdev, IORESOURCE_MEM, "ocp2scp3");
 	if (!res) {
 		dev_err(dev, "ocp2scp3 get resource failed\n");
