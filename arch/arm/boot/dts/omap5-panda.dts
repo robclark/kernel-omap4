@@ -171,7 +171,10 @@
 
 	dss_hdmi_pins: pinmux_dss_hdmi_pins {
 		pinctrl-single,pins = <
-			0x0fe 0x116	/* hdmi_cec.gpio7_193 INPUT PULLUP | MODE6 */
+			0x0fc 0x118	/* hdmi_cec.hdmi_cec INPUT PULLUP | MODE 0 */
+			0x0fe 0x116	/* hdmi_hpd.gpio7_193 INPUT PULLDOWN | MODE6 */
+			0x100 0x118	/* hdmi_scl.hdmi_scl INPUT PULLUP | MODE 0 */
+			0x102 0x118	/* hdmi_sda.hdmi_sda INPUT PULLUP | MODE 0 */
 			0x186 0x100	/* i2c5_scl.i2c5_scl INPUT | MODE0 */
 			0x188 0x100	/* i2c5_sda.i2c5_sda INPUT | MODE0 */
 
