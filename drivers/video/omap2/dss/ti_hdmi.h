@@ -269,6 +269,7 @@ void ti_hdmi_5xxx_audio_stop(struct hdmi_ip_data *ip_data);
 int ti_hdmi_5xxx_audio_config(struct hdmi_ip_data *ip_data,
 		struct omap_dss_audio *audio);
 #endif
+bool ti_hdmi_5xxx_detect(struct hdmi_ip_data *ip_data);
 void ti_hdmi_5xxx_basic_configure(struct hdmi_ip_data *ip_data);
 void ti_hdmi_5xxx_core_dump(struct hdmi_ip_data *ip_data, struct seq_file *s);
 int ti_hdmi_5xxx_read_edid(struct hdmi_ip_data *ip_data,

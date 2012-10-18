@@ -261,6 +261,11 @@ void ti_hdmi_5xxx_core_dump(struct hdmi_ip_data *ip_data, struct seq_file *s)
 	DUMPCORE(HDMI_CORE_I2CM_FS_SCL_LCNT_0_ADDR);
 }
 
+bool ti_hdmi_5xxx_detect(struct hdmi_ip_data *ip_data)
+{
+	return gpio_get_value(ip_data->hpd_gpio);
+}
+
 static void hdmi_core_init(struct hdmi_core_vid_config *video_cfg,
 			struct hdmi_core_infoframe_avi *avi_cfg,
 			struct hdmi_config *cfg)

@@ -831,6 +831,7 @@ static const struct ti_hdmi_ip_ops omap5_hdmi_functions = {
 #if defined(CONFIG_OMAP5_DSS_HDMI)
 	.video_configure	=	ti_hdmi_5xxx_basic_configure,
 	.read_edid		=	ti_hdmi_5xxx_read_edid,
+	.detect			=	ti_hdmi_5xxx_detect,
 	.irq_process		=	ti_hdmi_5xxx_irq_process,
 	.configure_range	=	ti_hdmi_5xxx_configure_range,
 #endif
