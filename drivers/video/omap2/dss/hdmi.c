@@ -501,12 +501,9 @@ static void hdmi_compute_pll(struct omap_dss_device *dssdev, int phy,
 	DSSDBG("range = %d sd = %d\n", pi->dcofreq, pi->regsd);
 }
 
-static int hdmi_power_on(struct omap_dss_device *dssdev)
+static int hdmi_power_on_core(struct omap_dss_device *dssdev)
 {
 	int r;
-	struct omap_video_timings *p;
-	struct omap_overlay_manager *mgr = dssdev->output->manager;
-	unsigned long phy;
 
 	gpio_set_value(hdmi.ct_cp_hpd_gpio, 1);
 	gpio_set_value(hdmi.ls_oe_gpio, 1);
@@ -521,6 +518,46 @@ static int hdmi_power_on(struct omap_dss_device *dssdev)
 	r = hdmi_runtime_get();
 	if (r)
 		goto err_runtime_get;
+
+	/* Make selection of HDMI in DSS */
+	dss_select_hdmi_venc_clk_source(DSS_HDMI_M_PCLK);
+
+	/* Select the dispc clock source as PRCM clock, to ensure that it is not
+	 * DSI PLL source as the clock selected by DSI PLL might not be
+	 * sufficient for the resolution selected / that can be changed
+	 * dynamically by user. This can be moved to single location , say
+	 * Boardfile.
+	 */
+	dss_select_dispc_clk_source(dssdev->clocks.dispc.dispc_fclk_src);
+
+	return 0;
+
+err_runtime_get:
+	regulator_disable(hdmi.vdda_hdmi_dac_reg);
+err_vdac_enable:
+	gpio_set_value(hdmi.ct_cp_hpd_gpio, 0);
+	gpio_set_value(hdmi.ls_oe_gpio, 0);
+	return r;
+}
+
+static void hdmi_power_off_core(struct omap_dss_device *dssdev)
+{
+	hdmi_runtime_put();
+	regulator_disable(hdmi.vdda_hdmi_dac_reg);
+	gpio_set_value(hdmi.ct_cp_hpd_gpio, 0);
+	gpio_set_value(hdmi.ls_oe_gpio, 0);
+}
+
+static int hdmi_power_on(struct omap_dss_device *dssdev)
+{
+	int r;
+	struct omap_video_timings *p;
+	struct omap_overlay_manager *mgr = dssdev->output->manager;
+	unsigned long phy;
+
+	r = hdmi_power_on_core(dssdev);
+	if (r)
+		return r;
 
 	dss_mgr_disable(mgr);
 
@@ -549,17 +586,6 @@ static int hdmi_power_on(struct omap_dss_device *dssdev)
 
 	hdmi.ip_data.ops->video_configure(&hdmi.ip_data);
 
-	/* Make selection of HDMI in DSS */
-	dss_select_hdmi_venc_clk_source(DSS_HDMI_M_PCLK);
-
-	/* Select the dispc clock source as PRCM clock, to ensure that it is not
-	 * DSI PLL source as the clock selected by DSI PLL might not be
-	 * sufficient for the resolution selected / that can be changed
-	 * dynamically by user. This can be moved to single location , say
-	 * Boardfile.
-	 */
-	dss_select_dispc_clk_source(dssdev->clocks.dispc.dispc_fclk_src);
-
 	/* bypass TV gamma table */
 	dispc_enable_gamma_table(0);
 
@@ -583,12 +609,7 @@ err_vid_enable:
 err_phy_enable:
 	hdmi.ip_data.ops->pll_disable(&hdmi.ip_data);
 err_pll_enable:
-	hdmi_runtime_put();
-err_runtime_get:
-	regulator_disable(hdmi.vdda_hdmi_dac_reg);
-err_vdac_enable:
-	gpio_set_value(hdmi.ct_cp_hpd_gpio, 0);
-	gpio_set_value(hdmi.ls_oe_gpio, 0);
+	hdmi_power_off_core(dssdev);
 	return -EIO;
 }
 
@@ -601,12 +622,8 @@ static void hdmi_power_off(struct omap_dss_device *dssdev)
 	hdmi.ip_data.ops->video_disable(&hdmi.ip_data);
 	hdmi.ip_data.ops->phy_disable(&hdmi.ip_data);
 	hdmi.ip_data.ops->pll_disable(&hdmi.ip_data);
-	hdmi_runtime_put();
 
-	regulator_disable(hdmi.vdda_hdmi_dac_reg);
-
-	gpio_set_value(hdmi.ct_cp_hpd_gpio, 0);
-	gpio_set_value(hdmi.ls_oe_gpio, 0);
+	hdmi_power_off_core(dssdev);
 }
 
 int omapdss_hdmi_display_check_timing(struct omap_dss_device *dssdev,
