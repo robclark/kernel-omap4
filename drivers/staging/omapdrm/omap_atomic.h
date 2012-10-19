@@ -20,7 +20,7 @@
 #ifndef __OMAP_ATOMIC_H__
 #define __OMAP_ATOMIC_H__
 
-#include "drm_mode.h"
+#include "uapi/drm/drm_mode.h"
 #include "drm_crtc.h"
 
 struct omap_plane_state {
