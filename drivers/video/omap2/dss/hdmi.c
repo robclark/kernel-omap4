@@ -719,21 +719,7 @@ static void hdmi_power_off(struct omap_dss_device *dssdev, bool full)
 int omapdss_hdmi_set_deepcolor(struct omap_dss_device *dssdev, int val,
 		bool hdmi_restart)
 {
-	int r;
-
-	if (!hdmi_restart) {
-		hdmi.ip_data.cfg.deep_color = val;
-		return 0;
-	}
-
-	omapdss_hdmi_display_disable(dssdev);
-
 	hdmi.ip_data.cfg.deep_color = val;
-
-	r = omapdss_hdmi_display_enable(dssdev);
-	if (r)
-		return r;
-
 	return 0;
 }
 
@@ -794,7 +780,7 @@ int omapdss_hdmi_display_3d_enable(struct omap_dss_device *dssdev,
 
 	mutex_lock(&hdmi.lock);
 
-	if (out == NULL || out->manager == NULL) {
+	if (out == NULL || out->manager_id == OMAP_DSS_CHANNEL_INVALID) {
 		DSSERR("failed to enable display: no output/manager\n");
 		r = -ENODEV;
 		goto err0;
@@ -859,7 +845,7 @@ int omapdss_hdmi_display_3d_enable(struct omap_dss_device *dssdev,
 		hdmi.ip_data.cfg.cm.mode = HDMI_HDMI;
 	}
 
-	r = hdmi_power_on(dssdev);
+	r = hdmi_power_on(dssdev, true);
 	if (r) {
 		DSSERR("failed to power on device\n");
 		goto err2;
