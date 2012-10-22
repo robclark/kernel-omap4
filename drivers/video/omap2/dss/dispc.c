@@ -2955,6 +2955,9 @@ unsigned long dispc_mgr_lclk_rate(enum omap_channel channel)
 	unsigned long r;
 	u32 l;
 
+	if (channel == OMAP_DSS_CHANNEL_DIGIT)
+		return 0;
+
 	l = dispc_read_reg(DISPC_DIVISORo(channel));
 
 	lcd = FLD_GET(l, 23, 16);
