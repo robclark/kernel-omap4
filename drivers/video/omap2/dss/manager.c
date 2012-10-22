@@ -169,7 +169,7 @@ static int dss_mgr_check_zorder(struct omap_overlay_manager *mgr,
 int dss_mgr_check_timings(struct omap_overlay_manager *mgr,
 		const struct omap_video_timings *timings)
 {
-	if (!dispc_mgr_timings_ok(mgr->id, timings)) {
+	if (mgr && !dispc_mgr_timings_ok(mgr->id, timings)) {
 		DSSERR("check_manager: invalid timings\n");
 		return -EINVAL;
 	}
