@@ -1468,12 +1468,17 @@ static int compat_refcnt;
 
 int omapdss_compat_init(void)
 {
+	struct platform_device *pdev = dss_get_core_pdev();
+
 	mutex_lock(&apply_lock);
 
 	if (compat_refcnt++ > 0)
 		goto out;
 
 	apply_init_priv();
+
+	dss_init_overlay_managers(pdev);
+	dss_init_overlays(pdev);
 
 out:
 	mutex_unlock(&apply_lock);
@@ -1484,11 +1489,15 @@ EXPORT_SYMBOL(omapdss_compat_init);
 
 void omapdss_compat_uninit(void)
 {
+	struct platform_device *pdev = dss_get_core_pdev();
+
 	mutex_lock(&apply_lock);
 
 	if (--compat_refcnt > 0)
 		goto out;
 
+	dss_uninit_overlay_managers(pdev);
+	dss_uninit_overlays(pdev);
 out:
 	mutex_unlock(&apply_lock);
 }
