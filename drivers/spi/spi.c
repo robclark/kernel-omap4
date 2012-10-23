@@ -812,14 +812,17 @@ err_init_queue:
 /*-------------------------------------------------------------------------*/
 
 #if defined(CONFIG_OF)
+
 /**
- * of_register_spi_devices() - Register child devices onto the SPI bus
+ * of_register_node_spi_devices() - Register child devices onto the SPI bus
  * @master:	Pointer to spi_master device
+ * @parent_node: Pointer to the device node containg the devices
  *
  * Registers an spi_device for each child node of master node which has a 'reg'
  * property.
  */
-static void of_register_spi_devices(struct spi_master *master)
+void of_register_node_spi_devices(struct spi_master *master,
+		struct device_node *parent_node)
 {
 	struct spi_device *spi;
 	struct device_node *nc;
@@ -828,10 +831,10 @@ static void of_register_spi_devices(struct spi_master *master)
 	int rc;
 	int len;
 
-	if (!master->dev.of_node)
+	if (!parent_node)
 		return;
 
-	for_each_available_child_of_node(master->dev.of_node, nc) {
+	for_each_available_child_of_node(parent_node, nc) {
 		/* Alloc an spi_device */
 		spi = spi_alloc_device(master);
 		if (!spi) {
@@ -900,8 +903,20 @@ static void of_register_spi_devices(struct spi_master *master)
 
 	}
 }
-#else
-static void of_register_spi_devices(struct spi_master *master) { }
+EXPORT_SYMBOL_GPL(of_register_node_spi_devices);
+
+/**
+ * of_register_spi_devices() - Register child devices onto the SPI bus
+ * @master:	Pointer to spi_master device
+ *
+ * Registers an spi_device for each child node of master node which has a 'reg'
+ * property.
+ */
+void of_register_spi_devices(struct spi_master *master)
+{
+	of_register_node_spi_devices(master, master->dev.of_node);
+}
+EXPORT_SYMBOL_GPL(of_register_spi_devices);
 #endif
 
 #ifdef CONFIG_ACPI
@@ -1006,12 +1021,12 @@ static void spi_master_release(struct device *dev)
 	kfree(master);
 }
 
-static struct class spi_master_class = {
+struct class spi_master_class = {
 	.name		= "spi_master",
 	.owner		= THIS_MODULE,
 	.dev_release	= spi_master_release,
 };
-
+EXPORT_SYMBOL_GPL(spi_master_class);
 
 
 /**
