@@ -1,6 +1,9 @@
 obj-$(CONFIG_OMAP2_DSS) += omapdss.o
+# Core DSS files
 omapdss-y := core.o dss.o dss_features.o dispc.o dispc_coefs.o display.o \
-	manager.o manager-sysfs.o overlay.o overlay-sysfs.o output.o apply.o \
+	output.o
+# DSS compat layer files
+omapdss-y += manager.o manager-sysfs.o overlay.o overlay-sysfs.o apply.o \
 	dispc-compat.o display-sysfs.o
 omapdss-$(CONFIG_OMAP2_DSS_DPI) += dpi.o
 omapdss-$(CONFIG_OMAP2_DSS_RFBI) += rfbi.o
