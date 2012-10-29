@@ -89,6 +89,8 @@ int omap_irq_wait(struct drm_device *dev, struct omap_irq_wait *wait,
 		unsigned long timeout);
 
 struct omap_drm_private {
+	uint32_t omaprev;
+
 	unsigned int num_crtcs;
 	struct drm_crtc *crtcs[8];
 
