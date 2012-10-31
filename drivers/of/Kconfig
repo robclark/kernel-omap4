@@ -83,6 +83,12 @@ config OF_MTD
 	depends on MTD
 	def_bool y
 
+config OF_DISPLAY_TIMINGS
+	def_bool y
+	depends on DISPLAY_TIMING
+	help
+	  helper to parse display timings from the devicetree
+
 config OF_RESOLVE
 	bool "OF Dynamic resolution support"
 	depends on OF
