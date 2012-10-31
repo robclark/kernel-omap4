@@ -1,0 +1,139 @@
+display-timings bindings
+==================
+
+display-timings-node
+------------
+
+required properties:
+ - none
+
+optional properties:
+ - native-mode: the native mode for the display, in case multiple modes are
+		provided. When omitted, assume the first node is the native.
+
+timings-subnode
+---------------
+
+required properties:
+ - hactive, vactive: Display resolution
+ - hfront-porch, hback-porch, hsync-len: Horizontal Display timing parameters
+   in pixels
+   vfront-porch, vback-porch, vsync-len: Vertical display timing parameters in
+   lines
+ - clock-frequency: displayclock in Hz
+
+optional properties:
+ - hsync-active : Hsync pulse is active low/high/ignored
+ - vsync-active : Vsync pulse is active low/high/ignored
+ - de-active : Data-Enable pulse is active low/high/ignored
+ - pixelclk-inverted : pixelclock is inverted/non-inverted/ignored
+ - interlaced (bool)
+ - doublescan (bool)
+
+All the optional properties that are not bool follow the following logic:
+    <1> : high active
+    <0> : low active
+    omitted : not used on hardware
+
+There are different ways of describing the capabilities of a display. The devicetree
+representation corresponds to the one commonly found in datasheets for displays.
+If a display supports multiple signal timings, the native-mode can be specified.
+
+The parameters are defined as
+
+struct display_timing
+===================
+
+  +----------+---------------------------------------------+----------+-------+
+  |          |                ?                            |          |       |
+  |          |                |vback_porch                 |          |       |
+  |          |                ?                            |          |       |
+  +----------###############################################----------+-------+
+  |          #                ?                            #          |       |
+  |          #                |                            #          |       |
+  |  hback   #                |                            #  hfront  | hsync |
+  |   porch  #                |       hactive              #  porch   |  len  |
+  |<-------->#<---------------+--------------------------->#<-------->|<----->|
+  |          #                |                            #          |       |
+  |          #                |vactive                     #          |       |
+  |          #                |                            #          |       |
+  |          #                ?                            #          |       |
+  +----------###############################################----------+-------+
+  |          |                ?                            |          |       |
+  |          |                |vfront_porch                |          |       |
+  |          |                ?                            |          |       |
+  +----------+---------------------------------------------+----------+-------+
+  |          |                ?                            |          |       |
+  |          |                |vsync_len                   |          |       |
+  |          |                ?                            |          |       |
+  +----------+---------------------------------------------+----------+-------+
+
+
+Example:
+
+	display-timings {
+		native-mode = <&timing0>;
+		timing0: 1920p24 {
+			/* 1920x1080p24 */
+			clock = <52000000>;
+			hactive = <1920>;
+			vactive = <1080>;
+			hfront-porch = <25>;
+			hback-porch = <25>;
+			hsync-len = <25>;
+			vback-porch = <2>;
+			vfront-porch = <2>;
+			vsync-len = <2>;
+			hsync-active = <1>;
+		};
+	};
+
+Every required property also supports the use of ranges, so the commonly used
+datasheet description with <min typ max>-tuples can be used.
+
+Example:
+
+	timing1: timing {
+		/* 1920x1080p24 */
+		clock = <148500000>;
+		hactive = <1920>;
+		vactive = <1080>;
+		hsync-len = <0 44 60>;
+		hfront-porch = <80 88 95>;
+		hback-porch = <100 148 160>;
+		vfront-porch = <0 4 6>;
+		vback-porch = <0 36 50>;
+		vsync-len = <0 5 6>;
+	};
+
+
+Usage in backend
+================
+
+A backend driver may choose to use the display-timings directly and convert the timing
+ranges to a suitable mode. Or it may just use the conversion of the display timings
+to the required mode via the generic videomode struct.
+
+					dtb
+					 |
+					 |  of_get_display_timing_list
+					 ?
+			      struct display_timings
+					 |
+					 |  videomode_from_timing
+					 ?
+			    ---  struct videomode ---
+			    |			    |
+ videomode_to_displaymode   |			    |   videomode_to_fb_videomode
+		            ?			    ?
+		     drm_display_mode         fb_videomode
+
+The functions of_get_fb_videomode and of_get_display_mode are provided
+to conveniently get the respective mode representation from the devicetree.
+
+Conversion to videomode
+=======================
+
+As device drivers normally work with some kind of video mode, the timings can be
+converted (may be just a simple copying of the typical value) to a generic videomode
+structure which then can be converted to the according mode used by the backend.
