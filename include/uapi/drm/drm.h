@@ -782,6 +782,7 @@ struct drm_event_atomic {
 	__u32 sequence;
 	__u32 obj_id;
 	__u32 old_fb_id;
+	__u32 reserved;
 };
 
 #define DRM_CAP_DUMB_BUFFER 0x1
