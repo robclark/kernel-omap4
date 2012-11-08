@@ -493,6 +493,16 @@ int omap_crtc_apply(struct drm_crtc *crtc,
 	return 0;
 }
 
+// XXX hack
+static inline bool dss_mgr_is_lcd(enum omap_channel id)
+{
+	if (id == OMAP_DSS_CHANNEL_LCD || id == OMAP_DSS_CHANNEL_LCD2 ||
+			id == OMAP_DSS_CHANNEL_LCD3)
+		return true;
+	else
+		return false;
+}
+
 /* called only from apply */
 static void set_enabled(struct drm_crtc *crtc, bool enable)
 {
