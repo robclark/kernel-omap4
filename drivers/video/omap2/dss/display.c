@@ -90,20 +90,12 @@ int dss_init_device(struct platform_device *pdev,
 		return r;
 	}
 
-	r = display_init_sysfs(pdev, dssdev);
-	if (r) {
-		omapdss_output_unset_device(dssdev->output);
-		return r;
-	}
-
 	return 0;
 }
 
 void dss_uninit_device(struct platform_device *pdev,
 		struct omap_dss_device *dssdev)
 {
-	display_uninit_sysfs(pdev, dssdev);
-
 	if (dssdev->output)
 		omapdss_output_unset_device(dssdev->output);
 }
