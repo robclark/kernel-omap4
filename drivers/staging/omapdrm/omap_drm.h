@@ -99,6 +99,10 @@ struct drm_omap_gem_info {
 	uint32_t __pad;
 };
 
+struct drm_omap_getputuser {
+	uint64_t p1, p2, p4, p8;
+};
+
 #define DRM_OMAP_GET_PARAM		0x00
 #define DRM_OMAP_SET_PARAM		0x01
 /* placeholder for plugin-api
@@ -108,7 +112,8 @@ struct drm_omap_gem_info {
 #define DRM_OMAP_GEM_CPU_PREP		0x04
 #define DRM_OMAP_GEM_CPU_FINI		0x05
 #define DRM_OMAP_GEM_INFO		0x06
-#define DRM_OMAP_NUM_IOCTLS		0x07
+#define DRM_OMAP_GETPUTUSER		0x07
+#define DRM_OMAP_NUM_IOCTLS		0x08
 
 #define DRM_IOCTL_OMAP_GET_PARAM	DRM_IOWR(DRM_COMMAND_BASE + DRM_OMAP_GET_PARAM, struct drm_omap_param)
 #define DRM_IOCTL_OMAP_SET_PARAM	DRM_IOW (DRM_COMMAND_BASE + DRM_OMAP_SET_PARAM, struct drm_omap_param)
@@ -119,5 +124,6 @@ struct drm_omap_gem_info {
 #define DRM_IOCTL_OMAP_GEM_CPU_PREP	DRM_IOW (DRM_COMMAND_BASE + DRM_OMAP_GEM_CPU_PREP, struct drm_omap_gem_cpu_prep)
 #define DRM_IOCTL_OMAP_GEM_CPU_FINI	DRM_IOW (DRM_COMMAND_BASE + DRM_OMAP_GEM_CPU_FINI, struct drm_omap_gem_cpu_fini)
 #define DRM_IOCTL_OMAP_GEM_INFO		DRM_IOWR(DRM_COMMAND_BASE + DRM_OMAP_GEM_INFO, struct drm_omap_gem_info)
+#define DRM_IOCTL_OMAP_GETPUTUSER	DRM_IOWR(DRM_COMMAND_BASE + DRM_OMAP_GETPUTUSER, struct drm_omap_getputuser)
 
 #endif /* __OMAP_DRM_H__ */
