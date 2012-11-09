@@ -4085,6 +4085,7 @@ out:
 	return e;
 }
 
+// TODO export this.. drivers would need it to clean up in error cases??
 static void destroy_vblank_event(struct drm_device *dev,
 		struct drm_file *file_priv, struct drm_pending_vblank_event *e)
 {
@@ -4177,7 +4178,6 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 	struct drm_mode_config *config = &dev->mode_config;
 	struct drm_mode_object *obj;
 	struct drm_crtc *crtc;
-	struct drm_pending_vblank_event *e = NULL;
 	void *state;
 	int ret = -EINVAL;
 
@@ -4215,13 +4215,15 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 	}
 
 	if (page_flip->flags & DRM_MODE_PAGE_FLIP_EVENT) {
-		e = create_vblank_event(dev, file_priv, page_flip->user_data);
+		struct drm_pending_vblank_event *e =
+			create_vblank_event(dev, file_priv, page_flip->user_data);
 		if (!e) {
 			ret = -ENOMEM;
 			goto out;
 		}
 		ret = dev->driver->atomic_set_event(dev, state, obj, &e->base);
 		if (ret) {
+			destroy_vblank_event(dev, file_priv, e);
 			goto out;
 		}
 	}
@@ -4238,8 +4240,6 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 	ret = dev->driver->atomic_commit(dev, state);
 
 out:
-	if (ret && e)
-		destroy_vblank_event(dev, file_priv, e);
 	dev->driver->atomic_end(dev, state);
 out_unlock:
 	mutex_unlock(&dev->mode_config.mutex);
