@@ -1,0 +1,417 @@
+Release note:
+
+-------------------------------
+   HDMI Tx modules for TDA998x
+             by
+    NXP Semiconductors BV
+-------------------------------
+
+---------------------------------
+		/!\ WARNING /!\
+If you want to use the HDMI driver from the user space (easier for non-Linux-expert, but needs to have an I2C driver available 
+from the user space), PLEASE DON'T USE THE LINUX DELIVERY. USE THE BASIC DELIVERY INSTEAD, and refer to the install_DL.txt note.
+An exemple of application is available in HdmiTx\sde2\comps\tmdlHdmiTx\tst\tmdlHdmiTx_ExampleApplication\src folder.
+---------------------------------
+
+The release note gives all necessary detail for installation in Linux
+kernel and application tunning. Installation is Linux typical and does
+not require any HDMI background. A default video and audio setting is
+defined in hdmi_tx_init function. It can be changed at will.
+There is no porting to do, it is already provided in module. And the
+classical HDMI DevLib is embedded in it. But the UserManual is still
+usefull for customers who like to optimise the module according to
+their needs. If so, feedback is welcome. ;)
+Customers who like to drive the module from userland can do it using
+IOCTL. IOCTL maps the classical HDMI API. Using the WAIT_FRAME IOCTL,
+userland can catch HDMI events like Hot Plug Detect, RxSens or EDID.
+
+So the two main functions the customer needs to take care are :
+- hdmi_tx_init : to setup the default HDMI settings. These settings can be
+  overwritten using the TDA_SET_INPUT_OUTPUT_CMD IOCTL
+- eventCallbackTx : to fetch HDMI events from userland OR add more
+  automatic behavior in the module itself. For example basic EDID check
+  after reading EDID from the sink.
+
+For customers who like to understand how the HDMI stack works, please
+read the TRANSMITTER_TDA998X_SW_UM_Devlib.pdf user manuel. You learn that:
+1- this module is a 3 levels stack
+2- HDMI core driver API in defined in comps/tmdlHdmiTx/inc
+
+HDCP is delivered in a proprietary module to avoid GPL license constraints.
+For customer that uses HDCP, don't forget to get additional stuff from NXP
+
+For OMAP architecture, a DSS plugin is provided. So to activate
+HDMI (switch DSS to HDMI output) just prompt on target:
+echo "3" > /sys/power/vdd2_lock
+echo "1" > /sys/devices/platform/omapdss/display2/enabled
+And desactivate : 
+echo "0" > /sys/devices/platform/omapdss/display2/enabled
+
+-------------------------------
+ ^           ^
+/!\ CAUTION /!\
+---         ---
+
+This release note and it's FAQ below covers every known questions from customers
+up to now. Thank you for reading it carefully. If you modify the driver, we would
+appreciate to gain from your update. So any feedback is welcome.
+
+-------------------------------
+
+- Contains : 
+  . HdmiTx Linux module
+  . HdmiCec linux module
+  . HDCP linux module (on request only)
+  . test_hdmi/demo_tda test application
+  . TRANSMITTER_TDA998X_SW_UM_Devlib.pdf for HDMI TX API
+  . HDMI_CEC_User_Manual.pdf for HDMI CEC API
+  . this release note
+
+- Features :
+  . HDMI transmiter
+  . Hot Plug Detection
+  . HDCP (on request only)
+  . Customer Electronics Control (v1.4)
+  . 3D video format, including frame packing
+
+- Target :
+  . OMAP3430-ZOOMII (http://omappedia.org/wiki/Android_Getting_Started)
+
+- OS :
+  . Linux Kernel 2.6.29, Android RLS25.12
+
+- Directory :
+  . driver/video/hdmi
+  . driver/video/hdcp (only if hdcp is delivered)
+
+- Compilation tool :
+  . arm-2007q3-51-arm-none-linux-gnueabi-i686-pc-linux-gnu
+
+-------------------------------
+
+- Release :
+ * V1.3.0: 2011, 4th May by Vincent Vrignaud
+  . HDMI1565 improved HDCP robustness in show_video function
+ * V1.2: 2010, 22th Oct by Andre Lepine
+  . TDA19988 support
+ * V1.1: 2010, 15th Oct by Andre Lepine
+  . TDA9983 version (only) has been produced in pure Linux style
+ * V1.03: 2010, 26th Augut by Andre Lepine
+  . USER_SET_INPUT_OUPUT
+  . use suspend mode for event catching when DSS HDMI panel is off (hdmi_disable(1))
+  . prevent IOCTL from updating power mode when used by DSS HDMI panel
+ * V1.02: 2010, 22th Jully by Andre Lepine
+  . SetHdcp with IOCTL
+ * V1.01: 2010, 15th Jully by Andre Lepine
+  . copy_from_user EDID IOCTL
+  . hdcp_onoff rework
+  . SimplayHD feature
+  . kernel i2c_client
+  . start implementing sysfs_attrs : first is resolution
+ * V1.0: 2010, 1st Jully by Andre Lepine
+  . ATC compliancy
+  . BCaps polling during 5s when CCLK is not devided by 2
+  . It HPD+RxSens rebound (several changes before SW polling)
+  . EDID used for video mode switch (HDMI, DVI)
+  . blue screen before the HDCP authentification is passed
+  . TDA reset when removing Linux module
+  . hdcp_fail_status not used in TDA9981
+ * V0.964: 2010, 25th may by Andre Lepine
+  . Check incoming REQUEST_ACTIVE_SOURCE is a broadcast
+ * V0.963: 2010, 21th may by Andre Lepine
+  . External HDCP module validation 
+ * V0.963: 2010, 18th may by Andre Lepine
+  . External HDCP module validation 
+ * V0.962: 2010, 11th may by Andre Lepine
+  . Clean up
+ * V0.961: 2010, 4th may by Andre Lepine
+  . Put image_view_on under compilation flag because it is not suitable for
+    "only hdmi with videoplay" usecase
+  . DEVICE_VENDOR_ID boradcast after logical address retrival
+  . Allow CEC_OPCODE_VENDOR_COMMAND and CEC_OPCODE_DEVICE_VENDOR_ID (not send FEATURE ABORTED)
+ * V0.96: 2010, 16th april by Andre Lepine
+  . Accept HDCP support using the proprietary module nwolc.ko
+ * V0.95: 2010, 23th march by Andre Lepine
+  . Add TDA9981 driver
+ * V0.94: 2010, 19th march by Andre Lepine
+  . Merge TDA19989, TDA9984 and TDA9983 drivers
+ * V0.92: 2010, 11th march by Andre Lepine
+  . Clean-up
+  . DSS pixclock inversion
+ * V0.91: 2010, 18th february by Andre Lepine
+  . porting for TDA9983
+ * V0.9: 2010, 2nd february by Andre Lepine
+  . Change directory structure
+  . Update NXP DevLib
+  . CEC & HDP event handeling fix
+ * V0.8: 2010, 18 january by Andre Lepine
+  . Pure IRQ (remove IRQ flag for polling with timer)
+  . Merge with last HdmiTx and HdmiCec version
+  . Cec initialization and power state
+  . Check argument of IOCTL and use -EFAULT when inconsistant
+ * V0.7: 2010, 11 january by Andre Lepine
+  . Automatic CEC answering for following opcodes :
+     > GIVE_PHYSICAL_ADDRESS
+     > GET_CEC_VERSION
+     > GIVE_OSD_NAME
+     > GIVE_DEVICE_VENDOR_ID
+     > REQUEST_ACTIVE_SOURCE
+     > GIVE_DEVICE_POWER_STATUS
+     > STANDBY
+     > SET_STREAM_PATH
+     > ROUTING_CHANGE
+     > ABORT_MESSAGE
+  . Automatic logical address negociation
+  . HdmiCec gets EDID physical address and HDMI status from HdmiTx
+
+-------------------------------
+
+- Installation :
+
+ * On host:
+  . mkdir $KERNEL_MODULES
+  . cp nxp-TDA1998X-linux-hdmi-cec-(hdcp)-L###-DL##-BSL##.tar.cvfj $KERNEL_MODULES/.
+  . cd $KERNEL_MODULES
+  . tar xvfj nxp-TDA1998X-linux-hdmi-cec-(hdcp)-L###-DL##-BSL##.tar.cvfj
+  . update LINUX_DIR in hdmi/MakeModules with your kernel directory path
+  . select your TDA target in Makefile :  for example TDA_TX := TDA19988  !!! CAUTION, don't forget this !!!
+  . select your platform in Makefile :  for example TDA_PLATFORM := ZOOMII
+  . cd hdmi
+  . make -f MakeModules clean (optional for the first time)
+  . make -f MakeModules (then you get hdmitx.ko and hdmicecc.ko modules)
+  . make -f MakeModules uptx (or any download mean that does not use adb)
+  . make -f MakeModules upcec (or any download mean that does not use adb) (19988/89 only)
+  . cd hdcp (for 19988/89 and 9984 only)
+  . update the KEY_SEED value in comps/tmdlHdmiTx/cfg/TDA9989/tmdlHdmiTx_Linux_cfg.c
+  . make -f MakeModules (then you get nwolc.ko module)
+  . make -f MakeModules up (or any download mean that does not use adb)
+ * Application (optional), better use your own, this one is just a sample
+  . cd test
+  . make clean (optional for the first time)
+  . make
+  . make upload (or any download mean that does not use adb)
+ * On target:
+  . insmod hdmitx.ko verbose=1 (remove verbose to make the module silent)
+  . insmod hdmicec.ko verbose=1 device=4 (remove verbose to make the module silent)
+  . insmod nwolc.ko (only for HDCP)
+ * On TV
+  . connect TV to target
+
+- Usage :
+
+  . hdmitx module parameters used with insmod :
+    > verbose: Make the driver verbose
+    > major: The major number of the device mapper
+  . hdmicec module parameters used with insmod :
+    > verbose: Make the driver verbose
+    > major: The major number of the device mapper
+    > device: Device type can be 0:tv, 1:rec 3:tuner 4:mediaplayer, 5:audio
+    > addr: Physical address (until EDID received)
+  . modules handles automaticaly HPD, EDID and following CEC messaging :
+    device connectivity and addressing, routing, standby, OSD name,
+    vendor name features.
+  . tda_demo test application show how to take control of the two modules
+    from userland and catch CEC messages
+    BUT HDMI MODULES CAN RUN WITHOUT IT
+  . HDCP feature is only supported if nwolc module is installed, you can
+    add it or remove it dynamically using insmod nwolc.ko and rmmod nwolk.
+
+- FAQ :
+
+  . "Can I modify file tda998x.c ?"
+    YES ! It's only a kind of "application" sample of the core driver below.
+    Feel free to customize it at will !
+
+  . "Can I modify files in comps directoty ?"
+    NO ! Core driver bug shall be discussed with NXP otherwise you may break down
+    some patches and introduce regressions
+
+  . "this->driver.i2c_client not allocated" :
+    1) Declare your I2C bus usage in arch/arm/mach-omap2/board-zoom2.c as follow :
+    | static struct i2c_board_info __initdata zoom2_i2c_bus3_info[] = {
+	|        {I2C_BOARD_INFO(TX_NAME,  TDA998X_I2C_SLAVEADDRESS),},
+	|        {I2C_BOARD_INFO(CEC_NAME,  TDA99XCEC_I2C_SLAVEADDRESS),},
+    | };
+    2) Check the TDA target in Makefile :  for example TDA_TX := TDA9984
+
+  . "Video format and plan are strange..." :
+    Check tda.setio.videoout/in in hdmi_tx_init() function of tda998x.c
+
+  . "The resolution is not the one I want" :
+    Update or create your own omap_video_timings structure and change
+    the video resolution of this->tda.setio.video_out.format in hdmi_tx_init()
+
+  . "I want 720p@60Hz" :
+    1- Line 860: Uncomment> /*    this->tda.setio.video_out.format = TMDL_HDMITX_VFMT_04_1280x720p_60Hz; */
+    2- Line 862: Comment> this->tda.setio.video_out.format = TMDL_HDMITX_VFMT_02_720x480p_60Hz;
+    3- Line 1051: Replace> video_720x480at60Hz_panel_timings with video_1280x720at60Hz_panel_timings
+
+  . "RGB colors are swapped, for example I see RBG instead of RGB" : (for TDA9984 and TDA19989 only)
+    Modify the videoPortMapping_RGB444 video port mapping in comps/tmdlHdmiTx/cfg/TDA9989/tmdlHdmiTx_Linux_cfg.c. 
+
+  . "YUV signals are swapped, for example I see UVY instead of YUV" : (for TDA9984 and TDA19989 only)
+    Modify the videoPortMapping_YUV444/YUV422 video port mapping in comps/tmdlHdmiTx/cfg/TDA9989/tmdlHdmiTx_Linux_cfg.c. 
+
+  . "I2C or SPDIF audio does not work, signals are swapped" : (for TDA9984 and TDA19989 only)
+    Modify the enableAudioPortI2S/SPDIF audio port mapping in comps/tmdlHdmiTx/cfg/TDA9989/tmdlHdmiTx_Linux_cfg.c. 
+
+  . "Where can I find all video format definition ?":
+    in hdmi/comps/tmdlHdmiTx/inc/tmdlHdmiTx_Types.h
+
+  . "Where can I find all audio format definition ?":
+    in hdmi/comps/tmdlHdmiTx/inc/tmdlHdmiTx_Types.h
+
+  . "Where can I find all HDMI types definition ?":
+    in hdmi/comps/tmdlHdmiTx/inc/tmdlHdmiTx_Types.h
+
+  . "Where can I find all power management types definition ?":
+    in hdmi/comps/tmdlHdmiTx/inc/tmdlHdmiTx_Types.h
+
+  . "Where can I find all HDMI Tx API definition ?":
+    in hdmi/comps/tmdlHdmiTx/inc/tmdlHdmiTx_Functions.h
+
+  . "Where can I find all HDMI CEC types definition ?":
+    in hdmi/comps/tmdlHdmiCec/inc/tmdlHdmiCec_Types.h
+
+  . "Where can I find all HDMI CEC API definition ?":
+    in hdmi/comps/tmdlHdmiCec/inc/tmdlHdmiCec_Functions.h
+
+  . "I would like to get debug message":
+    Install the module with debug messages > insmod hdmitx.ko verbose=1 
+
+  . "I would like to see the EDID of the TV":
+    Install the module with debug messages > insmod hdmitx.ko verbose=1 
+
+  . "On the TV display some pixel are flickering":
+    Check the OMAP DSS setup and update the dssdev->panel.config parameters
+
+  . "CEC send Samsung vendor ID":
+    Yes, otherwise you cannot use Samsung devices... replace is by your own
+
+  . "I don't use OMAP":
+    This module contains an OMAP Display SubSystem plugin that automatically
+    drives video output of OMAP (video input of TDA). If you don't have OMAP
+    remove the ANDROID_DSS (or add your PLATFORM flag in Makefile) and do
+    the video bus configuration at your convience. Anyhow, any other usefull 
+    plugin is welcome... So please feedback ;)
+
+  . "How to install HDMI module ?":
+    See installation chapter above.
+
+  . "HDCP is not supported":
+    Ask NXP to deliver you the proprietary HDCP module
+
+  . "HDCP module does not work":
+    Ask NXP to provide you your customer seed number...
+
+  . "How can I control the HDMI with my apps ?":
+    Use open("/dev/hdmitx") to get access to HdmiTx module.
+    Then use ioctl as described in tda998x_ioctl.h.
+
+  . "How can I control CEC with my apps ?":
+    Use open("/dev/hdmicec") to get access to HdmiCec module.
+    Then use ioctl as described in tda998x_ioctl.h.
+
+  . "How can my application get the HDMI event ?":
+    Create a dedicated incoming event thread in your apps and use ioctl WAIT_EVENT
+
+  . "Is is mandatory to create an incoming event thread in my apps ?":
+    No if you don't care.
+
+  . "Did I need to create some apps to make HDMI running ?":
+    No, you can modify hdmi_tx_init according to your needs and install the
+    modules in your init.rc. Hdmi will run automatically.
+
+  . "HDCP device is not authenticated":
+    Check your personnal customer ROMCODE and update accordingly your KEY_SEED value
+    in comps/tmdlHdmiTx/cfg/TDA9989/tmdlHdmiTx_Linux_cfg.c
+
+  . "Where can I get the the KEY_SEED value for HDCP":
+    Ask direcly NXP technical software support
+
+  . "How can I get PC video format like 600x480"
+    Watch out the "features on demand" part of Makefile
+
+  . "I don't get any interrupt wired nor IRQ on my board"
+    Remove the IRQ flag for timer based polling of interrupt
+
+  . "I want to use HDCP"
+    1) Add the nwolc.ko module (or ask it to NXP)
+    2) Add TDA_HDCP := TMFL_HDCP_SUPPORT flag
+    3) set your KEY_SEED number in tmdlHdmiTx_Linux_cfg.c file
+
+  . "HDCP does not work"
+    Ask you key seed to NXP
+
+  . "got unexpected TMDS activity between EDID reading and SetInputOuput"
+    use USER_SET_INPUT_OUTPUT flag
+
+  . "I don't want the module to automatically setup TMDS but from userland instead"
+    use USER_SET_INPUT_OUTPUT flag
+
+  . "I2S audio does not work, N value is not good"
+    Check the audio frequence in hdmi_tx_init or using IOCTL TDA_SET_AUDIO_INPUT_CMD
+    For example, N=6144 at 48KHz, but N=6272 at 44.1Khz
+
+  . "I2S audio does not work, CTS value is not good"
+    Check the audio I2S format in hdmi_tx_init or using IOCTL TDA_SET_AUDIO_INPUT_CMD
+    CTS is automatically computed by the TDA accordingly to the audio input
+    so accordingly to the upstream settings (like an OMAP ;)
+    For example, I2S 16 bits or 32 bits do not produce the same CTS value
+
+  . "How can I change the audio settings ?"
+    Put your own settings in setio.audio_in structure. For example : 
+     this->tda.setio.audio_in.format = TMDL_HDMITX_AFMT_I2S;
+     this->tda.setio.audio_in.rate = TMDL_HDMITX_AFS_44K;
+     this->tda.setio.audio_in.i2sFormat = TMDL_HDMITX_I2SFOR_PHILIPS_L;
+     this->tda.setio.audio_in.i2sQualifier = TMDL_HDMITX_I2SQ_16BITS;
+     this->tda.setio.audio_in.dstRate = TMDL_HDMITX_DSTRATE_SINGLE; /* not relevant here */
+     this->tda.setio.audio_in.channelAllocation = 0; /* audio channel allocation L+R (Ref to CEA-861D p85) */
+
+  . "When shall I set audio  ?"
+    Default (at module startup) is in hdmi_tx_init
+    At will using IOCTL TDA_SET_AUDIO_INPUT_CMD
+
+- Restriction :
+
+  . Remove IRQ flag in Makefile for timer based polling
+  . Add ZOOMII_PATCH to reverse clock edge in ZOOMII
+  . add TWL4030_HACK to get keypad handle and inject CEC::USER_CONTROL events
+  . omap_dss_driver might not be supported by kernel, then hdmi_enable
+    and hdmi_disable should be triggered by any other kernel means or
+    replaced by direct call from application using:
+    -->  ioctl(my_fd,TDA_IOCTL_SET_POWER,[tmPowerOn|tmPowerStandby]);
+  . HDCP can be switch off dynamically with TDA_IOCTL_SET_HDCP but not hw engine,
+    stop it by removing nwolc.ko module
+
+- License :
+
+  . hdmitx and hdmicec modules are free software; you can redistribute
+    it and/or modify it under the terms of the GNU General Public License
+    as published by the Free Software Foundation, using version 2 of the License.
+    These modules are distributed in the hope that it will be useful, but
+    WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+    or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
+    for more details.
+  . nwolc module source code and any compilation or derivative thereof is
+    the proprietary information of NXP N.V. and is confidential in nature.
+    Under no circumstances is this software to be exposed to or placed under
+    an Open Source License of any type without the expressed written permission
+    of NXP N.V.
+
+- DV :
+
+  . How to create a DV :
+    -> update tda998xversion.h and set PATCH_LEVEL to 0
+    -> update linux_hdmi_release_note.txt
+    $>cd driver/video/hdmi
+    $>make -f MakeModules clean
+    $>cd ..
+    $>tar cvfj $DV_FOLDER/linux-hdmi-nxp-modules.vXYZ.tar.cvfj hdmi
+
+-----------------------------------
+
+- Feedback : vincent.vrignaud@nxp.com -
+
+-----------------------------------
+
