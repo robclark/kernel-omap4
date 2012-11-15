@@ -1911,6 +1911,12 @@ static int this_i2c_remove(struct i2c_client *client)
  *  I2C client driver (backend)
  *  -----------------
  */
+static const struct of_device_id tda988x_of_match[] = {
+	{ .compatible = "nxp,tda988x", },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, tda988x_of_match);
+
 static const struct i2c_device_id this_i2c_id[] = {
    { TX_NAME, 0 },
    { },
@@ -1922,6 +1928,7 @@ static struct i2c_driver this_i2c_driver = {
    .driver = {
       .owner = THIS_MODULE,
       .name = TX_NAME,
+      .of_match_table = tda988x_of_match
    },
    .probe = this_i2c_probe,
    .remove = this_i2c_remove,
