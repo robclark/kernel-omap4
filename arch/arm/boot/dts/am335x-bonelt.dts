@@ -30,3 +30,20 @@
 	ti,non-removable;
 	status = "okay";
 };
+
+&i2c0 {
+	tda998X@34 {
+ 		compatible = "nxp,tda988x";
+	 	reg = <0x34>;
+	};
+};
+
+&capebus {
+	override@0 {
+		board-name = "NXP HDMI on CapeBus";
+		compatible = "bone-capebus-slot-override";
+		slot = <1>;
+		version = "00A1";
+		manufacturer = "Beagleboardtoys";
+	};
+};
