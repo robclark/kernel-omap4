@@ -312,6 +312,62 @@ static struct da8xx_panel known_lcd_panels[] = {
 		.pxl_clk = 30000000,
 		.invert_pxl_clk = 0,
 	},
+        [6] = {
+                 /* 1024 x 768 @ 60 Hz  Reduced blanking VESA CVT 0.79M3-R */ 
+                .name = "nxp-720x480@60",
+                .width = 720,
+                .height = 480,
+                .hfp = 15,
+                .hbp = 59,
+                .hsw = 61,
+                .vfp = 9,
+                .vbp = 30,
+                .vsw = 5,
+                .pxl_clk = 27027000,
+                .invert_pxl_clk = 0,
+        },
+	[7] = {
+		 /* 1024 x 768 @ 60 Hz  Reduced blanking VESA CVT 0.79M3-R */ 
+		.name = "nxp-1280x720@60",
+		.width = 1280,
+		.height = 720,
+		.hfp = 109, // 20
+		.hbp = 219, // 54
+		.hsw = 39,
+		.vfp = 5,
+		.vbp = 19,
+		.vsw = 5,
+		.pxl_clk = 74250000,
+		.invert_pxl_clk = 0,
+	},
+	[8] = {
+		 /* 1024 x 768 @ 60 Hz  Reduced blanking VESA CVT 0.79M3-R */ 
+		.name = "nxp-640x480@60",
+		.width = 640,
+		.height = 480,
+		.hfp = 19, // 20 /* Need more changes later */
+		.hbp = 79, // 54
+		.hsw = 59,
+		.vfp = 9,
+		.vbp = 30,
+		.vsw = 6,
+		.pxl_clk = 25200000,
+		.invert_pxl_clk = 0,
+	},
+	[9] = {
+		 /* 1024 x 768 @ 60 Hz  Reduced blanking VESA CVT 0.79M3-R */ 
+		.name = "nxp-1920x1080@24",
+		.width = 1920,
+		.height = 1080,
+		.hfp = 103, // 20
+		.hbp = 311, // 54
+		.hsw = 31,
+		.vfp = 37,
+		.vbp = 60,
+		.vsw = 8,
+		.pxl_clk = 96000000,
+		.invert_pxl_clk = 0,
+	},
 };
 
 /* Enable the Raster Engine of the LCD Controller */
