@@ -441,13 +441,30 @@ capebus_of_platform_compatible_device_create(struct cape_dev *dev,
 {
 	struct device_node *node;
 	struct platform_device *pdev;
+	char *name, *buf;
 
 	node = capebus_of_compatible_device_property_match(dev, matches, prop,
 			prop_value);
 	if (node == NULL)
 		return ERR_PTR(-ENXIO);
 
-	pdev = of_platform_device_create(node, pdev_name, dev->bus->dev.parent);
+	/* create system-wide unique name */
+	buf = kasprintf(GFP_KERNEL, "%d:%d-%s.%d",
+			dev->bus->busno, dev->slot->slotno,
+			pdev_name, dev->slot->next_pdevid++);
+	if (buf == NULL)
+		return ERR_PTR(-ENOMEM);
+
+	name = devm_kzalloc(&dev->dev, strlen(buf) + 1, GFP_KERNEL);
+	kfree(buf);
+
+	if (name == NULL)
+		return ERR_PTR(-ENOMEM);
+
+	/* safe */
+	strcpy(name, buf);
+
+	pdev = of_platform_device_create(node, name, &dev->dev);
 
 	/* release the reference to the node */
 	of_node_put(node);

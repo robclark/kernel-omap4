@@ -43,9 +43,10 @@ struct cape_slot;
 
 struct cape_slot {
 	struct list_head	node;
-	struct cape_bus 	*bus;	/* the bus this slot is on */
-	int 			slotno;	/* index of this slot */
-	struct cape_dev		*dev;	/* the device (if found) */
+	struct cape_bus 	*bus;		/* the bus this slot is on */
+	int 			slotno;		/* index of this slot      */
+	struct cape_dev		*dev;		/* the device (if found)   */
+	unsigned int		next_pdevid;	/* next assigned pdev_id   */
 };
 
 struct cape_driver {
