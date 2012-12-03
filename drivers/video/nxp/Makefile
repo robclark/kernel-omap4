@@ -14,7 +14,7 @@ TDA_PLATFORM := ZOOMII
 
 #TDA_HDCP := 0
 TDA_HDCP := TMFL_HDCP_SUPPORT
-TDA_CEC := TDA9950
+#TDA_CEC := TDA9950
 
 # add this if INTERRUPT is wired, otherwise polling with timer is used
 #EXTRA_CFLAGS += -DIRQ
