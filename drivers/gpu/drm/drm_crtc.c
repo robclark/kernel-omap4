@@ -470,10 +470,8 @@ void drm_crtc_cleanup(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 
-	if (crtc->gamma_store) {
-		kfree(crtc->gamma_store);
-		crtc->gamma_store = NULL;
-	}
+	kfree(crtc->gamma_store);
+	crtc->gamma_store = NULL;
 
 	drm_mode_object_put(dev, &crtc->base);
 	list_del(&crtc->head);
@@ -555,6 +553,7 @@ int drm_connector_init(struct drm_device *dev,
 	INIT_LIST_HEAD(&connector->probed_modes);
 	INIT_LIST_HEAD(&connector->modes);
 	connector->edid_blob_ptr = NULL;
+	connector->status = connector_status_unknown;
 
 	list_add_tail(&connector->head, &dev->mode_config.connector_list);
 	dev->mode_config.num_connector++;
@@ -2280,13 +2279,21 @@ static int framebuffer_check(const struct drm_mode_fb_cmd2 *r)
 
 	for (i = 0; i < num_planes; i++) {
 		unsigned int width = r->width / (i != 0 ? hsub : 1);
+		unsigned int height = r->height / (i != 0 ? vsub : 1);
+		unsigned int cpp = drm_format_plane_cpp(r->pixel_format, i);
 
 		if (!r->handles[i]) {
 			DRM_DEBUG_KMS("no buffer object handle for plane %d\n", i);
 			return -EINVAL;
 		}
 
-		if (r->pitches[i] < drm_format_plane_cpp(r->pixel_format, i) * width) {
+		if ((uint64_t) width * cpp > UINT_MAX)
+			return -ERANGE;
+
+		if ((uint64_t) height * r->pitches[i] + r->offsets[i] > UINT_MAX)
+			return -ERANGE;
+
+		if (r->pitches[i] < width * cpp) {
 			DRM_DEBUG_KMS("bad pitch %u for plane %d\n", r->pitches[i], i);
 			return -EINVAL;
 		}
@@ -2322,6 +2329,11 @@ int drm_mode_addfb2(struct drm_device *dev,
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
+
+	if (r->flags & ~DRM_MODE_FB_INTERLACED) {
+		DRM_DEBUG_KMS("bad framebuffer flags 0x%08x\n", r->flags);
+		return -EINVAL;
+	}
 
 	if ((config->min_width > r->width) || (r->width > config->max_width)) {
 		DRM_DEBUG_KMS("bad framebuffer width %d, should be >= %d && <= %d\n",
@@ -3180,6 +3192,8 @@ int drm_mode_connector_update_edid_property(struct drm_connector *connector,
 	size = EDID_LENGTH * (1 + edid->extensions);
 	connector->edid_blob_ptr = drm_property_create_blob(connector->dev,
 							    size, edid);
+	if (!connector->edid_blob_ptr)
+		return -EINVAL;
 
 	ret = drm_connector_property_set_value(connector,
 					       dev->mode_config.edid_property,
@@ -3204,6 +3218,9 @@ static bool drm_property_change_is_valid(struct drm_property *property,
 		for (i = 0; i < property->num_values; i++)
 			valid_mask |= (1ULL << property->values[i]);
 		return !(value & ~valid_mask);
+	} else if (property->flags & DRM_MODE_PROP_BLOB) {
+		/* Only the driver knows */
+		return true;
 	} else {
 		int i;
 		for (i = 0; i < property->num_values; i++)
@@ -3656,9 +3673,12 @@ void drm_mode_config_reset(struct drm_device *dev)
 		if (encoder->funcs->reset)
 			encoder->funcs->reset(encoder);
 
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		connector->status = connector_status_unknown;
+
 		if (connector->funcs->reset)
 			connector->funcs->reset(connector);
+	}
 }
 EXPORT_SYMBOL(drm_mode_config_reset);
 
