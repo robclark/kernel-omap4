@@ -1034,9 +1034,9 @@ static int hdmi_tx_init(tda_instance *this)
    /*    this->tda.setio.video_out.format = TMDL_HDMITX_VFMT_31_1920x1080p_50Hz; */
    /*    this->tda.setio.video_out.format = TMDL_HDMITX_VFMT_PC_640x480p_60Hz; */
    /*    this->tda.setio.video_out.format = TMDL_HDMITX_VFMT_PC_640x480p_72Hz; */
-   // this->tda.setio.video_out.format = TMDL_HDMITX_VFMT_04_1280x720p_60Hz; 
+   this->tda.setio.video_out.format = TMDL_HDMITX_VFMT_04_1280x720p_60Hz; 
    /*    this->tda.setio.video_out.format = TMDL_HDMITX_VFMT_19_1280x720p_50Hz; */
-   this->tda.setio.video_out.format = TMDL_HDMITX_VFMT_02_720x480p_60Hz;
+   // this->tda.setio.video_out.format = TMDL_HDMITX_VFMT_02_720x480p_60Hz;
 
    this->tda.setio.video_in.mode = TMDL_HDMITX_VINMODE_RGB444;
    /*    this->tda.setio.video_in.mode = TMDL_HDMITX_VINMODE_CCIR656; */
