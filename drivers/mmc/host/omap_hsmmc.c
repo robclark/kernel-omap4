@@ -421,7 +421,7 @@ static int omap_hsmmc_gpio_init(struct omap_mmc_platform_data *pdata)
 		ret = gpio_request_one(pdata->slots[0].gpio_reset, flags,
 				"mmc_reset");
 		if (ret)
-			goto err_free_wp;
+			goto err_free_reset;
 
 		/* hold reset */
 		udelay(pdata->slots[0].gpio_reset_hold_us);
@@ -442,6 +442,10 @@ err_free_cd:
 err_free_sp:
 		gpio_free(pdata->slots[0].switch_pin);
 	return ret;
+err_free_reset:
+	gpio_free(pdata->slots[0].gpio_reset);
+	pdata->slots[0].gpio_reset = -EINVAL;
+	return 0;
 }
 
 static void omap_hsmmc_gpio_free(struct omap_mmc_platform_data *pdata)
