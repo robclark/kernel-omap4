@@ -250,6 +250,91 @@ static struct platform_driver spi_dt_driver = {
 
 /*******************************************************************/
 
+struct pruss_priv {
+	phandle parent_handle;
+};
+
+static const struct of_device_id of_pruss_dt_match[] = {
+	{ .compatible = "pruss-dt", },
+	{},
+};
+
+static int __devinit pruss_dt_probe(struct platform_device *pdev)
+{
+	struct pruss_priv *priv = NULL;
+	int ret = -EINVAL;
+	struct device_node *master_node;
+	u32 val;
+
+	if (pdev->dev.of_node == NULL) {
+		dev_err(&pdev->dev, "Only support OF case\n");
+		return -ENOMEM;
+	}
+
+	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	if (priv == NULL) {
+		dev_err(&pdev->dev, "Failed to allocate priv\n");
+		return -ENOMEM;
+	}
+
+	ret = of_property_read_u32(pdev->dev.of_node, "parent", &val);
+	if (ret != 0) {
+		dev_err(&pdev->dev, "Failed to find parent property\n");
+		goto err_prop_fail;
+	}
+	priv->parent_handle = val;
+
+	master_node = of_find_node_by_phandle(priv->parent_handle);
+	if (master_node == NULL) {
+		dev_err(&pdev->dev, "Failed to find PRUSS node\n");
+		ret = -EINVAL;
+		goto err_node_fail;
+	}
+
+	ret = capebus_of_platform_device_enable(master_node);
+	if (ret != 0) {
+		dev_info(&pdev->dev, "PRUSS platform device failed to enable\n");
+		goto err_enable_fail;
+	}
+
+	of_node_put(master_node);
+
+	dev_info(&pdev->dev, "Registered bone PRUSS OK.\n");
+
+	platform_set_drvdata(pdev, priv);
+
+	return 0;
+
+err_enable_fail:
+	/* nothing */
+err_node_fail:
+	/* nothing */
+err_prop_fail:
+	devm_kfree(&pdev->dev, priv);
+	return ret;
+}
+
+static int __devexit pruss_dt_remove(struct platform_device *pdev)
+{
+	return -EINVAL;	/* not supporting removal yet */
+}
+
+static struct platform_driver pruss_dt_driver = {
+	.probe		= pruss_dt_probe,
+	.remove		= __devexit_p(pruss_dt_remove),
+	.driver		= {
+		.name	= "pruss-dt",
+		.owner	= THIS_MODULE,
+		.of_match_table = of_pruss_dt_match,
+	},
+};
+
+/*******************************************************************/
+
+
+
+
+
 static int of_is_printable_string(const void *data, int len)
 {
 	const char *s = data;
@@ -647,6 +732,9 @@ static struct bone_capebus_pdev_driver pdev_drivers[] = {
 	},
 	{
 		.driver		= &spi_dt_driver,
+	},
+	{
+		.driver		= &pruss_dt_driver,
 	},
 	{
 		.driver		= &dt_overlay_driver,
