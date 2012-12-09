@@ -19,6 +19,7 @@
 #define __LCDC_DRV_H__
 
 #include <linux/clk.h>
+#include <linux/cpufreq.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
@@ -44,6 +45,11 @@ struct lcdc_drm_private {
 
 	spinlock_t irq_lock; // TODO do we need this?
 
+#ifdef CONFIG_CPU_FREQ
+	struct notifier_block freq_transition;
+	unsigned int lcd_fck_rate;
+#endif
+
 	struct drm_fbdev_cma *fbdev;
 
 	/* just simple hw, with single crtc/encoder/connector: */
@@ -52,10 +58,24 @@ struct lcdc_drm_private {
 	struct drm_connector *connector;
 };
 
+struct lcdc_panel_info {
+	unsigned short width;
+	unsigned short height;
+	int hfp;                      /* Horizontal front porch */
+	int hbp;                      /* Horizontal back porch */
+	int hsw;                      /* Horizontal Sync Pulse Width */
+	int vfp;                      /* Vertical front porch */
+	int vbp;                      /* Vertical back porch */
+	int vsw;                      /* Vertical Sync Pulse Width */
+	unsigned int pxl_clk;         /* Pixel clock */
+};
 
 struct drm_crtc *lcdc_crtc_create(struct drm_device *dev);
 void lcdc_crtc_cancel_page_flip(struct drm_crtc *crtc, struct drm_file *file);
-
+irqreturn_t lcdc_crtc_irq(struct drm_crtc *crtc);
+void lcdc_crtc_update_clk(struct drm_crtc *crtc);
+void lcdc_crtc_set_panel_info(struct drm_crtc *crtc,
+		struct lcdc_panel_info *info);
 struct drm_encoder *lcdc_encoder_create(struct drm_device *dev);
 
 struct drm_connector *lcdc_connector_create(struct drm_device *dev,

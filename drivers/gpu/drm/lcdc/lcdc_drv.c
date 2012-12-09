@@ -52,6 +52,23 @@ static int modeset_init(struct drm_device *dev)
 	return 0;
 }
 
+#ifdef CONFIG_CPU_FREQ
+static int cpufreq_transition(struct notifier_block *nb,
+				     unsigned long val, void *data)
+{
+	struct lcdc_drm_private *priv = container_of(nb,
+			struct lcdc_drm_private, freq_transition);
+	if (val == CPUFREQ_POSTCHANGE) {
+		if (priv->lcd_fck_rate != clk_get_rate(priv->clk)) {
+			priv->lcd_fck_rate = clk_get_rate(priv->clk);
+			lcdc_crtc_update_clk(priv->crtc);
+		}
+	}
+
+	return 0;
+}
+#endif
+
 /*
  * DRM operations:
  */
@@ -64,6 +81,11 @@ static int lcdc_unload(struct drm_device *dev)
 	drm_mode_config_cleanup(dev);
 	drm_vblank_cleanup(dev);
 	drm_irq_uninstall(dev);
+
+#ifdef CONFIG_CPU_FREQ
+	cpufreq_unregister_notifier(&priv->freq_transition,
+			CPUFREQ_TRANSITION_NOTIFIER);
+#endif
 
 	if (priv->clk)
 		clk_put(priv->clk);
@@ -111,10 +133,21 @@ static int lcdc_load(struct drm_device *dev, unsigned long flags)
 
 	priv->clk = clk_get(dev->dev, NULL);
 	if (IS_ERR(priv->clk)) {
-		dev_err(dev->dev, "Can not get clock\n");
+		dev_err(dev->dev, "failed to get clock\n");
 		ret = -ENODEV;
 		goto fail;
 	}
+
+#ifdef CONFIG_CPU_FREQ
+	priv->lcd_fck_rate = clk_get_rate(priv->clk);
+	priv->freq_transition.notifier_call = cpufreq_transition;
+	ret = cpufreq_register_notifier(&priv->freq_transition,
+			CPUFREQ_TRANSITION_NOTIFIER);
+	if (ret) {
+		dev_err(dev->dev, "failed to register cpufreq notifier\n");
+		goto fail;
+	}
+#endif
 
 	spin_lock_init(&priv->irq_lock);
 
@@ -183,8 +216,9 @@ static void lcdc_preclose(struct drm_device *dev, struct drm_file *file)
 
 static irqreturn_t lcdc_irq(DRM_IRQ_ARGS)
 {
-	// XXX
-	return IRQ_HANDLED;
+	struct drm_device *dev = arg;
+	struct lcdc_drm_private *priv = dev->dev_private;
+	return lcdc_crtc_irq(priv->crtc);
 }
 
 static void lcdc_irq_preinstall(struct drm_device *dev)
@@ -437,7 +471,7 @@ static int __devinit lcdc_pdev_probe(struct platform_device *pdev)
 {
 	/* bail out early if no DT data: */
 	if (!of_match_device(lcdc_of_match, &pdev->dev)) {
-		dev_err(&pdev->dev, "DT Data is missing\n");
+		dev_err(&pdev->dev, "device-tree data is missing\n");
 		return -ENXIO;
 	}
 

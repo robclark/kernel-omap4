@@ -49,7 +49,7 @@
 #define LCDC_RASTER_MODE                         0x01
 
 /* LCDC Raster Control Register */
-#define LCD_PALETTE_LOAD_MODE(x)                 ((x) << 20)
+#define LCDC_PALETTE_LOAD_MODE(x)                ((x) << 20)
 #define PALETTE_AND_DATA                         0x00
 #define PALETTE_ONLY                             0x01
 #define DATA_ONLY                                0x02
