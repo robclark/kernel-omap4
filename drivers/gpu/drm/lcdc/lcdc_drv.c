@@ -349,7 +349,7 @@ static int lcdc_mm_show(struct seq_file *m, void *arg)
 static struct drm_info_list lcdc_debugfs_list[] = {
 		{ "regs", lcdc_regs_show, 0 },
 		{ "mm",   lcdc_mm_show,   0 },
-		/* TODO add some cma helper debugfs stuff to show gem buffers, fb's */
+		{ "fb",   drm_fb_cma_debugfs_show, 0 },
 };
 
 static int lcdc_debugfs_init(struct drm_minor *minor)
