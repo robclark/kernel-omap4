@@ -103,15 +103,10 @@ void mac802154_dev_set_short_addr(struct net_device *dev, u16 val)
 u16 mac802154_dev_get_short_addr(const struct net_device *dev)
 {
 	struct mac802154_sub_if_data *priv = netdev_priv(dev);
-	u16 ret;
 
 	BUG_ON(dev->type != ARPHRD_IEEE802154);
 
-	spin_lock_bh(&priv->mib_lock);
-	ret = priv->short_addr;
-	spin_unlock_bh(&priv->mib_lock);
-
-	return ret;
+	return priv->short_addr;
 }
 
 void mac802154_dev_set_ieee_addr(struct net_device *dev)
@@ -131,15 +126,10 @@ void mac802154_dev_set_ieee_addr(struct net_device *dev)
 u16 mac802154_dev_get_pan_id(const struct net_device *dev)
 {
 	struct mac802154_sub_if_data *priv = netdev_priv(dev);
-	u16 ret;
 
 	BUG_ON(dev->type != ARPHRD_IEEE802154);
 
-	spin_lock_bh(&priv->mib_lock);
-	ret = priv->pan_id;
-	spin_unlock_bh(&priv->mib_lock);
-
-	return ret;
+	return priv->pan_id;
 }
 
 void mac802154_dev_set_pan_id(struct net_device *dev, u16 val)
@@ -158,6 +148,25 @@ void mac802154_dev_set_pan_id(struct net_device *dev, u16 val)
 		set_hw_addr_filt(dev, IEEE802515_AFILT_PANID_CHANGED);
 	}
 }
+
+u8 mac802154_dev_get_dsn(const struct net_device *dev)
+{
+	struct mac802154_sub_if_data *priv = netdev_priv(dev);
+
+	BUG_ON(dev->type != ARPHRD_IEEE802154);
+
+	return priv->dsn++;
+}
+
+u8 mac802154_dev_get_bsn(const struct net_device *dev)
+{
+	struct mac802154_sub_if_data *priv = netdev_priv(dev);
+
+	BUG_ON(dev->type != ARPHRD_IEEE802154);
+
+	return priv->bsn++;
+}
+
 
 static void phy_chan_notify(struct work_struct *work)
 {

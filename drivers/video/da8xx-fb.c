@@ -270,6 +270,104 @@ static struct da8xx_panel known_lcd_panels[] = {
 		.pxl_clk = 7833600,
 		.invert_pxl_clk = 0,
 	},
+	[3] = {
+		 /* 1024 x 768 @ 60 Hz  Reduced blanking VESA CVT 0.79M3-R */
+		.name = "1024x768@60",
+		.width = 1024,
+		.height = 768,
+		.hfp = 48,
+		.hbp = 80,
+		.hsw = 32,
+		.vfp = 3,
+		.vbp = 15,
+		.vsw = 4,
+		.pxl_clk = 56000000,
+		.invert_pxl_clk = 0,
+	},
+	[4] = {
+		/* CDTech S035Q01 */
+		.name = "CDTech_S035Q01",
+		.width = 320,
+		.height = 240,
+		.hfp = 58,
+		.hbp = 21,
+		.hsw = 47,
+		.vfp = 23,
+		.vbp = 11,
+		.vsw = 2,
+		.pxl_clk = 8000000,
+		.invert_pxl_clk = 0,
+	},
+	/* ThreeFive S9700RTWV35TR */
+	[5] = {
+		.name = "TFC_S9700RTWV35TR_01B",
+		.width = 800,
+		.height = 480,
+		.hfp = 39,
+		.hbp = 39,
+		.hsw = 47,
+		.vfp = 13,
+		.vbp = 29,
+		.vsw = 2,
+		.pxl_clk = 30000000,
+		.invert_pxl_clk = 0,
+	},
+        [6] = {
+                 /* 1024 x 768 @ 60 Hz  Reduced blanking VESA CVT 0.79M3-R */ 
+                .name = "nxp-720x480@60",
+                .width = 720,
+                .height = 480,
+                .hfp = 15,
+                .hbp = 59,
+                .hsw = 61,
+                .vfp = 9,
+                .vbp = 30,
+                .vsw = 5,
+                .pxl_clk = 27027000,
+                .invert_pxl_clk = 0,
+        },
+	[7] = {
+		 /* 1024 x 768 @ 60 Hz  Reduced blanking VESA CVT 0.79M3-R */ 
+		.name = "nxp-1280x720@60",
+		.width = 1280,
+		.height = 720,
+		.hfp = 109, // 20
+		.hbp = 219, // 54
+		.hsw = 39,
+		.vfp = 5,
+		.vbp = 19,
+		.vsw = 5,
+		.pxl_clk = 74250000,
+		.invert_pxl_clk = 0,
+	},
+	[8] = {
+		 /* 1024 x 768 @ 60 Hz  Reduced blanking VESA CVT 0.79M3-R */ 
+		.name = "nxp-640x480@60",
+		.width = 640,
+		.height = 480,
+		.hfp = 19, // 20 /* Need more changes later */
+		.hbp = 79, // 54
+		.hsw = 59,
+		.vfp = 9,
+		.vbp = 30,
+		.vsw = 6,
+		.pxl_clk = 25200000,
+		.invert_pxl_clk = 0,
+	},
+	[9] = {
+		 /* 1024 x 768 @ 60 Hz  Reduced blanking VESA CVT 0.79M3-R */ 
+		.name = "nxp-1920x1080@24",
+		.width = 1920,
+		.height = 1080,
+		.hfp = 103, // 20
+		.hbp = 311, // 54
+		.hsw = 31,
+		.vfp = 37,
+		.vbp = 60,
+		.vsw = 8,
+		.pxl_clk = 96000000,
+		.invert_pxl_clk = 0,
+	},
 };
 
 /* Enable the Raster Engine of the LCD Controller */
@@ -1283,6 +1381,7 @@ static int __devinit fb_probe(struct platform_device *device)
 		lcd_revision = LCD_VERSION_1;
 		break;
 	case 0x4F200800:
+	case 0x4F201000:
 		lcd_revision = LCD_VERSION_2;
 		break;
 	default:

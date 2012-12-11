@@ -38,6 +38,8 @@
 #include <linux/gpio.h>
 #include <linux/regulator/consumer.h>
 #include <linux/pm_runtime.h>
+#include <linux/pinctrl/consumer.h>
+#include <linux/err.h>
 #include <mach/hardware.h>
 #include <plat/mmc.h>
 #include <plat/cpu.h>
@@ -62,6 +64,7 @@
 
 #define VS18			(1 << 26)
 #define VS30			(1 << 25)
+#define HSS			(1 << 21)
 #define SDVS18			(0x5 << 9)
 #define SDVS30			(0x6 << 9)
 #define SDVS33			(0x7 << 9)
@@ -89,6 +92,7 @@
 #define MSBS			(1 << 5)
 #define BCE			(1 << 1)
 #define FOUR_BIT		(1 << 1)
+#define HSPE			(1 << 2)
 #define DDR			(1 << 19)
 #define DW8			(1 << 5)
 #define CC			0x1
@@ -381,6 +385,7 @@ static inline int omap_hsmmc_have_reg(void)
 static int omap_hsmmc_gpio_init(struct omap_mmc_platform_data *pdata)
 {
 	int ret;
+	unsigned long flags;
 
 	if (gpio_is_valid(pdata->slots[0].switch_pin)) {
 		if (pdata->slots[0].cover)
@@ -410,6 +415,24 @@ static int omap_hsmmc_gpio_init(struct omap_mmc_platform_data *pdata)
 	} else
 		pdata->slots[0].gpio_wp = -EINVAL;
 
+	if (gpio_is_valid(pdata->slots[0].gpio_reset)) {
+		flags = pdata->slots[0].gpio_reset_active_low ?
+				GPIOF_OUT_INIT_LOW : GPIOF_OUT_INIT_HIGH;
+		ret = gpio_request_one(pdata->slots[0].gpio_reset, flags,
+				"mmc_reset");
+		if (ret)
+			goto err_free_reset;
+
+		/* hold reset */
+		udelay(pdata->slots[0].gpio_reset_hold_us);
+
+		gpio_set_value(pdata->slots[0].gpio_reset,
+				!pdata->slots[0].gpio_reset_active_low);
+
+	} else
+		pdata->slots[0].gpio_reset = -EINVAL;
+
+
 	return 0;
 
 err_free_wp:
@@ -419,10 +442,16 @@ err_free_cd:
 err_free_sp:
 		gpio_free(pdata->slots[0].switch_pin);
 	return ret;
+err_free_reset:
+	gpio_free(pdata->slots[0].gpio_reset);
+	pdata->slots[0].gpio_reset = -EINVAL;
+	return 0;
 }
 
 static void omap_hsmmc_gpio_free(struct omap_mmc_platform_data *pdata)
 {
+	if (gpio_is_valid(pdata->slots[0].gpio_reset))
+		gpio_free(pdata->slots[0].gpio_reset);
 	if (gpio_is_valid(pdata->slots[0].gpio_wp))
 		gpio_free(pdata->slots[0].gpio_wp);
 	if (gpio_is_valid(pdata->slots[0].switch_pin))
@@ -494,6 +523,7 @@ static void omap_hsmmc_set_clock(struct omap_hsmmc_host *host)
 	struct mmc_ios *ios = &host->mmc->ios;
 	unsigned long regval;
 	unsigned long timeout;
+	unsigned long clkdiv;
 
 	dev_vdbg(mmc_dev(host->mmc), "Set clock to %uHz\n", ios->clock);
 
@@ -501,7 +531,8 @@ static void omap_hsmmc_set_clock(struct omap_hsmmc_host *host)
 
 	regval = OMAP_HSMMC_READ(host->base, SYSCTL);
 	regval = regval & ~(CLKD_MASK | DTO_MASK);
-	regval = regval | (calc_divisor(host, ios) << 6) | (DTO << 16);
+	clkdiv = calc_divisor(host, ios);
+	regval = regval | (clkdiv << 6) | (DTO << 16);
 	OMAP_HSMMC_WRITE(host->base, SYSCTL, regval);
 	OMAP_HSMMC_WRITE(host->base, SYSCTL,
 		OMAP_HSMMC_READ(host->base, SYSCTL) | ICE);
@@ -511,6 +542,27 @@ static void omap_hsmmc_set_clock(struct omap_hsmmc_host *host)
 	while ((OMAP_HSMMC_READ(host->base, SYSCTL) & ICS) != ICS
 		&& time_before(jiffies, timeout))
 		cpu_relax();
+
+	/*
+	 * Enable High-Speed Support
+	 * Pre-Requisites
+	 *	- Controller should support High-Speed-Enable Bit
+	 *	- Controller should not be using DDR Mode
+	 *	- Controller should advertise that it supports High Speed
+	 *	  in capabilities register
+	 *	- MMC/SD clock coming out of controller > 25MHz
+	 */
+	if ((mmc_slot(host).features & HSMMC_HAS_HSPE_SUPPORT) &&
+	    (ios->timing != MMC_TIMING_UHS_DDR50) &&
+	    ((OMAP_HSMMC_READ(host->base, CAPA) & HSS) == HSS)) {
+		regval = OMAP_HSMMC_READ(host->base, HCTL);
+		if (clkdiv && (clk_get_rate(host->fclk)/clkdiv) > 25000000)
+			regval |= HSPE;
+		else
+			regval &= ~HSPE;
+
+		OMAP_HSMMC_WRITE(host->base, HCTL, regval);
+	}
 
 	omap_hsmmc_start_clock(host);
 }
@@ -754,7 +806,7 @@ omap_hsmmc_start_command(struct omap_hsmmc_host *host, struct mmc_command *cmd,
 	 * ac, bc, adtc, bcr. Only commands ending an open ended transfer need
 	 * a val of 0x3, rest 0x0.
 	 */
-	if (cmd == host->mrq->stop)
+	if (host->mrq && cmd == host->mrq->stop)
 		cmdtype = 0x3;
 
 	cmdreg = (cmd->opcode << 24) | (resptype << 16) | (cmdtype << 22);
@@ -795,6 +847,8 @@ static void omap_hsmmc_request_done(struct omap_hsmmc_host *host, struct mmc_req
 {
 	int dma_ch;
 	unsigned long flags;
+
+	BUG_ON(mrq == NULL);
 
 	spin_lock_irqsave(&host->irq_lock, flags);
 	host->req_in_progress = 0;
@@ -1679,6 +1733,7 @@ static struct omap_mmc_platform_data *of_get_hsmmc_pdata(struct device *dev)
 	struct omap_mmc_platform_data *pdata;
 	struct device_node *np = dev->of_node;
 	u32 bus_width;
+	enum of_gpio_flags reset_flags;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
@@ -1691,6 +1746,14 @@ static struct omap_mmc_platform_data *of_get_hsmmc_pdata(struct device *dev)
 	pdata->nr_slots = 1;
 	pdata->slots[0].switch_pin = of_get_named_gpio(np, "cd-gpios", 0);
 	pdata->slots[0].gpio_wp = of_get_named_gpio(np, "wp-gpios", 0);
+	reset_flags = 0;
+	pdata->slots[0].gpio_reset = of_get_named_gpio_flags(np,
+			"reset-gpios", 0, &reset_flags);
+	pdata->slots[0].gpio_reset_active_low =
+		(reset_flags & OF_GPIO_ACTIVE_LOW) != 0;
+	pdata->slots[0].gpio_reset_hold_us = 100;	/* default */
+	of_property_read_u32(np, "reset-gpio-hold-us",
+			&pdata->slots[0].gpio_reset_hold_us);
 
 	if (of_find_property(np, "ti,non-removable", NULL)) {
 		pdata->slots[0].nonremovable = true;
@@ -1704,6 +1767,9 @@ static struct omap_mmc_platform_data *of_get_hsmmc_pdata(struct device *dev)
 
 	if (of_find_property(np, "ti,needs-special-reset", NULL))
 		pdata->slots[0].features |= HSMMC_HAS_UPDATED_RESET;
+
+	if (of_find_property(np, "ti,needs-special-hs-handling", NULL))
+		pdata->slots[0].features |= HSMMC_HAS_HSPE_SUPPORT;
 
 	return pdata;
 }
@@ -1725,6 +1791,7 @@ static int __devinit omap_hsmmc_probe(struct platform_device *pdev)
 	const struct of_device_id *match;
 	dma_cap_mask_t mask;
 	unsigned tx_req, rx_req;
+	struct pinctrl *pinctrl;
 
 	match = of_match_device(of_match_ptr(omap_mmc_of_match), &pdev->dev);
 	if (match) {
@@ -1744,6 +1811,10 @@ static int __devinit omap_hsmmc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "No Slots\n");
 		return -ENXIO;
 	}
+
+	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
+	if (IS_ERR(pinctrl))
+		dev_warn(&pdev->dev, "unable to select pin group\n");
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq = platform_get_irq(pdev, 0);
@@ -1833,6 +1904,16 @@ static int __devinit omap_hsmmc_probe(struct platform_device *pdev)
 	 * as we want. */
 	mmc->max_segs = 1024;
 
+	/* Eventually we should get our max_segs limitation for EDMA by
+	 * querying the dmaengine API */
+	if (pdev->dev.of_node) {
+		struct device_node *parent = of_node_get(pdev->dev.of_node->parent);
+		struct device_node *node;
+		node = of_find_node_by_name(parent, "edma");
+		if (node)
+			mmc->max_segs = 16;
+	}
+
 	mmc->max_blk_size = 512;       /* Block Length at max can be 1024 */
 	mmc->max_blk_count = 0xFFFF;    /* No. of Blocks is 16 bits */
 	mmc->max_req_size = mmc->max_blk_size * mmc->max_blk_count;
@@ -1871,14 +1952,20 @@ static int __devinit omap_hsmmc_probe(struct platform_device *pdev)
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
 
-	host->rx_chan = dma_request_channel(mask, omap_dma_filter_fn, &rx_req);
+	host->rx_chan =
+		dma_request_slave_channel_compat(mask, omap_dma_filter_fn,
+						 &rx_req, &pdev->dev, "rx");
+
 	if (!host->rx_chan) {
 		dev_err(mmc_dev(host->mmc), "unable to obtain RX DMA engine channel %u\n", rx_req);
 		ret = -ENXIO;
 		goto err_irq;
 	}
 
-	host->tx_chan = dma_request_channel(mask, omap_dma_filter_fn, &tx_req);
+	host->tx_chan =
+		dma_request_slave_channel_compat(mask, omap_dma_filter_fn,
+						 &tx_req, &pdev->dev, "tx");
+
 	if (!host->tx_chan) {
 		dev_err(mmc_dev(host->mmc), "unable to obtain TX DMA engine channel %u\n", tx_req);
 		ret = -ENXIO;

@@ -650,8 +650,7 @@ static struct omap_hwmod_class_sysconfig am33xx_cpgmac_sysc = {
 	.rev_offs	= 0x0,
 	.sysc_offs	= 0x8,
 	.syss_offs	= 0x4,
-	.sysc_flags	= (SYSC_HAS_SIDLEMODE | SYSC_HAS_MIDLEMODE |
-			   SYSS_HAS_RESET_STATUS),
+	.sysc_flags	= (SYSC_HAS_SIDLEMODE | SYSC_HAS_MIDLEMODE),
 	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | MSTANDBY_FORCE |
 			   MSTANDBY_NO),
 	.sysc_fields	= &omap_hwmod_sysc_type3,
@@ -682,6 +681,7 @@ static struct omap_hwmod am33xx_cpgmac0_hwmod = {
 			.modulemode	= MODULEMODE_SWCTRL,
 		},
 	},
+	.flags		= (HWMOD_SWSUP_SIDLE | HWMOD_SWSUP_MSTANDBY),
 };
 
 /*
@@ -2510,6 +2510,34 @@ static struct omap_hwmod_addr_space am33xx_elm_addr_space[] = {
 	{ }
 };
 
+/* mdio class */
+static struct omap_hwmod_class am33xx_mdio_hwmod_class = {
+	.name		= "davinci_mdio",
+};
+
+struct omap_hwmod_addr_space am33xx_mdio_addr_space[] = {
+	{
+		.pa_start	= 0x4A101000,
+		.pa_end		= 0x4A101000 + SZ_256 - 1,
+		.flags		= ADDR_MAP_ON_INIT,
+	},
+	{ }
+};
+
+static struct omap_hwmod am33xx_mdio_hwmod = {
+	.name		= "davinci_mdio",
+	.class		= &am33xx_mdio_hwmod_class,
+	.clkdm_name	= "cpsw_125mhz_clkdm",
+	.main_clk	= "cpsw_125mhz_gclk",
+};
+
+struct omap_hwmod_ocp_if am33xx_cpgmac0__mdio = {
+	.master		= &am33xx_cpgmac0_hwmod,
+	.slave		= &am33xx_mdio_hwmod,
+	.addr		= am33xx_mdio_addr_space,
+	.user		= OCP_USER_MPU,
+};
+
 static struct omap_hwmod_ocp_if am33xx_l4_ls__elm = {
 	.master		= &am33xx_l4_ls_hwmod,
 	.slave		= &am33xx_elm_hwmod,
@@ -2520,17 +2548,17 @@ static struct omap_hwmod_ocp_if am33xx_l4_ls__elm = {
 
 /*
  * Splitting the resources to handle access of PWMSS config space
- * and module specific part independently
+ * and module specific part independently. Also resources being
+ * arranged to be compatible with driver
  */
 static struct omap_hwmod_addr_space am33xx_ehrpwm0_addr_space[] = {
 	{
-		.pa_start	= 0x48300000,
-		.pa_end		= 0x48300000 + SZ_16 - 1,
-		.flags		= ADDR_TYPE_RT
-	},
-	{
 		.pa_start	= 0x48300200,
 		.pa_end		= 0x48300200 + SZ_256 - 1,
+	},
+	{
+		.pa_start	= 0x48300000,
+		.pa_end		= 0x48300000 + SZ_16 - 1,
 		.flags		= ADDR_TYPE_RT
 	},
 	{ }
@@ -2546,17 +2574,17 @@ static struct omap_hwmod_ocp_if am33xx_l4_ls__ehrpwm0 = {
 
 /*
  * Splitting the resources to handle access of PWMSS config space
- * and module specific part independently
+ * and module specific part independently. Also resources being
+ * arranged to be compatible with driver
  */
 static struct omap_hwmod_addr_space am33xx_ehrpwm1_addr_space[] = {
 	{
-		.pa_start	= 0x48302000,
-		.pa_end		= 0x48302000 + SZ_16 - 1,
-		.flags		= ADDR_TYPE_RT
-	},
-	{
 		.pa_start	= 0x48302200,
 		.pa_end		= 0x48302200 + SZ_256 - 1,
+	},
+	{
+		.pa_start	= 0x48302000,
+		.pa_end		= 0x48302000 + SZ_16 - 1,
 		.flags		= ADDR_TYPE_RT
 	},
 	{ }
@@ -2572,17 +2600,17 @@ static struct omap_hwmod_ocp_if am33xx_l4_ls__ehrpwm1 = {
 
 /*
  * Splitting the resources to handle access of PWMSS config space
- * and module specific part independently
+ * and module specific part independently. Also resources being
+ * arranged to be compatible with driver
  */
 static struct omap_hwmod_addr_space am33xx_ehrpwm2_addr_space[] = {
 	{
-		.pa_start	= 0x48304000,
-		.pa_end		= 0x48304000 + SZ_16 - 1,
-		.flags		= ADDR_TYPE_RT
-	},
-	{
 		.pa_start	= 0x48304200,
 		.pa_end		= 0x48304200 + SZ_256 - 1,
+	},
+	{
+		.pa_start	= 0x48304000,
+		.pa_end		= 0x48304000 + SZ_16 - 1,
 		.flags		= ADDR_TYPE_RT
 	},
 	{ }
@@ -2598,17 +2626,17 @@ static struct omap_hwmod_ocp_if am33xx_l4_ls__ehrpwm2 = {
 
 /*
  * Splitting the resources to handle access of PWMSS config space
- * and module specific part independently
+ * and module specific part independently. Also resources being
+ * arranged to be compatible with driver
  */
 static struct omap_hwmod_addr_space am33xx_ecap0_addr_space[] = {
 	{
-		.pa_start	= 0x48300000,
-		.pa_end		= 0x48300000 + SZ_16 - 1,
-		.flags		= ADDR_TYPE_RT
-	},
-	{
 		.pa_start	= 0x48300100,
 		.pa_end		= 0x48300100 + SZ_256 - 1,
+	},
+	{
+		.pa_start	= 0x48300000,
+		.pa_end		= 0x48300000 + SZ_16 - 1,
 		.flags		= ADDR_TYPE_RT
 	},
 	{ }
@@ -2624,17 +2652,17 @@ static struct omap_hwmod_ocp_if am33xx_l4_ls__ecap0 = {
 
 /*
  * Splitting the resources to handle access of PWMSS config space
- * and module specific part independently
+ * and module specific part independently. Also resources being
+ * arranged to be compatible with driver
  */
 static struct omap_hwmod_addr_space am33xx_ecap1_addr_space[] = {
 	{
-		.pa_start	= 0x48302000,
-		.pa_end		= 0x48302000 + SZ_16 - 1,
-		.flags		= ADDR_TYPE_RT
-	},
-	{
 		.pa_start	= 0x48302100,
 		.pa_end		= 0x48302100 + SZ_256 - 1,
+	},
+	{
+		.pa_start	= 0x48302000,
+		.pa_end		= 0x48302000 + SZ_16 - 1,
 		.flags		= ADDR_TYPE_RT
 	},
 	{ }
@@ -2650,17 +2678,17 @@ static struct omap_hwmod_ocp_if am33xx_l4_ls__ecap1 = {
 
 /*
  * Splitting the resources to handle access of PWMSS config space
- * and module specific part independently
+ * and module specific part independently. Also resources being
+ * arranged to be compatible with driver
  */
 static struct omap_hwmod_addr_space am33xx_ecap2_addr_space[] = {
 	{
-		.pa_start	= 0x48304000,
-		.pa_end		= 0x48304000 + SZ_16 - 1,
-		.flags		= ADDR_TYPE_RT
-	},
-	{
 		.pa_start	= 0x48304100,
 		.pa_end		= 0x48304100 + SZ_256 - 1,
+	},
+	{
+		.pa_start	= 0x48304000,
+		.pa_end		= 0x48304000 + SZ_16 - 1,
 		.flags		= ADDR_TYPE_RT
 	},
 	{ }
@@ -3281,12 +3309,24 @@ static struct omap_hwmod_addr_space am33xx_usbss_addr_space[] = {
 		.pa_end		= 0x47401000 + SZ_2K - 1,
 		.flags		= ADDR_TYPE_RT
 	},
-	{
-		.name		= "musb1",
-		.pa_start	= 0x47401800,
-		.pa_end		= 0x47401800 + SZ_2K - 1,
-		.flags		= ADDR_TYPE_RT
-	},
+        {
+                .name           = "usb_ctrl0",
+                .pa_start       = 0x44E10620,
+                .pa_end         = 0x44E10620 + SZ_4 - 1,
+                .flags          = ADDR_TYPE_RT
+        },
+        {
+                .name           = "musb1",
+                .pa_start       = 0x47401800,
+                .pa_end         = 0x47401800 + SZ_2K - 1,
+                .flags          = ADDR_TYPE_RT
+        },
+        {
+                .name           = "usb_ctrl1",
+                .pa_start       = 0x44E10628,
+                .pa_end         = 0x44E10628 + SZ_4 - 1,
+                .flags          = ADDR_TYPE_RT
+        },
 	{ }
 };
 
@@ -3371,6 +3411,7 @@ static struct omap_hwmod_ocp_if *am33xx_hwmod_ocp_ifs[] __initdata = {
 	&am33xx_l3_main__tptc2,
 	&am33xx_l3_s__usbss,
 	&am33xx_l4_hs__cpgmac0,
+	&am33xx_cpgmac0__mdio,
 	NULL,
 };
 

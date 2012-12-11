@@ -126,10 +126,14 @@ struct omap_mmc_platform_data {
 		/* we can put the features above into this variable */
 #define HSMMC_HAS_PBIAS		(1 << 0)
 #define HSMMC_HAS_UPDATED_RESET	(1 << 1)
+#define HSMMC_HAS_HSPE_SUPPORT	(1 << 2)
 		unsigned features;
 
 		int switch_pin;			/* gpio (card detect) */
 		int gpio_wp;			/* gpio (write protect) */
+		int gpio_reset;			/* gpio (reset) */
+		int gpio_reset_active_low;	/* 1 if reset is active low */
+		u32 gpio_reset_hold_us;		/* time to hold in us */
 
 		int (*set_bus_mode)(struct device *dev, int slot, int bus_mode);
 		int (*set_power)(struct device *dev, int slot,

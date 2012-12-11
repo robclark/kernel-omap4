@@ -1,0 +1,59 @@
+PACKAGE_NAME:=hdmi
+
+RULES:=compile
+
+ARCH:=arm
+CROSS_COMPILE:=/home/joel/oe-arm-angstrom-linux-gnueabi-
+VARS:= ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE)
+# VARS:= V=1 ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE)
+
+# module to be put in driver/video/hdmi
+
+LINUX_DIR=/home/joel/work/code/kernel/linux-dvi-audio/git/
+LINUXKERNEL_SRC=$(LINUX_DIR)
+
+all: $(RULES)
+
+compile:
+	@echo "\t-----> $(PACKAGE_NAME):$@"
+#	@rm -rf *.o *.ko *.mod.c .*.cmd .tmp_versions *.c.* *.h.*
+# 	@mv tda998x_version.h temp && cat temp | awk '$$2~"PATCHLEVEL" {$$3=$$3+1};{print};' >tda998x_version.h && rm temp
+	$(MAKE) -C $(LINUXKERNEL_SRC) M=`pwd` $(VARS) modules
+#	@touch $@
+
+uptx:
+	adb shell hdmi_off
+	adb shell rm hdmitx.ko
+	adb shell rmmod hdmitx
+	adb push hdmitx.ko hdmitx.ko
+	adb shell insmod hdmitx.ko verbose=1
+	adb shell hdmi_on
+
+upcec:
+	adb shell rm hdmicec.ko
+	adb shell rmmod hdmicec
+	adb push hdmicec.ko hdmicec.ko
+	adb shell insmod hdmicec.ko verbose=1 device=4
+
+strip:
+	strip -g -I elf32-little hdmitx.ko -o hdmitx_striped.ko
+	strip -g -I elf32-little hdmicec.ko -o hdmicec_striped.ko
+
+clean:
+	@echo "\t-----> $(PACKAGE_NAME):$@"
+	@rm -rf *.o *.ko *.mod.c .*.cmd .tmp_versions *.c.* *.h.* *.symvers *.order
+	@if [ -e comps/tmdlHdmiTx/src ]; then cd comps/tmdlHdmiTx/src && rm -rf *.o *.ko *.mod.c .*.cmd .tmp_versions *.c.* *.h.*; fi
+	@if [ -e comps/tmdlHdmiTx/cfg/TDA9989 ]; then cd comps/tmdlHdmiTx/cfg/TDA9989 && rm -rf *.o *.ko *.mod.c .*.cmd .tmp_versions *.c.* *.h.*; fi
+	@if [ -e comps/tmdlHdmiCEC/src ]; then cd comps/tmdlHdmiCEC/src && rm -rf *.o *.ko *.mod.c .*.cmd .tmp_versions *.c.* *.h.*; fi
+	@if [ -e comps/tmdlHdmiCEC/cfg ]; then cd comps/tmdlHdmiCEC/cfg && rm -rf *.o *.ko *.mod.c .*.cmd .tmp_versions *.c.* *.h.*; fi
+	@if [ -e comps/tmdlTDA9983/src ]; then cd comps/tmdlTDA9983/src && rm -rf *.o *.ko *.mod.c .*.cmd .tmp_versions *.c.* *.h.*; fi
+	@if [ -e comps/tmdlTDA9983/cfg ]; then cd comps/tmdlTDA9983/cfg && rm -rf *.o *.ko *.mod.c .*.cmd .tmp_versions *.c.* *.h.*; fi
+	@if [ -e comps/tmbslTDA9989/src ]; then cd comps/tmbslTDA9989/src && rm -rf *.o *.ko *.mod.c .*.cmd .tmp_versions *.c.* *.h.*; fi
+	@if [ -e comps/tmbslTDA9984NoHdcp/src ]; then cd comps/tmbslTDA9984NoHdcp/src && rm -rf *.o *.ko *.mod.c .*.cmd .tmp_versions *.c.* *.h.*; fi
+	@if [ -e comps/tmbslTDA9983/src ]; then cd comps/tmbslTDA9983/src && rm -rf *.o *.ko *.mod.c .*.cmd .tmp_versions *.c.* *.h.*; fi
+
+	@if [ -e .compiled ]; then rm .compiled; fi
+
+# install: .install
+# .install:
+# 	cp ....

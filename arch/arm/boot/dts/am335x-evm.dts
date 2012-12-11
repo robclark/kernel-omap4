@@ -13,6 +13,12 @@
 	model = "TI AM335x EVM";
 	compatible = "ti,am335x-evm", "ti,am33xx";
 
+	cpus {
+		cpu@0 {
+			cpu0-supply = <&vdd1_reg>;
+		};
+	};
+
 	memory {
 		device_type = "memory";
 		reg = <0x80000000 0x10000000>; /* 256 MB */
@@ -23,7 +29,7 @@
 			status = "okay";
 		};
 
-		i2c1: i2c@44e0b000 {
+		i2c0: i2c@44e0b000 {
 			status = "okay";
 			clock-frequency = <400000>;
 
@@ -114,7 +120,30 @@
 		};
 
 		vmmc_reg: regulator@12 {
+			regulator-min-microvolt = <1800000>;
+			regulator-max-microvolt = <3300000>;
 			regulator-always-on;
 		};
 	};
+};
+
+&mmc1 {
+	vmmc-supply = <&vmmc_reg>;
+};
+
+&spi0 {
+	status = "okay";
+	spi-flash@0 {
+		compatible = "spansion,s25fl064k", "m25p80";
+		spi-max-frequency = <24000000>;
+		reg = <0>;
+	};
+};
+
+&cpsw_emac0 {
+	phy_id = "4a101000.mdio:00";
+};
+
+&cpsw_emac1 {
+	phy_id = "4a101000.mdio:01";
 };

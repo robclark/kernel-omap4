@@ -25,6 +25,25 @@
 	cpus {
 		cpu@0 {
 			compatible = "arm,cortex-a8";
+
+			/*
+			 * To consider voltage drop between PMIC and SoC,
+			 * tolerance value is reduced to 2% from 4% and
+			 * voltage value is increased as a precaution.
+			 */
+			operating-points = <
+				/* kHz    uV */
+				/* ES 2.0 Nitro and Turbo OPPs"
+				1000000	1350000
+				800000	1300000
+				*/
+				720000  1285000
+				600000  1225000
+				500000  1125000
+				275000  1125000
+			>;
+			voltage-tolerance = <2>; /* 2 percentage */
+			clock-latency = <300000>; /* From omap-cpufreq driver */
 		};
 	};
 
@@ -38,6 +57,15 @@
 			compatible = "ti,omap3-mpu";
 			ti,hwmods = "mpu";
 		};
+	};
+
+	am3358_pinmux: pinmux@44e10800 {
+		compatible = "pinctrl-single";
+		reg = <0x44e10800 0x0238>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-single,register-width = <32>;
+		pinctrl-single,function-mask = <0x7f>;
 	};
 
 	/*
@@ -60,6 +88,37 @@
 			#interrupt-cells = <1>;
 			ti,intc-size = <128>;
 			reg = <0x48200000 0x1000>;
+		};
+
+		edma: edma@49000000 {
+			compatible = "ti,edma3";
+			ti,hwmods = "tpcc", "tptc0", "tptc1", "tptc2";
+			reg =	<0x49000000 0x10000>,
+				<0x44e10f90 0x10>;
+			interrupt-parent = <&intc>;
+			interrupts = <12 13 14>;
+			#dma-cells = <1>;
+			dma-channels = <64>;
+			ti,edma-regions = <4>;
+			ti,edma-slots = <256>;
+			ti,edma-reserved-channels = <0  2
+						     14 2
+						     26 6
+						     48 4
+						     56 8>;
+			ti,edma-reserved-slots = <0  2
+						  14 2
+						  26 6
+						  48 4
+						  56 8
+						  64 127>;
+			ti,edma-queue-tc-map = <0 0
+						1 1
+						2 2>;
+			ti,edma-queue-priority-map = <0 0
+						      1 1
+						      2 2>;
+			ti,edma-default-queue = <0>;
 		};
 
 		gpio1: gpio@44e07000 {
@@ -170,36 +229,126 @@
 			status = "disabled";
 		};
 
-		i2c1: i2c@44e0b000 {
+		i2c0: i2c@44e0b000 {
 			compatible = "ti,omap4-i2c";
 			#address-cells = <1>;
 			#size-cells = <0>;
-			ti,hwmods = "i2c1";
+			ti,hwmods = "i2c1";	/* TODO: Fix hwmod */
 			reg = <0x44e0b000 0x1000>;
 			interrupt-parent = <&intc>;
 			interrupts = <70>;
 			status = "disabled";
 		};
 
-		i2c2: i2c@4802a000 {
+		i2c1: i2c@4802a000 {
 			compatible = "ti,omap4-i2c";
 			#address-cells = <1>;
 			#size-cells = <0>;
-			ti,hwmods = "i2c2";
+			ti,hwmods = "i2c2";	/* TODO: Fix hwmod */
 			reg = <0x4802a000 0x1000>;
 			interrupt-parent = <&intc>;
 			interrupts = <71>;
 			status = "disabled";
 		};
 
-		i2c3: i2c@4819c000 {
+		i2c2: i2c@4819c000 {
 			compatible = "ti,omap4-i2c";
 			#address-cells = <1>;
 			#size-cells = <0>;
-			ti,hwmods = "i2c3";
+			ti,hwmods = "i2c3";	/* TODO: Fix hwmod */
 			reg = <0x4819c000 0x1000>;
 			interrupt-parent = <&intc>;
 			interrupts = <30>;
+			status = "disabled";
+		};
+
+		mmc1: mmc@48060000 {
+			compatible = "ti,omap3-hsmmc";
+			ti,hwmods = "mmc1";
+			ti,dual-volt;
+			ti,needs-special-reset;
+			ti,needs-special-hs-handling;
+			dmas = <&edma 24
+				&edma 25>;
+			dma-names = "tx", "rx";
+		};
+
+		mmc2: mmc@481d8000 {
+			compatible = "ti,omap3-hsmmc";
+			ti,hwmods = "mmc2";
+			ti,needs-special-reset;
+			ti,needs-special-hs-handling;
+			dmas = <&edma 2
+				&edma 3>;
+			dma-names = "tx", "rx";
+			status = "disabled";
+		};
+
+		mmc3: mmc@47810000 {
+			compatible = "ti,omap3-hsmmc";
+			ti,hwmods = "mmc3";
+			ti,needs-special-reset;
+			ti,needs-special-hs-handling;
+			status = "disabled";
+		};
+
+		usb0_phy: phy0 {
+			compatible = "nop-xceiv-usb";
+		};
+
+		usb1_phy: phy1 {
+			compatible = "nop-xceiv-usb";
+		};
+
+		usb_otg_hs: usb_otg_hs {
+			compatible = "ti,musb-am33xx";
+			ti,hwmods = "usb_otg_hs";
+			multipoint = <1>;
+			num-eps = <16>;
+			ram-bits = <12>;
+			port0-mode = <3>;
+			port1-mode = <1>;
+			power = <250>;
+			usb0-phy = <&usb0_phy>;
+			usb1-phy = <&usb1_phy>;
+		};
+
+		rtc {
+			compatible = "ti,da830-rtc";
+			ti,hwmods = "rtc";
+		};
+
+		spi0: spi@48030000 {
+			compatible = "ti,omap4-mcspi";
+			ti,hwmods = "spi0";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x48030000 0x400>;
+			interrupt-parent = <&intc>;
+			interrupt = <65>;
+			dmas = <&edma 16
+				&edma 17
+				&edma 18
+				&edma 19>;
+			dma-names = "tx0", "rx0", "tx1", "rx1";
+			ti,spi-num-cs = <2>;
+			status = "disabled";
+		};
+
+		spi1: spi@481a0000 {
+			compatible = "ti,omap4-mcspi";
+			ti,hwmods = "spi1";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x481a0000 0x400>;
+			interrupt-parent = <&intc>;
+			interrupt = <125>;
+			dmas = <&edma 42
+				&edma 43
+				&edma 44
+				&edma 45>;
+			dma-names = "tx0", "rx0", "tx1", "rx1";
+			ti,spi-num-cs = <2>;
 			status = "disabled";
 		};
 
@@ -209,6 +358,126 @@
 			reg = <0x44e35000 0x1000>;
 			interrupt-parent = <&intc>;
 			interrupts = <91>;
+		};
+
+		mac: ethernet@4A100000 {
+			compatible = "ti,cpsw";
+			ti,hwmods = "cpgmac0";
+			cpdma_channels = <8>;
+			host_port_no = <0>;
+			cpdma_reg_ofs = <0x800>;
+			cpdma_sram_ofs = <0xa00>;
+			ale_reg_ofs = <0xd00>;
+			ale_entries = <1024>;
+			host_port_reg_ofs = <0x108>;
+			hw_stats_reg_ofs = <0x900>;
+			bd_ram_ofs = <0x2000>;
+			bd_ram_size = <0x2000>;
+			no_bd_ram = <0>;
+			rx_descs = <64>;
+			mac_control = <0x20>;
+			slaves = <2>;
+			reg = <0x4a100000 0x800
+				0x4a101200 0x100
+				0x4a101000 0x100>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			interrupt-parent = <&intc>;
+			/* c0_rx_thresh_pend c0_rx_pend c0_tx_pend c0_misc_pend*/
+			interrupts = <40 41 42 43>;
+			ranges;
+			cpsw_emac0: slave@0 {
+				slave_reg_ofs = <0x208>;
+				sliver_reg_ofs = <0xd80>;
+				/* Filled in by U-Boot */
+				mac-address = [ 00 00 00 00 00 00 ];
+			};
+			cpsw_emac1: slave@1 {
+				slave_reg_ofs = <0x308>;
+				sliver_reg_ofs = <0xdc0>;
+				/* Filled in by U-Boot */
+				mac-address = [ 00 00 00 00 00 00 ];
+			};
+
+			davinci_mdio: mdio@4a101000 {
+				compatible = "ti,davinci_mdio";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				ti,hwmods = "davinci_mdio";
+				bus_freq = <1000000>;
+				reg = <0x4a101000 0x100>;
+			};
+
+		};
+
+		ehrpwm0: ehrpwm@48300200 {
+			compatible	= "ti,omap2-ehrpwm";
+			reg = <0x48300200 0x100 0x48300000 0x10>;
+			interrupt-parent = <&intc>;
+			interrupt = <86 58>;
+			ti,hwmods = "ehrpwm0";
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
+		ehrpwm1: ehrpwm@48302200 {
+			compatible	= "ti,omap2-ehrpwm";
+			reg = <0x48302200 0x100 0x48302000 0x10>;
+			interrupt-parent = <&intc>;
+			interrupt = <87 59>;
+			ti,hwmods = "ehrpwm1";
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
+		ehrpwm2: ehrpwm@48304200 {
+			compatible	= "ti,omap2-ehrpwm";
+			reg = <0x48304200 0x100 0x48304000 0x10>;
+			interrupt-parent = <&intc>;
+			interrupt = <39 60>;
+			ti,hwmods = "ehrpwm2";
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
+		ecap0: ecap@48300100 {
+			compatible	= "ti,omap2-ecap";
+			reg = <0x48300100 0x80 0x48300000 0x10>;
+			interrupt-parent = <&intc>;
+			interrupt = <31>;
+			ti,hwmods = "ecap0";
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
+		ecap1: ecap@48302100 {
+			compatible	= "ti,omap2-ecap";
+			reg = <0x48302100 0x80 0x48302000 0x10>;
+			interrupt-parent = <&intc>;
+			interrupt = <47>;
+			ti,hwmods = "ecap1";
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
+		ecap2: ecap@48304100 {
+			compatible	= "ti,omap2-ecap";
+			reg = <0x48304100 0x80 0x48304000 0x10>;
+			interrupt-parent = <&intc>;
+			interrupt = <61>;
+			ti,hwmods = "ecap2";
+			#pwm-cells = <3>;
+		};
+
+		pruss: pruss@4a300000 {
+			compatible = "ti,pruss-v2";
+			ti,hwmods = "pruss";
+			ti,deassert-hard-reset = "pruss", "pruss";
+			reg = <0x4a300000 0x080000>;
+			ti,pintc-offset = <0x20000>;
+			interrupt-parent = <&intc>;
+			interrupts = <20 21 22 23 24 25 26 27>;
+			status = "disabled";
 		};
 	};
 };

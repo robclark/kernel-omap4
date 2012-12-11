@@ -330,8 +330,8 @@ static int omap_device_build_from_dt(struct platform_device *pdev)
 	struct omap_device *od;
 	struct omap_hwmod *oh;
 	struct device_node *node = pdev->dev.of_node;
-	const char *oh_name;
-	int oh_cnt, i, ret = 0;
+	const char *oh_name, *rst_name;
+	int oh_cnt, dstr_cnt, i, ret = 0;
 
 	oh_cnt = of_property_count_strings(node, "ti,hwmods");
 	if (!oh_cnt || IS_ERR_VALUE(oh_cnt)) {
@@ -375,6 +375,27 @@ static int omap_device_build_from_dt(struct platform_device *pdev)
 
 	if (of_get_property(node, "ti,no_idle_on_suspend", NULL))
 		omap_device_disable_idle_on_suspend(pdev);
+
+	dstr_cnt =
+		of_property_count_strings(node, "ti,deassert-hard-reset");
+	if (dstr_cnt > 0) {
+		for (i = 0; i < dstr_cnt; i += 2) {
+			of_property_read_string_index(
+				node, "ti,deassert-hard-reset", i,
+				&oh_name);
+			of_property_read_string_index(
+				node, "ti,deassert-hard-reset", i+1,
+				&rst_name);
+			oh = omap_hwmod_lookup(oh_name);
+			if (!oh) {
+				dev_warn(&pdev->dev,
+				"Cannot parse deassert property for '%s'\n",
+				oh_name);
+				break;
+			}
+			omap_hwmod_deassert_hardreset(oh, rst_name);
+		}
+	}
 
 	pdev->dev.pm_domain = &omap_device_pm_domain;
 
@@ -663,7 +684,7 @@ void omap_device_delete(struct omap_device *od)
  * information.  Returns ERR_PTR(-EINVAL) if @oh is NULL; otherwise,
  * passes along the return value of omap_device_build_ss().
  */
-struct platform_device __init *omap_device_build(const char *pdev_name, int pdev_id,
+struct platform_device *omap_device_build(const char *pdev_name, int pdev_id,
 				      struct omap_hwmod *oh, void *pdata,
 				      int pdata_len,
 				      struct omap_device_pm_latency *pm_lats,
@@ -678,6 +699,7 @@ struct platform_device __init *omap_device_build(const char *pdev_name, int pdev
 				    pdata_len, pm_lats, pm_lats_cnt,
 				    is_early_device);
 }
+EXPORT_SYMBOL(omap_device_build);
 
 /**
  * omap_device_build_ss - build and register an omap_device with multiple hwmods
@@ -696,7 +718,7 @@ struct platform_device __init *omap_device_build(const char *pdev_name, int pdev
  * platform_device record.  Returns an ERR_PTR() on error, or passes
  * along the return value of omap_device_register().
  */
-struct platform_device __init *omap_device_build_ss(const char *pdev_name, int pdev_id,
+struct platform_device *omap_device_build_ss(const char *pdev_name, int pdev_id,
 					 struct omap_hwmod **ohs, int oh_cnt,
 					 void *pdata, int pdata_len,
 					 struct omap_device_pm_latency *pm_lats,
@@ -751,6 +773,7 @@ odbs_exit:
 
 	return ERR_PTR(ret);
 }
+EXPORT_SYMBOL(omap_device_build_ss);
 
 /**
  * omap_early_device_register - register an omap_device as an early platform
