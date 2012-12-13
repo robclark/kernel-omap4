@@ -33,8 +33,8 @@
 #include <linux/input/ti_am335x_tsc.h>
 #include <linux/platform_data/ti_am335x_adc.h>
 #include <linux/mfd/ti_am335x_tscadc.h>
-#include <plat/clock.h>
-#include <plat/omap_device.h>
+#include "clock.h"
+#include "omap_device.h"
 
 struct ti_tscadc_priv {
 	struct omap_hwmod *tsc_oh;
