@@ -1028,7 +1028,7 @@ static struct omap_clk am33xx_clks[] = {
 	CLK(NULL,	"dpll_ddr_ck",		&dpll_ddr_ck,	CK_AM33XX),
 	CLK(NULL,	"dpll_ddr_m2_ck",	&dpll_ddr_m2_ck,	CK_AM33XX),
 	CLK(NULL,	"dpll_ddr_m2_div2_ck",	&dpll_ddr_m2_div2_ck,	CK_AM33XX),
-	CLK(NULL,	"dpll_disp_ck",		&dpll_disp_ck,	CK_AM33XX),
+	CLK("da8xx_lcdc.0",	"dpll_disp_ck",		&dpll_disp_ck,	CK_AM33XX),
 	CLK(NULL,	"dpll_disp_m2_ck",	&dpll_disp_m2_ck,	CK_AM33XX),
 	CLK(NULL,	"dpll_per_ck",		&dpll_per_ck,	CK_AM33XX),
 	CLK(NULL,	"dpll_per_m2_ck",	&dpll_per_m2_ck,	CK_AM33XX),
@@ -1085,7 +1085,7 @@ static struct omap_clk am33xx_clks[] = {
 	CLK(NULL,	"clkout2_ck",		&clkout2_ck,	CK_AM33XX),
 	CLK(NULL,	"timer_32k_ck",		&clkdiv32k_ick,	CK_AM33XX),
 	CLK(NULL,	"timer_sys_ck",		&sys_clkin_ck,	CK_AM33XX),
-	CLK("da8xx_lcdc.0",     NULL,           &lcdc_fck,      CK_AM33XX),
+	CLK("da8xx_lcdc.0",     "fck",          &lcdc_fck,      CK_AM33XX),
 };
 
 int __init am33xx_clk_init(void)
