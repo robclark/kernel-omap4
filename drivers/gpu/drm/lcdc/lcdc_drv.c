@@ -554,6 +554,12 @@ static int __devinit lcdc_pdev_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
+	/* XXX hack until I can figure out how to make hwmod clk names
+	 * match devicetree..  otherwise device name ends up "4830e000.fb"
+	 * and clk_get() fails:
+	 */
+	pdev->dev.kobj.name = "da8xx_lcdc.0";
+
 	return drm_platform_init(&lcdc_driver, pdev);
 }
 
