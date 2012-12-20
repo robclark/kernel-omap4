@@ -11,3 +11,13 @@ config DRM_LCDC
 	  controller, for example AM33xx in beagle-bone, DA8xx, or
 	  OMAP-L1xx.  This driver replaces the FB_DA8XX fbdev driver.
 
+menu "I2C encoder or helper chips"
+	depends on DRM && DRM_KMS_HELPER && I2C
+
+config DRM_I2C_NXP_TDA998X
+	tristate "NXP Semiconductors TDA998X HDMI encoder"
+	default m if DRM_LCDC
+	help
+	  Support for NXP Semiconductors TDA998X HDMI encoders.
+
+endmenu
