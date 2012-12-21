@@ -180,7 +180,7 @@ static const struct iio_info tiadc_info = {
 	.read_raw = &tiadc_read_raw,
 };
 
-static int __devinit tiadc_probe(struct platform_device *pdev)
+static int tiadc_probe(struct platform_device *pdev)
 {
 	struct iio_dev		*indio_dev;
 	struct tiadc_device	*adc_dev;
@@ -234,7 +234,7 @@ err_ret:
 	return err;
 }
 
-static int __devexit tiadc_remove(struct platform_device *pdev)
+static int tiadc_remove(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
 
@@ -296,7 +296,7 @@ static struct platform_driver tiadc_driver = {
 		.pm	= TIADC_PM_OPS,
 	},
 	.probe	= tiadc_probe,
-	.remove	= __devexit_p(tiadc_remove),
+	.remove	= tiadc_remove,
 };
 
 module_platform_driver(tiadc_driver);
