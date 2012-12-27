@@ -489,8 +489,14 @@
 		};
 
 		/* TODO: where to put this?? */
+		hdmi {
+			compatible = "lcdc,slave";
+			i2c = <&i2c0>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&nxp_hdmi_bonelt_pins>;
+		};
 /*
-		tfp410 {
+		dvicape {
 			compatible = "lcdc,tfp410";
 			i2c = <&i2c2>;
 			pinctrl-names = "default";
@@ -498,9 +504,9 @@
 			powerdn-gpio = <&gpio2 31 0>;
 		};
 */
-
 		/* Settings for CDTech_S035Q01 / LCD3 cape: */
-		panel {
+/*
+		lcd3 {
 			compatible = "lcdc,panel";
 			pinctrl-names = "default";
 			pinctrl-0 = <&bone_lcd3_cape_lcd_pins>;
@@ -535,6 +541,7 @@
 				};
 			};
 		};
+*/
 
 		backlight {
 			compatible = "tps65217-backlight";
