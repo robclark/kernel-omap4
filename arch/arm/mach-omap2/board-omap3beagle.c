@@ -45,6 +45,7 @@
 #include <video/omap-panel-generic-dpi.h>
 #include <video/omap-panel-tfp410.h>
 #include <linux/platform_data/mtd-nand-omap2.h>
+#include <linux/regulator/fixed.h>
 
 #include "common.h"
 #include "omap_device.h"
@@ -232,6 +233,7 @@ static struct platform_device btwilink_device = {
 	.name	= "btwilink",
 	.id	= -1,
 };
+#endif
 
 static struct regulator_consumer_supply beagle_vmmc2_supply =
 	REGULATOR_SUPPLY("vmmc", "omap_hsmmc.1");
@@ -244,6 +246,7 @@ static struct regulator_init_data beagle_vmmc2 = {
 	.consumer_supplies = &beagle_vmmc2_supply,
 };
 
+#if defined(CONFIG_WL12XX) || defined(CONFIG_WL12XX_MODULE)
 static struct fixed_voltage_config beagle_vwlan = {
 	.supply_name = "vwl1271",
 	.microvolts = 1800000,  /* 1.8V */
@@ -779,7 +782,7 @@ static void __init omap3beagle_tsc2007_init(void)
 }
 #else
 static struct i2c_board_info __initdata beagle_i2c2_bbtoys_ulcd[] = {};
-static void __init omap3beagle_tsc2007_init(void) { return; }
+/* static void __init omap3beagle_tsc2007_init(void) { return; } */
 #endif
 
 #if defined(CONFIG_VIDEO_MT9P031)
