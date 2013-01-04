@@ -361,6 +361,14 @@
 /* CONTROL OMAP STATUS register to identify OMAP3 features */
 #define OMAP3_CONTROL_OMAP_STATUS	0x044c
 
+/* AM33XX PWMSS Control register */
+#define AM33XX_PWMSS_TBCLK_CLKCTRL            0x664
+
+/* AM33XX  PWMSS Control bitfields */
+#define AM33XX_PWMSS0_TBCLKEN_SHIFT            0
+#define AM33XX_PWMSS1_TBCLKEN_SHIFT            1
+#define AM33XX_PWMSS2_TBCLKEN_SHIFT            2
+
 #define OMAP3_SGX_SHIFT			13
 #define OMAP3_SGX_MASK			(3 << OMAP3_SGX_SHIFT)
 #define		FEAT_SGX_FULL		0

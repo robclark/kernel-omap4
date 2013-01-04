@@ -832,6 +832,18 @@ static struct clk_hw_omap wdt1_fck_hw = {
 
 DEFINE_STRUCT_CLK(wdt1_fck, wdt_ck_parents, gpio_fck_ops);
 
+DEFINE_CLK_GATE(ehrpwm0_tbclk, "l4ls_clkdm", &l4ls_gclk, 0x0,
+		AM33XX_CTRL_REGADDR(AM33XX_PWMSS_TBCLK_CLKCTRL), AM33XX_PWMSS0_TBCLKEN_SHIFT,
+		0x0, NULL);
+
+DEFINE_CLK_GATE(ehrpwm1_tbclk, "l4ls_clkdm", &l4ls_gclk, 0x0,
+		AM33XX_CTRL_REGADDR(AM33XX_PWMSS_TBCLK_CLKCTRL), AM33XX_PWMSS1_TBCLKEN_SHIFT,
+		0x0, NULL);
+
+DEFINE_CLK_GATE(ehrpwm2_tbclk, "l4ls_clkdm", &l4ls_gclk, 0x0,
+		AM33XX_CTRL_REGADDR(AM33XX_PWMSS_TBCLK_CLKCTRL), AM33XX_PWMSS2_TBCLKEN_SHIFT,
+		0x0, NULL);
+
 /*
  * clkdev
  */
@@ -911,6 +923,12 @@ static struct omap_clk am33xx_clks[] = {
 	CLK(NULL,	"timer_32k_ck",		&clkdiv32k_ick,	CK_AM33XX),
 	CLK(NULL,	"timer_sys_ck",		&sys_clkin_ck,	CK_AM33XX),
 	CLK("4830e000.fb", 	"fck",		&lcd_gclk,	CK_AM33XX),
+	CLK("48300200.ehrpwm",	"tbclk",	&ehrpwm0_tbclk,	CK_AM33XX),
+	CLK(NULL,	"ehrpwm0_tbclk",	&ehrpwm0_tbclk,	CK_AM33XX),
+	CLK("48302200.ehrpwm",	"tbclk",	&ehrpwm1_tbclk,	CK_AM33XX),
+	CLK(NULL,	"ehrpwm1_tbclk",	&ehrpwm1_tbclk,	CK_AM33XX),
+	CLK("48304200.ehrpwm",	"tbclk",	&ehrpwm2_tbclk,	CK_AM33XX),
+	CLK(NULL,	"ehrpwm2_tbclk",	&ehrpwm2_tbclk,	CK_AM33XX),
 };
 
 
