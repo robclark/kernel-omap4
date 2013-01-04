@@ -36,6 +36,15 @@
 			>;
 		};
 
+		spi0_pins: pinmux_spi0_pins {
+			pinctrl-single,pins = <
+				0x150 0x10      /* spi0_sclk.spo0_sclk, OUTPUT_PULLUP | MODE0 */
+				0x154 0x30      /* spi0_d0.spi0_d0, INPUT_PULLUP | MODE0 */
+				0x158 0x30      /* spi0_d1.spi0_d1, INPUT_PULLUP | MODE0 */
+				0x15c 0x10      /* spi0_cs0.spi0_cs0, OUTPUT_PULLUP | MODE0 */
+			>;
+		};
+
 		spi1_pins: pinmux_spi1_pins {
 			pinctrl-single,pins = <
 				0x190 0x13	/* mcasp0_aclkx.spi1_sclk, OUTPUT_PULLUP | MODE3 */
@@ -254,21 +263,27 @@
 	vmmc-supply = <&ldo3_reg>;
 };
 
+&spi0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi0_pins>;
+
+	ads7951@0 {
+		compatible = "spi,ads7951";
+		reg = <0>;
+		spi-max-frequency = <20000000>;
+	};
+};
+
 &spi1 {
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spi1_pins>;
 
-	lcd@0 {
-		compatible = "adafruit,tft-lcd-1.8-green", "sitronix,st7735";
-		spi-max-frequency = <8000000>;
+	spidev@1 {
+		compatible = "linux,spidev";
 		reg = <0>;
-		spi-cpol;
-		spi-cpha;
-		pinctrl-names = "default";
-		pinctrl-0 = <&lcd_pins>;
-		st7735-rst = <&gpio4 19 0>;
-		st7735-dc = <&gpio4 21 0>;
+		spi-max-frequency = <24000000>;
 	};
 };
 
