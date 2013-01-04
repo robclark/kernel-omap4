@@ -50,7 +50,7 @@ static ssize_t show_voltage(struct device *dev,
 {
 	struct spi_device *spi = to_spi_device(dev);
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
-	int ret = -EINVAL;
+	int ret = -EINVAL, i;
 	u8 channel;
 	bool v5_range;
 	u16 reg, val, val_mask;
@@ -95,16 +95,25 @@ static ssize_t show_voltage(struct device *dev,
 			__func__, ret);
 		goto out;
 	}
-	ret = spi_read(spi, &val, sizeof(val));
-	if (ret) {
-		dev_err(&spi->dev, "%s: read of value fail %d\n",
-			__func__, ret);
-		goto out;
+
+	/* Dummy read to get rid of Frame-1 data */
+	i = 2;
+	while (i) {
+		ret = spi_read(spi, &val, sizeof(val));
+		if (ret) {
+			dev_err(&spi->dev, "%s: read of value fail %d\n",
+				__func__, ret);
+			goto out;
+		}
+		i--;
 	}
 
-	dev_err(&spi->dev, "%s: raw val =0x%02x mask = 0x%02x vref=%duV "
+	dev_err(&spi->dev, "%s: raw regval =0x%04x mask = 0x%04x vref=%duV "
 		"v5_range=%d lsb_voltage=%duV\n",
 		__func__, val, val_mask, vref_uv, v5_range, lsb_voltage);
+	WARN(channel != val >> 12,
+	     "Channel=%d, val-chan=%d", channel, val >> 12);
+
 	val &= val_mask;
 
 	converted_voltage = lsb_voltage * val;
