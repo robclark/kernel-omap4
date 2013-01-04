@@ -102,7 +102,7 @@ static ssize_t show_voltage(struct device *dev,
 		goto out;
 	}
 
-	dev_dbg(&spi->dev, "%s: raw val =0x%02x mask = 0x%02x vref=%duV "
+	dev_err(&spi->dev, "%s: raw val =0x%02x mask = 0x%02x vref=%duV "
 		"v5_range=%d lsb_voltage=%duV\n",
 		__func__, val, val_mask, vref_uv, v5_range, lsb_voltage);
 	val &= val_mask;
