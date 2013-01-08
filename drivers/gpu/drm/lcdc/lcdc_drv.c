@@ -21,6 +21,7 @@
 #include "lcdc_regs.h"
 #include "lcdc_tfp410.h"
 #include "lcdc_panel.h"
+#include "lcdc_slave.h"
 
 #include "drm_fb_helper.h"
 
@@ -586,6 +587,7 @@ static int __init lcdc_drm_init(void)
 	DBG("init");
 	lcdc_tfp410_init();
 	lcdc_panel_init();
+	lcdc_slave_init();
 	return platform_driver_register(&lcdc_platform_driver);
 }
 
@@ -594,10 +596,11 @@ static void __exit lcdc_drm_fini(void)
 	DBG("fini");
 	lcdc_tfp410_fini();
 	lcdc_panel_fini();
+	lcdc_slave_fini();
 	platform_driver_unregister(&lcdc_platform_driver);
 }
 
-module_init(lcdc_drm_init);
+late_initcall(lcdc_drm_init);
 module_exit(lcdc_drm_fini);
 
 MODULE_AUTHOR("Rob Clark <robdclark@gmail.com");
