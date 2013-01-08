@@ -108,7 +108,7 @@ struct display_timings *of_get_display_timing_list(struct device_node *np)
 		return NULL;
 	}
 
-	timings_np = of_find_node_by_name(np, "display-timings");
+	timings_np = of_get_child_by_name(np, "display-timings");
 	if (!timings_np) {
 		pr_err("%s: could not find display-timings node\n", __func__);
 		return NULL;
