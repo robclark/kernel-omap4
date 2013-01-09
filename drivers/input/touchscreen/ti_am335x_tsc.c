@@ -27,6 +27,8 @@
 #include <linux/input/ti_am335x_tsc.h>
 #include <linux/delay.h>
 #include <linux/regmap.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 
 #include <linux/mfd/ti_am335x_tscadc.h>
 
@@ -403,12 +405,18 @@ static int titsc_probe(struct platform_device *pdev)
 	struct titsc *ts_dev;
 	struct input_dev *input_dev;
 	struct ti_tscadc_dev *tscadc_dev = pdev->dev.platform_data;
-	struct mfd_tscadc_board	*pdata;
-	int err;
+	int err, i;
+	struct mfd_tscadc_board	*pdata = NULL;
+	struct device_node *node = NULL;
+	u32 val, wires_conf[4];
 
-	pdata = tscadc_dev->dev->platform_data;
+	if (tscadc_dev->dev->of_node)
+		node = of_get_child_by_name(
+			tscadc_dev->dev->of_node, "tsc");
+	else
+		pdata = tscadc_dev->dev->platform_data;
 
-	if (!pdata) {
+	if (!pdata && !node) {
 		dev_err(&pdev->dev, "Could not find platform data\n");
 		return -EINVAL;
 	}
@@ -426,11 +434,45 @@ static int titsc_probe(struct platform_device *pdev)
 	ts_dev->mfd_tscadc = tscadc_dev;
 	ts_dev->input = input_dev;
 	ts_dev->irq = tscadc_dev->irq;
-	ts_dev->wires = pdata->tsc_init->wires;
-	ts_dev->x_plate_resistance = pdata->tsc_init->x_plate_resistance;
-	ts_dev->steps_to_configure = pdata->tsc_init->steps_to_configure;
-	memcpy(ts_dev->config_inp, pdata->tsc_init->wire_config,
-			sizeof(pdata->tsc_init->wire_config));
+	if (node) {
+		err = of_property_read_u32(node, "wires", &val);
+		if (err < 0) {
+			dev_err(&pdev->dev, "no wires property\n");
+			goto err_free_mem;
+		}
+		ts_dev->wires = val;
+
+		err = of_property_read_u32(node, "x-plate-resistance", &val);
+		if (err < 0) {
+			dev_err(&pdev->dev, "no x-plate-resistance property\n");
+			goto err_free_mem;
+		}
+		ts_dev->x_plate_resistance = val;
+
+		err = of_property_read_u32(node, "steps-to-configure", &val);
+		if (err < 0) {
+			dev_err(&pdev->dev, "no steps-to-configure property\n");
+			goto err_free_mem;
+		}
+		ts_dev->steps_to_configure = val;
+
+		err = of_property_read_u32_array(node, "wire-config",
+				wires_conf, ARRAY_SIZE(wires_conf));
+		if (err < 0) {
+			dev_err(&pdev->dev, "no wire-config property\n");
+			goto err_free_mem;
+		}
+		for (i = 0; i < ARRAY_SIZE(wires_conf); i++)
+			ts_dev->config_inp[i] = wires_conf[i];
+	} else {
+		ts_dev->wires = pdata->tsc_init->wires;
+		ts_dev->x_plate_resistance =
+			pdata->tsc_init->x_plate_resistance;
+		ts_dev->steps_to_configure =
+			pdata->tsc_init->steps_to_configure;
+		memcpy(ts_dev->config_inp, pdata->tsc_init->wire_config,
+				sizeof(pdata->tsc_init->wire_config));
+	};
 
 	err = request_irq(ts_dev->irq, titsc_irq,
 			  0, pdev->dev.driver->name, ts_dev);

@@ -24,6 +24,8 @@
 #include <linux/iio/machine.h>
 #include <linux/iio/driver.h>
 #include <linux/regmap.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 
 #include <linux/io.h>
 #include <linux/mfd/ti_am335x_tscadc.h>
@@ -185,11 +187,18 @@ static int tiadc_probe(struct platform_device *pdev)
 	struct iio_dev		*indio_dev;
 	struct tiadc_device	*adc_dev;
 	struct ti_tscadc_dev	*tscadc_dev = pdev->dev.platform_data;
-	struct mfd_tscadc_board	*pdata;
+	struct mfd_tscadc_board	*pdata = NULL;
+	struct device_node	*node = NULL;
 	int			err;
+	u32			val;
 
-	pdata = tscadc_dev->dev->platform_data;
-	if (!pdata || !pdata->adc_init) {
+	if (tscadc_dev->dev->of_node)
+		node = of_get_child_by_name(
+			tscadc_dev->dev->of_node, "adc");
+	else
+		pdata = tscadc_dev->dev->platform_data;
+
+	if (!pdata && !node) {
 		dev_err(&pdev->dev, "Could not find platform data\n");
 		return -EINVAL;
 	}
@@ -203,7 +212,15 @@ static int tiadc_probe(struct platform_device *pdev)
 	adc_dev = iio_priv(indio_dev);
 
 	adc_dev->mfd_tscadc = tscadc_dev;
-	adc_dev->channels = pdata->adc_init->adc_channels;
+	if (node) {
+		err = of_property_read_u32(node, "adc-channels", &val);
+		if (err < 0) {
+			dev_err(&pdev->dev, "no adc-channels property\n");
+			goto err_free_device;
+		}
+		adc_dev->channels = val;
+	} else
+		adc_dev->channels = pdata->adc_init->adc_channels;
 
 	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->name = dev_name(&pdev->dev);
