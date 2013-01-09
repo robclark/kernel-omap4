@@ -43,7 +43,7 @@ extern struct dma_chan *of_dma_request_slave_channel(struct device_node *np,
 extern struct dma_chan *of_dma_simple_xlate(struct of_phandle_args *dma_spec,
 		struct of_dma *ofdma);
 #else
-static int of_dma_controller_register(struct device_node *np,
+static inline int of_dma_controller_register(struct device_node *np,
 		struct dma_chan *(*of_dma_xlate)
 		(struct of_phandle_args *, struct of_dma *),
 		void *data)
@@ -51,17 +51,17 @@ static int of_dma_controller_register(struct device_node *np,
 	return -ENODEV;
 }
 
-static void of_dma_controller_free(struct device_node *np)
+static inline void of_dma_controller_free(struct device_node *np)
 {
 }
 
-static struct dma_chan *of_dma_request_slave_channel(struct device_node *np,
+static inline struct dma_chan *of_dma_request_slave_channel(struct device_node *np,
 						     char *name)
 {
 	return NULL;
 }
 
-static struct dma_chan *of_dma_simple_xlate(struct of_phandle_args *dma_spec,
+static inline struct dma_chan *of_dma_simple_xlate(struct of_phandle_args *dma_spec,
 		struct of_dma *ofdma)
 {
 	return NULL;
