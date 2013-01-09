@@ -767,7 +767,7 @@ static inline int of_build_overlay_info(struct device_node *tree,
 	return -ENOTSUPP;
 }
 
-int of_free_overlay_info(int cnt, struct of_overlay_info *ovinfo)
+static inline int of_free_overlay_info(int cnt, struct of_overlay_info *ovinfo)
 {
 	return -ENOTSUPP;
 }
