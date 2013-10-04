@@ -259,6 +259,7 @@ static int tegra_dc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 static const struct drm_crtc_funcs tegra_crtc_funcs = {
 	.page_flip = tegra_dc_page_flip,
 	.set_config = drm_crtc_helper_set_config,
+	.set_property = drm_atomic_helper_crtc_set_property,
 	.destroy = drm_crtc_cleanup,
 };
 

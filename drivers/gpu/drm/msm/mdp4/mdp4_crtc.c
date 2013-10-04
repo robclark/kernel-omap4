@@ -395,8 +395,9 @@ static int mdp4_crtc_page_flip(struct drm_crtc *crtc,
 static int mdp4_crtc_set_property(struct drm_crtc *crtc, void *state,
 		struct drm_property *property, uint64_t val, void *blob_data)
 {
-	// XXX
-	return -EINVAL;
+	return drm_crtc_set_property(crtc,
+			drm_atomic_get_crtc_state(crtc, state),
+			property, val, blob_data);
 }
 
 #define CURSOR_WIDTH 64

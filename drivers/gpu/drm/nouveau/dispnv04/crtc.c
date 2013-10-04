@@ -1088,6 +1088,7 @@ static const struct drm_crtc_funcs nv04_crtc_funcs = {
 	.cursor_move = nv04_crtc_cursor_move,
 	.gamma_set = nv_crtc_gamma_set,
 	.set_config = nouveau_crtc_set_config,
+	.set_property = drm_atomic_helper_crtc_set_property,
 	.page_flip = nouveau_crtc_page_flip,
 	.destroy = nv_crtc_destroy,
 };

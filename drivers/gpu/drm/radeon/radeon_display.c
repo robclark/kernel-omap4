@@ -31,6 +31,7 @@
 #include <asm/div64.h>
 
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_edid.h>
 
 static void avivo_crtc_load_lut(struct drm_crtc *crtc)
@@ -499,6 +500,7 @@ static const struct drm_crtc_funcs radeon_crtc_funcs = {
 	.cursor_move = radeon_crtc_cursor_move,
 	.gamma_set = radeon_crtc_gamma_set,
 	.set_config = drm_crtc_helper_set_config,
+	.set_property = drm_atomic_helper_crtc_set_property,
 	.destroy = radeon_crtc_destroy,
 	.page_flip = radeon_crtc_page_flip,
 };

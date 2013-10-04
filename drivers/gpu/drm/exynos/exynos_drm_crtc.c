@@ -14,6 +14,7 @@
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_atomic_helper.h>
 
 #include "exynos_drm_crtc.h"
 #include "exynos_drm_drv.h"
@@ -286,7 +287,9 @@ static int exynos_drm_crtc_set_property(struct drm_crtc *crtc,
 		return 0;
 	}
 
-	return -EINVAL;
+	return drm_crtc_set_property(crtc,
+			drm_atomic_get_crtc_state(crtc, state),
+			property, val, blob_data);
 }
 
 static struct drm_crtc_funcs exynos_crtc_funcs = {

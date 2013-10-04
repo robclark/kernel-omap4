@@ -155,6 +155,7 @@ static int ipu_page_flip(struct drm_crtc *crtc,
 
 static const struct drm_crtc_funcs ipu_crtc_funcs = {
 	.set_config = drm_crtc_helper_set_config,
+	.set_property = drm_atomic_helper_crtc_set_property,
 	.destroy = drm_crtc_cleanup,
 	.page_flip = ipu_page_flip,
 };

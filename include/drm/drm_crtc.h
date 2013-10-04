@@ -390,18 +390,49 @@ struct drm_crtc_funcs {
 };
 
 /**
- * drm_crtc - central CRTC control structure
- * @dev: parent DRM device
- * @head: list management
- * @base: base KMS object for ID tracking etc.
- * @enabled: is this CRTC enabled?
- * @mode: current mode timings
- * @hwmode: mode timings as programmed to hw regs
+ * drm_crtc_state - mutable crtc state
  * @invert_dimensions: for purposes of error checking crtc vs fb sizes,
  *    invert the width/height of the crtc.  This is used if the driver
  *    is performing 90 or 270 degree rotated scanout
+ * @set_config: needs modeset (crtc->set_config())
+ * @mode_valid: a valid mode has been set
+ * @num_connector_ids: the number of connector-ids
+ * @connector_ids: array of connector ids
+ * @mode: current mode timings
+ * @fb: the framebuffer that the CRTC is currently bound to
  * @x: x position on screen
  * @y: y position on screen
+ * @event: pending pageflip event
+ * @propvals: property values
+ * @state: current global/toplevel state object (for atomic) while an
+ *    update is in progress, NULL otherwise.
+ */
+struct drm_crtc_state {
+	bool invert_dimensions : 1;
+	bool set_config        : 1;
+	bool mode_valid        : 1;  /* drop this if when mode a refcnt'd ptr */
+	uint8_t num_connector_ids;
+	uint32_t *connector_ids;
+	struct drm_display_mode mode;
+	struct drm_framebuffer *fb;
+	int x, y;
+
+	struct drm_pending_vblank_event *event;
+
+	struct drm_object_property_values propvals;
+
+	void *state;
+};
+
+/**
+ * drm_crtc - central CRTC control structure
+ * @dev: parent DRM device
+ * @head: list management
+ * @id: CRTC number, 0..n
+ * @base: base KMS object for ID tracking etc.
+ * @state: the mutable state
+ * @enabled: is this CRTC enabled?
+ * @hwmode: mode timings as programmed to hw regs
  * @funcs: CRTC control functions
  * @gamma_size: size of gamma ramp
  * @gamma_store: gamma ramp values
@@ -418,6 +449,8 @@ struct drm_crtc {
 	struct drm_device *dev;
 	struct list_head head;
 
+	int id;
+
 	/**
 	 * crtc mutex
 	 *
@@ -429,8 +462,7 @@ struct drm_crtc {
 
 	struct drm_mode_object base;
 
-	/* framebuffer the connector is currently bound to */
-	struct drm_framebuffer *fb;
+	struct drm_crtc_state *state;
 
 	/* Temporary tracking of the old fb while a modeset is ongoing. Used
 	 * by drm_mode_set_config_internal to implement correct refcounting. */
@@ -438,17 +470,11 @@ struct drm_crtc {
 
 	bool enabled;
 
-	/* Requested mode from modesetting. */
-	struct drm_display_mode mode;
-
 	/* Programmed mode in hw, after adjustments for encoders,
 	 * crtc, panel scaling etc. Needed for timestamping etc.
 	 */
 	struct drm_display_mode hwmode;
 
-	bool invert_dimensions;
-
-	int x, y;
 	const struct drm_crtc_funcs *funcs;
 
 	/* CRTC gamma size for reporting to userspace */
@@ -462,7 +488,15 @@ struct drm_crtc {
 	void *helper_private;
 
 	struct drm_object_properties properties;
-	struct drm_object_property_values propvals;
+
+	/* These are (temporary) duplicate information from what is in the
+	 * drm_crtc_state struct..  keeping duplicate copy here makes the
+	 * switch to atomic far less intrusive.  Once all the drivers and
+	 * the crtc/fb helpers are updated, then we can remove these:
+	 */
+	struct drm_framebuffer *fb;
+	int x, y;
+	struct drm_display_mode mode;
 };
 
 
@@ -939,6 +973,8 @@ struct drm_mode_config {
 	struct drm_property *prop_crtc_h;
 	struct drm_property *prop_fb_id;
 	struct drm_property *prop_crtc_id;
+	struct drm_property *prop_connector_ids;
+	struct drm_property *prop_mode;
 	struct drm_property *edid_property;
 	struct drm_property *dpms_property;
 
@@ -994,6 +1030,14 @@ extern int drm_crtc_init(struct drm_device *dev,
 			 struct drm_crtc *crtc,
 			 const struct drm_crtc_funcs *funcs);
 extern void drm_crtc_cleanup(struct drm_crtc *crtc);
+extern int drm_crtc_check_state(struct drm_crtc *crtc,
+		struct drm_crtc_state *state);
+extern void drm_crtc_commit_state(struct drm_crtc *crtc,
+		struct drm_crtc_state *state);
+extern int drm_crtc_set_property(struct drm_crtc *crtc,
+		struct drm_crtc_state *state,
+		struct drm_property *property,
+		uint64_t value, void *blob_data);
 
 extern void drm_connector_ida_init(void);
 extern void drm_connector_ida_destroy(void);
