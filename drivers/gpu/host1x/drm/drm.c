@@ -634,6 +634,13 @@ struct drm_driver tegra_drm_driver = {
 	.dumb_map_offset = tegra_bo_dumb_map_offset,
 	.dumb_destroy = drm_gem_dumb_destroy,
 
+	.atomic_begin     = drm_atomic_helper_begin,
+	.atomic_set_event = drm_atomic_helper_set_event,
+	.atomic_check     = drm_atomic_helper_check,
+	.atomic_commit    = drm_atomic_helper_commit,
+	.atomic_end       = drm_atomic_helper_end,
+	.atomic_helpers   = &drm_atomic_helper_funcs,
+
 	.ioctls = tegra_drm_ioctls,
 	.num_ioctls = ARRAY_SIZE(tegra_drm_ioctls),
 	.fops = &tegra_drm_fops,

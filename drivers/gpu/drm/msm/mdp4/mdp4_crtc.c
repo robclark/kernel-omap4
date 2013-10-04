@@ -392,8 +392,8 @@ static int mdp4_crtc_page_flip(struct drm_crtc *crtc,
 			&mdp4_crtc->pageflip_work);
 }
 
-static int mdp4_crtc_set_property(struct drm_crtc *crtc,
-		struct drm_property *property, uint64_t val)
+static int mdp4_crtc_set_property(struct drm_crtc *crtc, void *state,
+		struct drm_property *property, uint64_t val, void *blob_data)
 {
 	// XXX
 	return -EINVAL;

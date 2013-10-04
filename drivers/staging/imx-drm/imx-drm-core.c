@@ -19,6 +19,7 @@
 #include <drm/drmP.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_atomic_helper.h>
 #include <linux/fb.h>
 #include <linux/module.h>
 #include <drm/drm_gem_cma_helper.h>
@@ -783,6 +784,13 @@ static struct drm_driver imx_drm_driver = {
 	.dumb_create		= drm_gem_cma_dumb_create,
 	.dumb_map_offset	= drm_gem_cma_dumb_map_offset,
 	.dumb_destroy		= drm_gem_dumb_destroy,
+
+	.atomic_begin     = drm_atomic_helper_begin,
+	.atomic_set_event = drm_atomic_helper_set_event,
+	.atomic_check     = drm_atomic_helper_check,
+	.atomic_commit    = drm_atomic_helper_commit,
+	.atomic_end       = drm_atomic_helper_end,
+	.atomic_helpers   = &drm_atomic_helper_funcs,
 
 	.get_vblank_counter	= drm_vblank_count,
 	.enable_vblank		= imx_drm_enable_vblank,

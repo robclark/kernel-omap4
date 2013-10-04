@@ -9,6 +9,7 @@
 #include <linux/module.h>
 #include <drm/drm_usb.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_atomic_helper.h>
 #include "udl_drv.h"
 
 static struct drm_driver driver;
@@ -88,6 +89,13 @@ static struct drm_driver driver = {
 
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_import = udl_gem_prime_import,
+
+	.atomic_begin     = drm_atomic_helper_begin,
+	.atomic_set_event = drm_atomic_helper_set_event,
+	.atomic_check     = drm_atomic_helper_check,
+	.atomic_commit    = drm_atomic_helper_commit,
+	.atomic_end       = drm_atomic_helper_end,
+	.atomic_helpers   = &drm_atomic_helper_funcs,
 
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,

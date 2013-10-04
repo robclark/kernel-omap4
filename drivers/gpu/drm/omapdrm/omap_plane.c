@@ -327,8 +327,8 @@ void omap_plane_install_properties(struct drm_plane *plane,
 	drm_object_attach_property(obj, prop, 0);
 }
 
-int omap_plane_set_property(struct drm_plane *plane,
-		struct drm_property *property, uint64_t val)
+int omap_plane_set_property(struct drm_plane *plane, void *state,
+		struct drm_property *property, uint64_t val, void *blob_data)
 {
 	struct omap_plane *omap_plane = to_omap_plane(plane);
 	struct omap_drm_private *priv = plane->dev->dev_private;

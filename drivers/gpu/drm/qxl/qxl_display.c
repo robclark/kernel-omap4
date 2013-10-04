@@ -799,8 +799,10 @@ static enum drm_connector_status qxl_conn_detect(
 }
 
 static int qxl_conn_set_property(struct drm_connector *connector,
+				   void *state,
 				   struct drm_property *property,
-				   uint64_t value)
+				   uint64_t value,
+				   void *blob_data)
 {
 	DRM_DEBUG("\n");
 	return 0;

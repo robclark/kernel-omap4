@@ -1994,8 +1994,10 @@ int vmw_du_connector_fill_modes(struct drm_connector *connector,
 }
 
 int vmw_du_connector_set_property(struct drm_connector *connector,
+				  void *state,
 				  struct drm_property *property,
-				  uint64_t val)
+				  uint64_t val,
+				  void *blob_data)
 {
 	return 0;
 }

@@ -34,6 +34,7 @@
 #include "radeon_drv.h"
 
 #include <drm/drm_pciids.h>
+#include <drm/drm_atomic_helper.h>
 #include <linux/console.h>
 #include <linux/module.h>
 
@@ -415,6 +416,14 @@ static struct drm_driver kms_driver = {
 	.dumb_create = radeon_mode_dumb_create,
 	.dumb_map_offset = radeon_mode_dumb_mmap,
 	.dumb_destroy = drm_gem_dumb_destroy,
+
+	.atomic_begin     = drm_atomic_helper_begin,
+	.atomic_set_event = drm_atomic_helper_set_event,
+	.atomic_check     = drm_atomic_helper_check,
+	.atomic_commit    = drm_atomic_helper_commit,
+	.atomic_end       = drm_atomic_helper_end,
+	.atomic_helpers   = &drm_atomic_helper_funcs,
+
 	.fops = &radeon_driver_kms_fops,
 
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,

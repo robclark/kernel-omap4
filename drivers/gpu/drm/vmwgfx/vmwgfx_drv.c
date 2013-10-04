@@ -1138,6 +1138,13 @@ static struct drm_driver driver = {
 	.dumb_map_offset = vmw_dumb_map_offset,
 	.dumb_destroy = vmw_dumb_destroy,
 
+	.atomic_begin     = drm_atomic_helper_begin,
+	.atomic_set_event = drm_atomic_helper_set_event,
+	.atomic_check     = drm_atomic_helper_check,
+	.atomic_commit    = drm_atomic_helper_commit,
+	.atomic_end       = drm_atomic_helper_end,
+	.atomic_helpers   = &drm_atomic_helper_funcs,
+
 	.fops = &vmwgfx_driver_fops,
 	.name = VMWGFX_DRIVER_NAME,
 	.desc = VMWGFX_DRIVER_DESC,

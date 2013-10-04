@@ -217,6 +217,12 @@ static struct drm_driver driver = {
 	.dumb_map_offset = ast_dumb_mmap_offset,
 	.dumb_destroy = drm_gem_dumb_destroy,
 
+	.atomic_begin     = drm_atomic_helper_begin,
+	.atomic_set_event = drm_atomic_helper_set_event,
+	.atomic_check     = drm_atomic_helper_check,
+	.atomic_commit    = drm_atomic_helper_commit,
+	.atomic_end       = drm_atomic_helper_end,
+	.atomic_helpers   = &drm_atomic_helper_funcs,
 };
 
 static int __init ast_init(void)
