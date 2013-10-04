@@ -127,7 +127,7 @@ static void disable_plane_to_crtc(struct drm_device *dev,
 	 * (encoder->crtc)
 	 */
 	list_for_each_entry(plane, &dev->mode_config.plane_list, head) {
-		if (plane->crtc == old_crtc) {
+		if (plane->state->crtc == old_crtc) {
 			/*
 			 * do not change below call order.
 			 *
@@ -138,7 +138,7 @@ static void disable_plane_to_crtc(struct drm_device *dev,
 			 * have new_crtc because new_crtc was set to
 			 * encoder->crtc in advance.
 			 */
-			plane->crtc = new_crtc;
+			plane->state->crtc = new_crtc;
 			plane->funcs->disable_plane(plane);
 		}
 	}
@@ -247,7 +247,7 @@ static void exynos_drm_encoder_disable(struct drm_encoder *encoder)
 
 	/* all planes connected to this encoder should be also disabled. */
 	list_for_each_entry(plane, &dev->mode_config.plane_list, head) {
-		if (plane->crtc == encoder->crtc)
+		if (plane->state->crtc == encoder->crtc)
 			plane->funcs->disable_plane(plane);
 	}
 }

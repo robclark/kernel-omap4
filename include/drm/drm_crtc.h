@@ -675,6 +675,43 @@ struct drm_plane_funcs {
 };
 
 /**
+ * drm_plane_state - mutable plane state
+ * @crtc: currently bound CRTC
+ * @fb: currently bound fb
+ * @crtc_x: left position of visible portion of plane on crtc
+ * @crtc_y: upper position of visible portion of plane on crtc
+ * @crtc_w: width of visible portion of plane on crtc
+ * @crtc_h: height of visible portion of plane on crtc
+ * @src_x: left position of visible portion of plane within
+ *   plane (in 16.16)
+ * @src_y: upper position of visible portion of plane within
+ *   plane (in 16.16)
+ * @src_w: width of visible portion of plane (in 16.16)
+ * @src_h: height of visible portion of plane (in 16.16)
+ * @propvals: property values
+ * @state: current global/toplevel state object (for atomic) while an
+ *    update is in progress, NULL otherwise.
+ */
+struct drm_plane_state {
+	struct drm_crtc *crtc;
+	struct drm_framebuffer *fb;
+
+	/* Signed dest location allows it to be partially off screen */
+	int32_t crtc_x, crtc_y;
+	uint32_t crtc_w, crtc_h;
+
+	/* Source values are 16.16 fixed point */
+	uint32_t src_x, src_y;
+	uint32_t src_h, src_w;
+
+	bool enabled;
+
+	struct drm_object_property_values propvals;
+
+	void *state;
+};
+
+/**
  * drm_plane - central DRM plane control structure
  * @dev: DRM device this plane belongs to
  * @head: for list management
@@ -682,8 +719,8 @@ struct drm_plane_funcs {
  * @possible_crtcs: pipes this plane can be bound to
  * @format_types: array of formats supported by this plane
  * @format_count: number of formats supported
- * @crtc: currently bound CRTC
- * @fb: currently bound fb
+ * @id: plane number, 0..n
+ * @state: the mutable state
  * @funcs: helper functions
  * @properties: property tracking for this plane
  */
@@ -697,13 +734,17 @@ struct drm_plane {
 	uint32_t *format_types;
 	uint32_t format_count;
 
-	struct drm_crtc *crtc;
-	struct drm_framebuffer *fb;
+	int id;
+
+	/*
+	 * State that can be updated from userspace, and atomically
+	 * commited or rolled back:
+	 */
+	struct drm_plane_state *state;
 
 	const struct drm_plane_funcs *funcs;
 
 	struct drm_object_properties properties;
-	struct drm_object_property_values propvals;
 };
 
 /**
@@ -884,8 +925,20 @@ struct drm_mode_config {
 	bool poll_running;
 	struct delayed_work output_poll_work;
 
-	/* pointers to standard properties */
+	/* just so blob properties can always be in a list: */
 	struct list_head property_blob_list;
+
+	/* pointers to standard properties */
+	struct drm_property *prop_src_x;
+	struct drm_property *prop_src_y;
+	struct drm_property *prop_src_w;
+	struct drm_property *prop_src_h;
+	struct drm_property *prop_crtc_x;
+	struct drm_property *prop_crtc_y;
+	struct drm_property *prop_crtc_w;
+	struct drm_property *prop_crtc_h;
+	struct drm_property *prop_fb_id;
+	struct drm_property *prop_crtc_id;
 	struct drm_property *edid_property;
 	struct drm_property *dpms_property;
 
@@ -969,7 +1022,15 @@ extern int drm_plane_init(struct drm_device *dev,
 			  const uint32_t *formats, uint32_t format_count,
 			  bool priv);
 extern void drm_plane_cleanup(struct drm_plane *plane);
-extern void drm_plane_force_disable(struct drm_plane *plane);
+extern void drm_plane_force_disable(struct drm_plane *plane, void *state);
+extern int drm_plane_check_state(struct drm_plane *plane,
+		struct drm_plane_state *state);
+extern void drm_plane_commit_state(struct drm_plane *plane,
+		struct drm_plane_state *state);
+extern int drm_plane_set_property(struct drm_plane *plane,
+		struct drm_plane_state *state,
+		struct drm_property *property,
+		uint64_t value, void *blob_data);
 
 extern void drm_encoder_cleanup(struct drm_encoder *encoder);
 
@@ -1023,6 +1084,17 @@ extern int drm_object_property_set_value(struct drm_mode_object *obj,
 extern int drm_object_property_get_value(struct drm_mode_object *obj,
 					 struct drm_property *property,
 					 uint64_t *value);
+
+int drm_mode_connector_set_obj_prop(struct drm_connector *connector,
+					   void *state, struct drm_property *property,
+					   uint64_t value, void *blob_data);
+int drm_mode_crtc_set_obj_prop(struct drm_crtc *crtc,
+				      void *state, struct drm_property *property,
+				      uint64_t value, void *blob_data);
+int drm_mode_plane_set_obj_prop(struct drm_plane *plane,
+				      void *state, struct drm_property *property,
+				      uint64_t value, void *blob_data);
+
 extern int drm_framebuffer_init(struct drm_device *dev,
 				struct drm_framebuffer *fb,
 				const struct drm_framebuffer_funcs *funcs);

@@ -210,7 +210,7 @@ static void omap_crtc_dpms(struct drm_crtc *crtc, int mode)
 		/* and any attached overlay planes: */
 		for (i = 0; i < priv->num_planes; i++) {
 			struct drm_plane *plane = priv->planes[i];
-			if (plane->crtc == crtc)
+			if (plane->state->crtc == crtc)
 				WARN_ON(omap_plane_dpms(plane, mode));
 		}
 	}
@@ -651,7 +651,7 @@ struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 
 	omap_crtc->channel = channel;
 	omap_crtc->plane = plane;
-	omap_crtc->plane->crtc = crtc;
+	omap_crtc->plane->state->crtc = crtc;
 	omap_crtc->name = channel_names[channel];
 	omap_crtc->pipe = id;
 

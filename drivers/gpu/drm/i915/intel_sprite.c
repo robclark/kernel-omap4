@@ -868,16 +868,17 @@ intel_disable_plane(struct drm_plane *plane)
 {
 	struct drm_device *dev = plane->dev;
 	struct intel_plane *intel_plane = to_intel_plane(plane);
+	struct drm_plane_state *state = plane->state;
 	int ret = 0;
 
-	if (!plane->fb)
+	if (!state->fb)
 		return 0;
 
-	if (WARN_ON(!plane->crtc))
+	if (WARN_ON(!state->crtc))
 		return -EINVAL;
 
-	intel_enable_primary(plane->crtc);
-	intel_plane->disable_plane(plane, plane->crtc);
+	intel_enable_primary(state->crtc);
+	intel_plane->disable_plane(plane, state->crtc);
 
 	if (!intel_plane->obj)
 		goto out;
@@ -966,11 +967,12 @@ out_unlock:
 void intel_plane_restore(struct drm_plane *plane)
 {
 	struct intel_plane *intel_plane = to_intel_plane(plane);
+	struct drm_plane_state *state = plane->state;
 
-	if (!plane->crtc || !plane->fb)
+	if (!state->crtc || !state->fb)
 		return;
 
-	intel_update_plane(plane, plane->crtc, plane->fb,
+	intel_update_plane(plane, state->crtc, state->fb,
 			   intel_plane->crtc_x, intel_plane->crtc_y,
 			   intel_plane->crtc_w, intel_plane->crtc_h,
 			   intel_plane->src_x, intel_plane->src_y,
@@ -979,7 +981,9 @@ void intel_plane_restore(struct drm_plane *plane)
 
 void intel_plane_disable(struct drm_plane *plane)
 {
-	if (!plane->crtc || !plane->fb)
+	struct drm_plane_state *state = plane->state;
+
+	if (!state->crtc || !state->fb)
 		return;
 
 	intel_disable_plane(plane);
@@ -989,6 +993,7 @@ static const struct drm_plane_funcs intel_plane_funcs = {
 	.update_plane = intel_update_plane,
 	.disable_plane = intel_disable_plane,
 	.destroy = intel_destroy_plane,
+	.set_property = drm_atomic_helper_plane_set_property,
 };
 
 static uint32_t ilk_plane_formats[] = {

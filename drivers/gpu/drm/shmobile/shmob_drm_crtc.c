@@ -238,7 +238,7 @@ static void shmob_drm_crtc_start(struct shmob_drm_crtc *scrtc)
 
 	/* Setup planes. */
 	list_for_each_entry(plane, &dev->mode_config.plane_list, head) {
-		if (plane->crtc == crtc)
+		if (plane->state->crtc == crtc)
 			shmob_drm_plane_setup(plane);
 	}
 

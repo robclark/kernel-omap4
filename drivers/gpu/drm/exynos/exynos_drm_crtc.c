@@ -124,8 +124,8 @@ exynos_drm_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mode,
 	if (ret)
 		return ret;
 
-	plane->crtc = crtc;
-	plane->fb = crtc->fb;
+	plane->state->crtc = crtc;
+	plane->state->fb = crtc->fb;
 
 	exynos_drm_fn_encoder(crtc, &pipe, exynos_drm_encoder_crtc_pipe);
 

@@ -290,12 +290,27 @@ bool drm_fb_helper_restore_fbdev_mode(struct drm_fb_helper *fb_helper)
 	struct drm_device *dev = fb_helper->dev;
 	struct drm_plane *plane;
 	bool error = false;
+	void *state;
 	int i;
 
 	drm_warn_on_modeset_not_all_locked(dev);
 
+	state = dev->driver->atomic_begin(dev, 0);
+	if (IS_ERR(state)) {
+		DRM_ERROR("failed to restore fbdev mode\n");
+		return true;
+	}
+
 	list_for_each_entry(plane, &dev->mode_config.plane_list, head)
-		drm_plane_force_disable(plane);
+		drm_plane_force_disable(plane, state);
+
+	/* just disabling stuff shouldn't fail, hopefully: */
+	if(dev->driver->atomic_check(dev, state))
+		DRM_ERROR("failed to restore fbdev mode\n");
+	else
+		dev->driver->atomic_commit(dev, state);
+
+	dev->driver->atomic_end(dev, state);
 
 	for (i = 0; i < fb_helper->crtc_count; i++) {
 		struct drm_mode_set *mode_set = &fb_helper->crtc_info[i].mode_set;

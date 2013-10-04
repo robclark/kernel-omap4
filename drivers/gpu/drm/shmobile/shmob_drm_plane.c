@@ -14,6 +14,7 @@
 #include <drm/drmP.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 
@@ -166,10 +167,10 @@ void shmob_drm_plane_setup(struct drm_plane *plane)
 {
 	struct shmob_drm_plane *splane = to_shmob_plane(plane);
 
-	if (plane->fb == NULL)
+	if (plane->state->fb == NULL)
 		return;
 
-	__shmob_drm_plane_setup(splane, plane->fb);
+	__shmob_drm_plane_setup(splane, plane->state->fb);
 }
 
 static int
@@ -228,6 +229,7 @@ static void shmob_drm_plane_destroy(struct drm_plane *plane)
 static const struct drm_plane_funcs shmob_drm_plane_funcs = {
 	.update_plane = shmob_drm_plane_update,
 	.disable_plane = shmob_drm_plane_disable,
+	.set_property = drm_atomic_helper_plane_set_property,
 	.destroy = shmob_drm_plane_destroy,
 };
 

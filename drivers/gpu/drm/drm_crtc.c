@@ -595,7 +595,20 @@ void drm_framebuffer_remove(struct drm_framebuffer *fb)
 	 * in this manner.
 	 */
 	if (atomic_read(&fb->refcount.refcount) > 1) {
+		void *state;
+
+		state = dev->driver->atomic_begin(dev, 0);
+		if (IS_ERR(state)) {
+			DRM_ERROR("failed to disable crtc and/or plane when fb was deleted\n");
+			return;
+		}
+
+		/* TODO once CRTC is converted to state/properties, we can push the
+		 * locking down into drm_atomic_helper_commit(), since that is where
+		 * the actual changes take place..
+		 */
 		drm_modeset_lock_all(dev);
+
 		/* remove from any CRTC */
 		list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 			if (crtc->fb == fb) {
@@ -610,9 +623,18 @@ void drm_framebuffer_remove(struct drm_framebuffer *fb)
 		}
 
 		list_for_each_entry(plane, &dev->mode_config.plane_list, head) {
-			if (plane->fb == fb)
-				drm_plane_force_disable(plane);
+			if (plane->state->fb == fb)
+				drm_plane_force_disable(plane, state);
 		}
+
+		/* just disabling stuff shouldn't fail, hopefully: */
+		if(dev->driver->atomic_check(dev, state))
+			DRM_ERROR("failed to disable crtc and/or plane when fb was deleted\n");
+		else
+			dev->driver->atomic_commit(dev, state);
+
+		dev->driver->atomic_end(dev, state);
+
 		drm_modeset_unlock_all(dev);
 	}
 
@@ -904,7 +926,11 @@ int drm_plane_init(struct drm_device *dev, struct drm_plane *plane,
 		   const uint32_t *formats, uint32_t format_count,
 		   bool priv)
 {
+	struct drm_mode_config *config = &dev->mode_config;
 	int ret;
+
+	if (!plane->state)
+		plane->state = kzalloc(sizeof(plane->state), GFP_KERNEL);
 
 	drm_modeset_lock_all(dev);
 
@@ -913,7 +939,7 @@ int drm_plane_init(struct drm_device *dev, struct drm_plane *plane,
 		goto out;
 
 	plane->base.properties = &plane->properties;
-	plane->base.propvals = &plane->propvals;
+	plane->base.propvals = &plane->state->propvals;
 	plane->dev = dev;
 	plane->funcs = funcs;
 	plane->format_types = kmalloc(sizeof(uint32_t) * format_count,
@@ -935,10 +961,22 @@ int drm_plane_init(struct drm_device *dev, struct drm_plane *plane,
 	 */
 	if (!priv) {
 		list_add_tail(&plane->head, &dev->mode_config.plane_list);
+		plane->id = dev->mode_config.num_plane;
 		dev->mode_config.num_plane++;
 	} else {
 		INIT_LIST_HEAD(&plane->head);
 	}
+
+	drm_object_attach_property(&plane->base, config->prop_fb_id, 0);
+	drm_object_attach_property(&plane->base, config->prop_crtc_id, 0);
+	drm_object_attach_property(&plane->base, config->prop_crtc_x, 0);
+	drm_object_attach_property(&plane->base, config->prop_crtc_y, 0);
+	drm_object_attach_property(&plane->base, config->prop_crtc_w, 0);
+	drm_object_attach_property(&plane->base, config->prop_crtc_h, 0);
+	drm_object_attach_property(&plane->base, config->prop_src_x, 0);
+	drm_object_attach_property(&plane->base, config->prop_src_y, 0);
+	drm_object_attach_property(&plane->base, config->prop_src_w, 0);
+	drm_object_attach_property(&plane->base, config->prop_src_h, 0);
 
  out:
 	drm_modeset_unlock_all(dev);
@@ -971,6 +1009,111 @@ void drm_plane_cleanup(struct drm_plane *plane)
 }
 EXPORT_SYMBOL(drm_plane_cleanup);
 
+int drm_plane_check_state(struct drm_plane *plane,
+		struct drm_plane_state *state)
+{
+	unsigned int fb_width, fb_height;
+	struct drm_framebuffer *fb = state->fb;
+	int i;
+
+	/* disabling the plane is allowed: */
+	if (!fb)
+		return 0;
+
+	fb_width = fb->width << 16;
+	fb_height = fb->height << 16;
+
+	/* Check whether this plane supports the fb pixel format. */
+	for (i = 0; i < plane->format_count; i++)
+		if (fb->pixel_format == plane->format_types[i])
+			break;
+	if (i == plane->format_count) {
+		DRM_DEBUG_KMS("Invalid pixel format 0x%08x\n", fb->pixel_format);
+		return -EINVAL;
+	}
+
+	/* Make sure source coordinates are inside the fb. */
+	if (state->src_w > fb_width ||
+			state->src_x > fb_width - state->src_w ||
+			state->src_h > fb_height ||
+			state->src_y > fb_height - state->src_h) {
+		DRM_DEBUG_KMS("Invalid source coordinates "
+			      "%u.%06ux%u.%06u+%u.%06u+%u.%06u\n",
+			      state->src_w >> 16,
+			      ((state->src_w & 0xffff) * 15625) >> 10,
+			      state->src_h >> 16,
+			      ((state->src_h & 0xffff) * 15625) >> 10,
+			      state->src_x >> 16,
+			      ((state->src_x & 0xffff) * 15625) >> 10,
+			      state->src_y >> 16,
+			      ((state->src_y & 0xffff) * 15625) >> 10);
+		return -ENOSPC;
+	}
+
+	/* Give drivers some help against integer overflows */
+	if (state->crtc_w > INT_MAX ||
+			state->crtc_x > INT_MAX - (int32_t) state->crtc_w ||
+			state->crtc_h > INT_MAX ||
+			state->crtc_y > INT_MAX - (int32_t) state->crtc_h) {
+		DRM_DEBUG_KMS("Invalid CRTC coordinates %ux%u+%d+%d\n",
+			      state->crtc_w, state->crtc_h,
+			      state->crtc_x, state->crtc_y);
+		return -ERANGE;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_plane_check_state);
+
+void drm_plane_commit_state(struct drm_plane *plane,
+		struct drm_plane_state *state)
+{
+	plane->state = state;
+	plane->base.propvals = &state->propvals;
+}
+EXPORT_SYMBOL(drm_plane_commit_state);
+
+int drm_plane_set_property(struct drm_plane *plane,
+		struct drm_plane_state *state,
+		struct drm_property *property,
+		uint64_t value, void *blob_data)
+{
+	struct drm_device *dev = plane->dev;
+	struct drm_mode_config *config = &dev->mode_config;
+
+	drm_object_property_set_value(&plane->base,
+			&state->propvals, property, value, blob_data);
+
+	if (property == config->prop_fb_id) {
+		struct drm_mode_object *obj = drm_property_get_obj(property, value);
+		state->fb = obj ? obj_to_fb(obj) : NULL;
+	} else if (property == config->prop_crtc_id) {
+		struct drm_mode_object *obj = drm_property_get_obj(property, value);
+		state->crtc = obj ? obj_to_crtc(obj) : NULL;
+	} else if (property == config->prop_crtc_x) {
+		state->crtc_x = U642I64(value);
+	} else if (property == config->prop_crtc_y) {
+		state->crtc_y = U642I64(value);
+	} else if (property == config->prop_crtc_w) {
+		state->crtc_w = value;
+	} else if (property == config->prop_crtc_h) {
+		state->crtc_h = value;
+	} else if (property == config->prop_src_x) {
+		state->src_x = value;
+	} else if (property == config->prop_src_y) {
+		state->src_y = value;
+	} else if (property == config->prop_src_w) {
+		state->src_w = value;
+	} else if (property == config->prop_src_h) {
+		state->src_h = value;
+	} else {
+		return -EINVAL;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_plane_set_property);
+
 /**
  * drm_plane_force_disable - Forcibly disable a plane
  * @plane: plane to disable
@@ -980,20 +1123,15 @@ EXPORT_SYMBOL(drm_plane_cleanup);
  * Used when the plane's current framebuffer is destroyed,
  * and when restoring fbdev mode.
  */
-void drm_plane_force_disable(struct drm_plane *plane)
+void drm_plane_force_disable(struct drm_plane *plane, void *state)
 {
-	int ret;
+	struct drm_mode_config *config = &plane->dev->mode_config;
 
-	if (!plane->fb)
-		return;
-
-	ret = plane->funcs->disable_plane(plane);
-	if (ret)
-		DRM_ERROR("failed to disable plane with busy fb\n");
-	/* disconnect the plane from the fb and crtc: */
-	__drm_framebuffer_unreference(plane->fb);
-	plane->fb = NULL;
-	plane->crtc = NULL;
+	/* should turn off the crtc */
+	drm_mode_plane_set_obj_prop(plane, state,
+		config->prop_crtc_id, 0, NULL);
+	drm_mode_plane_set_obj_prop(plane, state,
+		config->prop_fb_id, 0, NULL);
 }
 EXPORT_SYMBOL(drm_plane_force_disable);
 
@@ -1043,21 +1181,89 @@ EXPORT_SYMBOL(drm_mode_destroy);
 
 static int drm_mode_create_standard_connector_properties(struct drm_device *dev)
 {
-	struct drm_property *edid;
-	struct drm_property *dpms;
+	struct drm_property *prop;
 
 	/*
 	 * Standard properties (apply to all connectors)
 	 */
-	edid = drm_property_create(dev, DRM_MODE_PROP_BLOB |
+	prop = drm_property_create(dev, DRM_MODE_PROP_BLOB |
 				   DRM_MODE_PROP_IMMUTABLE,
 				   "EDID", 0);
-	dev->mode_config.edid_property = edid;
+	if (!prop)
+		return -ENOMEM;
+	dev->mode_config.edid_property = prop;
 
-	dpms = drm_property_create_enum(dev, 0,
+	prop = drm_property_create_enum(dev, 0,
 				   "DPMS", drm_dpms_enum_list,
 				   ARRAY_SIZE(drm_dpms_enum_list));
-	dev->mode_config.dpms_property = dpms;
+	if (!prop)
+		return -ENOMEM;
+	dev->mode_config.dpms_property = prop;
+
+
+	/* TODO we need the driver to control which of these are dynamic
+	 * and which are not..  or maybe we should just set all to zero
+	 * and let the individual drivers frob the prop->flags for the
+	 * properties they can support dynamic changes on..
+	 */
+
+	prop = drm_property_create_range(dev, DRM_MODE_PROP_DYNAMIC,
+			"SRC_X", 0, UINT_MAX);
+	if (!prop)
+		return -ENOMEM;
+	dev->mode_config.prop_src_x = prop;
+
+	prop = drm_property_create_range(dev, DRM_MODE_PROP_DYNAMIC,
+			"SRC_Y", 0, UINT_MAX);
+	if (!prop)
+		return -ENOMEM;
+	dev->mode_config.prop_src_y = prop;
+
+	prop = drm_property_create_range(dev, 0, "SRC_W", 0, UINT_MAX);
+	if (!prop)
+		return -ENOMEM;
+	dev->mode_config.prop_src_w = prop;
+
+	prop = drm_property_create_range(dev, 0, "SRC_H", 0, UINT_MAX);
+	if (!prop)
+		return -ENOMEM;
+	dev->mode_config.prop_src_h = prop;
+
+	prop = drm_property_create_range(dev,
+			DRM_MODE_PROP_DYNAMIC | DRM_MODE_PROP_SIGNED,
+			"CRTC_X", I642U64(INT_MIN), I642U64(INT_MAX));
+	if (!prop)
+		return -ENOMEM;
+	dev->mode_config.prop_crtc_x = prop;
+
+	prop = drm_property_create_range(dev,
+			DRM_MODE_PROP_DYNAMIC | DRM_MODE_PROP_SIGNED,
+			"CRTC_Y", I642U64(INT_MIN), I642U64(INT_MAX));
+	if (!prop)
+		return -ENOMEM;
+	dev->mode_config.prop_crtc_y = prop;
+
+	prop = drm_property_create_range(dev, 0, "CRTC_W", 0, INT_MAX);
+	if (!prop)
+		return -ENOMEM;
+	dev->mode_config.prop_crtc_w = prop;
+
+	prop = drm_property_create_range(dev, 0, "CRTC_H", 0, INT_MAX);
+	if (!prop)
+		return -ENOMEM;
+	dev->mode_config.prop_crtc_h = prop;
+
+	prop = drm_property_create_object(dev, DRM_MODE_PROP_DYNAMIC,
+			"FB_ID", DRM_MODE_OBJECT_FB);
+	if (!prop)
+		return -ENOMEM;
+	dev->mode_config.prop_fb_id = prop;
+
+	prop = drm_property_create_object(dev, 0,
+			"CRTC_ID", DRM_MODE_OBJECT_CRTC);
+	if (!prop)
+		return -ENOMEM;
+	dev->mode_config.prop_crtc_id = prop;
 
 	return 0;
 }
@@ -1842,13 +2048,13 @@ int drm_mode_getplane(struct drm_device *dev, void *data,
 	}
 	plane = obj_to_plane(obj);
 
-	if (plane->crtc)
-		plane_resp->crtc_id = plane->crtc->base.id;
+	if (plane->state->crtc)
+		plane_resp->crtc_id = plane->state->crtc->base.id;
 	else
 		plane_resp->crtc_id = 0;
 
-	if (plane->fb)
-		plane_resp->fb_id = plane->fb->base.id;
+	if (plane->state->fb)
+		plane_resp->fb_id = plane->state->fb->base.id;
 	else
 		plane_resp->fb_id = 0;
 
@@ -1890,21 +2096,18 @@ int drm_mode_setplane(struct drm_device *dev, void *data,
 			struct drm_file *file_priv)
 {
 	struct drm_mode_set_plane *plane_req = data;
+	struct drm_mode_config *config = &dev->mode_config;
 	struct drm_mode_object *obj;
-	struct drm_plane *plane;
-	struct drm_crtc *crtc;
-	struct drm_framebuffer *fb = NULL, *old_fb = NULL;
+	void *state;
 	int ret = 0;
-	unsigned int fb_width, fb_height;
-	int i;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
 
-	/*
-	 * First, find the plane, crtc, and fb objects.  If not available,
-	 * we don't bother to call the driver.
-	 */
+	state = dev->driver->atomic_begin(dev, 0);
+	if (IS_ERR(state))
+		return PTR_ERR(state);
+
 	obj = drm_mode_object_find(dev, plane_req->plane_id,
 				   DRM_MODE_OBJECT_PLANE);
 	if (!obj) {
@@ -1912,102 +2115,39 @@ int drm_mode_setplane(struct drm_device *dev, void *data,
 			      plane_req->plane_id);
 		return -ENOENT;
 	}
-	plane = obj_to_plane(obj);
-
-	/* No fb means shut it down */
-	if (!plane_req->fb_id) {
-		drm_modeset_lock_all(dev);
-		old_fb = plane->fb;
-		plane->funcs->disable_plane(plane);
-		plane->crtc = NULL;
-		plane->fb = NULL;
-		drm_modeset_unlock_all(dev);
-		goto out;
-	}
-
-	obj = drm_mode_object_find(dev, plane_req->crtc_id,
-				   DRM_MODE_OBJECT_CRTC);
-	if (!obj) {
-		DRM_DEBUG_KMS("Unknown crtc ID %d\n",
-			      plane_req->crtc_id);
-		ret = -ENOENT;
-		goto out;
-	}
-	crtc = obj_to_crtc(obj);
-
-	fb = drm_framebuffer_lookup(dev, plane_req->fb_id);
-	if (!fb) {
-		DRM_DEBUG_KMS("Unknown framebuffer ID %d\n",
-			      plane_req->fb_id);
-		ret = -ENOENT;
-		goto out;
-	}
-
-	/* Check whether this plane supports the fb pixel format. */
-	for (i = 0; i < plane->format_count; i++)
-		if (fb->pixel_format == plane->format_types[i])
-			break;
-	if (i == plane->format_count) {
-		DRM_DEBUG_KMS("Invalid pixel format %s\n",
-			      drm_get_format_name(fb->pixel_format));
-		ret = -EINVAL;
-		goto out;
-	}
-
-	fb_width = fb->width << 16;
-	fb_height = fb->height << 16;
-
-	/* Make sure source coordinates are inside the fb. */
-	if (plane_req->src_w > fb_width ||
-	    plane_req->src_x > fb_width - plane_req->src_w ||
-	    plane_req->src_h > fb_height ||
-	    plane_req->src_y > fb_height - plane_req->src_h) {
-		DRM_DEBUG_KMS("Invalid source coordinates "
-			      "%u.%06ux%u.%06u+%u.%06u+%u.%06u\n",
-			      plane_req->src_w >> 16,
-			      ((plane_req->src_w & 0xffff) * 15625) >> 10,
-			      plane_req->src_h >> 16,
-			      ((plane_req->src_h & 0xffff) * 15625) >> 10,
-			      plane_req->src_x >> 16,
-			      ((plane_req->src_x & 0xffff) * 15625) >> 10,
-			      plane_req->src_y >> 16,
-			      ((plane_req->src_y & 0xffff) * 15625) >> 10);
-		ret = -ENOSPC;
-		goto out;
-	}
-
-	/* Give drivers some help against integer overflows */
-	if (plane_req->crtc_w > INT_MAX ||
-	    plane_req->crtc_x > INT_MAX - (int32_t) plane_req->crtc_w ||
-	    plane_req->crtc_h > INT_MAX ||
-	    plane_req->crtc_y > INT_MAX - (int32_t) plane_req->crtc_h) {
-		DRM_DEBUG_KMS("Invalid CRTC coordinates %ux%u+%d+%d\n",
-			      plane_req->crtc_w, plane_req->crtc_h,
-			      plane_req->crtc_x, plane_req->crtc_y);
-		ret = -ERANGE;
-		goto out;
-	}
 
 	drm_modeset_lock_all(dev);
-	ret = plane->funcs->update_plane(plane, crtc, fb,
-					 plane_req->crtc_x, plane_req->crtc_y,
-					 plane_req->crtc_w, plane_req->crtc_h,
-					 plane_req->src_x, plane_req->src_y,
-					 plane_req->src_w, plane_req->src_h);
-	if (!ret) {
-		old_fb = plane->fb;
-		plane->crtc = crtc;
-		plane->fb = fb;
-		fb = NULL;
-	}
-	drm_modeset_unlock_all(dev);
+
+	ret =
+		drm_mode_set_obj_prop(obj, state,
+			config->prop_crtc_id, plane_req->crtc_id, NULL) ||
+		drm_mode_set_obj_prop(obj, state,
+			config->prop_fb_id, plane_req->fb_id, NULL) ||
+		drm_mode_set_obj_prop(obj, state,
+			config->prop_crtc_x, I642U64(plane_req->crtc_x), NULL) ||
+		drm_mode_set_obj_prop(obj, state,
+			config->prop_crtc_y, I642U64(plane_req->crtc_y), NULL) ||
+		drm_mode_set_obj_prop(obj, state,
+			config->prop_crtc_w, plane_req->crtc_w, NULL) ||
+		drm_mode_set_obj_prop(obj, state,
+			config->prop_crtc_h, plane_req->crtc_h, NULL) ||
+		drm_mode_set_obj_prop(obj, state,
+			config->prop_src_w, plane_req->src_w, NULL) ||
+		drm_mode_set_obj_prop(obj, state,
+			config->prop_src_h, plane_req->src_h, NULL) ||
+		drm_mode_set_obj_prop(obj, state,
+			config->prop_src_x, plane_req->src_x, NULL) ||
+		drm_mode_set_obj_prop(obj, state,
+			config->prop_src_y, plane_req->src_y, NULL) ||
+		dev->driver->atomic_check(dev, state);
+	if (ret)
+		goto out;
+
+	ret = dev->driver->atomic_commit(dev, state);
 
 out:
-	if (fb)
-		drm_framebuffer_unreference(fb);
-	if (old_fb)
-		drm_framebuffer_unreference(old_fb);
-
+	dev->driver->atomic_end(dev, state);
+	drm_modeset_unlock_all(dev);
 	return ret;
 }
 
@@ -3295,7 +3435,7 @@ int drm_mode_connector_property_set_ioctl(struct drm_device *dev,
 	return drm_mode_obj_set_property_ioctl(dev, &obj_set_prop, file_priv);
 }
 
-static int drm_mode_connector_set_obj_prop(struct drm_connector *connector,
+int drm_mode_connector_set_obj_prop(struct drm_connector *connector,
 					   void *state, struct drm_property *property,
 					   uint64_t value, void *blob_data)
 {
@@ -3318,8 +3458,9 @@ static int drm_mode_connector_set_obj_prop(struct drm_connector *connector,
 
 	return ret;
 }
+EXPORT_SYMBOL(drm_mode_connector_set_obj_prop);
 
-static int drm_mode_crtc_set_obj_prop(struct drm_crtc *crtc,
+int drm_mode_crtc_set_obj_prop(struct drm_crtc *crtc,
 				      void *state, struct drm_property *property,
 				      uint64_t value, void *blob_data)
 {
@@ -3334,8 +3475,9 @@ static int drm_mode_crtc_set_obj_prop(struct drm_crtc *crtc,
 
 	return ret;
 }
+EXPORT_SYMBOL(drm_mode_crtc_set_obj_prop);
 
-static int drm_mode_plane_set_obj_prop(struct drm_plane *plane,
+int drm_mode_plane_set_obj_prop(struct drm_plane *plane,
 				      void *state, struct drm_property *property,
 				      uint64_t value, void *blob_data)
 {
@@ -3344,12 +3486,10 @@ static int drm_mode_plane_set_obj_prop(struct drm_plane *plane,
 	if (plane->funcs->set_property)
 		ret = plane->funcs->set_property(plane, state, property,
 				value, blob_data);
-	if (!ret)
-		drm_object_property_set_value(&plane->base, &plane->propvals,
-				property, value, NULL);
 
 	return ret;
 }
+EXPORT_SYMBOL(drm_mode_plane_set_obj_prop);
 
 static int drm_mode_set_obj_prop(struct drm_mode_object *obj,
 		void *state, struct drm_property *property, 

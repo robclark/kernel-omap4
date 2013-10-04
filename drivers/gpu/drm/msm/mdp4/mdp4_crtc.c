@@ -644,7 +644,7 @@ struct drm_crtc *mdp4_crtc_init(struct drm_device *dev,
 	crtc = &mdp4_crtc->base;
 
 	mdp4_crtc->plane = plane;
-	mdp4_crtc->plane->crtc = crtc;
+	mdp4_crtc->plane->state->crtc = crtc;
 
 	mdp4_crtc->ovlp = ovlp_id;
 	mdp4_crtc->dma = dma_id;

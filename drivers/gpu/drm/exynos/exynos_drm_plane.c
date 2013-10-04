@@ -10,6 +10,7 @@
  */
 
 #include <drm/drmP.h>
+#include <drm/drm_atomic_helper.h>
 
 #include <drm/exynos_drm.h>
 #include "exynos_drm_drv.h"
@@ -149,7 +150,7 @@ void exynos_plane_commit(struct drm_plane *plane)
 	struct exynos_plane *exynos_plane = to_exynos_plane(plane);
 	struct exynos_drm_overlay *overlay = &exynos_plane->overlay;
 
-	exynos_drm_fn_encoder(plane->crtc, &overlay->zpos,
+	exynos_drm_fn_encoder(plane->state->crtc, &overlay->zpos,
 			exynos_drm_encoder_plane_commit);
 }
 
@@ -162,7 +163,7 @@ void exynos_plane_dpms(struct drm_plane *plane, int mode)
 		if (exynos_plane->enabled)
 			return;
 
-		exynos_drm_fn_encoder(plane->crtc, &overlay->zpos,
+		exynos_drm_fn_encoder(plane->state->crtc, &overlay->zpos,
 				exynos_drm_encoder_plane_enable);
 
 		exynos_plane->enabled = true;
@@ -170,7 +171,7 @@ void exynos_plane_dpms(struct drm_plane *plane, int mode)
 		if (!exynos_plane->enabled)
 			return;
 
-		exynos_drm_fn_encoder(plane->crtc, &overlay->zpos,
+		exynos_drm_fn_encoder(plane->state->crtc, &overlay->zpos,
 				exynos_drm_encoder_plane_disable);
 
 		exynos_plane->enabled = false;
@@ -192,7 +193,7 @@ exynos_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	if (ret < 0)
 		return ret;
 
-	plane->crtc = crtc;
+	plane->state->crtc = crtc;
 
 	exynos_plane_commit(plane);
 	exynos_plane_dpms(plane, DRM_MODE_DPMS_ON);
@@ -229,6 +230,10 @@ static int exynos_plane_set_property(struct drm_plane *plane,
 	if (property == dev_priv->plane_zpos_property) {
 		exynos_plane->overlay.zpos = val;
 		return 0;
+	} else {
+		return drm_plane_set_property(plane,
+				drm_atomic_get_plane_state(plane, state),
+				property, val, blob_data);
 	}
 
 	return -EINVAL;

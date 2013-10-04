@@ -45,11 +45,14 @@ static int mdp4_plane_update(struct drm_plane *plane,
 		uint32_t src_w, uint32_t src_h)
 {
 	struct mdp4_plane *mdp4_plane = to_mdp4_plane(plane);
+	struct drm_plane_state *state = plane->state;
 
 	mdp4_plane->enabled = true;
 
-	if (plane->fb)
-		drm_framebuffer_unreference(plane->fb);
+	if (state->fb) {
+		drm_framebuffer_unreference(state->fb);
+		state->fb = NULL;
+	}
 
 	drm_framebuffer_reference(fb);
 
@@ -85,8 +88,9 @@ void mdp4_plane_install_properties(struct drm_plane *plane,
 int mdp4_plane_set_property(struct drm_plane *plane, void *state,
 		struct drm_property *property, uint64_t val, void *blob_data)
 {
-	// XXX
-	return -EINVAL;
+	return drm_plane_set_property(plane,
+			drm_atomic_get_plane_state(plane, state),
+			property, val, blob_data);
 }
 
 static const struct drm_plane_funcs mdp4_plane_funcs = {
@@ -115,7 +119,7 @@ void mdp4_plane_set_scanout(struct drm_plane *plane,
 	msm_gem_get_iova(msm_framebuffer_bo(fb, 0), mdp4_kms->id, &iova);
 	mdp4_write(mdp4_kms, REG_MDP4_PIPE_SRCP0_BASE(pipe), iova);
 
-	plane->fb = fb;
+	plane->state->fb = fb;
 }
 
 #define MDP4_VG_PHASE_STEP_DEFAULT	0x20000000
@@ -191,7 +195,7 @@ int mdp4_plane_mode_set(struct drm_plane *plane,
 	mdp4_write(mdp4_kms, REG_MDP4_PIPE_PHASEX_STEP(pipe), phasex_step);
 	mdp4_write(mdp4_kms, REG_MDP4_PIPE_PHASEY_STEP(pipe), phasey_step);
 
-	plane->crtc = crtc;
+	plane->state->crtc = crtc;
 
 	return 0;
 }
